@@ -110,6 +110,97 @@ Task documentation is stored **inside the user's workspace** at `.agentrunner/ta
 3. During execution, the agent reads the docs and writes artifacts to the folder
 4. On completion, the folder serves as a version-controlled record of what was done
 
+### 2.6 Project Bootstrap & Development Guidelines
+
+When AgentRunner is first launched against a new project workspace, it performs an automatic bootstrap process to establish AI development guidelines.
+
+**Purpose:**
+1. **Consistency**: Ensures Claude follows project-specific coding standards
+2. **Context**: Provides architectural patterns and constraints upfront
+3. **Quality**: Establishes testing requirements and forbidden practices
+
+**Bootstrap Detection:**
+The system checks for `kanban-development-guideline.md` in the workspace root:
+- If **missing**: Creates a bootstrap task automatically
+- If **present**: Skips bootstrap, loads existing guidelines
+
+**Bootstrap Task:**
+When triggered, the system creates a special task with ID `t-bootstrap` that:
+1. Reads the template from `templates/development-guideline.md`
+2. Audits the repository structure, dependencies, and patterns
+3. Generates `kanban-development-guideline.md` in the workspace root
+
+**Bootstrap Prompt:**
+```
+You are a Senior Engineer contributing to this repository. Your task is to audit this codebase and create a development guideline document.
+
+1. First, explore the repository structure using file listing and reading
+2. Identify the tech stack, frameworks, and core libraries
+3. Analyze the architectural patterns and folder structure
+4. Review existing tests to understand the testing strategy
+5. Check for linting/formatting configurations
+6. Look for existing coding conventions in the codebase
+
+Using the template at templates/development-guideline.md, create a comprehensive
+kanban-development-guideline.md file in the project root with:
+
+## 🛠️ Tech Stack & Core Libraries
+[List the discovered frameworks and libraries. Be version-specific if possible.]
+
+## 🏗️ Architectural Patterns
+[Describe the folder structure and design patterns observed in the audit.]
+
+## 🧪 Testing Strategy
+[Define the testing framework and requirements discovered.]
+
+## 🎨 Coding Standards
+- **Naming:** [Insert observed naming convention]
+- **Typing:** [Strict vs Loose typing rules]
+- **Formatting:** [Reference linter rules]
+
+## 🚫 Explicit Anti-Patterns
+[List patterns to avoid based on the codebase analysis]
+
+## 🧠 Behavioral Rules
+- **Context First:** Always read related files before suggesting changes.
+- **Concise:** Focus on implementation details relevant to this architecture.
+
+Save the completed guidelines to: kanban-development-guideline.md
+```
+
+**File Locations:**
+```
+agentrunner/
+├── templates/
+│   └── development-guideline.md    # Template for guidelines
+
+{workspace}/
+├── kanban-development-guideline.md # Generated guidelines (in project root)
+└── .agentrunner/
+    └── tasks/
+        └── t-bootstrap_setup-guidelines/
+```
+
+**Workflow:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User starts AgentRunner with workspace                      │
+│                     ↓                                        │
+│  System checks: kanban-development-guideline.md exists?      │
+│                     ↓                                        │
+│         ┌─── NO ───┴─── YES ───┐                            │
+│         ↓                      ↓                             │
+│  Create bootstrap task    Load existing                      │
+│  (t-bootstrap)            guidelines                         │
+│         ↓                      ↓                             │
+│  Agent audits repo        Ready for                          │
+│  & generates guidelines   user tasks                         │
+│         ↓                                                    │
+│  Guidelines saved to                                         │
+│  workspace root                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
 ### 2.3 Container Strategy
 
 Single Node.js container serving both API and static frontend. The container requires Claude Code CLI installed globally.
@@ -456,6 +547,16 @@ services:
 - [x] Build optimization (.dockerignore, HEALTHCHECK, 358MB image)
 - [x] Documentation updates
 - [x] docker-compose.yml
+
+### Phase 7: Project Bootstrap & Development Guidelines ✅
+- [x] Create bootstrap detection service
+- [x] Implement first-run detection logic
+- [x] Create bootstrap task with preconfigured prompt
+- [x] Copy development guideline template to workspace
+- [x] Update store service to trigger bootstrap on first access
+- [x] Add bootstrap status to board API response
+- [x] Update frontend to show bootstrap task prominently
+- [x] Add "Re-run Bootstrap" option in UI (via delete guidelines + restart)
 
 ---
 

@@ -4,6 +4,12 @@ import path from 'node:path';
 import type { Board, Task, CreateTaskInput, UpdateTaskInput } from '../../types/index.js';
 import { getWorkspacePath, getAgentRunnerDir, getBoardPath } from '../utils/paths.js';
 import { createTaskDocsFolder, deleteTaskDocsFolder } from './taskDocs.js';
+import {
+  checkBootstrapRequired,
+  createBootstrapTask,
+  BOOTSTRAP_TASK_ID,
+  BOOTSTRAP_TASK_SLUG,
+} from './bootstrap.js';
 
 /**
  * Get project name from workspace folder name
@@ -53,6 +59,35 @@ export async function loadBoard(): Promise<Board> {
 
   const data = await readFile(boardPath, 'utf-8');
   return JSON.parse(data) as Board;
+}
+
+/**
+ * Get the board with bootstrap status and auto-create bootstrap task if needed
+ */
+export async function getBoardWithBootstrap(): Promise<Board> {
+  const board = await loadBoard();
+  const bootstrapStatus = checkBootstrapRequired();
+
+  // Check if bootstrap task already exists
+  const hasBootstrapTask = board.tasks.some(t => t.id === BOOTSTRAP_TASK_ID);
+
+  // If bootstrap is required and no bootstrap task exists, create one
+  if (bootstrapStatus.required && !hasBootstrapTask) {
+    const bootstrapTask = await createBootstrapTask();
+
+    // Create the documentation folder for bootstrap task
+    await createTaskDocsFolder(BOOTSTRAP_TASK_ID, bootstrapTask.title, bootstrapTask.context);
+
+    board.tasks.unshift(bootstrapTask); // Add to beginning of tasks
+    await saveBoard(board);
+  }
+
+  // Return board with bootstrap status
+  return {
+    ...board,
+    bootstrapRequired: bootstrapStatus.required,
+    guidelinesPath: bootstrapStatus.guidelinesPath,
+  };
 }
 
 /**

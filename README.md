@@ -13,6 +13,7 @@ AgentRunner provides a Kanban-style interface for managing AI-assisted developme
 - **Live Terminal Output**: Stream agent logs via WebSocket to see real-time progress
 - **Task Documentation**: Each task gets a folder with README, PLAN, and CHECKLIST for context
 - **Single Project Focus**: One board, one repository, zero context switching
+- **Auto-Bootstrap**: Automatically generates project-specific AI development guidelines on first run
 
 ## Tech Stack
 
@@ -115,6 +116,59 @@ This design makes each project self-contained and portable.
 4. **Review**: Completed tasks move to Review for your approval
 5. **Done**: Drag reviewed tasks to Done when satisfied
 
+## Auto-Bootstrap: Development Guidelines
+
+When you first start AgentRunner against a new project, it automatically creates a bootstrap task to generate AI development guidelines specific to your codebase.
+
+### How It Works
+
+1. **Detection**: AgentRunner checks if `kanban-development-guideline.md` exists in your project root
+2. **Bootstrap Task**: If missing, a special task is created automatically
+3. **Codebase Audit**: Claude analyzes your repository structure, dependencies, and patterns
+4. **Guidelines Generated**: A comprehensive `kanban-development-guideline.md` is created
+
+### What's Analyzed
+
+The bootstrap process examines:
+- Tech stack and core libraries (with versions)
+- Folder structure and architectural patterns
+- Testing frameworks and strategies
+- Linting/formatting configurations
+- Existing coding conventions
+
+### Generated Guidelines Include
+
+```markdown
+## Tech Stack & Core Libraries
+[Discovered frameworks and versions]
+
+## Architectural Patterns
+[Folder structure and design patterns]
+
+## Testing Strategy
+[Testing framework and requirements]
+
+## Coding Standards
+[Naming conventions, typing rules, formatting]
+
+## Explicit Anti-Patterns
+[Patterns to avoid in this codebase]
+
+## Behavioral Rules
+[Context-first development guidelines]
+```
+
+### Customizing the Template
+
+The template is located at `templates/development-guideline.md`. Modify it to match your organization's standards before running the bootstrap task.
+
+### Re-running Bootstrap
+
+To regenerate guidelines (e.g., after major refactoring):
+1. Delete `kanban-development-guideline.md` from your project root
+2. Restart AgentRunner
+3. The bootstrap task will be created again
+
 ## Project Structure
 
 ```
@@ -130,6 +184,7 @@ agentrunner/
 │   │   ├── services/
 │   │   │   ├── runner.ts     # Claude CLI process management
 │   │   │   ├── store.ts      # JSON file storage
+│   │   │   ├── bootstrap.ts  # First-run detection & setup
 │   │   │   └── taskDocs.ts   # Task documentation folders
 │   │   ├── templates/        # Task doc templates
 │   │   └── utils/            # Slug, paths helpers
@@ -137,6 +192,8 @@ agentrunner/
 │   │   └── index.html        # Frontend UI
 │   └── types/
 │       └── index.ts          # Shared TypeScript types
+├── templates/
+│   └── development-guideline.md  # Bootstrap template
 ├── Dockerfile
 ├── docker-compose.yml
 └── package.json

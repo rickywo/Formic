@@ -12,9 +12,10 @@ COPY package*.json ./
 # Install production dependencies only
 RUN npm ci --omit=dev
 
-# Copy built application and client files
+# Copy built application, client files, and templates
 COPY dist/ ./dist/
 COPY src/client/ ./src/client/
+COPY templates/ ./templates/
 
 # Create workspace directory (will be overwritten by volume mount)
 RUN mkdir -p /app/workspace

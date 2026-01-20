@@ -21,6 +21,8 @@ export interface BoardMeta {
 export interface Board {
   meta: BoardMeta;
   tasks: Task[];
+  bootstrapRequired?: boolean;
+  guidelinesPath?: string | null;
 }
 
 export interface CreateTaskInput {
