@@ -1,5 +1,12 @@
-export type TaskStatus = 'todo' | 'running' | 'review' | 'done';
+export type TaskStatus = 'todo' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
+export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'execute' | 'complete';
+
+export interface WorkflowLogs {
+  brief?: string[];
+  plan?: string[];
+  execute?: string[];
+}
 
 export interface Task {
   id: string;
@@ -10,6 +17,9 @@ export interface Task {
   docsPath: string;
   agentLogs: string[];
   pid: number | null;
+  // Workflow fields
+  workflowStep?: WorkflowStep;
+  workflowLogs?: WorkflowLogs;
 }
 
 export interface BoardMeta {
@@ -36,6 +46,8 @@ export interface UpdateTaskInput {
   status?: TaskStatus;
   priority?: TaskPriority;
   context?: string;
+  workflowStep?: WorkflowStep;
+  workflowLogs?: WorkflowLogs;
 }
 
 export interface LogMessage {

@@ -391,6 +391,60 @@
     .bootstrap-banner .btn:hover {
       background-color: rgba(255, 255, 255, 0.3);
     }
+
+    /* Workflow Step Indicator */
+    .workflow-indicator {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 8px;
+    }
+
+    .workflow-step {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background-color: var(--bg-secondary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    .workflow-step.active {
+      background-color: var(--accent-blue);
+      color: #fff;
+      border-color: var(--accent-blue);
+      animation: pulse 2s infinite;
+    }
+
+    .workflow-step.completed {
+      background-color: var(--accent-green);
+      color: #000;
+      border-color: var(--accent-green);
+    }
+
+    /* Status badges for briefing and planning */
+    .status-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+
+    .status-briefing {
+      background-color: #8b5cf6;
+      color: #fff;
+    }
+
+    .status-planning {
+      background-color: #6366f1;
+      color: #fff;
+    }
+
+    .status-running {
+      background-color: var(--accent-blue);
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -576,7 +630,16 @@
 
     // Render
     function renderBoard() {
-      const statuses = ['todo', 'running', 'review', 'done'];
+      const columns = ['todo', 'running', 'review', 'done'];
+
+      // Map workflow statuses to columns
+      // briefing, planning, running all go to the 'running' column
+      function getColumnForStatus(status) {
+        if (status === 'briefing' || status === 'planning' || status === 'running') {
+          return 'running';
+        }
+        return status;
+      }
 
       // Update bootstrap banner visibility
       const bootstrapBanner = document.getElementById('bootstrap-banner');
@@ -587,11 +650,12 @@
         bootstrapBanner.classList.add('hidden');
       }
 
-      statuses.forEach(status => {
-        const container = document.getElementById(`${status}-tasks`);
-        const tasks = board.tasks.filter(t => t.status === status);
+      columns.forEach(column => {
+        const container = document.getElementById(`${column}-tasks`);
+        // Filter tasks that belong to this column
+        const tasks = board.tasks.filter(t => getColumnForStatus(t.status) === column);
 
-        document.getElementById(`${status}-count`).textContent = tasks.length;
+        document.getElementById(`${column}-count`).textContent = tasks.length;
 
         if (tasks.length === 0) {
           container.innerHTML = '<div class="empty-state">No tasks</div>';
@@ -606,20 +670,56 @@
             ? 'Analyzes your codebase and generates AI development guidelines tailored to your project.'
             : escapeHtml(task.context);
 
+          // Build workflow step indicator for active workflow tasks
+          const workflowSteps = ['brief', 'plan', 'execute'];
+          const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
+          const workflowStep = task.workflowStep || 'pending';
+
+          let workflowIndicator = '';
+          if (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete')) {
+            const stepClasses = workflowSteps.map(step => {
+              if (workflowStep === step) return 'active';
+              if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep)) return 'completed';
+              if (workflowStep === 'complete') return 'completed';
+              return '';
+            });
+            workflowIndicator = `
+              <div class="workflow-indicator">
+                <span class="workflow-step ${stepClasses[0]}">Brief</span>
+                <span class="workflow-step ${stepClasses[1]}">Plan</span>
+                <span class="workflow-step ${stepClasses[2]}">Execute</span>
+              </div>
+            `;
+          }
+
+          // Build status badge for briefing/planning
+          let statusBadge = '';
+          if (task.status === 'briefing') {
+            statusBadge = '<span class="status-badge status-briefing">Briefing</span>';
+          } else if (task.status === 'planning') {
+            statusBadge = '<span class="status-badge status-planning">Planning</span>';
+          } else if (task.status === 'running') {
+            statusBadge = '<span class="status-badge status-running">Executing</span>';
+          }
+
+          // Check if task is in any running state
+          const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
+
           return `
             <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}">
               <div class="task-header">
-                <span class="task-title">${bootstrapBadge}${escapeHtml(task.title)}</span>
+                <span class="task-title">${bootstrapBadge}${escapeHtml(task.title)}${statusBadge}</span>
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
               </div>
+              ${workflowIndicator}
               <div class="task-context">${contextText}</div>
               <div class="task-actions">
                 ${task.status === 'todo' ? `<button class="btn btn-primary" onclick="runTask('${task.id}')">Run</button>` : ''}
-                ${task.status === 'running' ? `
+                ${isRunning ? `
                   <button class="btn" onclick="openTerminal('${task.id}')">Logs</button>
                   <button class="btn btn-danger" onclick="stopTask('${task.id}')">Stop</button>
                 ` : ''}
-                ${task.status !== 'running' ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
+                ${!isRunning ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
               </div>
             </div>
           `;

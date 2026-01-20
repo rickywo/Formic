@@ -1,6 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { createTask, updateTask, deleteTask, getTask } from '../services/store.js';
 import { runAgent, stopAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
+import {
+  executeFullWorkflow,
+  executeSingleStep,
+  stopWorkflow,
+  isWorkflowRunning,
+  getActiveWorkflowStep,
+} from '../services/workflow.js';
 import type { CreateTaskInput, UpdateTaskInput } from '../../types/index.js';
 
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
@@ -34,8 +41,8 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     const { id } = request.params;
     const preserveHistory = request.query.preserveHistory === 'true';
 
-    // Check if task is running
-    if (getRunningTaskId() === id) {
+    // Check if task is running or workflow is active
+    if (getRunningTaskId() === id || isWorkflowRunning(id)) {
       return reply.status(400).send({ error: 'Cannot delete a running task' });
     }
 
@@ -48,12 +55,13 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     return reply.status(204).send();
   });
 
-  // POST /api/tasks/:id/run - Start agent execution
-  fastify.post<{ Params: { id: string } }>('/api/tasks/:id/run', async (request, reply) => {
+  // POST /api/tasks/:id/run - Start full workflow execution (brief → plan → execute)
+  fastify.post<{ Params: { id: string }; Querystring: { useWorkflow?: string } }>('/api/tasks/:id/run', async (request, reply) => {
     const { id } = request.params;
+    const useWorkflow = request.query.useWorkflow !== 'false'; // Default to using workflow
 
     // Check if an agent is already running
-    if (isAgentRunning()) {
+    if (isAgentRunning() || isWorkflowRunning(id)) {
       return reply.status(409).send({
         error: 'An agent is already running',
         runningTaskId: getRunningTaskId(),
@@ -70,24 +78,141 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     try {
-      const result = await runAgent(id, task.title, task.context, task.docsPath);
-      return reply.send({ status: 'running', pid: result.pid });
+      if (useWorkflow) {
+        // Use full workflow: brief → plan → execute
+        const result = await executeFullWorkflow(id);
+        return reply.send({
+          status: 'briefing',
+          workflowStep: 'brief',
+          message: 'Starting workflow: brief → plan → execute',
+          pid: result.pid,
+        });
+      } else {
+        // Legacy: direct execution without workflow
+        const result = await runAgent(id, task.title, task.context, task.docsPath);
+        return reply.send({ status: 'running', pid: result.pid });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       return reply.status(500).send({ error: message });
     }
   });
 
-  // POST /api/tasks/:id/stop - Stop agent execution
+  // POST /api/tasks/:id/stop - Stop agent/workflow execution
   fastify.post<{ Params: { id: string } }>('/api/tasks/:id/stop', async (request, reply) => {
     const { id } = request.params;
 
-    const stopped = await stopAgent(id);
-
-    if (!stopped) {
-      return reply.status(404).send({ error: 'No running agent found for this task' });
+    // Try stopping workflow first, then legacy agent
+    const workflowStopped = await stopWorkflow(id);
+    if (workflowStopped) {
+      return reply.send({ status: 'stopping', type: 'workflow' });
     }
 
-    return reply.send({ status: 'stopping' });
+    const agentStopped = await stopAgent(id);
+    if (agentStopped) {
+      return reply.send({ status: 'stopping', type: 'agent' });
+    }
+
+    return reply.status(404).send({ error: 'No running agent found for this task' });
+  });
+
+  // POST /api/tasks/:id/workflow/brief - Run only the brief step
+  fastify.post<{ Params: { id: string } }>('/api/tasks/:id/workflow/brief', async (request, reply) => {
+    const { id } = request.params;
+
+    if (isAgentRunning() || isWorkflowRunning(id)) {
+      return reply.status(409).send({ error: 'An agent is already running' });
+    }
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    try {
+      const result = await executeSingleStep(id, 'brief');
+      return reply.send({
+        status: 'briefing',
+        workflowStep: 'brief',
+        success: result.success,
+        pid: result.pid,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      return reply.status(500).send({ error: message });
+    }
+  });
+
+  // POST /api/tasks/:id/workflow/plan - Run only the plan step
+  fastify.post<{ Params: { id: string } }>('/api/tasks/:id/workflow/plan', async (request, reply) => {
+    const { id } = request.params;
+
+    if (isAgentRunning() || isWorkflowRunning(id)) {
+      return reply.status(409).send({ error: 'An agent is already running' });
+    }
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    try {
+      const result = await executeSingleStep(id, 'plan');
+      return reply.send({
+        status: 'planning',
+        workflowStep: 'plan',
+        success: result.success,
+        pid: result.pid,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      return reply.status(500).send({ error: message });
+    }
+  });
+
+  // POST /api/tasks/:id/workflow/execute - Run only the execute step
+  fastify.post<{ Params: { id: string } }>('/api/tasks/:id/workflow/execute', async (request, reply) => {
+    const { id } = request.params;
+
+    if (isAgentRunning() || isWorkflowRunning(id)) {
+      return reply.status(409).send({ error: 'An agent is already running' });
+    }
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    try {
+      const result = await executeSingleStep(id, 'execute');
+      return reply.send({
+        status: 'running',
+        workflowStep: 'execute',
+        success: result.success,
+        pid: result.pid,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      return reply.status(500).send({ error: message });
+    }
+  });
+
+  // GET /api/tasks/:id/workflow - Get workflow status
+  fastify.get<{ Params: { id: string } }>('/api/tasks/:id/workflow', async (request, reply) => {
+    const { id } = request.params;
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    return reply.send({
+      taskId: id,
+      status: task.status,
+      workflowStep: task.workflowStep || 'pending',
+      workflowLogs: task.workflowLogs || {},
+      isRunning: isWorkflowRunning(id),
+      activeStep: getActiveWorkflowStep(id),
+    });
   });
 }

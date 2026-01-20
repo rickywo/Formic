@@ -201,6 +201,144 @@ agentrunner/
 └─────────────────────────────────────────────────────────────┘
 ```
 
+### 2.7 Skill-Based Task Documentation Workflow
+
+AgentRunner implements a structured 3-step workflow for task execution, ensuring comprehensive documentation before any implementation begins.
+
+**Workflow Overview:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  User creates task with title + context (prompt)                │
+│                         ↓                                       │
+│  Step 1: BRIEF - Generate README.md                             │
+│  • Uses /brief skill with task context                          │
+│  • Output: .agentrunner/tasks/{id}_{slug}/README.md             │
+│                         ↓                                       │
+│  Step 2: PLAN - Generate PLAN.md + CHECKLIST.md                 │
+│  • Uses /plan skill reading the generated README.md             │
+│  • Output: .agentrunner/tasks/{id}_{slug}/PLAN.md               │
+│  • Output: .agentrunner/tasks/{id}_{slug}/CHECKLIST.md          │
+│                         ↓                                       │
+│  Step 3: EXECUTE - Run the actual task                          │
+│  • Agent reads all three documents for full context             │
+│  • Agent implements the task following the plan                 │
+│  • Output: .agentrunner/tasks/{id}_{slug}/output/               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Bundled Skills:**
+
+Skills are stored in the AgentRunner project and copied to the workspace's `.agentrunner/skills/` directory during workspace initialization (same timing as bootstrap detection):
+
+```
+agentrunner/
+├── skills/
+│   ├── brief/
+│   │   └── SKILL.md         # README.md generator
+│   └── plan/
+│       └── SKILL.md         # PLAN.md + CHECKLIST.md generator
+
+{workspace}/
+└── .agentrunner/
+    └── skills/              # Copied from agentrunner during init
+        ├── brief/
+        │   └── SKILL.md
+        └── plan/
+            └── SKILL.md
+```
+
+**Skill Initialization Timing:**
+
+Skills are copied during workspace initialization, which occurs on the first `GET /api/board` request:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  GET /api/board (first request)                             │
+│                         ↓                                   │
+│  1. Create .agentrunner/ directory (if not exists)          │
+│                         ↓                                   │
+│  2. Copy skills to .agentrunner/skills/ (if not exists)     │
+│                         ↓                                   │
+│  3. Check bootstrap required (kanban-development-guideline) │
+│                         ↓                                   │
+│  4. Create bootstrap task (if needed)                       │
+│                         ↓                                   │
+│  5. Return board (skills ready for any task workflow)       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+This ensures skills are available before any task can be executed, with no race conditions or added latency during task runs.
+
+**Brief Skill Template (`skills/brief/SKILL.md`):**
+```markdown
+You are a senior Technical Project Manager. Generate a feature specification.
+
+**Task:** $ARGUMENTS
+
+**Output Location:** $TASK_DOCS_PATH/README.md
+
+**Structure:**
+- # [Feature Title]
+- ## Overview: Brief introduction
+- ## Goals: Primary objectives (bullet points)
+- ## Key Capabilities: Main functionalities
+- ## Non-Goals: Out of scope items
+- ## Requirements: Technical and non-technical requirements
+
+Focus on the 'what' and 'why', not the 'how'.
+```
+
+**Plan Skill Template (`skills/plan/SKILL.md`):**
+```markdown
+You are a senior Technical Project Manager. Generate implementation plans.
+
+**Input:** Read $TASK_DOCS_PATH/README.md for feature specification
+
+**Output Files:**
+1. $TASK_DOCS_PATH/PLAN.md - Detailed implementation steps with checkboxes
+2. $TASK_DOCS_PATH/CHECKLIST.md - Quality gates and completion criteria
+
+**PLAN.md Structure:**
+- Phase-based implementation steps
+- TDD workflow (test first, implement, refactor)
+- Checkbox items for tracking
+
+**CHECKLIST.md Structure:**
+- Pre-implementation gates
+- Implementation verification
+- Quality gates
+- Documentation requirements
+```
+
+**Task Status Extended:**
+```typescript
+type TaskStatus = 'todo' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
+```
+
+**Workflow Execution:**
+1. User clicks "Run" on a task in `todo` status
+2. Task moves to `briefing` status, `/brief` skill executes
+3. On completion, task moves to `planning` status, `/plan` skill executes
+4. On completion, task moves to `running` status, main execution begins
+5. On completion, task moves to `review` status
+
+**API Changes:**
+```typescript
+// New endpoint to trigger individual workflow steps
+POST /api/tasks/:id/workflow/:step  // step: 'brief' | 'plan' | 'execute'
+
+// Task response includes workflow state
+interface Task {
+  // ... existing fields
+  workflowStep: 'pending' | 'brief' | 'plan' | 'execute' | 'complete';
+  workflowLogs: {
+    brief?: string[];
+    plan?: string[];
+    execute?: string[];
+  };
+}
+```
+
 ### 2.3 Container Strategy
 
 Single Node.js container serving both API and static frontend. The container requires Claude Code CLI installed globally.
@@ -557,6 +695,19 @@ services:
 - [x] Add bootstrap status to board API response
 - [x] Update frontend to show bootstrap task prominently
 - [x] Add "Re-run Bootstrap" option in UI (via delete guidelines + restart)
+
+### Phase 8: Skill-Based Task Documentation Workflow ✅
+- [x] Create AgentRunner-specific `/brief` skill for README.md generation
+- [x] Create AgentRunner-specific `/plan` skill for PLAN.md and CHECKLIST.md generation
+- [x] Implement 3-step task execution workflow:
+  - Step 1: Generate README.md using `/brief` skill
+  - Step 2: Generate PLAN.md and CHECKLIST.md using `/plan` skill
+  - Step 3: Execute task with full documentation context
+- [x] Bundle skills in `skills/` directory within AgentRunner
+- [x] Update runner service to orchestrate the 3-step workflow
+- [x] Add workflow status indicators to frontend (Brief → Plan → Execute)
+- [x] Allow manual trigger of individual workflow steps
+- [x] Handle workflow interruption and stop
 
 ---
 

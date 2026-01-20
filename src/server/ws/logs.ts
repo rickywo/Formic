@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { SocketStream } from '@fastify/websocket';
 import { registerConnection, unregisterConnection } from '../services/runner.js';
+import { registerWorkflowConnection, unregisterWorkflowConnection } from '../services/workflow.js';
 import { getTask } from '../services/store.js';
 
 export async function logsWebSocket(fastify: FastifyInstance): Promise<void> {
@@ -16,8 +17,9 @@ export async function logsWebSocket(fastify: FastifyInstance): Promise<void> {
       return;
     }
 
-    // Register this connection
+    // Register this connection for both runner and workflow
     registerConnection(taskId, socket);
+    registerWorkflowConnection(taskId, socket);
 
     // Send existing logs if task has any
     if (task.agentLogs.length > 0) {
@@ -36,10 +38,12 @@ export async function logsWebSocket(fastify: FastifyInstance): Promise<void> {
     // Handle disconnection
     socket.on('close', () => {
       unregisterConnection(taskId, socket);
+      unregisterWorkflowConnection(taskId, socket);
     });
 
     socket.on('error', () => {
       unregisterConnection(taskId, socket);
+      unregisterWorkflowConnection(taskId, socket);
     });
   });
 }

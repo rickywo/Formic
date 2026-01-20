@@ -10,6 +10,7 @@ import {
   BOOTSTRAP_TASK_ID,
   BOOTSTRAP_TASK_SLUG,
 } from './bootstrap.js';
+import { copySkillsToWorkspace } from './skills.js';
 
 /**
  * Get project name from workspace folder name
@@ -63,9 +64,16 @@ export async function loadBoard(): Promise<Board> {
 
 /**
  * Get the board with bootstrap status and auto-create bootstrap task if needed
+ * Also copies bundled skills to workspace on first access
  */
 export async function getBoardWithBootstrap(): Promise<Board> {
   const board = await loadBoard();
+
+  // Step 1: Copy skills to workspace (if not already present)
+  // This happens BEFORE bootstrap check so skills are available for all tasks
+  await copySkillsToWorkspace();
+
+  // Step 2: Check bootstrap status
   const bootstrapStatus = checkBootstrapRequired();
 
   // Check if bootstrap task already exists
@@ -133,6 +141,9 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     docsPath,
     agentLogs: [],
     pid: null,
+    // Initialize workflow fields
+    workflowStep: 'pending',
+    workflowLogs: {},
   };
 
   board.tasks.push(task);
