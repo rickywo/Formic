@@ -1,107 +1,107 @@
 # Phase 7: Project Bootstrap & Development Guidelines - Checklist
 
 ## Pre-Implementation
-- [ ] README.md specification reviewed and approved
-- [ ] Technical approach validated against existing codebase
-- [ ] Dependencies identified (no new dependencies required)
-- [ ] Test strategy defined (unit + integration + manual)
-- [ ] Template file `templates/development-guideline.md` exists and is complete
+- [x] README.md specification reviewed and approved
+- [x] Technical approach validated against existing codebase
+- [x] Dependencies identified (no new dependencies required)
+- [x] Test strategy defined (unit + integration + manual)
+- [x] Template file `templates/development-guideline.md` exists and is complete
 
 ## Backend Implementation
 
 ### Bootstrap Service
-- [ ] `src/server/services/bootstrap.ts` created
-- [ ] `checkBootstrapRequired()` function implemented
-- [ ] `createBootstrapTask()` function implemented
-- [ ] `getBootstrapPrompt()` function implemented
-- [ ] Template reading from `templates/development-guideline.md` works
+- [x] `src/server/services/bootstrap.ts` created
+- [x] `checkBootstrapRequired()` function implemented
+- [x] `createBootstrapTask()` function implemented
+- [x] `getBootstrapPrompt()` function implemented
+- [x] Template reading from `templates/development-guideline.md` works
 
 ### Store Service Modifications
-- [ ] `getBoard()` calls bootstrap detection
-- [ ] Bootstrap task auto-created when needed
-- [ ] `bootstrapRequired` field added to board response
-- [ ] Bootstrap task not auto-recreated after deletion
+- [x] `getBoard()` calls bootstrap detection
+- [x] Bootstrap task auto-created when needed
+- [x] `bootstrapRequired` field added to board response
+- [x] Bootstrap task not auto-recreated after deletion
 
 ### API Route Updates
-- [ ] `GET /api/board` returns `bootstrapRequired` boolean
-- [ ] `GET /api/board` returns `guidelinesPath` string or null
+- [x] `GET /api/board` returns `bootstrapRequired` boolean
+- [x] `GET /api/board` returns `guidelinesPath` string or null
 
 ### Type Definitions
-- [ ] `Board` interface updated with `bootstrapRequired` field
-- [ ] Bootstrap task uses reserved ID `t-bootstrap`
+- [x] `Board` interface updated with `bootstrapRequired` field
+- [x] Bootstrap task uses reserved ID `t-bootstrap`
 
 ## Frontend Implementation
 
 ### State Management
-- [ ] Frontend parses `bootstrapRequired` from API response
-- [ ] Bootstrap status stored in application state
+- [x] Frontend parses `bootstrapRequired` from API response
+- [x] Bootstrap status stored in application state
 
 ### Visual Styling
-- [ ] `.task-card--bootstrap` CSS class created
-- [ ] Bootstrap task has distinct visual appearance
-- [ ] "Bootstrap" or "Setup" badge displayed on task card
-- [ ] Task description explains the audit process
+- [x] `.task-card--bootstrap` CSS class created
+- [x] Bootstrap task has distinct visual appearance
+- [x] "Bootstrap" or "Setup" badge displayed on task card
+- [x] Task description explains the audit process
 
 ### User Experience
-- [ ] Bootstrap task clearly identifiable as system task
-- [ ] Run button works on bootstrap task
-- [ ] Delete button works on bootstrap task (for re-bootstrap)
+- [x] Bootstrap task clearly identifiable as system task
+- [x] Run button works on bootstrap task
+- [x] Delete button works on bootstrap task (for re-bootstrap)
 
 ## Docker & Deployment
 
 ### Dockerfile Updates
-- [ ] `templates/` directory copied to container
-- [ ] Template file accessible at runtime
-- [ ] Build succeeds with new files
+- [x] `templates/` directory copied to container
+- [x] Template file accessible at runtime
+- [x] Build succeeds with new files
 
 ### Environment
-- [ ] Works with `WORKSPACE_PATH` environment variable
-- [ ] Works in both Docker and local development modes
+- [x] Works with `WORKSPACE_PATH` environment variable
+- [x] Works in both Docker and local development modes
 
 ## Testing
 
 ### Unit Tests
-- [ ] `checkBootstrapRequired()` returns true when guidelines missing
-- [ ] `checkBootstrapRequired()` returns false when guidelines exist
-- [ ] `createBootstrapTask()` generates valid task object
-- [ ] `getBootstrapPrompt()` includes template content
+- [x] `checkBootstrapRequired()` returns true when guidelines missing
+- [x] `checkBootstrapRequired()` returns false when guidelines exist
+- [x] `createBootstrapTask()` generates valid task object
+- [x] `getBootstrapPrompt()` includes template content
 
 ### Integration Tests
-- [ ] New workspace triggers bootstrap task creation
-- [ ] Existing workspace with guidelines skips bootstrap
-- [ ] Bootstrap task execution generates guidelines file
-- [ ] Re-bootstrap flow works after deleting guidelines
+- [x] New workspace triggers bootstrap task creation
+- [x] Existing workspace with guidelines skips bootstrap
+- [x] Bootstrap task execution generates guidelines file
+- [x] Re-bootstrap flow works after deleting guidelines
 
 ### Manual Verification
-- [ ] Fresh project shows bootstrap task
-- [ ] Bootstrap task visually distinct from regular tasks
-- [ ] Running bootstrap creates `kanban-development-guideline.md`
-- [ ] Restarting doesn't recreate bootstrap task
-- [ ] Deleting guidelines and restarting creates new bootstrap task
+- [x] Fresh project shows bootstrap task
+- [x] Bootstrap task visually distinct from regular tasks
+- [x] Running bootstrap creates `kanban-development-guideline.md`
+- [x] Restarting doesn't recreate bootstrap task
+- [x] Deleting guidelines and restarting creates new bootstrap task
 
 ## Quality Gates
-- [ ] TypeScript compiles without errors
-- [ ] No runtime errors in console
-- [ ] API response structure matches specification
-- [ ] Frontend renders without JavaScript errors
-- [ ] Docker container starts and runs correctly
+- [x] TypeScript compiles without errors
+- [x] No runtime errors in console
+- [x] API response structure matches specification
+- [x] Frontend renders without JavaScript errors
+- [x] Docker container starts and runs correctly
 
 ## Documentation
-- [ ] README.md in docs/07 is complete
-- [ ] PLAN.md in docs/07 is complete
-- [ ] CHECKLIST.md in docs/07 is complete
-- [ ] Main README.md updated with bootstrap feature
-- [ ] SPEC.md updated with bootstrap specification
-- [ ] API documentation includes new fields
+- [x] README.md in docs/07 is complete
+- [x] PLAN.md in docs/07 is complete
+- [x] CHECKLIST.md in docs/07 is complete
+- [x] Main README.md updated with bootstrap feature
+- [x] SPEC.md updated with bootstrap specification
+- [x] API documentation includes new fields
 
 ## Final Verification
-- [ ] End-to-end flow tested on fresh workspace
-- [ ] End-to-end flow tested on existing workspace
-- [ ] Re-bootstrap flow tested
-- [ ] Docker deployment tested
-- [ ] Local development tested
+- [x] End-to-end flow tested on fresh workspace
+- [x] End-to-end flow tested on existing workspace
+- [x] Re-bootstrap flow tested
+- [x] Docker deployment tested
+- [x] Local development tested
 
 ## Post-Implementation
-- [ ] Code committed with meaningful message
-- [ ] Phase 7 marked as complete in SPEC.md
-- [ ] Status updated to COMPLETE in docs/07/README.md
+- [x] Code committed with meaningful message
+- [x] Phase 7 marked as complete in SPEC.md
+- [x] Status updated to COMPLETE in docs/07/README.md
