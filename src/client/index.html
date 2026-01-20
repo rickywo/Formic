@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgentRunner - Mission Control</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+  <style>
+    :root {
+      --bg-primary: #0d1117;
+      --bg-secondary: #161b22;
+      --bg-tertiary: #21262d;
+      --border-color: #30363d;
+      --text-primary: #e6edf3;
+      --text-secondary: #8b949e;
+      --accent-blue: #58a6ff;
+      --accent-green: #3fb950;
+      --accent-yellow: #d29922;
+      --accent-red: #f85149;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .header {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header h1::before {
+      content: '';
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      background-color: var(--accent-green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-tertiary);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+
+    .btn:hover {
+      background-color: var(--border-color);
+    }
+
+    .btn-primary {
+      background-color: var(--accent-green);
+      border-color: var(--accent-green);
+      color: #000;
+    }
+
+    .btn-primary:hover {
+      background-color: #2ea043;
+    }
+
+    .btn-danger {
+      background-color: var(--accent-red);
+      border-color: var(--accent-red);
+      color: #fff;
+    }
+
+    /* Kanban Board */
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      padding: 24px;
+      min-height: calc(100vh - 180px);
+    }
+
+    .column {
+      background-color: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 16px;
+      border: 1px solid var(--border-color);
+    }
+
+    .column-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .column-title {
+      font-size: 14px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .column-count {
+      background-color: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .column[data-status="todo"] .column-title { color: var(--text-secondary); }
+    .column[data-status="running"] .column-title { color: var(--accent-blue); }
+    .column[data-status="review"] .column-title { color: var(--accent-yellow); }
+    .column[data-status="done"] .column-title { color: var(--accent-green); }
+
+    .tasks {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 100px;
+    }
+
+    /* Task Card */
+    .task-card {
+      background-color: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px;
+      cursor: grab;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .task-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .task-card.dragging {
+      opacity: 0.5;
+    }
+
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .task-title {
+      font-size: 14px;
+      font-weight: 500;
+      flex: 1;
+    }
+
+    .priority-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .priority-low { background-color: var(--text-secondary); color: #000; }
+    .priority-medium { background-color: var(--accent-yellow); color: #000; }
+    .priority-high { background-color: var(--accent-red); color: #fff; }
+
+    .task-context {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .task-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .task-actions .btn {
+      padding: 4px 12px;
+      font-size: 12px;
+    }
+
+    /* Terminal Panel */
+    .terminal-panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 300px;
+      background-color: var(--bg-secondary);
+      border-top: 1px solid var(--border-color);
+      display: none;
+      flex-direction: column;
+    }
+
+    .terminal-panel.open {
+      display: flex;
+    }
+
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .terminal-title {
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .terminal-body {
+      flex: 1;
+      padding: 8px;
+      overflow: hidden;
+    }
+
+    #terminal {
+      height: 100%;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 24px;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .modal h2 {
+      margin-bottom: 16px;
+      font-size: 18px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      background-color: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-size: 14px;
+    }
+
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    /* Empty State */
+    .empty-state {
+      text-align: center;
+      padding: 24px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1>AgentRunner</h1>
+    <button class="btn btn-primary" onclick="openCreateModal()">+ New Task</button>
+  </header>
+
+  <main class="board">
+    <div class="column" data-status="todo">
+      <div class="column-header">
+        <span class="column-title">Todo</span>
+        <span class="column-count" id="todo-count">0</span>
+      </div>
+      <div class="tasks" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
+    <div class="column" data-status="running">
+      <div class="column-header">
+        <span class="column-title">Running</span>
+        <span class="column-count" id="running-count">0</span>
+      </div>
+      <div class="tasks" id="running-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
+    <div class="column" data-status="review">
+      <div class="column-header">
+        <span class="column-title">Review</span>
+        <span class="column-count" id="review-count">0</span>
+      </div>
+      <div class="tasks" id="review-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
+    <div class="column" data-status="done">
+      <div class="column-header">
+        <span class="column-title">Done</span>
+        <span class="column-count" id="done-count">0</span>
+      </div>
+      <div class="tasks" id="done-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+  </main>
+
+  <div class="terminal-panel" id="terminal-panel">
+    <div class="terminal-header">
+      <span class="terminal-title" id="terminal-title">Agent Output</span>
+      <button class="btn" onclick="closeTerminal()">Close</button>
+    </div>
+    <div class="terminal-body">
+      <div id="terminal"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="create-modal">
+    <div class="modal">
+      <h2>Create New Task</h2>
+      <form onsubmit="createTask(event)">
+        <div class="form-group">
+          <label for="task-title">Title</label>
+          <input type="text" id="task-title" placeholder="Fix navbar responsive issue" required>
+        </div>
+        <div class="form-group">
+          <label for="task-context">Context / Prompt</label>
+          <textarea id="task-context" placeholder="Describe the task for Claude..." required></textarea>
+        </div>
+        <div class="form-group">
+          <label for="task-priority">Priority</label>
+          <select id="task-priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn" onclick="closeCreateModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script>
+    let board = { meta: {}, tasks: [] };
+    let terminal = null;
+    let currentWs = null;
+    let draggedTaskId = null;
+
+    // Initialize
+    async function init() {
+      await loadBoard();
+      terminal = new Terminal({
+        theme: {
+          background: '#0d1117',
+          foreground: '#e6edf3',
+        },
+        fontSize: 13,
+        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+      });
+    }
+
+    // API calls
+    async function loadBoard() {
+      const res = await fetch('/api/board');
+      board = await res.json();
+      renderBoard();
+    }
+
+    async function createTask(event) {
+      event.preventDefault();
+      const title = document.getElementById('task-title').value;
+      const context = document.getElementById('task-context').value;
+      const priority = document.getElementById('task-priority').value;
+
+      const res = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, context, priority }),
+      });
+
+      if (res.ok) {
+        closeCreateModal();
+        document.getElementById('task-title').value = '';
+        document.getElementById('task-context').value = '';
+        document.getElementById('task-priority').value = 'medium';
+        await loadBoard();
+      }
+    }
+
+    async function updateTaskStatus(taskId, status) {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+
+      if (res.ok) {
+        await loadBoard();
+      }
+    }
+
+    async function runTask(taskId) {
+      const res = await fetch(`/api/tasks/${taskId}/run`, { method: 'POST' });
+
+      if (res.ok) {
+        await loadBoard();
+        openTerminal(taskId);
+      } else {
+        const error = await res.json();
+        alert(error.error);
+      }
+    }
+
+    async function stopTask(taskId) {
+      const res = await fetch(`/api/tasks/${taskId}/stop`, { method: 'POST' });
+
+      if (res.ok) {
+        await loadBoard();
+      }
+    }
+
+    async function deleteTask(taskId) {
+      if (!confirm('Are you sure you want to delete this task?')) return;
+
+      const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+
+      if (res.ok) {
+        await loadBoard();
+      }
+    }
+
+    // Render
+    function renderBoard() {
+      const statuses = ['todo', 'running', 'review', 'done'];
+
+      statuses.forEach(status => {
+        const container = document.getElementById(`${status}-tasks`);
+        const tasks = board.tasks.filter(t => t.status === status);
+
+        document.getElementById(`${status}-count`).textContent = tasks.length;
+
+        if (tasks.length === 0) {
+          container.innerHTML = '<div class="empty-state">No tasks</div>';
+          return;
+        }
+
+        container.innerHTML = tasks.map(task => `
+          <div class="task-card" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}">
+            <div class="task-header">
+              <span class="task-title">${escapeHtml(task.title)}</span>
+              <span class="priority-badge priority-${task.priority}">${task.priority}</span>
+            </div>
+            <div class="task-context">${escapeHtml(task.context)}</div>
+            <div class="task-actions">
+              ${task.status === 'todo' ? `<button class="btn btn-primary" onclick="runTask('${task.id}')">Run</button>` : ''}
+              ${task.status === 'running' ? `
+                <button class="btn" onclick="openTerminal('${task.id}')">Logs</button>
+                <button class="btn btn-danger" onclick="stopTask('${task.id}')">Stop</button>
+              ` : ''}
+              ${task.status !== 'running' ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
+            </div>
+          </div>
+        `).join('');
+      });
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Drag and drop
+    function dragStart(event) {
+      draggedTaskId = event.target.dataset.id;
+      event.target.classList.add('dragging');
+    }
+
+    function allowDrop(event) {
+      event.preventDefault();
+    }
+
+    function drop(event) {
+      event.preventDefault();
+      const column = event.target.closest('.column');
+      if (!column || !draggedTaskId) return;
+
+      const newStatus = column.dataset.status;
+
+      // Prevent dragging to 'running' status
+      if (newStatus === 'running') {
+        alert('Use the Run button to start a task');
+        return;
+      }
+
+      updateTaskStatus(draggedTaskId, newStatus);
+      draggedTaskId = null;
+    }
+
+    // Terminal
+    function openTerminal(taskId) {
+      const panel = document.getElementById('terminal-panel');
+      const terminalEl = document.getElementById('terminal');
+      const task = board.tasks.find(t => t.id === taskId);
+
+      document.getElementById('terminal-title').textContent = `Agent Output - ${task?.title || taskId}`;
+
+      panel.classList.add('open');
+
+      // Clear and reinitialize terminal
+      terminalEl.innerHTML = '';
+      terminal = new Terminal({
+        theme: {
+          background: '#0d1117',
+          foreground: '#e6edf3',
+        },
+        fontSize: 13,
+        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+      });
+      terminal.open(terminalEl);
+
+      // Connect WebSocket
+      if (currentWs) {
+        currentWs.close();
+      }
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      currentWs = new WebSocket(`${protocol}//${window.location.host}/ws/logs/${taskId}`);
+
+      currentWs.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'history') {
+          terminal.writeln(msg.data);
+        } else if (msg.type === 'stdout') {
+          terminal.write(msg.data);
+        } else if (msg.type === 'stderr') {
+          terminal.write(`\x1b[31m${msg.data}\x1b[0m`);
+        } else if (msg.type === 'exit') {
+          terminal.writeln(`\n\x1b[33m${msg.data}\x1b[0m`);
+          loadBoard();
+        } else if (msg.type === 'error') {
+          terminal.writeln(`\n\x1b[31mError: ${msg.data}\x1b[0m`);
+          loadBoard();
+        }
+      };
+    }
+
+    function closeTerminal() {
+      document.getElementById('terminal-panel').classList.remove('open');
+      if (currentWs) {
+        currentWs.close();
+        currentWs = null;
+      }
+    }
+
+    // Modal
+    function openCreateModal() {
+      document.getElementById('create-modal').classList.add('open');
+    }
+
+    function closeCreateModal() {
+      document.getElementById('create-modal').classList.remove('open');
+    }
+
+    // Close modal on overlay click
+    document.getElementById('create-modal').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) {
+        closeCreateModal();
+      }
+    });
+
+    // Initialize on load
+    init();
+
+    // Poll for updates every 5 seconds
+    setInterval(loadBoard, 5000);
+  </script>
+</body>
+</html>

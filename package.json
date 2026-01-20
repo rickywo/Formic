@@ -1,0 +1,28 @@
+{
+  "name": "agentrunner",
+  "version": "1.0.0",
+  "description": "Local-first agent orchestration and execution environment",
+  "type": "module",
+  "main": "dist/server/index.js",
+  "scripts": {
+    "dev": "tsx watch src/server/index.ts",
+    "build": "tsc",
+    "start": "node dist/server/index.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@fastify/static": "^7.0.0",
+    "@fastify/websocket": "^9.0.0",
+    "fastify": "^4.26.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.7.0",
+    "typescript": "^5.5.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "private": true
+}

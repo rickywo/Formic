@@ -1,0 +1,189 @@
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
+import type { Board, Task, CreateTaskInput, UpdateTaskInput } from '../../types/index.js';
+import { getWorkspacePath, getAgentRunnerDir, getBoardPath } from '../utils/paths.js';
+import { createTaskDocsFolder, deleteTaskDocsFolder } from './taskDocs.js';
+
+/**
+ * Get project name from workspace folder name
+ */
+function getProjectNameFromWorkspace(): string {
+  const workspacePath = getWorkspacePath();
+  return path.basename(workspacePath) || 'My Project';
+}
+
+/**
+ * Create a default board structure
+ */
+function createDefaultBoard(): Board {
+  return {
+    meta: {
+      projectName: getProjectNameFromWorkspace(),
+      repoPath: getWorkspacePath(),
+      createdAt: new Date().toISOString(),
+    },
+    tasks: [],
+  };
+}
+
+/**
+ * Ensure the .agentrunner directory exists in workspace
+ */
+async function ensureAgentRunnerDir(): Promise<void> {
+  const agentRunnerDir = getAgentRunnerDir();
+  if (!existsSync(agentRunnerDir)) {
+    await mkdir(agentRunnerDir, { recursive: true });
+  }
+}
+
+/**
+ * Load the board from workspace/.agentrunner/board.json
+ */
+export async function loadBoard(): Promise<Board> {
+  await ensureAgentRunnerDir();
+
+  const boardPath = getBoardPath();
+
+  if (!existsSync(boardPath)) {
+    const defaultBoard = createDefaultBoard();
+    await saveBoard(defaultBoard);
+    return defaultBoard;
+  }
+
+  const data = await readFile(boardPath, 'utf-8');
+  return JSON.parse(data) as Board;
+}
+
+/**
+ * Save the board to workspace/.agentrunner/board.json
+ */
+export async function saveBoard(board: Board): Promise<void> {
+  await ensureAgentRunnerDir();
+  const boardPath = getBoardPath();
+  await writeFile(boardPath, JSON.stringify(board, null, 2), 'utf-8');
+}
+
+/**
+ * Get a single task by ID
+ */
+export async function getTask(taskId: string): Promise<Task | undefined> {
+  const board = await loadBoard();
+  return board.tasks.find(t => t.id === taskId);
+}
+
+/**
+ * Create a new task with documentation folder
+ */
+export async function createTask(input: CreateTaskInput): Promise<Task> {
+  const board = await loadBoard();
+
+  // Generate next task ID
+  const maxId = board.tasks.reduce((max, task) => {
+    const num = parseInt(task.id.replace('t-', ''), 10);
+    return num > max ? num : max;
+  }, 0);
+
+  const taskId = `t-${maxId + 1}`;
+
+  // Create documentation folder and get the relative path
+  const docsPath = await createTaskDocsFolder(taskId, input.title, input.context);
+
+  const task: Task = {
+    id: taskId,
+    title: input.title,
+    context: input.context,
+    priority: input.priority || 'medium',
+    status: 'todo',
+    docsPath,
+    agentLogs: [],
+    pid: null,
+  };
+
+  board.tasks.push(task);
+  await saveBoard(board);
+  return task;
+}
+
+/**
+ * Update a task (docsPath cannot be changed)
+ */
+export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
+  const board = await loadBoard();
+  const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+
+  if (taskIndex === -1) {
+    return null;
+  }
+
+  const task = board.tasks[taskIndex];
+
+  // Merge input but preserve docsPath
+  board.tasks[taskIndex] = {
+    ...task,
+    ...input,
+    docsPath: task.docsPath, // Ensure docsPath cannot be changed
+  };
+
+  await saveBoard(board);
+  return board.tasks[taskIndex];
+}
+
+/**
+ * Delete a task and optionally its documentation folder
+ */
+export async function deleteTask(taskId: string, preserveHistory: boolean = false): Promise<boolean> {
+  const board = await loadBoard();
+  const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+
+  if (taskIndex === -1) {
+    return false;
+  }
+
+  const task = board.tasks[taskIndex];
+
+  // Delete documentation folder if not preserving history
+  await deleteTaskDocsFolder(task.docsPath, preserveHistory);
+
+  board.tasks.splice(taskIndex, 1);
+  await saveBoard(board);
+  return true;
+}
+
+/**
+ * Update task status and optionally PID
+ */
+export async function updateTaskStatus(taskId: string, status: Task['status'], pid?: number | null): Promise<Task | null> {
+  const board = await loadBoard();
+  const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+
+  if (taskIndex === -1) {
+    return null;
+  }
+
+  board.tasks[taskIndex].status = status;
+  if (pid !== undefined) {
+    board.tasks[taskIndex].pid = pid;
+  }
+
+  await saveBoard(board);
+  return board.tasks[taskIndex];
+}
+
+/**
+ * Append logs to a task (max 50 lines)
+ */
+export async function appendTaskLogs(taskId: string, logs: string[]): Promise<void> {
+  const board = await loadBoard();
+  const task = board.tasks.find(t => t.id === taskId);
+
+  if (!task) return;
+
+  task.agentLogs.push(...logs);
+  // Keep only last 50 lines
+  if (task.agentLogs.length > 50) {
+    task.agentLogs = task.agentLogs.slice(-50);
+  }
+
+  await saveBoard(board);
+}
