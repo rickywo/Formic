@@ -419,40 +419,43 @@ services:
 
 ## 8. Development Roadmap
 
-### Phase 1: Project Foundation
+### Phase 1: Project Foundation ✅
 - [x] Initialize TypeScript project
-- [ ] Configure Fastify server with static file serving
-- [ ] Set up development scripts (dev, build, start)
-- [ ] Create type definitions
+- [x] Configure Fastify server with static file serving
+- [x] Set up development scripts (dev, build, start)
+- [x] Create type definitions
 
-### Phase 2: Data Layer
-- [ ] Implement JSON file store service
-- [ ] Board CRUD operations
-- [ ] Task CRUD operations
+### Phase 2: Data Layer ✅
+- [x] Implement JSON file store service
+- [x] Board CRUD operations
+- [x] Task CRUD operations
+- [x] Task documentation folder management (docsPath)
 
-### Phase 3: Agent Runner
-- [ ] Process spawning with `child_process`
-- [ ] stdout/stderr capture
-- [ ] Process lifecycle management (start/stop)
-- [ ] Concurrency control
+### Phase 3: Agent Runner ✅
+- [x] Process spawning with `child_process`
+- [x] stdout/stderr capture
+- [x] Process lifecycle management (start/stop)
+- [x] Concurrency control
+- [x] Graceful error handling (CLI not found, etc.)
 
-### Phase 4: Real-time Communication
-- [ ] WebSocket server setup
-- [ ] Log streaming to connected clients
-- [ ] Connection management per task
+### Phase 4: Real-time Communication ✅
+- [x] WebSocket server setup
+- [x] Log streaming to connected clients
+- [x] Connection management per task
 
-### Phase 5: Frontend
-- [ ] HTML structure with Kanban layout
-- [ ] CSS styling (dark theme)
-- [ ] Task CRUD UI
-- [ ] Drag-and-drop functionality
-- [ ] xterm.js terminal integration
-- [ ] WebSocket client for live logs
+### Phase 5: Frontend ✅
+- [x] HTML structure with Kanban layout
+- [x] CSS styling (dark theme)
+- [x] Task CRUD UI
+- [x] Drag-and-drop functionality
+- [x] xterm.js terminal integration
+- [x] WebSocket client for live logs
 
-### Phase 6: Docker & Deployment
-- [ ] Dockerfile creation
-- [ ] Build optimization
-- [ ] Documentation
+### Phase 6: Docker & Deployment ✅
+- [x] Dockerfile creation
+- [x] Build optimization (.dockerignore, HEALTHCHECK, 358MB image)
+- [x] Documentation updates
+- [x] docker-compose.yml
 
 ---
 

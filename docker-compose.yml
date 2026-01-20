@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  agentrunner:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    volumes:
+      # Mount your project directory as the workspace
+      - ${WORKSPACE_PATH:-./_workspace}:/app/workspace
+    environment:
+      # API key is required for Docker deployments
+      # OAuth credentials are stored in system keychain and not accessible in Docker
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    restart: unless-stopped
+
+# Usage:
+# 1. Set your API key: export ANTHROPIC_API_KEY=your-key
+# 2. Set workspace path: export WORKSPACE_PATH=/path/to/your/project
+# 3. Run: docker-compose up -d
+# 4. Open: http://localhost:8000
+#
+# Note: OAuth login credentials are stored in your system's keychain
+# and cannot be shared with Docker containers. Use an API key instead.

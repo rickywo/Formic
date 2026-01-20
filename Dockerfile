@@ -9,15 +9,15 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+# Install production dependencies only
 RUN npm ci --omit=dev
 
 # Copy built application and client files
 COPY dist/ ./dist/
 COPY src/client/ ./src/client/
 
-# Create data directory
-RUN mkdir -p /app/data
+# Create workspace directory (will be overwritten by volume mount)
+RUN mkdir -p /app/workspace
 
 # Expose port
 EXPOSE 8000
@@ -25,7 +25,10 @@ EXPOSE 8000
 # Set environment defaults
 ENV PORT=8000
 ENV WORKSPACE_PATH=/app/workspace
-ENV DATA_PATH=/app/data
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8000/api/board', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
 
 # Run the server
 CMD ["node", "dist/server/index.js"]

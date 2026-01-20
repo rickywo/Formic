@@ -1,0 +1,40 @@
+# Dependencies
+node_modules
+
+# Note: dist/ is NOT ignored - we copy the pre-built files into the container
+
+# Development files
+*.log
+npm-debug.log*
+
+# Git
+.git
+.gitignore
+
+# Documentation (not needed in container)
+docs
+*.md
+!README.md
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Test folders
+test_proj
+workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files (secrets should be passed via env vars)
+.env
+.env.*
+
+# Temporary files
+tmp
+temp
+*.tmp

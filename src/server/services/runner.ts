@@ -5,6 +5,7 @@ import type { LogMessage } from '../../types/index.js';
 
 const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const MAX_LOG_LINES = 50;
+const AGENT_COMMAND = process.env.AGENT_COMMAND || 'claude';
 
 // Store active processes
 const activeProcesses = new Map<string, ChildProcess>();
@@ -56,26 +57,61 @@ export async function runAgent(taskId: string, title: string, context: string, d
     throw new Error('An agent is already running. Please wait for it to complete.');
   }
 
-  // Build prompt that includes task context location
-  const prompt = `First, read the task context from ${docsPath}/ (README.md, PLAN.md, CHECKLIST.md). Then execute: ${title}. Context: ${context}. Write any outputs to ${docsPath}/output/`;
+  // Build prompt - simple format for --print mode
+  // Note: In --print mode, tools are limited. For complex tasks, the agent should read context from the prompt directly.
+  const prompt = `Task: ${title}\n\nContext: ${context}\n\nTask documentation is available at: ${docsPath}/`;
 
   // Spawn Claude CLI process
-  const child = spawn('claude', ['--print', prompt], {
+  // Using --print for non-interactive mode, output appears at completion
+  // --dangerously-skip-permissions allows autonomous file operations without prompts
+  // stdin is set to 'ignore' since --print mode doesn't need input
+  const child = spawn(AGENT_COMMAND, [
+    '--print',
+    '--dangerously-skip-permissions',
+    prompt
+  ], {
     cwd: WORKSPACE_PATH,
     env: { ...process.env },
-    stdio: ['pipe', 'pipe', 'pipe'],
+    stdio: ['ignore', 'pipe', 'pipe'],
   });
 
+  const logBuffer: string[] = [];
+
+  // Set up error handler FIRST to catch spawn errors (e.g., command not found)
+  child.on('error', async (err: NodeJS.ErrnoException) => {
+    activeProcesses.delete(taskId);
+
+    // Provide helpful error messages for common issues
+    let errorMessage = err.message;
+    if (err.code === 'ENOENT') {
+      errorMessage = `Command '${AGENT_COMMAND}' not found. Please ensure Claude CLI is installed and available in PATH.`;
+    } else if (err.code === 'EACCES') {
+      errorMessage = `Permission denied when trying to execute '${AGENT_COMMAND}'.`;
+    }
+
+    await updateTaskStatus(taskId, 'todo', null);
+    await appendTaskLogs(taskId, [`Error: ${errorMessage}`]);
+
+    broadcastToTask(taskId, {
+      type: 'error',
+      data: errorMessage,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Check if spawn succeeded (pid exists)
   if (!child.pid) {
-    throw new Error('Failed to spawn Claude process');
+    // Don't throw - let the error event handle it
+    // Return a placeholder that will be updated when error fires
+    activeProcesses.set(taskId, child);
+    await updateTaskStatus(taskId, 'running', 0);
+    return { pid: 0 };
   }
 
   activeProcesses.set(taskId, child);
 
   // Update task status
   await updateTaskStatus(taskId, 'running', child.pid);
-
-  const logBuffer: string[] = [];
 
   // Handle stdout
   child.stdout?.on('data', (data: Buffer) => {
@@ -126,20 +162,6 @@ export async function runAgent(taskId: string, title: string, context: string, d
     broadcastToTask(taskId, {
       type: 'exit',
       data: `Process exited with code ${code}`,
-      timestamp: new Date().toISOString(),
-    });
-  });
-
-  // Handle errors
-  child.on('error', async (err) => {
-    activeProcesses.delete(taskId);
-
-    await updateTaskStatus(taskId, 'todo', null);
-    await appendTaskLogs(taskId, [`Error: ${err.message}`]);
-
-    broadcastToTask(taskId, {
-      type: 'error',
-      data: err.message,
       timestamp: new Date().toISOString(),
     });
   });

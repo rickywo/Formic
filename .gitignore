@@ -31,3 +31,13 @@ Thumbs.db
 /out-tsc
 .pnp
 .pnp.js
+
+# Test project folder (local testing)
+test_proj/
+
+# Screenshots
+*.png
+
+# Workspace folders (mounted at runtime)
+workspace/
+_workspace/
