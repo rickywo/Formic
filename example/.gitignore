@@ -1,0 +1,7 @@
+# AgentRunner generated files (created at runtime)
+.agentrunner/
+
+# Agent-created files (test outputs)
+*.sh
+*.py
+!../test/*.py

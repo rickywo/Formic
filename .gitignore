@@ -32,11 +32,13 @@ Thumbs.db
 .pnp
 .pnp.js
 
-# Test project folder (local testing)
+# Local test workspace (use ./example for CI tests)
 test_proj/
 
-# Screenshots
+# Screenshots and test artifacts
 *.png
+__pycache__/
+*.pyc
 
 # Workspace folders (mounted at runtime)
 workspace/
