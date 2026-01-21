@@ -154,8 +154,12 @@
       border: 1px solid var(--border-color);
       border-radius: 6px;
       padding: 12px;
-      cursor: grab;
+      cursor: pointer;
       transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .task-card:active {
+      cursor: grabbing;
     }
 
     .task-card:hover {
@@ -247,10 +251,19 @@
       flex: 1;
       padding: 8px;
       overflow: hidden;
+      position: relative;
     }
 
     #terminal {
-      height: 100%;
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+    }
+
+    #terminal .xterm-viewport {
+      overflow-y: auto !important;
     }
 
     /* Modal */
@@ -445,6 +458,210 @@
       background-color: var(--accent-blue);
       color: #fff;
     }
+
+    /* Task Detail Modal */
+    .modal-large {
+      max-width: 700px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .modal-header .btn {
+      padding: 4px 12px;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    .detail-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .detail-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .detail-section label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+    }
+
+    .detail-status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .detail-context {
+      background-color: var(--bg-tertiary);
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      max-height: 150px;
+      overflow-y: auto;
+      margin: 0;
+      font-family: inherit;
+    }
+
+    .detail-path {
+      background-color: var(--bg-tertiary);
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--accent-blue);
+    }
+
+    .subtasks-progress {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .progress-bar {
+      flex: 1;
+      height: 8px;
+      background-color: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background-color: var(--accent-green);
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-width: 80px;
+    }
+
+    .subtasks-list {
+      max-height: 200px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .subtask-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 8px;
+      background-color: var(--bg-tertiary);
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .subtask-item.completed {
+      opacity: 0.7;
+    }
+
+    .subtask-status {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .subtask-content {
+      flex: 1;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 1200px) {
+      .board {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        padding: 12px 16px;
+      }
+
+      .header h1 {
+        font-size: 16px;
+      }
+
+      .board {
+        grid-template-columns: 1fr;
+        padding: 16px;
+        gap: 12px;
+      }
+
+      .column {
+        min-height: auto;
+      }
+
+      .tasks {
+        min-height: 60px;
+      }
+
+      .terminal-panel {
+        height: 40vh;
+        max-height: 300px;
+        min-height: 150px;
+      }
+
+      .bootstrap-banner {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
+        padding: 12px 16px;
+      }
+
+      .bootstrap-banner-content {
+        flex-direction: column;
+        gap: 8px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .task-card {
+        padding: 10px;
+      }
+
+      .task-header {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .priority-badge {
+        align-self: flex-start;
+      }
+
+      .terminal-panel {
+        height: 50vh;
+      }
+
+      .modal {
+        margin: 16px;
+        max-height: calc(100vh - 32px);
+        overflow-y: auto;
+      }
+    }
   </style>
 </head>
 <body>
@@ -505,6 +722,51 @@
     </div>
   </div>
 
+  <!-- Task Detail Modal -->
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal modal-large">
+      <div class="modal-header">
+        <h2 id="detail-title">Task Details</h2>
+        <button class="btn" onclick="closeDetailModal()">×</button>
+      </div>
+      <div class="detail-content">
+        <div class="detail-section">
+          <label>Status</label>
+          <div class="detail-status">
+            <span class="status-badge" id="detail-status-badge"></span>
+            <span class="workflow-indicator" id="detail-workflow"></span>
+          </div>
+        </div>
+        <div class="detail-section">
+          <label>Priority</label>
+          <span class="priority-badge" id="detail-priority"></span>
+        </div>
+        <div class="detail-section">
+          <label>Context / Prompt</label>
+          <pre class="detail-context" id="detail-context"></pre>
+        </div>
+        <div class="detail-section">
+          <label>Docs Path</label>
+          <code class="detail-path" id="detail-docs-path"></code>
+        </div>
+        <div class="detail-section" id="detail-subtasks-section">
+          <label>Subtasks Progress</label>
+          <div class="subtasks-progress">
+            <div class="progress-bar">
+              <div class="progress-fill" id="detail-progress-fill"></div>
+            </div>
+            <span class="progress-text" id="detail-progress-text">0/0 (0%)</span>
+          </div>
+          <div class="subtasks-list" id="detail-subtasks-list"></div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn" onclick="closeDetailModal()">Close</button>
+        <button class="btn btn-primary" id="detail-run-btn" onclick="runTaskFromDetail()">Run Task</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="create-modal">
     <div class="modal">
       <h2>Create New Task</h2>
@@ -534,6 +796,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
   <script>
     let board = { meta: {}, tasks: [], bootstrapRequired: false };
     let terminal = null;
@@ -706,7 +969,7 @@
           const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
 
           return `
-            <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}">
+            <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" onclick="openDetailModal('${task.id}', event)">
               <div class="task-header">
                 <span class="task-title">${bootstrapBadge}${escapeHtml(task.title)}${statusBadge}</span>
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
@@ -761,6 +1024,8 @@
     }
 
     // Terminal
+    let fitAddon = null;
+
     function openTerminal(taskId) {
       const panel = document.getElementById('terminal-panel');
       const terminalEl = document.getElementById('terminal');
@@ -779,8 +1044,26 @@
         },
         fontSize: 13,
         fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+        convertEol: true,
+        wordWrap: true,
       });
+
+      // Add fit addon to properly size terminal
+      fitAddon = new FitAddon.FitAddon();
+      terminal.loadAddon(fitAddon);
       terminal.open(terminalEl);
+
+      // Fit terminal to container after a brief delay
+      setTimeout(() => {
+        fitAddon.fit();
+      }, 100);
+
+      // Re-fit on window resize
+      window.addEventListener('resize', () => {
+        if (fitAddon && panel.classList.contains('open')) {
+          fitAddon.fit();
+        }
+      });
 
       // Connect WebSocket
       if (currentWs) {
@@ -825,7 +1108,122 @@
       document.getElementById('create-modal').classList.remove('open');
     }
 
+    // Task Detail Modal
+    let currentDetailTaskId = null;
+
+    async function openDetailModal(taskId, event) {
+      // Don't open modal if clicking on a button
+      if (event && event.target.closest('button')) {
+        return;
+      }
+
+      currentDetailTaskId = taskId;
+      const task = board.tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      // Populate basic info
+      document.getElementById('detail-title').textContent = task.title;
+      document.getElementById('detail-context').textContent = task.context;
+      document.getElementById('detail-docs-path').textContent = task.docsPath || 'N/A';
+
+      // Status badge
+      const statusBadge = document.getElementById('detail-status-badge');
+      statusBadge.textContent = task.status.toUpperCase();
+      statusBadge.className = 'status-badge';
+      if (task.status === 'briefing') statusBadge.classList.add('status-briefing');
+      else if (task.status === 'planning') statusBadge.classList.add('status-planning');
+      else if (task.status === 'running') statusBadge.classList.add('status-running');
+      else if (task.status === 'review') statusBadge.style.backgroundColor = 'var(--accent-yellow)';
+      else if (task.status === 'done') statusBadge.style.backgroundColor = 'var(--accent-green)';
+
+      // Priority badge
+      const priorityBadge = document.getElementById('detail-priority');
+      priorityBadge.textContent = task.priority.toUpperCase();
+      priorityBadge.className = `priority-badge priority-${task.priority}`;
+
+      // Workflow indicator
+      const workflowEl = document.getElementById('detail-workflow');
+      const workflowSteps = ['brief', 'plan', 'execute'];
+      const workflowStep = task.workflowStep || 'pending';
+      if (workflowStep !== 'pending') {
+        workflowEl.innerHTML = workflowSteps.map(step => {
+          let cls = 'workflow-step';
+          if (workflowStep === step) cls += ' active';
+          else if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
+          return `<span class="${cls}">${step.charAt(0).toUpperCase() + step.slice(1)}</span>`;
+        }).join('');
+      } else {
+        workflowEl.innerHTML = '';
+      }
+
+      // Run button visibility
+      const runBtn = document.getElementById('detail-run-btn');
+      const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
+      runBtn.style.display = task.status === 'todo' ? 'block' : 'none';
+
+      // Load subtasks
+      await loadSubtasksForDetail(taskId);
+
+      document.getElementById('detail-modal').classList.add('open');
+    }
+
+    async function loadSubtasksForDetail(taskId) {
+      const subtasksSection = document.getElementById('detail-subtasks-section');
+      const progressFill = document.getElementById('detail-progress-fill');
+      const progressText = document.getElementById('detail-progress-text');
+      const subtasksList = document.getElementById('detail-subtasks-list');
+
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/subtasks/completion`);
+        if (!res.ok) {
+          subtasksSection.style.display = 'none';
+          return;
+        }
+
+        const stats = await res.json();
+        subtasksSection.style.display = 'block';
+        progressFill.style.width = `${stats.percentage}%`;
+        progressText.textContent = `${stats.completed}/${stats.total} (${stats.percentage}%)`;
+
+        // Load full subtasks list
+        const subtasksRes = await fetch(`/api/tasks/${taskId}/subtasks`);
+        if (subtasksRes.ok) {
+          const subtasksData = await subtasksRes.json();
+          subtasksList.innerHTML = subtasksData.subtasks.map(subtask => {
+            const statusIcon = subtask.status === 'completed' ? '✅' : subtask.status === 'in_progress' ? '🔄' : '⬜';
+            const completedClass = subtask.status === 'completed' ? 'completed' : '';
+            return `
+              <div class="subtask-item ${completedClass}">
+                <span class="subtask-status">${statusIcon}</span>
+                <span class="subtask-content">${escapeHtml(subtask.content)}</span>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (err) {
+        subtasksSection.style.display = 'none';
+      }
+    }
+
+    function closeDetailModal() {
+      document.getElementById('detail-modal').classList.remove('open');
+      currentDetailTaskId = null;
+    }
+
+    async function runTaskFromDetail() {
+      if (currentDetailTaskId) {
+        closeDetailModal();
+        await runTask(currentDetailTaskId);
+      }
+    }
+
     // Close modal on overlay click
+    document.getElementById('detail-modal').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) {
+        closeDetailModal();
+      }
+    });
+
     document.getElementById('create-modal').addEventListener('click', (e) => {
       if (e.target.classList.contains('modal-overlay')) {
         closeCreateModal();

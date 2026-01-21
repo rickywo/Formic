@@ -26,8 +26,10 @@ export function subtasksExist(docsPath: string): boolean {
  */
 export async function loadSubtasks(docsPath: string): Promise<SubtasksFile | null> {
   const subtasksPath = getSubtasksPath(docsPath);
+  console.log(`[Subtasks] Loading subtasks from: ${subtasksPath}`);
 
   if (!existsSync(subtasksPath)) {
+    console.log(`[Subtasks] File does not exist: ${subtasksPath}`);
     return null;
   }
 
@@ -41,6 +43,7 @@ export async function loadSubtasks(docsPath: string): Promise<SubtasksFile | nul
       return null;
     }
 
+    console.log(`[Subtasks] Loaded ${data.subtasks.length} subtasks`);
     return data;
   } catch (error) {
     console.error('[Subtasks] Failed to load subtasks.json:', error);

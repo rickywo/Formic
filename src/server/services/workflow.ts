@@ -21,6 +21,7 @@ const MAX_LOG_LINES = 50;
 const AGENT_COMMAND = process.env.AGENT_COMMAND || 'claude';
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 const MAX_EXECUTE_ITERATIONS = parseInt(process.env.MAX_EXECUTE_ITERATIONS || '5', 10);
+const STEP_TIMEOUT_MS = parseInt(process.env.STEP_TIMEOUT_MS || '600000', 10); // 10 minutes default
 
 /**
  * Load the project development guidelines if they exist
@@ -262,6 +263,8 @@ function runWorkflowStep(
   prompt: string,
   onComplete: (success: boolean) => void
 ): ChildProcess {
+  console.log(`[Workflow] Starting ${step} step for task ${taskId}`);
+
   const child = spawn(AGENT_COMMAND, [
     '--print',
     '--dangerously-skip-permissions',
@@ -273,8 +276,29 @@ function runWorkflowStep(
   });
 
   const logBuffer: string[] = [];
+  let hasCompleted = false;
+
+  // Set up timeout to kill hanging processes
+  const timeout = setTimeout(() => {
+    if (!hasCompleted) {
+      console.log(`[Workflow] ${step} step timed out after ${STEP_TIMEOUT_MS}ms, killing process`);
+      broadcastToTask(taskId, {
+        type: 'error',
+        data: `[${step.toUpperCase()}] Step timed out after ${STEP_TIMEOUT_MS / 1000}s`,
+        timestamp: new Date().toISOString(),
+      });
+      child.kill('SIGTERM');
+      setTimeout(() => {
+        if (!hasCompleted) {
+          child.kill('SIGKILL');
+        }
+      }, 5000);
+    }
+  }, STEP_TIMEOUT_MS);
 
   child.on('error', async (err: NodeJS.ErrnoException) => {
+    hasCompleted = true;
+    clearTimeout(timeout);
     activeWorkflows.delete(taskId);
 
     let errorMessage = err.message;
@@ -282,6 +306,7 @@ function runWorkflowStep(
       errorMessage = `Command '${AGENT_COMMAND}' not found.`;
     }
 
+    console.log(`[Workflow] ${step} step error: ${errorMessage}`);
     await appendWorkflowLogs(taskId, step, [`Error: ${errorMessage}`]);
 
     broadcastToTask(taskId, {
@@ -326,6 +351,10 @@ function runWorkflowStep(
   });
 
   child.on('close', async (code) => {
+    hasCompleted = true;
+    clearTimeout(timeout);
+
+    console.log(`[Workflow] ${step} step completed with code ${code}`);
     await appendWorkflowLogs(taskId, step, logBuffer);
 
     broadcastToTask(taskId, {
@@ -366,6 +395,7 @@ async function executeWithIterativeLoop(
   taskId: string,
   task: Task
 ): Promise<{ success: boolean; iterations: number; allComplete: boolean }> {
+  console.log(`[Workflow] Starting iterative execution for task ${taskId}`);
   const guidelines = await loadProjectGuidelines();
   let iteration = 1;
   let allComplete = false;
@@ -378,7 +408,7 @@ async function executeWithIterativeLoop(
   });
 
   while (iteration <= MAX_EXECUTE_ITERATIONS && !allComplete) {
-    console.log(`[Workflow] Execute iteration ${iteration}/${MAX_EXECUTE_ITERATIONS}`);
+    console.log(`[Workflow] Execute iteration ${iteration}/${MAX_EXECUTE_ITERATIONS} for task ${taskId}`);
 
     // Broadcast iteration start
     broadcastToTask(taskId, {
@@ -411,11 +441,22 @@ async function executeWithIterativeLoop(
       return { success: false, iterations: iteration, allComplete: false };
     }
 
+    // Small delay to ensure file system has flushed
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // Check subtasks completion after this iteration
+    console.log(`[Workflow] Checking subtasks for task ${taskId}, docsPath: ${task.docsPath}`);
     const subtasks = await loadSubtasks(task.docsPath);
     if (subtasks) {
       const stats = getCompletionStats(subtasks);
       allComplete = isAllComplete(subtasks);
+
+      // Log detailed status for debugging
+      const statusCounts = subtasks.subtasks.reduce((acc, s) => {
+        acc[s.status] = (acc[s.status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log(`[Workflow] Subtask statuses: ${JSON.stringify(statusCounts)}`);
 
       // Broadcast completion status
       broadcastToTask(taskId, {
@@ -424,7 +465,7 @@ async function executeWithIterativeLoop(
         timestamp: new Date().toISOString(),
       });
 
-      console.log(`[Workflow] Subtask completion after iteration ${iteration}: ${stats.completed}/${stats.total} (${stats.percentage}%)`);
+      console.log(`[Workflow] Subtask completion after iteration ${iteration}: ${stats.completed}/${stats.total} (${stats.percentage}%), allComplete=${allComplete}`);
 
       if (allComplete) {
         broadcastToTask(taskId, {
@@ -435,7 +476,7 @@ async function executeWithIterativeLoop(
       }
     } else {
       // No subtasks.json found - treat as complete (backwards compatibility)
-      console.log('[Workflow] No subtasks.json found, treating as complete');
+      console.log(`[Workflow] No subtasks.json found for task ${taskId}, treating as complete`);
       allComplete = true;
     }
 
@@ -451,6 +492,7 @@ async function executeWithIterativeLoop(
     console.log(`[Workflow] Max iterations reached, some subtasks incomplete`);
   }
 
+  console.log(`[Workflow] Iterative execution completed for task ${taskId}: iterations=${iteration - 1}, allComplete=${allComplete}`);
   return { success: true, iterations: iteration - 1, allComplete };
 }
 
@@ -508,21 +550,26 @@ export async function executeSingleStep(
     }
     case 'execute': {
       // Execute step uses iterative loop with subtask completion checking
+      console.log(`[Workflow] Starting execute step for task ${taskId}`);
       await updateTaskStatus(taskId, 'running', null);
       await updateWorkflowStep(taskId, 'execute');
 
       const result = await executeWithIterativeLoop(taskId, task);
+      console.log(`[Workflow] Execute step finished for task ${taskId}: success=${result.success}, allComplete=${result.allComplete}, iterations=${result.iterations}`);
 
       if (result.success && result.allComplete) {
         // All subtasks complete - move to review
+        console.log(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
         await updateWorkflowStep(taskId, 'complete');
         await updateTaskStatus(taskId, 'review', null);
       } else if (result.success && !result.allComplete) {
         // Max iterations reached but not all complete - still move to review with warning
+        console.log(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
         await updateWorkflowStep(taskId, 'complete');
         await updateTaskStatus(taskId, 'review', null);
       } else {
         // Execution failed
+        console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
         await updateTaskStatus(taskId, 'todo', null);
       }
 
