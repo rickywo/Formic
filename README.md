@@ -1,10 +1,14 @@
 # Formic
 
-A local-first agent orchestration and execution environment. A web-based "Mission Control" that sits on top of a local repository, allowing you to define tasks and spawn Claude CLI processes to execute them.
+A local-first agent orchestration and execution environment. A web-based "Mission Control" that sits on top of a local repository, allowing you to define tasks and spawn AI coding agents to execute them.
 
 ## Overview
 
-Formic provides a Kanban-style interface for managing AI-assisted development tasks. Define your tasks, click "Run", and watch Claude Code work on your codebase in real-time.
+Formic provides a Kanban-style interface for managing AI-assisted development tasks. Define your tasks, click "Run", and watch your AI coding agent work on your codebase in real-time.
+
+**Supported Agents:**
+- **Claude Code CLI** (default) - Anthropic's agentic coding assistant
+- **GitHub Copilot CLI** - GitHub's terminal-based coding agent
 
 ## Features
 
@@ -26,14 +30,16 @@ Formic provides a Kanban-style interface for managing AI-assisted development ta
 | Frontend | Vanilla HTML/CSS/JS |
 | Terminal UI | xterm.js |
 | Storage | JSON file (workspace-based) |
-| Agent | Claude Code CLI |
+| Agent | Claude Code CLI or GitHub Copilot CLI |
 | Deployment | Docker |
 
 ## Prerequisites
 
 - Docker & Docker Compose (for containerized deployment)
 - Node.js 20+ (for local development)
-- Anthropic API key (for Claude Code)
+- One of the following AI coding agents:
+  - **Claude Code CLI** + Anthropic API key, OR
+  - **GitHub Copilot CLI** + GitHub Copilot subscription (Pro/Business/Enterprise)
 
 ## Quick Start
 
@@ -44,11 +50,16 @@ Formic provides a Kanban-style interface for managing AI-assisted development ta
 git clone <repo-url>
 cd formic
 
-# Set your API key
-export ANTHROPIC_API_KEY=your-api-key
-
 # Set path to your project
 export WORKSPACE_PATH=/path/to/your/project
+
+# --- For Claude Code (default) ---
+export ANTHROPIC_API_KEY=your-api-key
+
+# --- OR for GitHub Copilot CLI ---
+export AGENT_COMMAND=copilot
+export AGENT_TYPE=copilot
+# (Copilot uses your GitHub authentication automatically)
 
 # Build and run
 docker-compose up -d
@@ -263,7 +274,7 @@ Formic includes two built-in skills that are automatically copied to your worksp
 | `/brief` | Generate feature specification | README.md |
 | `/plan` | Generate implementation plan | PLAN.md, subtasks.json |
 
-Skills are stored at `.claude/commands/` in your workspace. They are copied once on first access and can be customized for your project's needs.
+Skills are stored at `.claude/skills/` in your workspace. They use the standard `SKILL.md` format with YAML frontmatter, which is compatible with both Claude Code and GitHub Copilot CLI. Skills are copied once on first access and can be customized for your project's needs.
 
 ### Manual Step Execution
 
@@ -352,8 +363,25 @@ formic/
 |----------|-------------|---------|
 | `PORT` | Server port | `8000` |
 | `WORKSPACE_PATH` | Path to mounted workspace | `/app/workspace` |
-| `ANTHROPIC_API_KEY` | API key for Claude | Required |
 | `AGENT_COMMAND` | CLI command to run | `claude` |
+| `AGENT_TYPE` | Agent type for flag selection | `claude` |
+| `ANTHROPIC_API_KEY` | API key for Claude Code | Required for Claude |
+
+### Agent Configuration
+
+**For Claude Code (default):**
+```bash
+export AGENT_COMMAND=claude
+export AGENT_TYPE=claude
+export ANTHROPIC_API_KEY=your-api-key
+```
+
+**For GitHub Copilot CLI:**
+```bash
+export AGENT_COMMAND=copilot
+export AGENT_TYPE=copilot
+# No API key needed - uses GitHub authentication
+```
 
 ## Limitations (v1)
 
@@ -364,10 +392,20 @@ formic/
 
 ## Troubleshooting
 
-### Agent fails with "Command 'claude' not found"
-Ensure Claude Code CLI is installed. In Docker, it's pre-installed. For local development:
+### Agent fails with "Command not found"
+
+**For Claude Code:**
 ```bash
 npm install -g @anthropic-ai/claude-code
+```
+
+**For GitHub Copilot CLI:**
+```bash
+# Install via Homebrew (macOS/Linux)
+brew install github/gh/copilot-cli
+
+# Or via npm
+npm install -g @github/copilot-cli
 ```
 
 ### Container health check failing
@@ -379,8 +417,11 @@ docker logs <container-id>
 ### Permission denied on workspace
 Ensure the mounted directory is readable/writable by the container user.
 
-### OAuth login doesn't work in Docker
-Claude Code OAuth credentials are stored in your system's keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service), which is not accessible from within Docker containers. Use an API key for Docker deployments.
+### OAuth/Authentication issues in Docker
+
+**Claude Code:** OAuth credentials are stored in your system's keychain, which is not accessible from within Docker containers. Use `ANTHROPIC_API_KEY` for Docker deployments.
+
+**GitHub Copilot CLI:** Requires GitHub authentication. Run `gh auth login` on the host before starting the container, or configure GitHub token via environment variables.
 
 ## License
 

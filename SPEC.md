@@ -7,11 +7,23 @@
 | Product Name | Formic |
 | Version | 1.0 |
 | Type | Local-First Agent Orchestration & Execution Environment |
-| Target Audience | Developers using Claude Code for project development |
+| Target Audience | Developers using AI coding agents for project development |
+| Supported Agents | Claude Code CLI, GitHub Copilot CLI |
 
 ### Core Concept
 
-A web-based "Mission Control" dashboard that sits on top of a local repository. Users define tasks via a Kanban interface, and the system spawns Claude CLI processes inside the repository to execute those tasks autonomously.
+A web-based "Mission Control" dashboard that sits on top of a local repository. Users define tasks via a Kanban interface, and the system spawns AI coding agent processes inside the repository to execute those tasks autonomously.
+
+### Multi-Agent Support
+
+Formic supports multiple AI coding agents through a unified abstraction layer:
+
+| Agent | Command | Authentication | Skills Support |
+|-------|---------|----------------|----------------|
+| Claude Code CLI | `claude` | `ANTHROPIC_API_KEY` | `.claude/skills/` |
+| GitHub Copilot CLI | `copilot` | GitHub OAuth | `.claude/skills/` |
+
+Both agents support the same skill format (`SKILL.md` with YAML frontmatter), enabling seamless switching between agents without workflow changes.
 
 ---
 
@@ -27,7 +39,7 @@ A web-based "Mission Control" dashboard that sits on top of a local repository. 
 | Frontend | HTML + CSS + Vanilla JS | Simple, no-build-step UI |
 | Terminal UI | xterm.js | Log display in browser |
 | Database | JSON file (`data/board.json`) | Local state persistence |
-| Agent | Claude Code CLI | Task execution |
+| Agent | Claude Code CLI / GitHub Copilot CLI | Task execution (pluggable) |
 | Deployment | Docker | Containerized environment |
 
 ### 2.2 Project Structure
@@ -73,7 +85,7 @@ formic/
 
 > **Note:** All Formic state is stored inside the workspace. This makes each project self-contained and allows switching between projects by mounting different workspaces.
 
-### 2.5 Task Documentation Folders
+### 2.6 Task Documentation Folders
 
 Task documentation is stored **inside the user's workspace** at `.formic/tasks/`. This allows the Claude agent to naturally discover and read the context files when exploring the codebase.
 
@@ -110,7 +122,7 @@ Task documentation is stored **inside the user's workspace** at `.formic/tasks/`
 3. During execution, the agent reads the docs and writes artifacts to the folder
 4. On completion, the folder serves as a version-controlled record of what was done
 
-### 2.6 Project Bootstrap & Development Guidelines
+### 2.7 Project Bootstrap & Development Guidelines
 
 When Formic is first launched against a new project workspace, it performs an automatic bootstrap process to establish AI development guidelines.
 
@@ -201,7 +213,7 @@ formic/
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 2.7 Skill-Based Task Documentation Workflow
+### 2.8 Skill-Based Task Documentation Workflow
 
 Formic implements a structured 3-step workflow for task execution, ensuring comprehensive documentation before any implementation begins.
 
@@ -263,7 +275,7 @@ This ensures:
 
 **Bundled Skills:**
 
-Skills are stored in the Formic project and copied to the workspace's `.claude/commands/` directory during workspace initialization (same timing as bootstrap detection):
+Skills are stored in the Formic project and copied to the workspace's `.claude/skills/` directory during workspace initialization (same timing as bootstrap detection):
 
 ```
 formic/
@@ -383,11 +395,63 @@ interface Task {
 }
 ```
 
-### 2.3 Container Strategy
+### 2.3 Agent Abstraction Layer
 
-Single Node.js container serving both API and static frontend. The container requires Claude Code CLI installed globally.
+Formic implements a pluggable agent system that supports multiple AI coding assistants through a unified interface.
 
-### 2.4 Volume Requirements
+**Agent Configuration:**
+
+```typescript
+interface AgentConfig {
+  command: string;           // CLI command (e.g., 'claude', 'copilot')
+  buildArgs: (prompt: string) => string[];  // Build CLI arguments
+  skillsDir: string;         // Skills directory path
+  envVars: Record<string, string>;  // Required environment variables
+}
+
+const AGENTS: Record<string, AgentConfig> = {
+  claude: {
+    command: 'claude',
+    buildArgs: (prompt) => ['--print', '--dangerously-skip-permissions', prompt],
+    skillsDir: '.claude/skills',
+    envVars: { ANTHROPIC_API_KEY: '...' }
+  },
+  copilot: {
+    command: 'copilot',
+    buildArgs: (prompt) => ['--prompt', prompt, '--allow-all-tools'],
+    skillsDir: '.claude/skills',
+    envVars: {}  // Uses GitHub OAuth
+  }
+};
+```
+
+**Environment Variables:**
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `AGENT_COMMAND` | CLI command to execute | `claude` |
+| `AGENT_TYPE` | Agent type for flag selection | `claude` |
+
+**Skill Compatibility:**
+
+Both agents support the same skill format (`.claude/skills/{skill-name}/SKILL.md`):
+
+```yaml
+---
+name: plan
+description: Generates implementation plan for a Formic task.
+---
+
+# Skill instructions here...
+```
+
+The `name` field is required for GitHub Copilot CLI compatibility. Both agents load skills from the `.claude/skills/` directory.
+
+### 2.4 Container Strategy
+
+Single Node.js container serving both API and static frontend. The container requires the configured agent CLI installed globally (Claude Code or GitHub Copilot CLI).
+
+### 2.5 Volume Requirements
 
 | Volume | Container Path | Purpose |
 |--------|----------------|---------|
@@ -796,24 +860,49 @@ services:
 - [x] Allow manual trigger of individual workflow steps
 - [x] Handle workflow interruption and stop
 
-### Phase 9: Structured Subtask Management & Iterative Execution 🚧
-- [ ] Replace CHECKLIST.md with subtasks.json as agent source of truth
-- [ ] Update `/plan` skill to generate PLAN.md (human-readable) + subtasks.json (structured)
-- [ ] Create `subtasks.ts` service for subtask management:
+### Phase 9: Structured Subtask Management & Iterative Execution ✅
+- [x] Replace CHECKLIST.md with subtasks.json as agent source of truth
+- [x] Update `/plan` skill to generate PLAN.md (human-readable) + subtasks.json (structured)
+- [x] Create `subtasks.ts` service for subtask management:
   - Parse and validate subtasks.json
   - Calculate completion percentage
   - Check if all subtasks are complete
-- [ ] Implement iterative execution loop (Ralph Wiggum style):
+- [x] Implement iterative execution loop (Ralph Wiggum style):
   - Agent reads subtasks.json for remaining work
   - Agent updates subtask status as it progresses
   - Loop continues until all subtasks complete or max iterations reached
   - Provide feedback on incomplete items between iterations
-- [ ] Add subtask API endpoints:
+- [x] Add subtask API endpoints:
   - GET `/api/tasks/:id/subtasks` - Get subtasks
   - PUT `/api/tasks/:id/subtasks/:subtaskId` - Update subtask status
   - GET `/api/tasks/:id/subtasks/completion` - Get completion percentage
-- [ ] Update frontend to display subtask progress
-- [ ] Remove CHECKLIST.md template and related code
+- [x] Update frontend to display subtask progress
+- [x] Remove CHECKLIST.md template and related code
+
+### Phase 10: Multi-Agent Support 🚧
+- [ ] Create agent abstraction layer (`agentAdapter.ts`):
+  - Define `AgentConfig` interface
+  - Implement agent-specific CLI flag builders
+  - Support Claude Code and GitHub Copilot CLI
+- [ ] Update skill files for cross-agent compatibility:
+  - Add `name` field to SKILL.md frontmatter
+  - Change skills directory from `.claude/commands/` to `.claude/skills/`
+- [ ] Update workflow services:
+  - `workflow.ts`: Use agent adapter for process spawning
+  - `runner.ts`: Use agent adapter for process spawning
+- [ ] Update path utilities:
+  - `paths.ts`: Change to `.claude/skills/` directory
+  - `skills.ts`: Update skill copying and discovery
+- [ ] Add environment variable support:
+  - `AGENT_TYPE`: Select agent type (`claude` or `copilot`)
+  - Document authentication requirements per agent
+- [ ] Update documentation:
+  - README.md: Multi-agent setup instructions
+  - SPEC.md: Agent abstraction architecture
+- [ ] Test with both agents:
+  - Verify skill loading works with both CLIs
+  - Verify workflow execution completes successfully
+  - Verify output parsing is agent-agnostic
 
 ---
 

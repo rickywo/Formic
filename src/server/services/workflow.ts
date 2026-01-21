@@ -5,6 +5,7 @@ import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt } from './skillReader.js';
+import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
 import {
   loadSubtasks,
   isAllComplete,
@@ -18,7 +19,6 @@ import path from 'node:path';
 
 const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const MAX_LOG_LINES = 50;
-const AGENT_COMMAND = process.env.AGENT_COMMAND || 'claude';
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 const MAX_EXECUTE_ITERATIONS = parseInt(process.env.MAX_EXECUTE_ITERATIONS || '5', 10);
 const STEP_TIMEOUT_MS = parseInt(process.env.STEP_TIMEOUT_MS || '600000', 10); // 10 minutes default
@@ -265,11 +265,11 @@ function runWorkflowStep(
 ): ChildProcess {
   console.log(`[Workflow] Starting ${step} step for task ${taskId}`);
 
-  const child = spawn(AGENT_COMMAND, [
-    '--print',
-    '--dangerously-skip-permissions',
-    prompt
-  ], {
+  // Use agent adapter for CLI invocation
+  const agentCommand = getAgentCommand();
+  const agentArgs = buildAgentArgs(prompt);
+
+  const child = spawn(agentCommand, agentArgs, {
     cwd: WORKSPACE_PATH,
     env: { ...process.env },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -301,9 +301,10 @@ function runWorkflowStep(
     clearTimeout(timeout);
     activeWorkflows.delete(taskId);
 
+    const agentName = getAgentDisplayName();
     let errorMessage = err.message;
     if (err.code === 'ENOENT') {
-      errorMessage = `Command '${AGENT_COMMAND}' not found.`;
+      errorMessage = `Command '${agentCommand}' not found. Please ensure ${agentName} is installed.`;
     }
 
     console.log(`[Workflow] ${step} step error: ${errorMessage}`);
@@ -327,9 +328,10 @@ function runWorkflowStep(
       logBuffer.shift();
     }
 
+    // Send raw text without per-chunk prefix - the step context is shown in the UI header
     broadcastToTask(taskId, {
       type: 'stdout',
-      data: `[${step.toUpperCase()}] ${text}`,
+      data: text,
       timestamp: new Date().toISOString(),
     });
   });
@@ -343,9 +345,10 @@ function runWorkflowStep(
       logBuffer.shift();
     }
 
+    // Send raw text without per-chunk prefix - the step context is shown in the UI header
     broadcastToTask(taskId, {
       type: 'stderr',
-      data: `[${step.toUpperCase()}] ${text}`,
+      data: text,
       timestamp: new Date().toISOString(),
     });
   });

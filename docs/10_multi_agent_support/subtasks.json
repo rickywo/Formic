@@ -1,0 +1,159 @@
+{
+  "version": "1.0",
+  "taskId": "phase-10",
+  "title": "Multi-Agent Support",
+  "createdAt": "2026-01-21T06:57:00.000Z",
+  "updatedAt": "2026-01-21T07:15:00.000Z",
+  "subtasks": [
+    {
+      "id": "1",
+      "content": "Create src/server/services/agentAdapter.ts with AgentConfig interface and AgentType type",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "content": "Implement Claude agent configuration with --print --dangerously-skip-permissions flags in agentAdapter.ts",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:00:00.000Z"
+    },
+    {
+      "id": "3",
+      "content": "Implement Copilot agent configuration with --prompt and --allow-all-tools flags in agentAdapter.ts",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:00:00.000Z"
+    },
+    {
+      "id": "4",
+      "content": "Add getAgentConfig() function that reads AGENT_TYPE from environment (default: 'claude')",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:00:00.000Z"
+    },
+    {
+      "id": "5",
+      "content": "Add buildAgentArgs() helper function that returns CLI arguments array for a given prompt",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:00:00.000Z"
+    },
+    {
+      "id": "6",
+      "content": "Add getAgentCommand() helper function that returns the CLI command from AGENT_COMMAND env var",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:00:00.000Z"
+    },
+    {
+      "id": "7",
+      "content": "Rename getClaudeCommandsDir() to getSkillsDir() in src/server/utils/paths.ts",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:02:00.000Z"
+    },
+    {
+      "id": "8",
+      "content": "Update path from .claude/commands to .claude/skills in paths.ts",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:02:00.000Z"
+    },
+    {
+      "id": "9",
+      "content": "Update all references in src/server/services/skills.ts to use new getSkillsDir() function name",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:05:00.000Z"
+    },
+    {
+      "id": "10",
+      "content": "Add name field to skills/brief/SKILL.md frontmatter (value: 'brief')",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:06:00.000Z"
+    },
+    {
+      "id": "11",
+      "content": "Add name field to skills/plan/SKILL.md frontmatter (value: 'plan')",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:06:00.000Z"
+    },
+    {
+      "id": "12",
+      "content": "Update log messages in skills.ts to reference .claude/skills/ instead of .claude/commands/",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:05:00.000Z"
+    },
+    {
+      "id": "13",
+      "content": "Import getAgentConfig and buildAgentArgs in src/server/services/runner.ts",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:08:00.000Z"
+    },
+    {
+      "id": "14",
+      "content": "Replace hardcoded spawn(AGENT_COMMAND, ['--print', '--dangerously-skip-permissions', prompt]) with spawn(config.command, config.buildArgs(prompt)) in runner.ts",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:08:00.000Z"
+    },
+    {
+      "id": "15",
+      "content": "Import getAgentConfig and buildAgentArgs in src/server/services/workflow.ts",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:10:00.000Z"
+    },
+    {
+      "id": "16",
+      "content": "Replace hardcoded Claude CLI invocation in runWorkflowStep() function with agent adapter",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:10:00.000Z"
+    },
+    {
+      "id": "17",
+      "content": "Update error messages to reference the configured agent command instead of hardcoded 'claude'",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:10:00.000Z"
+    },
+    {
+      "id": "18",
+      "content": "Update src/server/index.ts to log selected agent type on startup",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:12:00.000Z"
+    },
+    {
+      "id": "19",
+      "content": "Add agent configuration validation on startup (check if command exists in PATH)",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:12:00.000Z"
+    },
+    {
+      "id": "20",
+      "content": "Add helpful error message when agent CLI is not installed",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:12:00.000Z"
+    },
+    {
+      "id": "21",
+      "content": "Test with AGENT_TYPE=claude to verify Claude Code CLI still works",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:14:00.000Z"
+    },
+    {
+      "id": "22",
+      "content": "Test with AGENT_TYPE=copilot to verify GitHub Copilot CLI argument building",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:14:00.000Z"
+    },
+    {
+      "id": "23",
+      "content": "Verify skills are copied to .claude/skills/ directory",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:14:00.000Z"
+    },
+    {
+      "id": "24",
+      "content": "Verify existing workflow (brief → plan → execute) functions with both agents",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:14:00.000Z"
+    },
+    {
+      "id": "25",
+      "content": "Test error handling when selected agent is not installed",
+      "status": "completed",
+      "completedAt": "2026-01-21T07:14:00.000Z"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 ---
+name: brief
 description: Generates a feature specification (README.md) for a Formic task.
 ---
 

@@ -3,12 +3,12 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, appendTaskLogs } from './store.js';
+import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
 import type { LogMessage } from '../../types/index.js';
 import path from 'node:path';
 
 const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const MAX_LOG_LINES = 50;
-const AGENT_COMMAND = process.env.AGENT_COMMAND || 'claude';
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 
 /**
@@ -102,15 +102,12 @@ Task documentation is available at: ${docsPath}/
 
 All code changes MUST comply with the project development guidelines provided above.`;
 
-  // Spawn Claude CLI process
-  // Using --print for non-interactive mode, output appears at completion
-  // --dangerously-skip-permissions allows autonomous file operations without prompts
-  // stdin is set to 'ignore' since --print mode doesn't need input
-  const child = spawn(AGENT_COMMAND, [
-    '--print',
-    '--dangerously-skip-permissions',
-    prompt
-  ], {
+  // Spawn agent CLI process using the configured agent adapter
+  // stdin is set to 'ignore' since non-interactive mode doesn't need input
+  const agentCommand = getAgentCommand();
+  const agentArgs = buildAgentArgs(prompt);
+
+  const child = spawn(agentCommand, agentArgs, {
     cwd: WORKSPACE_PATH,
     env: { ...process.env },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -123,11 +120,12 @@ All code changes MUST comply with the project development guidelines provided ab
     activeProcesses.delete(taskId);
 
     // Provide helpful error messages for common issues
+    const agentName = getAgentDisplayName();
     let errorMessage = err.message;
     if (err.code === 'ENOENT') {
-      errorMessage = `Command '${AGENT_COMMAND}' not found. Please ensure Claude CLI is installed and available in PATH.`;
+      errorMessage = `Command '${agentCommand}' not found. Please ensure ${agentName} is installed and available in PATH.`;
     } else if (err.code === 'EACCES') {
-      errorMessage = `Permission denied when trying to execute '${AGENT_COMMAND}'.`;
+      errorMessage = `Permission denied when trying to execute '${agentCommand}'.`;
     }
 
     await updateTaskStatus(taskId, 'todo', null);

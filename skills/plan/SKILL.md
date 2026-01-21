@@ -1,4 +1,5 @@
 ---
+name: plan
 description: Generates implementation plan (PLAN.md) and structured subtasks (subtasks.json) for a Formic task.
 ---
 

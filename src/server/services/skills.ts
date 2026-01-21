@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getFormicDir, getClaudeCommandsDir } from '../utils/paths.js';
+import { getFormicDir, getSkillsDir } from '../utils/paths.js';
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -33,10 +33,10 @@ function getBundledSkillsPath(): string {
 }
 
 /**
- * Get the path to the workspace skills directory (new location: .claude/commands/)
+ * Get the path to the workspace skills directory (.claude/skills/)
  */
 export function getWorkspaceSkillsPath(): string {
-  return getClaudeCommandsDir();
+  return getSkillsDir();
 }
 
 /**
@@ -48,7 +48,7 @@ export function getLegacySkillsPath(): string {
 
 /**
  * Check if skills have already been copied to the workspace
- * Checks both new (.claude/commands/) and legacy (.formic/skills/) locations
+ * Checks both new (.claude/skills/) and legacy (.formic/skills/) locations
  */
 export function skillsExistInWorkspace(): boolean {
   const newPath = getWorkspaceSkillsPath();
@@ -81,7 +81,7 @@ async function copyDirectory(src: string, dest: string): Promise<void> {
 }
 
 /**
- * Copy bundled skills to the workspace .claude/commands/ directory
+ * Copy bundled skills to the workspace .claude/skills/ directory
  * Only copies if skills don't already exist in the workspace (checks both new and legacy locations)
  */
 export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills: string[] }> {
@@ -92,7 +92,7 @@ export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills
   }
 
   const bundledSkillsPath = getBundledSkillsPath();
-  const workspaceSkillsPath = getWorkspaceSkillsPath(); // Now points to .claude/commands/
+  const workspaceSkillsPath = getWorkspaceSkillsPath(); // Points to .claude/skills/
 
   // Check if bundled skills exist
   if (!existsSync(bundledSkillsPath)) {
@@ -107,7 +107,7 @@ export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills
       await mkdir(claudeDir, { recursive: true });
     }
 
-    // Copy the entire skills directory to .claude/commands/
+    // Copy the entire skills directory to .claude/skills/
     await copyDirectory(bundledSkillsPath, workspaceSkillsPath);
 
     // Get list of copied skills
@@ -118,7 +118,7 @@ export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills
       return stats.isDirectory();
     });
 
-    console.log('[Skills] Copied skills to workspace .claude/commands/:', skills);
+    console.log('[Skills] Copied skills to workspace .claude/skills/:', skills);
     return { copied: true, skills };
   } catch (error) {
     console.error('[Skills] Error copying skills to workspace:', error);
@@ -128,7 +128,7 @@ export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills
 
 /**
  * Get the path to a specific skill in the workspace
- * Checks new location (.claude/commands/) first, then falls back to legacy (.formic/skills/)
+ * Checks new location (.claude/skills/) first, then falls back to legacy (.formic/skills/)
  */
 export function getSkillPath(skillName: string): string {
   const newPath = path.join(getWorkspaceSkillsPath(), skillName, 'SKILL.md');

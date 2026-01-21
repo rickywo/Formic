@@ -43,9 +43,9 @@ export function getRelativeDocsPath(id: string, slug: string): string {
 }
 
 /**
- * Get the .claude/commands directory path inside workspace
- * This is the standard Claude Code location for project-level skills
+ * Get the .claude/skills directory path inside workspace
+ * This is the standard location for project-level skills (compatible with both Claude and Copilot)
  */
-export function getClaudeCommandsDir(): string {
-  return path.join(getWorkspacePath(), '.claude', 'commands');
+export function getSkillsDir(): string {
+  return path.join(getWorkspacePath(), '.claude', 'skills');
 }

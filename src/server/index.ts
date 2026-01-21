@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { boardRoutes } from './routes/board.js';
 import { taskRoutes } from './routes/tasks.js';
 import { logsWebSocket } from './ws/logs.js';
+import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -43,6 +44,18 @@ async function main() {
   try {
     await fastify.listen({ port: PORT, host: HOST });
     console.log(`Formic server running at http://${HOST}:${PORT}`);
+
+    // Log agent configuration
+    const agentType = getAgentType();
+    const agentCommand = getAgentCommand();
+    const agentDisplayName = getAgentDisplayName();
+    console.log(`Agent: ${agentDisplayName} (type: ${agentType}, command: ${agentCommand})`);
+
+    // Warn about missing environment variables
+    const missingEnvVars = validateAgentEnv();
+    if (missingEnvVars.length > 0) {
+      console.warn(`Warning: Missing environment variables for ${agentDisplayName}: ${missingEnvVars.join(', ')}`);
+    }
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
