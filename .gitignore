@@ -42,6 +42,7 @@ docs/08_skill_workflow/test_screenshots/
 
 # Screenshots and test artifacts
 *.png
+!images/*.png
 __pycache__/
 *.pyc
 

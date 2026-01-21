@@ -1,24 +1,175 @@
-# Formic
+<p align="center">
+  <img src="images/formic.png" alt="Formic Logo" width="400">
+</p>
 
-A local-first agent orchestration and execution environment. A web-based "Mission Control" that sits on top of a local repository, allowing you to define tasks and spawn AI coding agents to execute them.
+<p align="center">
+  <strong>The Local-First Agent Orchestration Environment</strong>
+</p>
 
-## Overview
+<p align="center">
+  <em>Vibe Coding with autonomous agents. Your repo, your rules, their labor.</em>
+</p>
 
-Formic provides a Kanban-style interface for managing AI-assisted development tasks. Define your tasks, click "Run", and watch your AI coding agent work on your codebase in real-time.
+<p align="center">
+  <a href="#quickstart"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker" alt="Docker Ready"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
+  <img src="https://img.shields.io/badge/Status-Alpha-orange?style=flat-square" alt="Alpha Status">
+  <img src="https://img.shields.io/badge/Built%20with-Claude-blueviolet?style=flat-square" alt="Built with Claude">
+</p>
 
-**Supported Agents:**
-- **Claude Code CLI** (default) - Anthropic's agentic coding assistant
-- **GitHub Copilot CLI** - GitHub's terminal-based coding agent
+<p align="center">
+  <a href="#quickstart">Quickstart</a> •
+  <a href="#why-formic">Why?</a> •
+  <a href="#features">Features</a> •
+  <a href="#supported-agents">Agents</a> •
+  <a href="#documentation">Docs</a> •
+  <a href="#contributing">Contributing</a>
+</p>
+
+---
+
+<p align="center">
+  <img src="images/screenshot.png" alt="Formic Dashboard" width="800">
+  <br>
+  <em>Mission Control for your AI coding agents</em>
+</p>
+
+---
+
+## Why Formic?
+
+**The Problem:** You have an AI coding agent. You have a codebase. But every task becomes a context dump, a prompt engineering session, and a prayer that the agent remembers what you told it five minutes ago.
+
+**The Solution:** Formic sits between you and your AI agent like a competent project manager. You describe what you want. Formic breaks it into specs, plans, and subtasks. The agent executes. You review.
+
+```
+┌─────────────────────────────────────────────────────┐
+│  You: "Add dark mode"                               │
+│           ↓                                         │
+│  Formic: Generates README.md (spec)                 │
+│           ↓                                         │
+│  Formic: Generates PLAN.md + subtasks.json          │
+│           ↓                                         │
+│  Agent: Implements all subtasks autonomously        │
+│           ↓                                         │
+│  You: Review, approve, ship                         │
+└─────────────────────────────────────────────────────┘
+```
+
+**Vibe Coding Philosophy:**
+- 🐜 **Agents do the labor** — You define intent, they write code
+- ⚡ **Local-first** — Your repo, your machine, zero cloud lock-in
+- 🎯 **Structured autonomy** — Every task gets specs, plans, and tracked subtasks
+
+---
+
+## Quickstart
+
+### 🐳 One Command
+
+```bash
+docker run -p 8000:8000 \
+  -v /path/to/your/project:/app/workspace \
+  -e ANTHROPIC_API_KEY=your-api-key \
+  ghcr.io/your-org/formic:latest
+```
+
+Open `http://localhost:8000` and start creating tasks.
+
+### Three Steps to Autonomous Development
+
+1. **Create a task** — Describe what you want in plain English
+2. **Click Run** — Formic auto-generates specs, plans, and executes
+3. **Review & ship** — Agent moves completed work to Review for your approval
+
+That's it. No prompt engineering. No context management. No babysitting.
+
+---
 
 ## Features
 
-- **Kanban Board**: Drag-and-drop task management with `todo`, `running`, `review`, and `done` columns
-- **Agent Execution**: Spawn Claude CLI processes directly against your local repository
-- **Live Terminal Output**: Stream agent logs via WebSocket to see real-time progress
-- **Task Documentation**: Each task gets a folder with README, PLAN, and structured subtasks for context
-- **Smart Completion**: Iterative execution loop verifies all subtasks are complete before marking done
-- **Single Project Focus**: One board, one repository, zero context switching
-- **Auto-Bootstrap**: Automatically generates project-specific AI development guidelines on first run
+| Feature | Description |
+|---------|-------------|
+| 🐜 **Kanban Board** | Drag-and-drop task management across `todo`, `running`, `review`, `done` |
+| ⚡ **Live Terminal** | Real-time agent output streaming via WebSocket |
+| 📋 **Auto-Documentation** | Every task gets README.md, PLAN.md, and structured subtasks |
+| 🔄 **Iterative Execution** | Agent loops until all subtasks are complete |
+| 🎯 **Smart Bootstrap** | Auto-generates project-specific coding guidelines on first run |
+| 🔌 **Multi-Agent** | Switch between Claude Code CLI and GitHub Copilot CLI |
+
+### Workflow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  BRIEF → Generate README.md (what to build)                 │
+│            ↓                                                │
+│  PLAN  → Generate PLAN.md + subtasks.json (how to build)    │
+│            ↓                                                │
+│  EXECUTE → Iterative loop until all subtasks complete       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Supported Agents
+
+| Agent | Command | Auth | Status |
+|-------|---------|------|--------|
+| **Claude Code CLI** | `claude` | `ANTHROPIC_API_KEY` | ✅ Default |
+| **GitHub Copilot CLI** | `copilot` | GitHub OAuth | ✅ Supported |
+
+Switch agents via environment variable:
+
+```bash
+# Claude (default)
+export AGENT_TYPE=claude
+export ANTHROPIC_API_KEY=your-key
+
+# GitHub Copilot
+export AGENT_TYPE=copilot
+# Uses your existing GitHub auth
+```
+
+---
+
+## Documentation
+
+### Project Structure
+
+```
+your-project/
+├── src/
+├── package.json
+└── .formic/                      # Auto-created
+    ├── board.json                # Kanban state
+    └── tasks/
+        └── t-1_add-dark-mode/
+            ├── README.md         # Feature spec
+            ├── PLAN.md           # Implementation plan
+            └── subtasks.json     # Tracked progress
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `8000` |
+| `WORKSPACE_PATH` | Project directory | `/app/workspace` |
+| `AGENT_TYPE` | Agent to use | `claude` |
+| `ANTHROPIC_API_KEY` | Claude API key | Required for Claude |
+
+### API
+
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/board` | Fetch board state |
+| `POST /api/tasks` | Create task |
+| `POST /api/tasks/:id/run` | Execute full workflow |
+| `WS /ws/logs/:taskId` | Stream agent output |
+
+Full API reference in [SPEC.md](SPEC.md).
+
+---
 
 ## Tech Stack
 
@@ -28,401 +179,71 @@ Formic provides a Kanban-style interface for managing AI-assisted development ta
 | Server | Fastify |
 | WebSocket | @fastify/websocket |
 | Frontend | Vanilla HTML/CSS/JS |
-| Terminal UI | xterm.js |
-| Storage | JSON file (workspace-based) |
-| Agent | Claude Code CLI or GitHub Copilot CLI |
+| Terminal | xterm.js |
+| Agent | Claude Code / GitHub Copilot |
 | Deployment | Docker |
 
-## Prerequisites
+---
 
-- Docker & Docker Compose (for containerized deployment)
-- Node.js 20+ (for local development)
-- One of the following AI coding agents:
-  - **Claude Code CLI** + Anthropic API key, OR
-  - **GitHub Copilot CLI** + GitHub Copilot subscription (Pro/Business/Enterprise)
-
-## Quick Start
-
-### Option 1: Docker Compose (Recommended)
+## Development
 
 ```bash
-# Clone the repository
-git clone <repo-url>
+# Clone
+git clone https://github.com/your-org/formic.git
 cd formic
 
-# Set path to your project
-export WORKSPACE_PATH=/path/to/your/project
-
-# --- For Claude Code (default) ---
-export ANTHROPIC_API_KEY=your-api-key
-
-# --- OR for GitHub Copilot CLI ---
-export AGENT_COMMAND=copilot
-export AGENT_TYPE=copilot
-# (Copilot uses your GitHub authentication automatically)
-
-# Build and run
-docker-compose up -d
-
-# Open http://localhost:8000
-```
-
-### Option 2: Docker Run
-
-```bash
-# Build the image
-docker build -t formic .
-
-# Run with your API key
-docker run -p 8000:8000 \
-  -v /path/to/your/project:/app/workspace \
-  -e ANTHROPIC_API_KEY=your-api-key \
-  formic
-```
-
-> **Note about OAuth**: Claude Code OAuth credentials are stored in your system's keychain (macOS Keychain, Windows Credential Manager, etc.), which is not accessible from within Docker containers. For Docker deployments, use an API key instead.
-
-### Option 3: Local Development
-
-```bash
-# Install dependencies
+# Install
 npm install
 
-# Run in development mode (with hot reload)
+# Run (development)
 npm run dev
 
-# Open http://localhost:8000
+# Build
+npm run build
+
+# Run (production)
+npm start
 ```
 
-## Volume Mount
+---
 
-Formic requires a single volume mount for your project workspace:
+## Roadmap
+
+- [x] Kanban board with drag-and-drop
+- [x] Live terminal output streaming
+- [x] Auto-bootstrap project guidelines
+- [x] 3-step workflow (brief → plan → execute)
+- [x] Iterative execution with subtask tracking
+- [x] Multi-agent support (Claude + Copilot)
+- [ ] Multi-agent concurrency
+- [ ] Task dependencies
+- [ ] Git auto-commit per task
+- [ ] Cloud deployment option
+
+---
+
+## Contributing
+
+Contributions welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting PRs.
 
 ```bash
--v /path/to/your/project:/app/workspace
+# Run tests
+npm test
+
+# Lint
+npm run lint
 ```
 
-All Formic data (board state, task documentation) is stored inside the workspace at `.formic/`:
-
-```
-your-project/
-├── src/
-├── package.json
-└── .formic/           # Created automatically
-    ├── board.json          # Kanban board state
-    └── tasks/
-        └── t-1_task-name/  # Task documentation folder
-            ├── README.md       # Feature specification (human-readable)
-            ├── PLAN.md         # High-level implementation steps (human-readable)
-            ├── subtasks.json   # Structured subtask list (agent source of truth)
-            └── output/
-```
-
-This design makes each project self-contained and portable.
-
-## Usage
-
-1. **Create a Task**: Click "+ New Task" and provide a title and context/prompt
-2. **Run Agent**: Click "Run" on any task in the Todo column
-3. **Monitor**: Watch the live terminal output as Claude works
-4. **Review**: Completed tasks move to Review for your approval
-5. **Done**: Drag reviewed tasks to Done when satisfied
-
-## Auto-Bootstrap: Development Guidelines
-
-When you first start Formic against a new project, it automatically creates a bootstrap task to generate AI development guidelines specific to your codebase.
-
-### How It Works
-
-1. **Detection**: Formic checks if `kanban-development-guideline.md` exists in your project root
-2. **Bootstrap Task**: If missing, a special task is created automatically
-3. **Codebase Audit**: Claude analyzes your repository structure, dependencies, and patterns
-4. **Guidelines Generated**: A comprehensive `kanban-development-guideline.md` is created
-
-### What's Analyzed
-
-The bootstrap process examines:
-- Tech stack and core libraries (with versions)
-- Folder structure and architectural patterns
-- Testing frameworks and strategies
-- Linting/formatting configurations
-- Existing coding conventions
-
-### Generated Guidelines Include
-
-```markdown
-## Tech Stack & Core Libraries
-[Discovered frameworks and versions]
-
-## Architectural Patterns
-[Folder structure and design patterns]
-
-## Testing Strategy
-[Testing framework and requirements]
-
-## Coding Standards
-[Naming conventions, typing rules, formatting]
-
-## Explicit Anti-Patterns
-[Patterns to avoid in this codebase]
-
-## Behavioral Rules
-[Context-first development guidelines]
-```
-
-### Customizing the Template
-
-The template is located at `templates/development-guideline.md`. Modify it to match your organization's standards before running the bootstrap task.
-
-### Re-running Bootstrap
-
-To regenerate guidelines (e.g., after major refactoring):
-1. Delete `kanban-development-guideline.md` from your project root
-2. Restart Formic
-3. The bootstrap task will be created again
-
-## Skill-Based Task Workflow
-
-Formic uses a structured 3-step workflow for task execution, ensuring comprehensive documentation is generated before implementation begins.
-
-### Workflow Steps
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  1. BRIEF → Generate README.md (feature specification)      │
-│                         ↓                                   │
-│  2. PLAN  → Generate PLAN.md + subtasks.json                │
-│                         ↓                                   │
-│  3. EXECUTE → Iterative loop until all subtasks complete    │
-│               (Ralph Wiggum style completion verification)  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### How It Works
-
-1. **Create Task**: Enter a title and context/prompt describing what you want to build
-2. **Click Run**: Formic automatically:
-   - **Loads Guidelines**: Injects `kanban-development-guideline.md` into every prompt
-   - **Step 1 (Brief)**: Generates `README.md` with goals, capabilities, and requirements
-   - **Step 2 (Plan)**: Generates `PLAN.md` (human-readable overview) and `subtasks.json` (structured task list)
-   - **Step 3 (Execute)**: Runs the agent in an iterative loop, checking `subtasks.json` for completion
-3. **Smart Completion**: The execute step loops until all subtasks are marked complete (or max iterations reached)
-4. **Monitor Progress**: Watch each step and iteration complete in the terminal view
-
-### Automatic Guidelines Injection
-
-When you run the bootstrap task, it generates `kanban-development-guideline.md` in your project root. This file is **automatically injected into every workflow step prompt**, ensuring Claude always follows your project's coding standards, architectural patterns, and best practices.
-
-This means:
-- Claude receives project-specific rules in every prompt (not relying on file discovery)
-- All generated documentation follows your project's coding standards
-- All code changes comply with your architectural patterns
-- Consistent behavior across all workflow steps (brief, plan, execute)
-
-### Task Documentation Structure
-
-Each task gets a complete documentation folder:
-
-```
-.formic/tasks/t-1_implement-user-auth/
-├── README.md       # Generated by /brief - feature specification (human-readable)
-├── PLAN.md         # Generated by /plan - high-level steps (human-readable)
-├── subtasks.json   # Generated by /plan - structured subtask list (agent source of truth)
-└── output/         # Agent-generated artifacts
-```
-
-### subtasks.json Schema
-
-The `subtasks.json` file is the **source of truth** for the agent during execution:
-
-```json
-{
-  "version": "1.0",
-  "taskId": "t-1",
-  "title": "Implement user authentication",
-  "createdAt": "2024-01-21T10:00:00Z",
-  "updatedAt": "2024-01-21T12:30:00Z",
-  "subtasks": [
-    {
-      "id": "1",
-      "content": "Create auth service in src/services/auth.ts",
-      "status": "completed",
-      "completedAt": "2024-01-21T11:00:00Z"
-    },
-    {
-      "id": "2",
-      "content": "Add JWT middleware",
-      "status": "in_progress"
-    },
-    {
-      "id": "3",
-      "content": "Write unit tests for auth service",
-      "status": "pending"
-    }
-  ]
-}
-```
-
-The agent reads this file to understand what work remains, updates subtask status as it progresses, and can even add new subtasks discovered during implementation.
-
-### Bundled Skills
-
-Formic includes two built-in skills that are automatically copied to your workspace during initialization (same timing as bootstrap detection):
-
-| Skill | Purpose | Output |
-|-------|---------|--------|
-| `/brief` | Generate feature specification | README.md |
-| `/plan` | Generate implementation plan | PLAN.md, subtasks.json |
-
-Skills are stored at `.claude/skills/` in your workspace. They use the standard `SKILL.md` format with YAML frontmatter, which is compatible with both Claude Code and GitHub Copilot CLI. Skills are copied once on first access and can be customized for your project's needs.
-
-### Manual Step Execution
-
-You can trigger individual workflow steps via the API:
-
-```bash
-# Run only the brief step
-curl -X POST http://localhost:8000/api/tasks/t-1/workflow/brief
-
-# Run only the plan step
-curl -X POST http://localhost:8000/api/tasks/t-1/workflow/plan
-
-# Run only the execute step
-curl -X POST http://localhost:8000/api/tasks/t-1/workflow/execute
-```
-
-### Task Statuses
-
-| Status | Description |
-|--------|-------------|
-| `todo` | Task created, waiting to start |
-| `briefing` | Generating README.md |
-| `planning` | Generating PLAN.md and subtasks.json |
-| `running` | Executing the task (iterating until subtasks complete) |
-| `review` | All subtasks complete, awaiting human review |
-| `done` | Task approved and closed |
-
-## Project Structure
-
-```
-formic/
-├── src/
-│   ├── server/
-│   │   ├── index.ts          # Fastify server entry point
-│   │   ├── routes/
-│   │   │   ├── board.ts      # GET /api/board
-│   │   │   └── tasks.ts      # Task CRUD + run/stop + workflow
-│   │   ├── ws/
-│   │   │   └── logs.ts       # WebSocket log streaming
-│   │   ├── services/
-│   │   │   ├── runner.ts     # Claude CLI process management
-│   │   │   ├── store.ts      # JSON file storage
-│   │   │   ├── bootstrap.ts  # First-run detection & setup
-│   │   │   ├── workflow.ts   # 3-step task workflow orchestration
-│   │   │   ├── taskDocs.ts   # Task documentation folders
-│   │   │   └── subtasks.ts   # Subtask management & completion checking
-│   │   ├── templates/        # Task doc templates
-│   │   └── utils/            # Slug, paths helpers
-│   ├── client/
-│   │   └── index.html        # Frontend UI
-│   └── types/
-│       └── index.ts          # Shared TypeScript types
-├── skills/                   # Bundled Claude skills
-│   ├── brief/
-│   │   └── SKILL.md          # README.md generator
-│   └── plan/
-│       └── SKILL.md          # PLAN.md + CHECKLIST.md generator
-├── templates/
-│   └── development-guideline.md  # Bootstrap template
-├── Dockerfile
-├── docker-compose.yml
-└── package.json
-```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/board` | Get full board state |
-| POST | `/api/tasks` | Create a new task |
-| PUT | `/api/tasks/:id` | Update a task |
-| DELETE | `/api/tasks/:id` | Delete a task |
-| POST | `/api/tasks/:id/run` | Start full workflow (brief → plan → execute loop) |
-| POST | `/api/tasks/:id/stop` | Stop running agent |
-| POST | `/api/tasks/:id/workflow/brief` | Run only the brief step |
-| POST | `/api/tasks/:id/workflow/plan` | Run only the plan step |
-| POST | `/api/tasks/:id/workflow/execute` | Run only the execute step |
-| GET | `/api/tasks/:id/subtasks` | Get subtasks for a task |
-| PUT | `/api/tasks/:id/subtasks/:subtaskId` | Update a subtask status |
-| GET | `/api/tasks/:id/subtasks/completion` | Get completion percentage |
-| WS | `/ws/logs/:taskId` | Stream agent logs |
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `8000` |
-| `WORKSPACE_PATH` | Path to mounted workspace | `/app/workspace` |
-| `AGENT_COMMAND` | CLI command to run | `claude` |
-| `AGENT_TYPE` | Agent type for flag selection | `claude` |
-| `ANTHROPIC_API_KEY` | API key for Claude Code | Required for Claude |
-
-### Agent Configuration
-
-**For Claude Code (default):**
-```bash
-export AGENT_COMMAND=claude
-export AGENT_TYPE=claude
-export ANTHROPIC_API_KEY=your-api-key
-```
-
-**For GitHub Copilot CLI:**
-```bash
-export AGENT_COMMAND=copilot
-export AGENT_TYPE=copilot
-# No API key needed - uses GitHub authentication
-```
-
-## Limitations (v1)
-
-- Single agent concurrency (one task running at a time)
-- Single project/repository per instance
-- No task dependencies or workflows
-- Logs limited to last 50 lines per task
-
-## Troubleshooting
-
-### Agent fails with "Command not found"
-
-**For Claude Code:**
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-
-**For GitHub Copilot CLI:**
-```bash
-# Install via Homebrew (macOS/Linux)
-brew install github/gh/copilot-cli
-
-# Or via npm
-npm install -g @github/copilot-cli
-```
-
-### Container health check failing
-The container needs a few seconds to start. Check logs with:
-```bash
-docker logs <container-id>
-```
-
-### Permission denied on workspace
-Ensure the mounted directory is readable/writable by the container user.
-
-### OAuth/Authentication issues in Docker
-
-**Claude Code:** OAuth credentials are stored in your system's keychain, which is not accessible from within Docker containers. Use `ANTHROPIC_API_KEY` for Docker deployments.
-
-**GitHub Copilot CLI:** Requires GitHub authentication. Run `gh auth login` on the host before starting the container, or configure GitHub token via environment variables.
+---
 
 ## License
 
-MIT
+[MIT](LICENSE) — Use it, fork it, ship it.
+
+---
+
+<p align="center">
+  <strong>🐜 Formic</strong>
+  <br>
+  <em>Let the agents do the work.</em>
+</p>
