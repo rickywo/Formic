@@ -1,10 +1,10 @@
-# Product Specification: AgentRunner v1
+# Product Specification: Formic v1
 
 ## 1. Executive Summary
 
 | Attribute | Value |
 |-----------|-------|
-| Product Name | AgentRunner |
+| Product Name | Formic |
 | Version | 1.0 |
 | Type | Local-First Agent Orchestration & Execution Environment |
 | Target Audience | Developers using Claude Code for project development |
@@ -32,9 +32,9 @@ A web-based "Mission Control" dashboard that sits on top of a local repository. 
 
 ### 2.2 Project Structure
 
-**AgentRunner Application:**
+**Formic Application:**
 ```
-agentrunner/
+formic/
 ├── src/
 │   ├── server/
 │   │   ├── index.ts              # Fastify entry point
@@ -61,7 +61,7 @@ agentrunner/
 /app/workspace/bigtoy/            # User's project
 ├── src/
 ├── package.json
-└── .agentrunner/                 # AgentRunner data (inside workspace)
+└── .formic/                 # Formic data (inside workspace)
     ├── board.json                # Project's board state
     └── tasks/
         └── t-1_implement-user-auth/
@@ -71,11 +71,11 @@ agentrunner/
             └── output/           # Agent output artifacts
 ```
 
-> **Note:** All AgentRunner state is stored inside the workspace. This makes each project self-contained and allows switching between projects by mounting different workspaces.
+> **Note:** All Formic state is stored inside the workspace. This makes each project self-contained and allows switching between projects by mounting different workspaces.
 
 ### 2.5 Task Documentation Folders
 
-Task documentation is stored **inside the user's workspace** at `.agentrunner/tasks/`. This allows the Claude agent to naturally discover and read the context files when exploring the codebase.
+Task documentation is stored **inside the user's workspace** at `.formic/tasks/`. This allows the Claude agent to naturally discover and read the context files when exploring the codebase.
 
 **Purpose:**
 
@@ -89,7 +89,7 @@ Task documentation is stored **inside the user's workspace** at `.agentrunner/ta
 
 **Folder Structure:**
 ```
-{workspace}/.agentrunner/tasks/{task-id}_{slug}/
+{workspace}/.formic/tasks/{task-id}_{slug}/
 ├── README.md        # Specification: goals, requirements, non-goals
 ├── PLAN.md          # Implementation: step-by-step tasks with checkboxes
 ├── CHECKLIST.md     # Quality gates and completion criteria
@@ -101,18 +101,18 @@ Task documentation is stored **inside the user's workspace** at `.agentrunner/ta
 
 **Example:** For a task "Implement User Auth" in project "bigtoy":
 ```
-/app/workspace/bigtoy/.agentrunner/tasks/t-1_implement-user-auth/
+/app/workspace/bigtoy/.formic/tasks/t-1_implement-user-auth/
 ```
 
 **Workflow:**
 1. When a task is created, its documentation folder is initialized in the workspace
-2. The agent is instructed to read `.agentrunner/tasks/{id}_{slug}/` for context
+2. The agent is instructed to read `.formic/tasks/{id}_{slug}/` for context
 3. During execution, the agent reads the docs and writes artifacts to the folder
 4. On completion, the folder serves as a version-controlled record of what was done
 
 ### 2.6 Project Bootstrap & Development Guidelines
 
-When AgentRunner is first launched against a new project workspace, it performs an automatic bootstrap process to establish AI development guidelines.
+When Formic is first launched against a new project workspace, it performs an automatic bootstrap process to establish AI development guidelines.
 
 **Purpose:**
 1. **Consistency**: Ensures Claude follows project-specific coding standards
@@ -170,13 +170,13 @@ Save the completed guidelines to: kanban-development-guideline.md
 
 **File Locations:**
 ```
-agentrunner/
+formic/
 ├── templates/
 │   └── development-guideline.md    # Template for guidelines
 
 {workspace}/
 ├── kanban-development-guideline.md # Generated guidelines (in project root)
-└── .agentrunner/
+└── .formic/
     └── tasks/
         └── t-bootstrap_setup-guidelines/
 ```
@@ -184,7 +184,7 @@ agentrunner/
 **Workflow:**
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  User starts AgentRunner with workspace                      │
+│  User starts Formic with workspace                      │
 │                     ↓                                        │
 │  System checks: kanban-development-guideline.md exists?      │
 │                     ↓                                        │
@@ -203,7 +203,7 @@ agentrunner/
 
 ### 2.7 Skill-Based Task Documentation Workflow
 
-AgentRunner implements a structured 3-step workflow for task execution, ensuring comprehensive documentation before any implementation begins.
+Formic implements a structured 3-step workflow for task execution, ensuring comprehensive documentation before any implementation begins.
 
 **Workflow Overview:**
 ```
@@ -215,17 +215,17 @@ AgentRunner implements a structured 3-step workflow for task execution, ensuring
 │                         ↓                                       │
 │  Step 1: BRIEF - Generate README.md                             │
 │  • Uses /brief skill with task context + guidelines             │
-│  • Output: .agentrunner/tasks/{id}_{slug}/README.md             │
+│  • Output: .formic/tasks/{id}_{slug}/README.md             │
 │                         ↓                                       │
 │  Step 2: PLAN - Generate PLAN.md + CHECKLIST.md                 │
 │  • Uses /plan skill reading the generated README.md + guidelines│
-│  • Output: .agentrunner/tasks/{id}_{slug}/PLAN.md               │
-│  • Output: .agentrunner/tasks/{id}_{slug}/CHECKLIST.md          │
+│  • Output: .formic/tasks/{id}_{slug}/PLAN.md               │
+│  • Output: .formic/tasks/{id}_{slug}/CHECKLIST.md          │
 │                         ↓                                       │
 │  Step 3: EXECUTE - Run the actual task                          │
 │  • Agent receives full context + guidelines in prompt           │
 │  • Agent implements the task following the plan                 │
-│  • Output: .agentrunner/tasks/{id}_{slug}/output/               │
+│  • Output: .formic/tasks/{id}_{slug}/output/               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -260,10 +260,10 @@ This ensures:
 
 **Bundled Skills:**
 
-Skills are stored in the AgentRunner project and copied to the workspace's `.agentrunner/skills/` directory during workspace initialization (same timing as bootstrap detection):
+Skills are stored in the Formic project and copied to the workspace's `.formic/skills/` directory during workspace initialization (same timing as bootstrap detection):
 
 ```
-agentrunner/
+formic/
 ├── skills/
 │   ├── brief/
 │   │   └── SKILL.md         # README.md generator
@@ -271,8 +271,8 @@ agentrunner/
 │       └── SKILL.md         # PLAN.md + CHECKLIST.md generator
 
 {workspace}/
-└── .agentrunner/
-    └── skills/              # Copied from agentrunner during init
+└── .formic/
+    └── skills/              # Copied from formic during init
         ├── brief/
         │   └── SKILL.md
         └── plan/
@@ -287,9 +287,9 @@ Skills are copied during workspace initialization, which occurs on the first `GE
 ┌─────────────────────────────────────────────────────────────┐
 │  GET /api/board (first request)                             │
 │                         ↓                                   │
-│  1. Create .agentrunner/ directory (if not exists)          │
+│  1. Create .formic/ directory (if not exists)          │
 │                         ↓                                   │
-│  2. Copy skills to .agentrunner/skills/ (if not exists)     │
+│  2. Copy skills to .formic/skills/ (if not exists)     │
 │                         ↓                                   │
 │  3. Check bootstrap required (kanban-development-guideline) │
 │                         ↓                                   │
@@ -379,24 +379,24 @@ Single Node.js container serving both API and static frontend. The container req
 
 | Volume | Container Path | Purpose |
 |--------|----------------|---------|
-| Workspace | `/app/workspace` | User's project (includes `.agentrunner/` with board state and task docs) |
+| Workspace | `/app/workspace` | User's project (includes `.formic/` with board state and task docs) |
 
-**Single Volume Design:** All state is stored inside the workspace at `.agentrunner/`. This eliminates the need for a separate data volume and makes projects fully portable.
+**Single Volume Design:** All state is stored inside the workspace at `.formic/`. This eliminates the need for a separate data volume and makes projects fully portable.
 
 **Multi-Project Usage:**
 ```bash
 # Work on bigtoy - loads bigtoy's board and tasks
-docker run -p 8000:8000 -v /Users/me/bigtoy:/app/workspace agentrunner
+docker run -p 8000:8000 -v /Users/me/bigtoy:/app/workspace formic
 
 # Work on webapp - loads webapp's board and tasks
-docker run -p 8000:8000 -v /Users/me/webapp:/app/workspace agentrunner
+docker run -p 8000:8000 -v /Users/me/webapp:/app/workspace formic
 ```
 
 ---
 
 ## 3. Data Schema
 
-### 3.1 Board Structure (`{workspace}/.agentrunner/board.json`)
+### 3.1 Board Structure (`{workspace}/.formic/board.json`)
 
 ```json
 {
@@ -412,7 +412,7 @@ docker run -p 8000:8000 -v /Users/me/webapp:/app/workspace agentrunner
       "status": "todo",
       "priority": "high",
       "context": "Add JWT-based authentication with login/register endpoints.",
-      "docsPath": ".agentrunner/tasks/t-1_implement-user-auth",
+      "docsPath": ".formic/tasks/t-1_implement-user-auth",
       "agentLogs": [],
       "pid": null
     }
@@ -420,7 +420,7 @@ docker run -p 8000:8000 -v /Users/me/webapp:/app/workspace agentrunner
 }
 ```
 
-> **Note:** Both `board.json` and task documentation folders are stored inside the workspace at `.agentrunner/`. The full path for the board would be `{workspace}/.agentrunner/board.json` and for task docs `{workspace}/.agentrunner/tasks/t-1_implement-user-auth/`
+> **Note:** Both `board.json` and task documentation folders are stored inside the workspace at `.formic/`. The full path for the board would be `{workspace}/.formic/board.json` and for task docs `{workspace}/.formic/tasks/t-1_implement-user-auth/`
 
 ### 3.2 TypeScript Types
 
@@ -481,7 +481,7 @@ Each task's `docsPath` folder contains:
 | `status` | enum | One of: `todo`, `running`, `review`, `done` |
 | `priority` | enum | One of: `low`, `medium`, `high` |
 | `context` | string | Detailed prompt/instructions for Claude |
-| `docsPath` | string | Path to task documentation folder relative to workspace (format: `.agentrunner/tasks/{id}_{slug}`) |
+| `docsPath` | string | Path to task documentation folder relative to workspace (format: `.formic/tasks/{id}_{slug}`) |
 | `agentLogs` | string[] | Last 50 lines of execution output |
 | `pid` | number \| null | Process ID when running, null otherwise |
 
@@ -533,7 +533,7 @@ claude --print "First, read the task context from {docsPath}/ (README.md, PLAN.m
 
 **Example:**
 ```bash
-claude --print "First, read the task context from .agentrunner/tasks/t-1_implement-user-auth/ (README.md, PLAN.md, CHECKLIST.md). Then execute: Implement User Auth. Write any outputs to .agentrunner/tasks/t-1_implement-user-auth/output/"
+claude --print "First, read the task context from .formic/tasks/t-1_implement-user-auth/ (README.md, PLAN.md, CHECKLIST.md). Then execute: Implement User Auth. Write any outputs to .formic/tasks/t-1_implement-user-auth/output/"
 ```
 
 This ensures the agent:
@@ -664,17 +664,17 @@ CMD ["node", "dist/server/index.js"]
 ```yaml
 version: '3.8'
 services:
-  agentrunner:
+  formic:
     build: .
     ports:
       - "8000:8000"
     volumes:
-      - /path/to/your/project:/app/workspace  # Single volume - all state in .agentrunner/
+      - /path/to/your/project:/app/workspace  # Single volume - all state in .formic/
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
 ```
 
-> **Note:** Only one volume mount is required. The board state and task documentation are stored inside the workspace at `.agentrunner/`.
+> **Note:** Only one volume mount is required. The board state and task documentation are stored inside the workspace at `.formic/`.
 
 ---
 
@@ -729,13 +729,13 @@ services:
 - [x] Add "Re-run Bootstrap" option in UI (via delete guidelines + restart)
 
 ### Phase 8: Skill-Based Task Documentation Workflow ✅
-- [x] Create AgentRunner-specific `/brief` skill for README.md generation
-- [x] Create AgentRunner-specific `/plan` skill for PLAN.md and CHECKLIST.md generation
+- [x] Create Formic-specific `/brief` skill for README.md generation
+- [x] Create Formic-specific `/plan` skill for PLAN.md and CHECKLIST.md generation
 - [x] Implement 3-step task execution workflow:
   - Step 1: Generate README.md using `/brief` skill
   - Step 2: Generate PLAN.md and CHECKLIST.md using `/plan` skill
   - Step 3: Execute task with full documentation context
-- [x] Bundle skills in `skills/` directory within AgentRunner
+- [x] Bundle skills in `skills/` directory within Formic
 - [x] Update runner service to orchestrate the 3-step workflow
 - [x] Add workflow status indicators to frontend (Brief → Plan → Execute)
 - [x] Allow manual trigger of individual workflow steps

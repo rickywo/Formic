@@ -85,7 +85,7 @@
 - [x] Documented limitation and workaround in README.md
 
 ### Skill Location Update
-- [x] Update `skills.ts` to copy skills to `.claude/commands/` instead of `.agentrunner/skills/`
+- [x] Update `skills.ts` to copy skills to `.claude/commands/` instead of `.formic/skills/`
 - [x] Verify skills are discoverable by Claude Code
 - [x] Test backwards compatibility
 

@@ -5,7 +5,7 @@
 
 ## Project Context & Problem Statement
 
-When users start AgentRunner against a new project, Claude has no context about the project's coding standards, architectural patterns, or conventions. This leads to inconsistent code suggestions and requires users to manually correct Claude's output to match their project style.
+When users start Formic against a new project, Claude has no context about the project's coding standards, architectural patterns, or conventions. This leads to inconsistent code suggestions and requires users to manually correct Claude's output to match their project style.
 
 ### Current Issues
 - **No project awareness:** Claude generates code without understanding existing patterns
@@ -129,11 +129,11 @@ Automatically generate project-specific AI development guidelines on first run, 
 | TC-05 | Bootstrap task deletion | Bootstrap task exists | Delete `t-bootstrap` task | Task removed, not auto-recreated on next request | ✅ PASS |
 
 ### Manual Test Checklist
-- [x] Start AgentRunner against empty project folder
+- [x] Start Formic against empty project folder
 - [x] Verify bootstrap task appears in Todo column
 - [x] Verify bootstrap task has distinct visual styling
 - [x] Run bootstrap task and verify guidelines file created
-- [x] Restart AgentRunner, verify bootstrap task not recreated
+- [x] Restart Formic, verify bootstrap task not recreated
 - [x] Delete guidelines file, restart, verify new bootstrap task created
 
 ---

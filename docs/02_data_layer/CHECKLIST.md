@@ -24,9 +24,9 @@
 - [x] Templates accept task title and context parameters
 
 ### Store Service
-- [x] Board loads from `{workspace}/.agentrunner/board.json`
+- [x] Board loads from `{workspace}/.formic/board.json`
 - [x] Board saves to workspace path
-- [x] `.agentrunner/` directory auto-created if missing
+- [x] `.formic/` directory auto-created if missing
 - [x] Default board created with project name from folder
 
 ### Task Documentation Service
@@ -49,9 +49,9 @@
 - [x] Slug generation handles edge cases (special chars, long titles)
 
 ## Manual Testing Scenarios
-- [x] Fresh workspace: `.agentrunner/` created automatically
+- [x] Fresh workspace: `.formic/` created automatically
 - [x] Existing workspace: loads existing board.json
-- [x] Create task: folder appears at `.agentrunner/tasks/{id}_{slug}/`
+- [x] Create task: folder appears at `.formic/tasks/{id}_{slug}/`
 - [x] Create task: README.md, PLAN.md, CHECKLIST.md, output/ all present
 - [x] Delete task (preserve=false): folder removed
 - [x] Delete task (preserve=true): folder kept

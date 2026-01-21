@@ -7,7 +7,7 @@
 
 ## Overview
 
-A structured 3-step workflow for task execution that generates comprehensive documentation before any implementation begins. When a user clicks "Run" on a task, AgentRunner progresses through Brief → Plan → Execute steps.
+A structured 3-step workflow for task execution that generates comprehensive documentation before any implementation begins. When a user clicks "Run" on a task, Formic progresses through Brief → Plan → Execute steps.
 
 ### Implementation Details
 The workflow **reads skill files at runtime** from `.claude/commands/` and substitutes variables (`$TASK_TITLE`, `$TASK_CONTEXT`, `$TASK_DOCS_PATH`) before passing to Claude. If a skill file is not found, the system falls back to hardcoded prompts for reliability.
@@ -20,8 +20,8 @@ The workflow **reads skill files at runtime** from `.claude/commands/` and subst
 ## Goals
 
 - Enforce a consistent documentation-first workflow for every task (Brief → Plan → Execute)
-- Bundle `/brief` and `/plan` skills within AgentRunner, adapted from user's local Claude commands
-- Copy bundled skills to workspace `.agentrunner/skills/` during initialization (same timing as bootstrap)
+- Bundle `/brief` and `/plan` skills within Formic, adapted from user's local Claude commands
+- Copy bundled skills to workspace `.formic/skills/` during initialization (same timing as bootstrap)
 - Provide Claude with comprehensive, structured context before any implementation begins
 - Give users visibility into workflow progress with distinct statuses (`briefing`, `planning`, `running`)
 - Allow manual triggering of individual workflow steps for flexibility
@@ -29,17 +29,17 @@ The workflow **reads skill files at runtime** from `.claude/commands/` and subst
 ## Key Capabilities
 
 - **3-Step Workflow Pipeline**: Automatic progression through Brief → Plan → Execute when user clicks "Run"
-- **Bundled Skills**: `/brief` and `/plan` skills shipped with AgentRunner in `skills/` directory
-- **Automatic Skill Initialization**: Skills copied to `.agentrunner/skills/` during workspace init (before bootstrap)
+- **Bundled Skills**: `/brief` and `/plan` skills shipped with Formic in `skills/` directory
+- **Automatic Skill Initialization**: Skills copied to `.formic/skills/` during workspace init (before bootstrap)
 - **Task Documentation Generation**: README.md, PLAN.md, and CHECKLIST.md generated in each task's folder
 - **Workflow Status Tracking**: New `briefing` and `planning` statuses show current workflow step
 - **Manual Step Execution**: API endpoints to trigger individual steps (`/workflow/brief`, `/workflow/plan`, `/workflow/execute`)
-- **Customizable Skills**: Users can modify copied skills in `.agentrunner/skills/` for project-specific needs
+- **Customizable Skills**: Users can modify copied skills in `.formic/skills/` for project-specific needs
 - **Project Guidelines Injection**: `kanban-development-guideline.md` is automatically loaded and injected into every workflow step prompt
 
 ## Non-Goals
 
-- Custom skill creation UI within AgentRunner
+- Custom skill creation UI within Formic
 - Skill marketplace or remote skill fetching
 - Parallel execution of workflow steps
 - Conditional workflow branching or skip logic
@@ -91,8 +91,8 @@ Skills are now read at runtime, with variables substituted before passing to Cla
 
 ## Requirements
 
-- Skills must be bundled in AgentRunner's `skills/brief/SKILL.md` and `skills/plan/SKILL.md`
-- Skills must be copied to workspace `.agentrunner/skills/` during initialization, before bootstrap task creation
+- Skills must be bundled in Formic's `skills/brief/SKILL.md` and `skills/plan/SKILL.md`
+- Skills must be copied to workspace `.formic/skills/` during initialization, before bootstrap task creation
 - `/brief` skill must generate structured README.md with Overview, Goals, Capabilities, Non-Goals, Requirements
 - `/plan` skill must read the generated README.md and produce PLAN.md (implementation steps) and CHECKLIST.md (quality gates)
 - All generated files must be written to the task's documentation folder (`$TASK_DOCS_PATH`)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-API tests for AgentRunner.
+API tests for Formic.
 
 Tests the REST API endpoints:
 - GET /api/board
@@ -9,7 +9,7 @@ Tests the REST API endpoints:
 - DELETE /api/tasks/:id
 
 Usage:
-    # Make sure AgentRunner is running first:
+    # Make sure Formic is running first:
     # WORKSPACE_PATH=./example npm run dev
 
     # Then run tests:
@@ -22,7 +22,7 @@ import os
 import uuid
 
 # Configuration
-BASE_URL = os.environ.get('AGENTRUNNER_URL', 'http://localhost:8000')
+BASE_URL = os.environ.get('FORMIC_URL', 'http://localhost:8000')
 
 
 def test_api():

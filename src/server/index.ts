@@ -42,7 +42,7 @@ async function main() {
 
   try {
     await fastify.listen({ port: PORT, host: HOST });
-    console.log(`AgentRunner server running at http://${HOST}:${PORT}`);
+    console.log(`Formic server running at http://${HOST}:${PORT}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

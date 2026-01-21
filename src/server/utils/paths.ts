@@ -8,24 +8,24 @@ export function getWorkspacePath(): string {
 }
 
 /**
- * Get the .agentrunner directory path inside workspace
+ * Get the .formic directory path inside workspace
  */
-export function getAgentRunnerDir(): string {
-  return path.join(getWorkspacePath(), '.agentrunner');
+export function getFormicDir(): string {
+  return path.join(getWorkspacePath(), '.formic');
 }
 
 /**
  * Get the board.json file path
  */
 export function getBoardPath(): string {
-  return path.join(getAgentRunnerDir(), 'board.json');
+  return path.join(getFormicDir(), 'board.json');
 }
 
 /**
  * Get the tasks directory path
  */
 export function getTasksDir(): string {
-  return path.join(getAgentRunnerDir(), 'tasks');
+  return path.join(getFormicDir(), 'tasks');
 }
 
 /**
@@ -39,7 +39,7 @@ export function getTaskDocsPath(id: string, slug: string): string {
  * Get the relative docsPath (for storing in board.json)
  */
 export function getRelativeDocsPath(id: string, slug: string): string {
-  return `.agentrunner/tasks/${id}_${slug}`;
+  return `.formic/tasks/${id}_${slug}`;
 }
 
 /**

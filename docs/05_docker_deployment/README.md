@@ -2,11 +2,11 @@
 
 ## Overview
 
-Finalize the Docker containerization and deployment configuration for AgentRunner. This phase ensures the application can be easily deployed as a self-contained Docker container with optimized build artifacts and proper production settings.
+Finalize the Docker containerization and deployment configuration for Formic. This phase ensures the application can be easily deployed as a self-contained Docker container with optimized build artifacts and proper production settings.
 
 ## Goals
 
-- Provide a production-ready Docker image that runs AgentRunner with minimal configuration
+- Provide a production-ready Docker image that runs Formic with minimal configuration
 - Optimize the build process for smaller image size and faster startup
 - Ensure the container works correctly with volume mounts for workspace access
 - Document deployment procedures for end users

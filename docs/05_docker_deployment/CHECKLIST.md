@@ -62,8 +62,8 @@
 
 ## Manual Testing Scenarios
 
-- [x] Fresh build: `docker build -t agentrunner .`
-- [x] Run container: `docker run -p 8000:8000 -v ./test_proj:/app/workspace agentrunner`
+- [x] Fresh build: `docker build -t formic .`
+- [x] Run container: `docker run -p 8000:8000 -v ./test_proj:/app/workspace formic`
 - [x] Access UI: Open http://localhost:8000
 - [x] Create task via UI
 - [x] Run agent (verified with local dev + OAuth)

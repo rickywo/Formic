@@ -185,7 +185,7 @@ export async function createBootstrapTask(): Promise<Task> {
     status: 'todo',
     priority: 'high',
     context: prompt,
-    docsPath: `.agentrunner/tasks/${BOOTSTRAP_TASK_ID}_${BOOTSTRAP_TASK_SLUG}`,
+    docsPath: `.formic/tasks/${BOOTSTRAP_TASK_ID}_${BOOTSTRAP_TASK_SLUG}`,
     agentLogs: [],
     pid: null,
   };

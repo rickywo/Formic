@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Playwright test script for AgentRunner UI.
+Playwright test script for Formic UI.
 
 Tests the Kanban board functionality including:
 - Page load and structure
@@ -9,11 +9,11 @@ Tests the Kanban board functionality including:
 - Task deletion
 
 Usage:
-    # Make sure AgentRunner is running first:
+    # Make sure Formic is running first:
     # WORKSPACE_PATH=./example npm run dev
 
     # Then run tests:
-    python test/test_agentrunner.py
+    python test/test_formic.py
 """
 
 from playwright.sync_api import sync_playwright
@@ -23,10 +23,10 @@ import sys
 import os
 
 # Configuration
-BASE_URL = os.environ.get('AGENTRUNNER_URL', 'http://localhost:8000')
+BASE_URL = os.environ.get('FORMIC_URL', 'http://localhost:8000')
 
 
-def test_agentrunner():
+def test_formic():
     results = []
     # Use unique task name to avoid conflicts with leftover tasks
     unique_id = str(uuid.uuid4())[:8]
@@ -42,7 +42,7 @@ def test_agentrunner():
         page.wait_for_load_state('networkidle')
 
         title = page.title()
-        if "AgentRunner" in title:
+        if "Formic" in title:
             print(f"✓ Page title correct: {title}")
             results.append(("Page Load", "PASS"))
         else:
@@ -167,5 +167,5 @@ def test_agentrunner():
 
 
 if __name__ == '__main__':
-    success = test_agentrunner()
+    success = test_formic()
     sys.exit(0 if success else 1)

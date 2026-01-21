@@ -1,22 +1,22 @@
 # Example Project
 
-This is a sample project for testing AgentRunner.
+This is a sample project for testing Formic.
 
 ## Purpose
 
 This folder serves as a test workspace for:
-- Running automated tests against AgentRunner
-- Demonstrating how AgentRunner manages tasks
+- Running automated tests against Formic
+- Demonstrating how Formic manages tasks
 - CI/CD verification
 
 ## Structure
 
-When AgentRunner runs against this workspace, it will create:
+When Formic runs against this workspace, it will create:
 
 ```
 example/
 ├── README.md          # This file
-├── .agentrunner/      # Created by AgentRunner
+├── .formic/      # Created by Formic
 │   ├── board.json     # Kanban board state
 │   └── tasks/         # Task documentation folders
 └── [agent outputs]    # Files created by agent tasks
@@ -25,9 +25,9 @@ example/
 ## Usage
 
 ```bash
-# Run AgentRunner with this example workspace
+# Run Formic with this example workspace
 WORKSPACE_PATH=./example npm run dev
 
 # Or with Docker
-docker run -p 8000:8000 -v $(pwd)/example:/app/workspace agentrunner
+docker run -p 8000:8000 -v $(pwd)/example:/app/workspace formic
 ```

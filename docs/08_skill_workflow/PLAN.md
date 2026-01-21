@@ -7,13 +7,13 @@
 
 ## Project Context & Problem Statement
 
-Currently, AgentRunner creates task documentation folders with placeholder content. The agent fills in documentation during execution, but this happens inconsistently. Users lack visibility into the documentation generation process.
+Currently, Formic creates task documentation folders with placeholder content. The agent fills in documentation during execution, but this happens inconsistently. Users lack visibility into the documentation generation process.
 
 ### Current Issues
 - **Inconsistent documentation**: Tasks may have incomplete or missing specifications
 - **No separation of concerns**: Planning and execution happen simultaneously
 - **Limited visibility**: Users can't see documentation generation progress
-- **No skill integration**: AgentRunner doesn't leverage Claude Code's skill system
+- **No skill integration**: Formic doesn't leverage Claude Code's skill system
 
 ### Goal
 Implement an automated 3-step workflow (Brief → Plan → Execute) using bundled Claude Code skills that generates consistent, high-quality documentation for every task before implementation begins.
@@ -49,7 +49,7 @@ Implement an automated 3-step workflow (Brief → Plan → Execute) using bundle
 ### 2.1 Create Skills Service
 - [x] Create `src/server/services/skills.ts`
 - [x] Implement `copySkillsToWorkspace()` function
-- [x] Check if `.agentrunner/skills/` exists (skip if present)
+- [x] Check if `.formic/skills/` exists (skip if present)
 - [x] Recursively copy from bundled `skills/` directory
 - [x] Handle file system errors gracefully
 - [x] Add logging for skill copy operations
@@ -158,7 +158,7 @@ Implement an automated 3-step workflow (Brief → Plan → Execute) using bundle
 | TC-01 | Full workflow | Task progresses: todo → briefing → planning → running → review | Ready |
 | TC-02 | Manual brief | README.md generated in task folder | Ready |
 | TC-03 | Manual plan | PLAN.md + CHECKLIST.md generated | Ready |
-| TC-04 | Skill copying | Skills copied to `.agentrunner/skills/` on first access | Ready |
+| TC-04 | Skill copying | Skills copied to `.formic/skills/` on first access | Ready |
 | TC-05 | Workflow stop | Running workflow can be stopped | Ready |
 
 ### 8.2 Update Documentation
@@ -184,7 +184,7 @@ Claude Code skills **cannot be invoked directly in print mode** (`claude -p /bri
 ### Solution: Read Skill Files at Runtime
 
 ### 9.1 Update Skill File Location
-- [x] Change skill copy destination from `.agentrunner/skills/` to `.claude/commands/`
+- [x] Change skill copy destination from `.formic/skills/` to `.claude/commands/`
 - [x] Update `skills.ts` to copy to standard Claude location
 - [x] Ensure backwards compatibility (check both locations)
 

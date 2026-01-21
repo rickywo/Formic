@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  agentrunner:
+  formic:
     build: .
     ports:
       - "${PORT:-8000}:8000"

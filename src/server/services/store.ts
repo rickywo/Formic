@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type { Board, Task, CreateTaskInput, UpdateTaskInput } from '../../types/index.js';
-import { getWorkspacePath, getAgentRunnerDir, getBoardPath } from '../utils/paths.js';
+import { getWorkspacePath, getFormicDir, getBoardPath } from '../utils/paths.js';
 import { createTaskDocsFolder, deleteTaskDocsFolder } from './taskDocs.js';
 import {
   checkBootstrapRequired,
@@ -35,20 +35,20 @@ function createDefaultBoard(): Board {
 }
 
 /**
- * Ensure the .agentrunner directory exists in workspace
+ * Ensure the .formic directory exists in workspace
  */
-async function ensureAgentRunnerDir(): Promise<void> {
-  const agentRunnerDir = getAgentRunnerDir();
-  if (!existsSync(agentRunnerDir)) {
-    await mkdir(agentRunnerDir, { recursive: true });
+async function ensureFormicDir(): Promise<void> {
+  const formicDir = getFormicDir();
+  if (!existsSync(formicDir)) {
+    await mkdir(formicDir, { recursive: true });
   }
 }
 
 /**
- * Load the board from workspace/.agentrunner/board.json
+ * Load the board from workspace/.formic/board.json
  */
 export async function loadBoard(): Promise<Board> {
-  await ensureAgentRunnerDir();
+  await ensureFormicDir();
 
   const boardPath = getBoardPath();
 
@@ -99,10 +99,10 @@ export async function getBoardWithBootstrap(): Promise<Board> {
 }
 
 /**
- * Save the board to workspace/.agentrunner/board.json
+ * Save the board to workspace/.formic/board.json
  */
 export async function saveBoard(board: Board): Promise<void> {
-  await ensureAgentRunnerDir();
+  await ensureFormicDir();
   const boardPath = getBoardPath();
   await writeFile(boardPath, JSON.stringify(board, null, 2), 'utf-8');
 }

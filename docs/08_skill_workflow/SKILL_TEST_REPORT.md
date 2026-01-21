@@ -31,7 +31,7 @@
 | 7 | Plan skill has `$TASK_TITLE` | ✅ PASS | Variable placeholder present |
 | 8 | Plan skill has `$TASK_DOCS_PATH` | ✅ PASS | Variable placeholder present |
 | 9 | Task created via API | ✅ PASS | Task ID: t-1 |
-| 10 | Task has docsPath | ✅ PASS | `.agentrunner/tasks/t-1_skill-test-task` |
+| 10 | Task has docsPath | ✅ PASS | `.formic/tasks/t-1_skill-test-task` |
 | 11 | Workflow status API | ✅ PASS | Returns correct status structure |
 | 12 | Task docs folder exists | ✅ PASS | Folder created in workspace |
 | 13 | Task cleanup | ✅ PASS | Task deleted successfully |
@@ -55,7 +55,7 @@ workspace/
 **Previous location (legacy, still supported):**
 ```
 workspace/
-└── .agentrunner/
+└── .formic/
     └── skills/             ✅ Backwards compatible
 ```
 
@@ -73,7 +73,7 @@ Skill files contain the correct variable placeholders that are substituted at ru
 
 The workflow service (`workflow.ts`) now:
 1. Attempts to read skill file from `.claude/commands/{skill}/SKILL.md`
-2. Falls back to `.agentrunner/skills/{skill}/SKILL.md` (legacy)
+2. Falls back to `.formic/skills/{skill}/SKILL.md` (legacy)
 3. Falls back to hardcoded prompts if no skill file found
 4. Substitutes variables with actual task values
 5. Prepends project guidelines to the prompt
@@ -105,7 +105,7 @@ Workflow status API returns correct structure:
 
 | Aspect | Phase 8.1 | Phase 8.2 |
 |--------|-----------|-----------|
-| Skill location | `.agentrunner/skills/` | `.claude/commands/` |
+| Skill location | `.formic/skills/` | `.claude/commands/` |
 | Prompt source | Hardcoded in TypeScript | Read from SKILL.md files |
 | Customization | Requires code change | Edit skill files directly |
 | Variable handling | Inline in code | `$VAR` substitution at runtime |

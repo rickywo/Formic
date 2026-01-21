@@ -5,7 +5,7 @@
 
 ## Overview
 
-Establish the core TypeScript project structure and development environment for AgentRunner. This phase creates the foundational server configuration and type definitions that all subsequent phases will build upon.
+Establish the core TypeScript project structure and development environment for Formic. This phase creates the foundational server configuration and type definitions that all subsequent phases will build upon.
 
 ## Goals
 

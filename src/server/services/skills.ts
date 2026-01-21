@@ -2,14 +2,14 @@ import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getAgentRunnerDir, getClaudeCommandsDir } from '../utils/paths.js';
+import { getFormicDir, getClaudeCommandsDir } from '../utils/paths.js';
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Legacy path for backwards compatibility
-const LEGACY_SKILLS_PATH = '.agentrunner/skills';
+const LEGACY_SKILLS_PATH = '.formic/skills';
 
 /**
  * Get the path to the bundled skills directory
@@ -40,15 +40,15 @@ export function getWorkspaceSkillsPath(): string {
 }
 
 /**
- * Get the legacy skills path (.agentrunner/skills/)
+ * Get the legacy skills path (.formic/skills/)
  */
 export function getLegacySkillsPath(): string {
-  return path.join(getAgentRunnerDir(), 'skills');
+  return path.join(getFormicDir(), 'skills');
 }
 
 /**
  * Check if skills have already been copied to the workspace
- * Checks both new (.claude/commands/) and legacy (.agentrunner/skills/) locations
+ * Checks both new (.claude/commands/) and legacy (.formic/skills/) locations
  */
 export function skillsExistInWorkspace(): boolean {
   const newPath = getWorkspaceSkillsPath();
@@ -128,7 +128,7 @@ export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills
 
 /**
  * Get the path to a specific skill in the workspace
- * Checks new location (.claude/commands/) first, then falls back to legacy (.agentrunner/skills/)
+ * Checks new location (.claude/commands/) first, then falls back to legacy (.formic/skills/)
  */
 export function getSkillPath(skillName: string): string {
   const newPath = path.join(getWorkspaceSkillsPath(), skillName, 'SKILL.md');

@@ -31,8 +31,8 @@ def print_result(test_name, passed, details=""):
         print(f"       {details}")
 
 def start_server():
-    """Start the AgentRunner server"""
-    print_header("Starting AgentRunner Server")
+    """Start the Formic server"""
+    print_header("Starting Formic Server")
 
     print(f"Project root: {PROJECT_ROOT}")
     print(f"Workspace: {WORKSPACE_PATH}")
@@ -227,17 +227,17 @@ def main():
 
     # Clean up any existing .claude folder first
     claude_path = os.path.join(WORKSPACE_PATH, ".claude")
-    agentrunner_path = os.path.join(WORKSPACE_PATH, ".agentrunner")
+    formic_path = os.path.join(WORKSPACE_PATH, ".formic")
 
     if os.path.exists(claude_path):
         import shutil
         shutil.rmtree(claude_path)
         print(f"Cleaned up existing {claude_path}")
 
-    if os.path.exists(agentrunner_path):
+    if os.path.exists(formic_path):
         import shutil
-        shutil.rmtree(agentrunner_path)
-        print(f"Cleaned up existing {agentrunner_path}")
+        shutil.rmtree(formic_path)
+        print(f"Cleaned up existing {formic_path}")
 
     # Start server
     server_process = start_server()

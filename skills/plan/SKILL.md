@@ -1,5 +1,5 @@
 ---
-description: Generates implementation plan (PLAN.md) and checklist (CHECKLIST.md) for an AgentRunner task.
+description: Generates implementation plan (PLAN.md) and checklist (CHECKLIST.md) for a Formic task.
 ---
 
 # Plan Skill - Generate Implementation Plan & Checklist

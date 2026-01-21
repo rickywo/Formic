@@ -5,7 +5,7 @@
 
 ## Overview
 
-Implement an automatic bootstrap system that detects first-time project setup and generates AI development guidelines specific to the workspace codebase. When AgentRunner starts against a new project, it creates a special bootstrap task that audits the repository and produces a `kanban-development-guideline.md` file containing project-specific coding standards, architectural patterns, and behavioral rules for Claude to follow.
+Implement an automatic bootstrap system that detects first-time project setup and generates AI development guidelines specific to the workspace codebase. When Formic starts against a new project, it creates a special bootstrap task that audits the repository and produces a `kanban-development-guideline.md` file containing project-specific coding standards, architectural patterns, and behavioral rules for Claude to follow.
 
 ## Goals
 
@@ -38,7 +38,7 @@ Implement an automatic bootstrap system that detects first-time project setup an
 - Bootstrap detection must occur on first `GET /api/board` request
 - Bootstrap task must have reserved ID `t-bootstrap` with slug `setup-guidelines`
 - Template file `templates/development-guideline.md` must be bundled with the application
-- Generated `kanban-development-guideline.md` must be placed in workspace root (not `.agentrunner/`)
+- Generated `kanban-development-guideline.md` must be placed in workspace root (not `.formic/`)
 - Bootstrap task prompt must instruct Claude to:
   - Explore repository structure and identify tech stack
   - Analyze architectural patterns and folder organization

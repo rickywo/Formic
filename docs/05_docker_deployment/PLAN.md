@@ -72,7 +72,7 @@ COPY src/client ./src/client
 ## Phase 6.3: Docker Compose Setup
 
 - [ ] 6.3.1 Create docker-compose.yml file
-- [ ] 6.3.2 Define agentrunner service
+- [ ] 6.3.2 Define formic service
 - [ ] 6.3.3 Configure volume mount for workspace
 - [ ] 6.3.4 Set up environment variables (ANTHROPIC_API_KEY)
 - [ ] 6.3.5 Configure port mapping
@@ -82,7 +82,7 @@ COPY src/client ./src/client
 ```yaml
 version: '3.8'
 services:
-  agentrunner:
+  formic:
     build: .
     ports:
       - "8000:8000"

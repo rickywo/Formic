@@ -1,5 +1,5 @@
-# AgentRunner generated files (created at runtime)
-.agentrunner/
+# Formic generated files (created at runtime)
+.formic/
 
 # Agent-created files (test outputs)
 *.sh

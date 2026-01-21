@@ -194,7 +194,7 @@ The bootstrap generated additional useful content not directly derivable from co
 | No external project contamination | ✅ PASS |
 | Output file placed in correct location | ✅ PASS |
 
-The bootstrap correctly stayed within the `test_react_project/` workspace boundary and did not explore or reference the parent AgentRunner project.
+The bootstrap correctly stayed within the `test_react_project/` workspace boundary and did not explore or reference the parent Formic project.
 
 ---
 

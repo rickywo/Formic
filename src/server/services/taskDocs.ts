@@ -60,7 +60,7 @@ export async function createTaskDocsFolder(
 
 /**
  * Delete a task documentation folder
- * @param docsPath - The relative docs path (e.g., .agentrunner/tasks/t-1_my-task)
+ * @param docsPath - The relative docs path (e.g., .formic/tasks/t-1_my-task)
  * @param preserveHistory - If true, don't delete the folder
  */
 export async function deleteTaskDocsFolder(

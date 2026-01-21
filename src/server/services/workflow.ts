@@ -5,7 +5,7 @@ import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt } from './skillReader.js';
-import { getWorkspacePath, getAgentRunnerDir } from '../utils/paths.js';
+import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
 

@@ -1,5 +1,5 @@
 ---
-description: Generates a feature specification (README.md) for an AgentRunner task.
+description: Generates a feature specification (README.md) for a Formic task.
 ---
 
 # Brief Skill - Generate Task Specification

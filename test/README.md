@@ -1,6 +1,6 @@
-# AgentRunner Tests
+# Formic Tests
 
-Automated tests for AgentRunner using Playwright and Python.
+Automated tests for Formic using Playwright and Python.
 
 ## Prerequisites
 
@@ -14,7 +14,7 @@ python -m playwright install chromium
 
 ## Running Tests
 
-### 1. Start AgentRunner
+### 1. Start Formic
 
 ```bash
 # From the project root, start with the example workspace
@@ -29,7 +29,7 @@ python test/run_tests.py
 
 # Run individual test suites
 python test/test_api.py          # API tests only
-python test/test_agentrunner.py  # UI tests only
+python test/test_formic.py  # UI tests only
 ```
 
 ## Test Suites
@@ -41,7 +41,7 @@ Tests the REST API endpoints:
 - `PUT /api/tasks/:id` - Update a task
 - `DELETE /api/tasks/:id` - Delete a task
 
-### test_agentrunner.py
+### test_formic.py
 Tests the web UI using Playwright:
 - Page load and title
 - Kanban column structure
@@ -69,4 +69,4 @@ python test/run_tests.py
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `AGENTRUNNER_URL` | Base URL for tests | `http://localhost:8000` |
+| `FORMIC_URL` | Base URL for tests | `http://localhost:8000` |

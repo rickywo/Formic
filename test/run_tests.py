@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test runner for AgentRunner.
+Test runner for Formic.
 
 Runs all test suites and reports overall results.
 
@@ -30,13 +30,13 @@ def run_test_suite(name: str, script: str) -> bool:
 
 def main():
     print("=" * 60)
-    print("AgentRunner Test Suite")
+    print("Formic Test Suite")
     print("=" * 60)
 
     # Define test suites
     test_suites = [
         ("API Tests", "test_api.py"),
-        ("UI Tests (Playwright)", "test_agentrunner.py"),
+        ("UI Tests (Playwright)", "test_formic.py"),
     ]
 
     results = []
