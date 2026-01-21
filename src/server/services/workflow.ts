@@ -5,6 +5,13 @@ import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt } from './skillReader.js';
+import {
+  loadSubtasks,
+  isAllComplete,
+  getCompletionStats,
+  formatIncompleteSubtasksForPrompt,
+  subtasksExist,
+} from './subtasks.js';
 import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
@@ -13,6 +20,7 @@ const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const MAX_LOG_LINES = 50;
 const AGENT_COMMAND = process.env.AGENT_COMMAND || 'claude';
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
+const MAX_EXECUTE_ITERATIONS = parseInt(process.env.MAX_EXECUTE_ITERATIONS || '5', 10);
 
 /**
  * Load the project development guidelines if they exist
@@ -196,7 +204,7 @@ Ensure all implementation steps follow the project development guidelines above.
 }
 
 /**
- * Build the prompt for the execute step
+ * Build the prompt for the execute step (initial iteration)
  */
 function buildExecutePrompt(task: Task, guidelines: string): string {
   const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
@@ -207,11 +215,41 @@ Task: ${task.title}
 IMPORTANT: Before implementing, read the task documentation at ${docsPath}/:
 - README.md: Feature specification
 - PLAN.md: Implementation steps
-- CHECKLIST.md: Quality gates
+- subtasks.json: Structured subtask list (update status as you complete items)
 
 Context: ${task.context}
 
-Follow the PLAN.md step by step. Update CHECKLIST.md as you complete items.
+Follow the PLAN.md step by step. As you complete each subtask, update its status in subtasks.json to "completed".
+All code changes MUST comply with the project development guidelines provided above.`;
+}
+
+/**
+ * Build the prompt for iterative execute step (subsequent iterations)
+ * Provides feedback about incomplete subtasks
+ */
+function buildIterativeExecutePrompt(
+  task: Task,
+  guidelines: string,
+  iteration: number,
+  incompleteSubtasksInfo: string
+): string {
+  const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
+
+  return `${guidelines}
+Task: ${task.title}
+
+ITERATION ${iteration} - Continuing work on incomplete subtasks.
+
+${incompleteSubtasksInfo}
+
+Task documentation is at ${docsPath}/:
+- README.md: Feature specification
+- PLAN.md: Implementation steps
+- subtasks.json: Structured subtask list
+
+Context: ${task.context}
+
+Please continue working on the incomplete subtasks listed above. As you complete each one, update its status in subtasks.json to "completed".
 All code changes MUST comply with the project development guidelines provided above.`;
 }
 
@@ -303,6 +341,120 @@ function runWorkflowStep(
 }
 
 /**
+ * Run a single iteration of the execute step and return success status
+ */
+function runExecuteIteration(
+  taskId: string,
+  prompt: string
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = runWorkflowStep(taskId, 'execute', prompt, (success) => {
+      resolve(success);
+    });
+
+    if (child.pid) {
+      activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
+    }
+  });
+}
+
+/**
+ * Execute with iterative completion checking (Ralph Wiggum style)
+ * Continues running until all subtasks are complete or max iterations reached
+ */
+async function executeWithIterativeLoop(
+  taskId: string,
+  task: Task
+): Promise<{ success: boolean; iterations: number; allComplete: boolean }> {
+  const guidelines = await loadProjectGuidelines();
+  let iteration = 1;
+  let allComplete = false;
+
+  // Broadcast start of iterative execution
+  broadcastToTask(taskId, {
+    type: 'stdout',
+    data: `\n========== Starting EXECUTE step (iterative mode, max ${MAX_EXECUTE_ITERATIONS} iterations) ==========\n`,
+    timestamp: new Date().toISOString(),
+  });
+
+  while (iteration <= MAX_EXECUTE_ITERATIONS && !allComplete) {
+    console.log(`[Workflow] Execute iteration ${iteration}/${MAX_EXECUTE_ITERATIONS}`);
+
+    // Broadcast iteration start
+    broadcastToTask(taskId, {
+      type: 'stdout',
+      data: `\n----- Execute Iteration ${iteration}/${MAX_EXECUTE_ITERATIONS} -----\n`,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Build prompt based on iteration
+    let prompt: string;
+    if (iteration === 1) {
+      // First iteration uses standard execute prompt
+      prompt = buildExecutePrompt(task, guidelines);
+    } else {
+      // Subsequent iterations include feedback about incomplete subtasks
+      const subtasks = await loadSubtasks(task.docsPath);
+      const incompleteInfo = subtasks
+        ? formatIncompleteSubtasksForPrompt(subtasks)
+        : 'Unable to load subtasks.json - please check the file exists and is valid JSON.';
+      prompt = buildIterativeExecutePrompt(task, guidelines, iteration, incompleteInfo);
+    }
+
+    // Run this iteration
+    const success = await runExecuteIteration(taskId, prompt);
+    activeWorkflows.delete(taskId);
+
+    if (!success) {
+      // Iteration failed - stop the loop
+      console.log(`[Workflow] Execute iteration ${iteration} failed`);
+      return { success: false, iterations: iteration, allComplete: false };
+    }
+
+    // Check subtasks completion after this iteration
+    const subtasks = await loadSubtasks(task.docsPath);
+    if (subtasks) {
+      const stats = getCompletionStats(subtasks);
+      allComplete = isAllComplete(subtasks);
+
+      // Broadcast completion status
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `\n[Subtasks] Completion: ${stats.completed}/${stats.total} (${stats.percentage}%)\n`,
+        timestamp: new Date().toISOString(),
+      });
+
+      console.log(`[Workflow] Subtask completion after iteration ${iteration}: ${stats.completed}/${stats.total} (${stats.percentage}%)`);
+
+      if (allComplete) {
+        broadcastToTask(taskId, {
+          type: 'stdout',
+          data: `\n[SUCCESS] All subtasks complete! Task ready for review.\n`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } else {
+      // No subtasks.json found - treat as complete (backwards compatibility)
+      console.log('[Workflow] No subtasks.json found, treating as complete');
+      allComplete = true;
+    }
+
+    iteration++;
+  }
+
+  if (!allComplete && iteration > MAX_EXECUTE_ITERATIONS) {
+    broadcastToTask(taskId, {
+      type: 'stdout',
+      data: `\n[WARNING] Max iterations (${MAX_EXECUTE_ITERATIONS}) reached. Some subtasks may be incomplete.\n`,
+      timestamp: new Date().toISOString(),
+    });
+    console.log(`[Workflow] Max iterations reached, some subtasks incomplete`);
+  }
+
+  return { success: true, iterations: iteration - 1, allComplete };
+}
+
+/**
  * Execute a single workflow step (for manual step execution)
  */
 export async function executeSingleStep(
@@ -355,30 +507,44 @@ export async function executeSingleStep(
       break;
     }
     case 'execute': {
-      // Execute step always uses hardcoded prompt (no skill file)
-      const guidelines = await loadProjectGuidelines();
-      prompt = buildExecutePrompt(task, guidelines);
-      status = 'running';
-      break;
+      // Execute step uses iterative loop with subtask completion checking
+      await updateTaskStatus(taskId, 'running', null);
+      await updateWorkflowStep(taskId, 'execute');
+
+      const result = await executeWithIterativeLoop(taskId, task);
+
+      if (result.success && result.allComplete) {
+        // All subtasks complete - move to review
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null);
+      } else if (result.success && !result.allComplete) {
+        // Max iterations reached but not all complete - still move to review with warning
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null);
+      } else {
+        // Execution failed
+        await updateTaskStatus(taskId, 'todo', null);
+      }
+
+      return { success: result.success, pid: process.pid };
     }
   }
 
-  // Update task status
-  await updateTaskStatus(taskId, status, null);
+  // Update task status (for brief and plan steps)
+  await updateTaskStatus(taskId, status!, null);
   await updateWorkflowStep(taskId, step);
 
   return new Promise((resolve) => {
-    const child = runWorkflowStep(taskId, step, prompt, async (success) => {
+    const child = runWorkflowStep(taskId, step, prompt!, async (success) => {
       activeWorkflows.delete(taskId);
 
       if (success) {
-        // Update workflow step to next or complete
-        const nextStep: WorkflowStep = step === 'brief' ? 'plan' : step === 'plan' ? 'execute' : 'complete';
-        await updateWorkflowStep(taskId, step === 'execute' ? 'complete' : nextStep);
+        // Update workflow step to next
+        const nextStep: WorkflowStep = step === 'brief' ? 'plan' : 'execute';
+        await updateWorkflowStep(taskId, nextStep);
 
-        // Return to todo for manual steps (except execute which goes to review)
-        const newStatus = step === 'execute' ? 'review' : 'todo';
-        await updateTaskStatus(taskId, newStatus, null);
+        // Return to todo for manual steps
+        await updateTaskStatus(taskId, 'todo', null);
       } else {
         // On failure, return to todo
         await updateTaskStatus(taskId, 'todo', null);
@@ -492,11 +658,21 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       return;
     }
 
-    // Step 3: Execute
-    const executeSuccess = await runStep('execute');
+    // Step 3: Execute (with iterative completion checking)
+    const currentTask = await getTask(taskId);
+    if (!currentTask) {
+      activeWorkflows.delete(taskId);
+      await updateTaskStatus(taskId, 'todo', null);
+      return;
+    }
+
+    await updateTaskStatus(taskId, 'running', null);
+    await updateWorkflowStep(taskId, 'execute');
+
+    const executeResult = await executeWithIterativeLoop(taskId, currentTask);
     activeWorkflows.delete(taskId);
 
-    if (executeSuccess) {
+    if (executeResult.success) {
       await updateWorkflowStep(taskId, 'complete');
       await updateTaskStatus(taskId, 'review', null);
     } else {

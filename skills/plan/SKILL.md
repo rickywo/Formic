@@ -1,12 +1,14 @@
 ---
-description: Generates implementation plan (PLAN.md) and checklist (CHECKLIST.md) for a Formic task.
+description: Generates implementation plan (PLAN.md) and structured subtasks (subtasks.json) for a Formic task.
 ---
 
-# Plan Skill - Generate Implementation Plan & Checklist
+# Plan Skill - Generate Implementation Plan & Subtasks
 
 You are a senior Technical Project Manager. Your task is to generate implementation planning documents based on an existing feature specification.
 
 **Task Title:** $TASK_TITLE
+
+**Task ID:** $TASK_ID
 
 **Task Docs Path:** $TASK_DOCS_PATH
 
@@ -28,7 +30,7 @@ Also read `kanban-development-guideline.md` in the project root if it exists for
 
 ### Step 2: Generate PLAN.md
 
-Create a detailed implementation plan with checkboxes. Write to: `$TASK_DOCS_PATH/PLAN.md`
+Create a high-level implementation overview for human readers. Write to: `$TASK_DOCS_PATH/PLAN.md`
 
 ```markdown
 # [Task Title] - Implementation Plan
@@ -39,83 +41,87 @@ Create a detailed implementation plan with checkboxes. Write to: `$TASK_DOCS_PAT
 ## Context
 [1-2 sentences summarizing the task from README.md]
 
-## Implementation Phases
+## Implementation Overview
 
 ### Phase 1: [First logical grouping]
-- [ ] 1.1 [Specific actionable task]
-- [ ] 1.2 [Specific actionable task]
-- [ ] 1.3 [Specific actionable task]
+[Brief description of what this phase accomplishes]
 
 ### Phase 2: [Second logical grouping]
-- [ ] 2.1 [Specific actionable task]
-- [ ] 2.2 [Specific actionable task]
-- [ ] 2.3 [Specific actionable task]
+[Brief description of what this phase accomplishes]
 
 ### Phase 3: [Third logical grouping if needed]
-- [ ] 3.1 [Specific actionable task]
-- [ ] 3.2 [Specific actionable task]
+[Brief description of what this phase accomplishes]
 
-## Testing Strategy
-- [ ] [Test type 1]: [What to test]
-- [ ] [Test type 2]: [What to test]
+## Key Milestones
+- [Milestone 1]
+- [Milestone 2]
+- [Milestone 3]
 
 ## Success Criteria
-- [ ] [Measurable outcome 1]
-- [ ] [Measurable outcome 2]
+- [Measurable outcome 1]
+- [Measurable outcome 2]
 ```
 
 ---
 
-### Step 3: Generate CHECKLIST.md
+### Step 3: Generate subtasks.json
 
-Create a high-level completion checklist. Write to: `$TASK_DOCS_PATH/CHECKLIST.md`
+Create a structured subtask list that the agent will use as the source of truth during execution. Write to: `$TASK_DOCS_PATH/subtasks.json`
 
-```markdown
-# [Task Title] - Checklist
+The subtasks.json file MUST follow this exact schema:
 
-## Pre-Implementation
-- [ ] README.md specification reviewed
-- [ ] Technical approach understood
-- [ ] Dependencies identified
-
-## Implementation
-- [ ] Phase 1 complete
-- [ ] Phase 2 complete
-- [ ] Phase 3 complete (if applicable)
-
-## Quality Gates
-- [ ] Code compiles without errors
-- [ ] All tests passing
-- [ ] No runtime errors
-- [ ] Code follows project conventions
-
-## Verification
-- [ ] Feature works as specified
-- [ ] Edge cases handled
-- [ ] Error handling in place
-
-## Post-Implementation
-- [ ] Code committed
-- [ ] Documentation updated
-- [ ] Task marked complete
+```json
+{
+  "version": "1.0",
+  "taskId": "$TASK_ID",
+  "title": "$TASK_TITLE",
+  "createdAt": "[ISO 8601 timestamp]",
+  "updatedAt": "[ISO 8601 timestamp]",
+  "subtasks": [
+    {
+      "id": "1",
+      "content": "[Specific actionable task - be precise about files/functions]",
+      "status": "pending"
+    },
+    {
+      "id": "2",
+      "content": "[Another specific actionable task]",
+      "status": "pending"
+    }
+  ]
+}
 ```
+
+**Subtask Guidelines:**
+- Each subtask should be a **single, verifiable action**
+- Include specific file paths, function names, or component names when applicable
+- Order subtasks logically (dependencies first, then dependent tasks)
+- Include testing subtasks (e.g., "Write unit tests for auth service")
+- Include quality gate subtasks (e.g., "Verify all tests pass", "Run linter")
+- Aim for 5-15 subtasks depending on task complexity
+
+**Subtask Status Values:**
+- `pending` - Not yet started (initial state for all subtasks)
+- `in_progress` - Currently being worked on
+- `completed` - Finished and verified
 
 ---
 
 ## Guidelines
 
 - **Be Specific**: Use actual file names, function names, and paths from the codebase
-- **Be Actionable**: Each checkbox item should be a single, completable action
+- **Be Actionable**: Each subtask should be a single, completable action
 - **Be Realistic**: Break down complex tasks into smaller steps
 - **Follow Project Standards**: Reference the project's development guidelines if available
-- **Logical Ordering**: Phases should follow a natural implementation order (backend before frontend, models before APIs, etc.)
+- **Logical Ordering**: Subtasks should follow a natural implementation order (backend before frontend, models before APIs, etc.)
+- **Include Verification**: Add subtasks for testing and quality gates
 
 ---
 
 ## Output
 
 Write both files:
-1. `$TASK_DOCS_PATH/PLAN.md`
-2. `$TASK_DOCS_PATH/CHECKLIST.md`
+1. `$TASK_DOCS_PATH/PLAN.md` - Human-readable implementation overview
+2. `$TASK_DOCS_PATH/subtasks.json` - Structured subtask list for agent execution
 
 Do not output anything else.

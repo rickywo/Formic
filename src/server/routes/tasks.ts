@@ -8,7 +8,13 @@ import {
   isWorkflowRunning,
   getActiveWorkflowStep,
 } from '../services/workflow.js';
-import type { CreateTaskInput, UpdateTaskInput } from '../../types/index.js';
+import {
+  loadSubtasks,
+  updateSubtaskStatus,
+  getCompletionStats,
+  subtasksExist,
+} from '../services/subtasks.js';
+import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../types/index.js';
 
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   // POST /api/tasks - Create a new task
@@ -213,6 +219,85 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       workflowLogs: task.workflowLogs || {},
       isRunning: isWorkflowRunning(id),
       activeStep: getActiveWorkflowStep(id),
+    });
+  });
+
+  // ==================== Subtask Management Endpoints (Phase 9) ====================
+
+  // GET /api/tasks/:id/subtasks - Get all subtasks for a task
+  fastify.get<{ Params: { id: string } }>('/api/tasks/:id/subtasks', async (request, reply) => {
+    const { id } = request.params;
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    if (!subtasksExist(task.docsPath)) {
+      return reply.status(404).send({ error: 'Subtasks not found. Run the /plan step to generate subtasks.json' });
+    }
+
+    const subtasks = await loadSubtasks(task.docsPath);
+    if (!subtasks) {
+      return reply.status(500).send({ error: 'Failed to load subtasks.json' });
+    }
+
+    return reply.send(subtasks);
+  });
+
+  // PUT /api/tasks/:id/subtasks/:subtaskId - Update a subtask's status
+  fastify.put<{
+    Params: { id: string; subtaskId: string };
+    Body: { status: SubtaskStatus };
+  }>('/api/tasks/:id/subtasks/:subtaskId', async (request, reply) => {
+    const { id, subtaskId } = request.params;
+    const { status } = request.body;
+
+    // Validate status
+    if (!status || !['pending', 'in_progress', 'completed'].includes(status)) {
+      return reply.status(400).send({ error: 'Invalid status. Must be: pending, in_progress, or completed' });
+    }
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    if (!subtasksExist(task.docsPath)) {
+      return reply.status(404).send({ error: 'Subtasks not found' });
+    }
+
+    const result = await updateSubtaskStatus(task.docsPath, subtaskId, status);
+    if (!result.success) {
+      return reply.status(404).send({ error: 'Subtask not found' });
+    }
+
+    return reply.send({ success: true, subtask: result.subtask });
+  });
+
+  // GET /api/tasks/:id/subtasks/completion - Get completion statistics
+  fastify.get<{ Params: { id: string } }>('/api/tasks/:id/subtasks/completion', async (request, reply) => {
+    const { id } = request.params;
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    if (!subtasksExist(task.docsPath)) {
+      return reply.status(404).send({ error: 'Subtasks not found' });
+    }
+
+    const subtasks = await loadSubtasks(task.docsPath);
+    if (!subtasks) {
+      return reply.status(500).send({ error: 'Failed to load subtasks.json' });
+    }
+
+    const stats = getCompletionStats(subtasks);
+    return reply.send({
+      taskId: id,
+      ...stats,
+      allComplete: stats.completed === stats.total,
     });
   });
 }

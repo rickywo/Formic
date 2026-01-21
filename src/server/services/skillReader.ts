@@ -39,7 +39,7 @@ function parseSkillFile(content: string): { frontmatter: Record<string, string>;
 
 /**
  * Substitute variables in skill content
- * Supports: $TASK_TITLE, $TASK_CONTEXT, $TASK_DOCS_PATH
+ * Supports: $TASK_ID, $TASK_TITLE, $TASK_CONTEXT, $TASK_DOCS_PATH
  */
 function substituteVariables(content: string, variables: Record<string, string>): string {
   let result = content;
@@ -109,6 +109,7 @@ export async function loadSkillPrompt(
     // Build variables for substitution
     const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
     const variables: Record<string, string> = {
+      TASK_ID: task.id,
       TASK_TITLE: task.title,
       TASK_CONTEXT: task.context,
       TASK_DOCS_PATH: docsPath,

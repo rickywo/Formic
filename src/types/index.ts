@@ -55,3 +55,22 @@ export interface LogMessage {
   data: string;
   timestamp: string;
 }
+
+// Subtask Management Types (Phase 9)
+export type SubtaskStatus = 'pending' | 'in_progress' | 'completed';
+
+export interface Subtask {
+  id: string;
+  content: string;
+  status: SubtaskStatus;
+  completedAt?: string; // ISO 8601 timestamp
+}
+
+export interface SubtasksFile {
+  version: string;
+  taskId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  subtasks: Subtask[];
+}

@@ -65,9 +65,9 @@ formic/
     ├── board.json                # Project's board state
     └── tasks/
         └── t-1_implement-user-auth/
-            ├── README.md         # Task specification
-            ├── PLAN.md           # Implementation plan
-            ├── CHECKLIST.md      # Completion tracking
+            ├── README.md         # Task specification (human-readable)
+            ├── PLAN.md           # Implementation plan (human-readable)
+            ├── subtasks.json     # Structured subtask list (agent source of truth)
             └── output/           # Agent output artifacts
 ```
 
@@ -79,20 +79,20 @@ Task documentation is stored **inside the user's workspace** at `.formic/tasks/`
 
 **Purpose:**
 
-1. **Context Memory**: The agent reads README.md, PLAN.md, and CHECKLIST.md to understand the task scope, implementation approach, and current progress.
+1. **Context Memory**: The agent reads README.md and PLAN.md for human-readable context, and subtasks.json for structured task tracking.
 
 2. **Outcome Capture**: All artifacts produced by the agent (code snippets, analysis, logs) are stored in the `output/` subdirectory.
 
-3. **Progress Tracking**: CHECKLIST.md is updated by the agent as work progresses, providing visibility into completion status.
+3. **Progress Tracking**: subtasks.json is updated by the agent as work progresses, providing structured visibility into completion status.
 
 4. **Version Control**: Task documentation can be committed with the project, preserving history.
 
 **Folder Structure:**
 ```
 {workspace}/.formic/tasks/{task-id}_{slug}/
-├── README.md        # Specification: goals, requirements, non-goals
-├── PLAN.md          # Implementation: step-by-step tasks with checkboxes
-├── CHECKLIST.md     # Quality gates and completion criteria
+├── README.md        # Specification: goals, requirements, non-goals (human-readable)
+├── PLAN.md          # Implementation: high-level steps overview (human-readable)
+├── subtasks.json    # Structured subtask list (agent source of truth)
 └── output/          # Agent-generated artifacts
     ├── analysis.md  # Research findings
     ├── diff.patch   # Code changes
@@ -215,17 +215,20 @@ Formic implements a structured 3-step workflow for task execution, ensuring comp
 │                         ↓                                       │
 │  Step 1: BRIEF - Generate README.md                             │
 │  • Uses /brief skill with task context + guidelines             │
-│  • Output: .formic/tasks/{id}_{slug}/README.md             │
+│  • Output: .formic/tasks/{id}_{slug}/README.md                  │
 │                         ↓                                       │
-│  Step 2: PLAN - Generate PLAN.md + CHECKLIST.md                 │
+│  Step 2: PLAN - Generate PLAN.md + subtasks.json                │
 │  • Uses /plan skill reading the generated README.md + guidelines│
-│  • Output: .formic/tasks/{id}_{slug}/PLAN.md               │
-│  • Output: .formic/tasks/{id}_{slug}/CHECKLIST.md          │
+│  • Output: .formic/tasks/{id}_{slug}/PLAN.md (human-readable)   │
+│  • Output: .formic/tasks/{id}_{slug}/subtasks.json (agent SOT)  │
 │                         ↓                                       │
-│  Step 3: EXECUTE - Run the actual task                          │
-│  • Agent receives full context + guidelines in prompt           │
-│  • Agent implements the task following the plan                 │
-│  • Output: .formic/tasks/{id}_{slug}/output/               │
+│  Step 3: EXECUTE - Iterative execution loop                     │
+│  • Agent reads subtasks.json for remaining work                 │
+│  • Agent implements subtasks, updates status in subtasks.json   │
+│  • Loop continues until all subtasks complete (or max iterations)│
+│  • Output: .formic/tasks/{id}_{slug}/output/                    │
+│                         ↓                                       │
+│  Task moves to REVIEW when all subtasks are complete            │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -260,7 +263,7 @@ This ensures:
 
 **Bundled Skills:**
 
-Skills are stored in the Formic project and copied to the workspace's `.formic/skills/` directory during workspace initialization (same timing as bootstrap detection):
+Skills are stored in the Formic project and copied to the workspace's `.claude/commands/` directory during workspace initialization (same timing as bootstrap detection):
 
 ```
 formic/
@@ -268,11 +271,11 @@ formic/
 │   ├── brief/
 │   │   └── SKILL.md         # README.md generator
 │   └── plan/
-│       └── SKILL.md         # PLAN.md + CHECKLIST.md generator
+│       └── SKILL.md         # PLAN.md + subtasks.json generator
 
 {workspace}/
-└── .formic/
-    └── skills/              # Copied from formic during init
+└── .claude/
+    └── commands/            # Copied from formic during init
         ├── brief/
         │   └── SKILL.md
         └── plan/
@@ -327,32 +330,41 @@ You are a senior Technical Project Manager. Generate implementation plans.
 **Input:** Read $TASK_DOCS_PATH/README.md for feature specification
 
 **Output Files:**
-1. $TASK_DOCS_PATH/PLAN.md - Detailed implementation steps with checkboxes
-2. $TASK_DOCS_PATH/CHECKLIST.md - Quality gates and completion criteria
+1. $TASK_DOCS_PATH/PLAN.md - High-level implementation overview (human-readable)
+2. $TASK_DOCS_PATH/subtasks.json - Structured subtask list (agent source of truth)
 
 **PLAN.md Structure:**
-- Phase-based implementation steps
-- TDD workflow (test first, implement, refactor)
-- Checkbox items for tracking
+- Phase-based implementation overview
+- Key milestones and deliverables
+- Human-readable summary
 
-**CHECKLIST.md Structure:**
-- Pre-implementation gates
-- Implementation verification
-- Quality gates
-- Documentation requirements
+**subtasks.json Structure:**
+{
+  "version": "1.0",
+  "taskId": "$TASK_ID",
+  "title": "$TASK_TITLE",
+  "subtasks": [
+    {"id": "1", "content": "Specific actionable task", "status": "pending"},
+    {"id": "2", "content": "Another actionable task", "status": "pending"}
+  ]
+}
 ```
 
 **Task Status Extended:**
 ```typescript
 type TaskStatus = 'todo' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
+type SubtaskStatus = 'pending' | 'in_progress' | 'completed';
 ```
 
 **Workflow Execution:**
 1. User clicks "Run" on a task in `todo` status
 2. Task moves to `briefing` status, `/brief` skill executes
 3. On completion, task moves to `planning` status, `/plan` skill executes
-4. On completion, task moves to `running` status, main execution begins
-5. On completion, task moves to `review` status
+4. On completion, task moves to `running` status, iterative execution begins:
+   - Agent reads subtasks.json for remaining work
+   - Agent implements subtasks, updates status in subtasks.json
+   - Loop continues until all subtasks complete (or max iterations reached)
+5. When all subtasks complete, task moves to `review` status
 
 **API Changes:**
 ```typescript
@@ -457,12 +469,55 @@ Each task's `docsPath` folder contains:
 
 | File | Purpose |
 |------|---------|
-| `README.md` | Task specification (goals, requirements, non-goals) |
-| `PLAN.md` | Implementation plan with checkboxes for each step |
-| `CHECKLIST.md` | Quality gates and completion criteria |
+| `README.md` | Task specification (goals, requirements, non-goals) - human-readable |
+| `PLAN.md` | High-level implementation overview - human-readable |
+| `subtasks.json` | Structured subtask list - agent source of truth |
 | `output/` | Directory for agent-generated artifacts |
 
-### 3.4 Field Definitions
+### 3.4 Subtasks Schema (`subtasks.json`)
+
+```json
+{
+  "version": "1.0",
+  "taskId": "t-1",
+  "title": "Implement user authentication",
+  "createdAt": "2024-01-21T10:00:00Z",
+  "updatedAt": "2024-01-21T12:30:00Z",
+  "subtasks": [
+    {
+      "id": "1",
+      "content": "Create auth service in src/services/auth.ts",
+      "status": "completed",
+      "completedAt": "2024-01-21T11:00:00Z"
+    },
+    {
+      "id": "2",
+      "content": "Add JWT middleware",
+      "status": "in_progress"
+    },
+    {
+      "id": "3",
+      "content": "Write unit tests for auth service",
+      "status": "pending"
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `version` | string | Schema version for future compatibility |
+| `taskId` | string | Reference to parent task ID |
+| `title` | string | Task title for context |
+| `createdAt` | ISO 8601 | When subtasks were generated |
+| `updatedAt` | ISO 8601 | Last modification timestamp |
+| `subtasks` | array | List of subtask objects |
+| `subtasks[].id` | string | Unique subtask identifier |
+| `subtasks[].content` | string | Actionable description of the subtask |
+| `subtasks[].status` | enum | One of: `pending`, `in_progress`, `completed` |
+| `subtasks[].completedAt` | ISO 8601 | When subtask was completed (optional) |
+
+### 3.5 Field Definitions
 
 #### Meta Object
 
@@ -730,16 +785,35 @@ services:
 
 ### Phase 8: Skill-Based Task Documentation Workflow ✅
 - [x] Create Formic-specific `/brief` skill for README.md generation
-- [x] Create Formic-specific `/plan` skill for PLAN.md and CHECKLIST.md generation
+- [x] Create Formic-specific `/plan` skill for PLAN.md and subtasks.json generation
 - [x] Implement 3-step task execution workflow:
   - Step 1: Generate README.md using `/brief` skill
-  - Step 2: Generate PLAN.md and CHECKLIST.md using `/plan` skill
+  - Step 2: Generate PLAN.md and subtasks.json using `/plan` skill
   - Step 3: Execute task with full documentation context
 - [x] Bundle skills in `skills/` directory within Formic
 - [x] Update runner service to orchestrate the 3-step workflow
 - [x] Add workflow status indicators to frontend (Brief → Plan → Execute)
 - [x] Allow manual trigger of individual workflow steps
 - [x] Handle workflow interruption and stop
+
+### Phase 9: Structured Subtask Management & Iterative Execution 🚧
+- [ ] Replace CHECKLIST.md with subtasks.json as agent source of truth
+- [ ] Update `/plan` skill to generate PLAN.md (human-readable) + subtasks.json (structured)
+- [ ] Create `subtasks.ts` service for subtask management:
+  - Parse and validate subtasks.json
+  - Calculate completion percentage
+  - Check if all subtasks are complete
+- [ ] Implement iterative execution loop (Ralph Wiggum style):
+  - Agent reads subtasks.json for remaining work
+  - Agent updates subtask status as it progresses
+  - Loop continues until all subtasks complete or max iterations reached
+  - Provide feedback on incomplete items between iterations
+- [ ] Add subtask API endpoints:
+  - GET `/api/tasks/:id/subtasks` - Get subtasks
+  - PUT `/api/tasks/:id/subtasks/:subtaskId` - Update subtask status
+  - GET `/api/tasks/:id/subtasks/completion` - Get completion percentage
+- [ ] Update frontend to display subtask progress
+- [ ] Remove CHECKLIST.md template and related code
 
 ---
 
