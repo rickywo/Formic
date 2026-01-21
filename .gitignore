@@ -34,6 +34,11 @@ Thumbs.db
 
 # Local test workspace (use ./example for CI tests)
 test_proj/
+docs/08_skill_workflow/test_react_app/
+docs/08_skill_workflow/test_screenshots/
+
+# Claude Code local config
+.claude/
 
 # Screenshots and test artifacts
 *.png

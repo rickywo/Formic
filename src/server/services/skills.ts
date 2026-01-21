@@ -2,11 +2,14 @@ import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getAgentRunnerDir } from '../utils/paths.js';
+import { getAgentRunnerDir, getClaudeCommandsDir } from '../utils/paths.js';
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Legacy path for backwards compatibility
+const LEGACY_SKILLS_PATH = '.agentrunner/skills';
 
 /**
  * Get the path to the bundled skills directory
@@ -30,18 +33,27 @@ function getBundledSkillsPath(): string {
 }
 
 /**
- * Get the path to the workspace skills directory
+ * Get the path to the workspace skills directory (new location: .claude/commands/)
  */
 export function getWorkspaceSkillsPath(): string {
+  return getClaudeCommandsDir();
+}
+
+/**
+ * Get the legacy skills path (.agentrunner/skills/)
+ */
+export function getLegacySkillsPath(): string {
   return path.join(getAgentRunnerDir(), 'skills');
 }
 
 /**
  * Check if skills have already been copied to the workspace
+ * Checks both new (.claude/commands/) and legacy (.agentrunner/skills/) locations
  */
 export function skillsExistInWorkspace(): boolean {
-  const workspaceSkillsPath = getWorkspaceSkillsPath();
-  return existsSync(workspaceSkillsPath);
+  const newPath = getWorkspaceSkillsPath();
+  const legacyPath = getLegacySkillsPath();
+  return existsSync(newPath) || existsSync(legacyPath);
 }
 
 /**
@@ -69,18 +81,18 @@ async function copyDirectory(src: string, dest: string): Promise<void> {
 }
 
 /**
- * Copy bundled skills to the workspace .agentrunner/skills/ directory
- * Only copies if skills don't already exist in the workspace
+ * Copy bundled skills to the workspace .claude/commands/ directory
+ * Only copies if skills don't already exist in the workspace (checks both new and legacy locations)
  */
 export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills: string[] }> {
-  // Skip if skills already exist
+  // Skip if skills already exist in either location
   if (skillsExistInWorkspace()) {
     console.log('[Skills] Skills already exist in workspace, skipping copy');
     return { copied: false, skills: [] };
   }
 
   const bundledSkillsPath = getBundledSkillsPath();
-  const workspaceSkillsPath = getWorkspaceSkillsPath();
+  const workspaceSkillsPath = getWorkspaceSkillsPath(); // Now points to .claude/commands/
 
   // Check if bundled skills exist
   if (!existsSync(bundledSkillsPath)) {
@@ -89,7 +101,13 @@ export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills
   }
 
   try {
-    // Copy the entire skills directory
+    // Ensure .claude directory exists
+    const claudeDir = path.dirname(workspaceSkillsPath);
+    if (!existsSync(claudeDir)) {
+      await mkdir(claudeDir, { recursive: true });
+    }
+
+    // Copy the entire skills directory to .claude/commands/
     await copyDirectory(bundledSkillsPath, workspaceSkillsPath);
 
     // Get list of copied skills
@@ -100,7 +118,7 @@ export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills
       return stats.isDirectory();
     });
 
-    console.log('[Skills] Copied skills to workspace:', skills);
+    console.log('[Skills] Copied skills to workspace .claude/commands/:', skills);
     return { copied: true, skills };
   } catch (error) {
     console.error('[Skills] Error copying skills to workspace:', error);
@@ -110,16 +128,31 @@ export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills
 
 /**
  * Get the path to a specific skill in the workspace
+ * Checks new location (.claude/commands/) first, then falls back to legacy (.agentrunner/skills/)
  */
 export function getSkillPath(skillName: string): string {
-  return path.join(getWorkspaceSkillsPath(), skillName, 'SKILL.md');
+  const newPath = path.join(getWorkspaceSkillsPath(), skillName, 'SKILL.md');
+  const legacyPath = path.join(getLegacySkillsPath(), skillName, 'SKILL.md');
+
+  // Prefer new location, fall back to legacy
+  if (existsSync(newPath)) {
+    return newPath;
+  }
+  if (existsSync(legacyPath)) {
+    return legacyPath;
+  }
+
+  // Default to new location for new files
+  return newPath;
 }
 
 /**
- * Check if a specific skill exists in the workspace
+ * Check if a specific skill exists in the workspace (either location)
  */
 export function skillExists(skillName: string): boolean {
-  return existsSync(getSkillPath(skillName));
+  const newPath = path.join(getWorkspaceSkillsPath(), skillName, 'SKILL.md');
+  const legacyPath = path.join(getLegacySkillsPath(), skillName, 'SKILL.md');
+  return existsSync(newPath) || existsSync(legacyPath);
 }
 
 /**

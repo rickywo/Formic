@@ -1,7 +1,10 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
+import { loadSkillPrompt } from './skillReader.js';
 import { getWorkspacePath, getAgentRunnerDir } from '../utils/paths.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
@@ -9,6 +12,34 @@ import path from 'node:path';
 const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const MAX_LOG_LINES = 50;
 const AGENT_COMMAND = process.env.AGENT_COMMAND || 'claude';
+const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
+
+/**
+ * Load the project development guidelines if they exist
+ */
+async function loadProjectGuidelines(): Promise<string> {
+  const guidelinePath = path.join(WORKSPACE_PATH, GUIDELINE_FILENAME);
+
+  if (!existsSync(guidelinePath)) {
+    return '';
+  }
+
+  try {
+    const content = await readFile(guidelinePath, 'utf-8');
+    return `
+## Project Development Guidelines
+The following guidelines MUST be followed for all code changes in this project:
+
+${content}
+
+---
+END OF GUIDELINES
+`;
+  } catch (error) {
+    console.warn('[Workflow] Failed to load project guidelines:', error);
+    return '';
+  }
+}
 
 // Store active workflow processes
 const activeWorkflows = new Map<string, {
@@ -92,12 +123,14 @@ async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'exec
 }
 
 /**
- * Build the prompt for the brief step
+ * Build the prompt for the brief step (FALLBACK)
+ * Used when skill file is not available or fails to load
  */
-function buildBriefPrompt(task: Task): string {
+function buildBriefPromptFallback(task: Task, guidelines: string): string {
   const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
 
-  return `You are generating a feature specification for a task.
+  return `${guidelines}
+You are generating a feature specification for a task.
 
 TASK_TITLE: ${task.title}
 TASK_CONTEXT: ${task.context}
@@ -130,12 +163,14 @@ Write the README.md to: ${docsPath}/README.md`;
 }
 
 /**
- * Build the prompt for the plan step
+ * Build the prompt for the plan step (FALLBACK)
+ * Used when skill file is not available or fails to load
  */
-function buildPlanPrompt(task: Task): string {
+function buildPlanPromptFallback(task: Task, guidelines: string): string {
   const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
 
-  return `You are generating implementation planning documents for a task.
+  return `${guidelines}
+You are generating implementation planning documents for a task.
 
 TASK_TITLE: ${task.title}
 TASK_DOCS_PATH: ${docsPath}
@@ -156,16 +191,18 @@ Then generate TWO files:
    - Quality gates
    - Post-implementation checklist
 
-Make the tasks specific and actionable based on the README.md specification.`;
+Make the tasks specific and actionable based on the README.md specification.
+Ensure all implementation steps follow the project development guidelines above.`;
 }
 
 /**
  * Build the prompt for the execute step
  */
-function buildExecutePrompt(task: Task): string {
+function buildExecutePrompt(task: Task, guidelines: string): string {
   const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
 
-  return `Task: ${task.title}
+  return `${guidelines}
+Task: ${task.title}
 
 IMPORTANT: Before implementing, read the task documentation at ${docsPath}/:
 - README.md: Feature specification
@@ -174,7 +211,8 @@ IMPORTANT: Before implementing, read the task documentation at ${docsPath}/:
 
 Context: ${task.context}
 
-Follow the PLAN.md step by step. Update CHECKLIST.md as you complete items.`;
+Follow the PLAN.md step by step. Update CHECKLIST.md as you complete items.
+All code changes MUST comply with the project development guidelines provided above.`;
 }
 
 /**
@@ -281,23 +319,48 @@ export async function executeSingleStep(
     throw new Error('A workflow step is already running for this task');
   }
 
-  // Build prompt based on step
+  // Build prompt based on step - try skill file first, fallback to hardcoded
   let prompt: string;
   let status: 'briefing' | 'planning' | 'running';
 
   switch (step) {
-    case 'brief':
-      prompt = buildBriefPrompt(task);
+    case 'brief': {
+      // Try loading from skill file first
+      const skillResult = await loadSkillPrompt('brief', task);
+      if (skillResult.success) {
+        prompt = skillResult.content;
+        console.log('[Workflow] Using skill file for brief step');
+      } else {
+        // Fallback to hardcoded prompt
+        const guidelines = await loadProjectGuidelines();
+        prompt = buildBriefPromptFallback(task, guidelines);
+        console.log('[Workflow] Using fallback prompt for brief step');
+      }
       status = 'briefing';
       break;
-    case 'plan':
-      prompt = buildPlanPrompt(task);
+    }
+    case 'plan': {
+      // Try loading from skill file first
+      const skillResult = await loadSkillPrompt('plan', task);
+      if (skillResult.success) {
+        prompt = skillResult.content;
+        console.log('[Workflow] Using skill file for plan step');
+      } else {
+        // Fallback to hardcoded prompt
+        const guidelines = await loadProjectGuidelines();
+        prompt = buildPlanPromptFallback(task, guidelines);
+        console.log('[Workflow] Using fallback prompt for plan step');
+      }
       status = 'planning';
       break;
-    case 'execute':
-      prompt = buildExecutePrompt(task);
+    }
+    case 'execute': {
+      // Execute step always uses hardcoded prompt (no skill file)
+      const guidelines = await loadProjectGuidelines();
+      prompt = buildExecutePrompt(task, guidelines);
       status = 'running';
       break;
+    }
   }
 
   // Update task status
@@ -352,19 +415,40 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     let prompt: string;
     let status: 'briefing' | 'planning' | 'running';
 
+    // Build prompt - try skill file first, fallback to hardcoded
     switch (step) {
-      case 'brief':
-        prompt = buildBriefPrompt(currentTask);
+      case 'brief': {
+        const skillResult = await loadSkillPrompt('brief', currentTask);
+        if (skillResult.success) {
+          prompt = skillResult.content;
+          console.log('[Workflow] Full workflow: Using skill file for brief step');
+        } else {
+          const guidelines = await loadProjectGuidelines();
+          prompt = buildBriefPromptFallback(currentTask, guidelines);
+          console.log('[Workflow] Full workflow: Using fallback for brief step');
+        }
         status = 'briefing';
         break;
-      case 'plan':
-        prompt = buildPlanPrompt(currentTask);
+      }
+      case 'plan': {
+        const skillResult = await loadSkillPrompt('plan', currentTask);
+        if (skillResult.success) {
+          prompt = skillResult.content;
+          console.log('[Workflow] Full workflow: Using skill file for plan step');
+        } else {
+          const guidelines = await loadProjectGuidelines();
+          prompt = buildPlanPromptFallback(currentTask, guidelines);
+          console.log('[Workflow] Full workflow: Using fallback for plan step');
+        }
         status = 'planning';
         break;
-      case 'execute':
-        prompt = buildExecutePrompt(currentTask);
+      }
+      case 'execute': {
+        const guidelines = await loadProjectGuidelines();
+        prompt = buildExecutePrompt(currentTask, guidelines);
         status = 'running';
         break;
+      }
     }
 
     await updateTaskStatus(taskId, status, null);

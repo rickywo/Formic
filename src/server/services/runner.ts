@@ -1,11 +1,43 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, appendTaskLogs } from './store.js';
 import type { LogMessage } from '../../types/index.js';
+import path from 'node:path';
 
 const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const MAX_LOG_LINES = 50;
 const AGENT_COMMAND = process.env.AGENT_COMMAND || 'claude';
+const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
+
+/**
+ * Load the project development guidelines if they exist
+ */
+async function loadProjectGuidelines(): Promise<string> {
+  const guidelinePath = path.join(WORKSPACE_PATH, GUIDELINE_FILENAME);
+
+  if (!existsSync(guidelinePath)) {
+    return '';
+  }
+
+  try {
+    const content = await readFile(guidelinePath, 'utf-8');
+    return `
+## Project Development Guidelines
+The following guidelines MUST be followed for all code changes in this project:
+
+${content}
+
+---
+END OF GUIDELINES
+
+`;
+  } catch (error) {
+    console.warn('[Runner] Failed to load project guidelines:', error);
+    return '';
+  }
+}
 
 // Store active processes
 const activeProcesses = new Map<string, ChildProcess>();
@@ -57,9 +89,18 @@ export async function runAgent(taskId: string, title: string, context: string, d
     throw new Error('An agent is already running. Please wait for it to complete.');
   }
 
+  // Load project guidelines (injected into prompt)
+  const guidelines = await loadProjectGuidelines();
+
   // Build prompt - simple format for --print mode
   // Note: In --print mode, tools are limited. For complex tasks, the agent should read context from the prompt directly.
-  const prompt = `Task: ${title}\n\nContext: ${context}\n\nTask documentation is available at: ${docsPath}/`;
+  const prompt = `${guidelines}Task: ${title}
+
+Context: ${context}
+
+Task documentation is available at: ${docsPath}/
+
+All code changes MUST comply with the project development guidelines provided above.`;
 
   // Spawn Claude CLI process
   // Using --print for non-interactive mode, output appears at completion

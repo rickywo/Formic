@@ -1,7 +1,9 @@
 # Phase 8: Skill-Based Task Documentation Workflow - Implementation Plan
 
 ## Status
-**COMPLETE** - Implementation finished and verified.
+**COMPLETE** - All phases implemented and verified.
+- Phase 8.1: Core workflow with hardcoded prompts ✅
+- Phase 8.2: Runtime skill file reading ✅
 
 ## Project Context & Problem Statement
 
@@ -80,6 +82,13 @@ Implement an automated 3-step workflow (Brief → Plan → Execute) using bundle
 - [x] Handle step failures (revert to `todo` state)
 - [x] Support workflow stop/interrupt
 
+### 3.4 Project Guidelines Injection
+- [x] Implement `loadProjectGuidelines()` function in `workflow.ts`
+- [x] Load `kanban-development-guideline.md` from workspace root
+- [x] Inject guideline content at the start of every workflow step prompt
+- [x] Add explicit instruction for Claude to follow the guidelines
+- [x] Implement same guideline loading in `runner.ts` for legacy execution
+
 ---
 
 ## Phase 4: Update Type Definitions
@@ -157,6 +166,57 @@ Implement an automated 3-step workflow (Brief → Plan → Execute) using bundle
 - [x] Update SPEC.md with workflow specification
 - [x] SPEC.md Phase 8 marked as complete
 - [x] docs/08 README.md status updated
+
+---
+
+## Phase 9: Runtime Skill File Reading (Phase 8.2)
+
+### Problem Statement
+The current implementation uses hardcoded prompts in `workflow.ts` instead of reading skill files at runtime. This means:
+- Users cannot customize skills by editing files
+- Changes require code modifications and rebuild
+- Skill files serve only as documentation, not as actual executable skills
+
+### Technical Discovery
+Claude Code skills **cannot be invoked directly in print mode** (`claude -p /brief`). The official documentation states:
+> User-invoked skills are only available in interactive mode.
+
+### Solution: Read Skill Files at Runtime
+
+### 9.1 Update Skill File Location
+- [x] Change skill copy destination from `.agentrunner/skills/` to `.claude/commands/`
+- [x] Update `skills.ts` to copy to standard Claude location
+- [x] Ensure backwards compatibility (check both locations)
+
+### 9.2 Create Skill File Reader Service
+- [x] Create `src/server/services/skillReader.ts`
+- [x] Implement `readSkillFile(skillName: string): Promise<string>`
+- [x] Parse SKILL.md frontmatter (extract description, etc.)
+- [x] Return markdown content (excluding frontmatter)
+
+### 9.3 Implement Variable Substitution
+- [x] Create `substituteVariables(content: string, variables: Record<string, string>): string`
+- [x] Support variables: `$TASK_TITLE`, `$TASK_CONTEXT`, `$TASK_DOCS_PATH`
+- [x] Inject project guidelines before skill content
+- [x] Handle missing variables gracefully
+
+### 9.4 Update Workflow Service
+- [x] Replace `buildBriefPrompt()` with `await loadSkillPrompt('brief', task)`
+- [x] Replace `buildPlanPrompt()` with `await loadSkillPrompt('plan', task)`
+- [x] Keep `buildExecutePrompt()` as-is (no skill file for execute step)
+- [x] Add fallback to hardcoded prompts if skill file not found
+
+### 9.5 Update Skill Files
+- [x] Update `skills/brief/SKILL.md` to use supported variables
+- [x] Update `skills/plan/SKILL.md` to use supported variables
+- [x] Remove hardcoded guideline references (injected at runtime)
+- [x] Test skill files work with variable substitution
+
+### 9.6 Testing
+- [x] Test skill file reading from `.claude/commands/`
+- [x] Test variable substitution works correctly
+- [x] Test modified skill files produce different output
+- [x] Test fallback to hardcoded prompts when skill file missing
 
 ---
 

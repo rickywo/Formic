@@ -1,12 +1,19 @@
 # Phase 8: Skill-Based Task Documentation Workflow - Checklist
 
-## Pre-Implementation
+## Status
+**COMPLETE** - All phases implemented ✅
+
+---
+
+## Phase 8.1: Core Workflow (COMPLETE)
+
+### Pre-Implementation
 - [x] README.md specification reviewed and approved
 - [x] Technical approach validated against existing codebase
 - [x] Dependencies identified (no new dependencies required)
 - [x] Test strategy defined
 
-## Implementation
+### Implementation
 
 ### Phase 1: Bundled Skills
 - [x] `skills/brief/SKILL.md` created and tested
@@ -26,6 +33,9 @@
 - [x] `executeSingleStep('brief')` generates README.md
 - [x] `executeSingleStep('plan')` generates PLAN.md + CHECKLIST.md
 - [x] Step transitions work correctly
+- [x] `loadProjectGuidelines()` implemented for guideline injection
+- [x] Guidelines injected into all workflow step prompts
+- [x] `runner.ts` updated with same guideline injection for legacy execution
 
 ### Phase 4: Type Definitions
 - [x] `workflowStep` field added to Task interface
@@ -59,8 +69,61 @@
 - [x] docs/08/README.md status updated to COMPLETE
 - [x] PLAN.md updated with completion status
 
-## Post-Implementation
+### Post-Implementation (Phase 8.1)
 - [x] All implementation code complete
 - [x] TypeScript build verified
 - [x] SPEC.md Development Roadmap updated
 - [x] docs/08 documentation updated
+
+---
+
+## Phase 8.2: Runtime Skill File Reading (COMPLETE)
+
+### Technical Discovery
+- [x] Researched Claude Code skill invocation
+- [x] Confirmed: Skills cannot be invoked in print mode (`claude -p /brief`)
+- [x] Documented limitation and workaround in README.md
+
+### Skill Location Update
+- [x] Update `skills.ts` to copy skills to `.claude/commands/` instead of `.agentrunner/skills/`
+- [x] Verify skills are discoverable by Claude Code
+- [x] Test backwards compatibility
+
+### Skill Reader Service
+- [x] Create `src/server/services/skillReader.ts`
+- [x] Implement `readSkillFile(skillName)` function
+- [x] Parse SKILL.md frontmatter (YAML)
+- [x] Extract markdown content (skip frontmatter)
+- [x] Handle file not found gracefully
+
+### Variable Substitution
+- [x] Implement `substituteVariables()` function
+- [x] Support `$TASK_TITLE` variable
+- [x] Support `$TASK_CONTEXT` variable
+- [x] Support `$TASK_DOCS_PATH` variable
+- [x] Inject guidelines before skill content
+
+### Workflow Service Update
+- [x] Replace `buildBriefPrompt()` with skill file reading
+- [x] Replace `buildPlanPrompt()` with skill file reading
+- [x] Add fallback to hardcoded prompts if skill missing
+- [x] Maintain guideline injection behavior
+
+### Skill File Updates
+- [x] Update `skills/brief/SKILL.md` with supported variables
+- [x] Update `skills/plan/SKILL.md` with supported variables
+- [x] Remove hardcoded guideline file references
+- [x] Test variable substitution works
+
+### Testing & Verification
+- [x] Test skill reading from `.claude/commands/`
+- [x] Test variable substitution produces correct output
+- [x] Test skill modification changes output
+- [x] Test fallback when skill file missing
+- [x] Run full workflow with new implementation
+
+### Documentation
+- [x] Update README.md status to COMPLETE
+- [x] Update PLAN.md status to COMPLETE
+- [x] Update SPEC.md with runtime skill reading details
+- [x] Update main README.md if needed

@@ -189,10 +189,21 @@ AgentRunner uses a structured 3-step workflow for task execution, ensuring compr
 
 1. **Create Task**: Enter a title and context/prompt describing what you want to build
 2. **Click Run**: AgentRunner automatically:
+   - **Loads Guidelines**: Injects `kanban-development-guideline.md` into every prompt
    - **Step 1 (Brief)**: Generates `README.md` with goals, capabilities, and requirements
    - **Step 2 (Plan)**: Generates `PLAN.md` (implementation steps) and `CHECKLIST.md` (quality gates)
    - **Step 3 (Execute)**: Runs the agent with all documentation as context
 3. **Monitor Progress**: Watch each step complete in the terminal view
+
+### Automatic Guidelines Injection
+
+When you run the bootstrap task, it generates `kanban-development-guideline.md` in your project root. This file is **automatically injected into every workflow step prompt**, ensuring Claude always follows your project's coding standards, architectural patterns, and best practices.
+
+This means:
+- Claude receives project-specific rules in every prompt (not relying on file discovery)
+- All generated documentation follows your project's coding standards
+- All code changes comply with your architectural patterns
+- Consistent behavior across all workflow steps (brief, plan, execute)
 
 ### Task Documentation Structure
 

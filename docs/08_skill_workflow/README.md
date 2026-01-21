@@ -1,11 +1,21 @@
 # Phase 8: Skill-Based Task Documentation Workflow
 
 ## Status
-**COMPLETE** - Implementation finished and verified.
+**COMPLETE** - Both phases implemented and verified.
+- Phase 8.1: Core workflow with hardcoded prompts ✅
+- Phase 8.2: Runtime skill file reading ✅
 
 ## Overview
 
-A structured 3-step workflow for task execution that uses bundled Claude Code skills to automatically generate comprehensive documentation before any implementation begins. When a user clicks "Run" on a task, AgentRunner first invokes the `/brief` skill to generate a feature specification (README.md), then invokes the `/plan` skill to generate implementation plans (PLAN.md, CHECKLIST.md), and only then executes the actual task with full documentation context.
+A structured 3-step workflow for task execution that generates comprehensive documentation before any implementation begins. When a user clicks "Run" on a task, AgentRunner progresses through Brief → Plan → Execute steps.
+
+### Implementation Details
+The workflow **reads skill files at runtime** from `.claude/commands/` and substitutes variables (`$TASK_TITLE`, `$TASK_CONTEXT`, `$TASK_DOCS_PATH`) before passing to Claude. If a skill file is not found, the system falls back to hardcoded prompts for reliability.
+
+**Key files:**
+- `src/server/services/skillReader.ts` - Reads and processes skill files
+- `src/server/services/skills.ts` - Copies skills to `.claude/commands/`
+- `src/server/services/workflow.ts` - Orchestrates the 3-step workflow
 
 ## Goals
 
@@ -25,6 +35,7 @@ A structured 3-step workflow for task execution that uses bundled Claude Code sk
 - **Workflow Status Tracking**: New `briefing` and `planning` statuses show current workflow step
 - **Manual Step Execution**: API endpoints to trigger individual steps (`/workflow/brief`, `/workflow/plan`, `/workflow/execute`)
 - **Customizable Skills**: Users can modify copied skills in `.agentrunner/skills/` for project-specific needs
+- **Project Guidelines Injection**: `kanban-development-guideline.md` is automatically loaded and injected into every workflow step prompt
 
 ## Non-Goals
 
@@ -33,7 +44,50 @@ A structured 3-step workflow for task execution that uses bundled Claude Code sk
 - Parallel execution of workflow steps
 - Conditional workflow branching or skip logic
 - Workflow templates or presets beyond Brief → Plan → Execute
-- Automatic skill updates (skills are copied once and owned by the workspace)
+- Direct CLI skill invocation (`claude /brief`) - not supported in print mode
+
+## Technical Discovery: Skill Invocation Limitation
+
+### The Limitation
+Claude Code skills **cannot be invoked directly in print mode**. From the official documentation:
+
+> User-invoked skills like `/commit` and built-in commands are **only available in interactive mode**. In `-p` mode, describe the task you want to accomplish instead.
+
+This means `claude -p /brief "task context"` does **NOT** work.
+
+### Current Workaround (Phase 8.1)
+Prompts are hardcoded in `workflow.ts`:
+```typescript
+function buildBriefPrompt(task: Task, guidelines: string): string {
+  return `${guidelines}
+You are generating a feature specification for a task.
+TASK_TITLE: ${task.title}
+...`;
+}
+```
+
+### Implemented Solution (Phase 8.2)
+Skills are now read at runtime, with variables substituted before passing to Claude:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  1. Copy skills to workspace .claude/commands/brief/SKILL.md    │
+│                         ↓                                        │
+│  2. At runtime, READ the SKILL.md file content                   │
+│                         ↓                                        │
+│  3. Substitute variables ($TASK_TITLE → actual value)            │
+│                         ↓                                        │
+│  4. Pass substituted content as prompt to `claude -p "content"`  │
+│                         ↓                                        │
+│  5. Claude executes with the skill's instructions                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Benefits
+- Skills are in standard Claude location (`.claude/commands/`)
+- Users can customize skills by editing the files directly
+- Changes to skill files take effect immediately (no rebuild needed)
+- Fallback to hardcoded prompts if skill file not found
+- Guidelines are automatically injected into every prompt
 
 ## Requirements
 
@@ -46,3 +100,25 @@ A structured 3-step workflow for task execution that uses bundled Claude Code sk
 - API must support manual step execution via `POST /api/tasks/:id/workflow/:step`
 - Frontend must display workflow step indicators showing current progress
 - Docker must include `skills/` directory in the container image
+- Project guidelines (`kanban-development-guideline.md`) must be loaded and injected into every prompt
+
+## Project Guidelines Integration
+
+The `kanban-development-guideline.md` file (generated by the bootstrap task) is automatically injected into every workflow step prompt:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Workflow Step Execution                                         │
+│                                                                  │
+│  1. Load kanban-development-guideline.md from workspace root     │
+│  2. Inject guidelines content at the start of the prompt         │
+│  3. Execute the step (brief/plan/execute)                        │
+│  4. Claude follows project-specific rules in all code changes    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+This ensures:
+- All generated documentation follows project coding standards
+- All code changes comply with project-specific rules
+- Consistent behavior across all workflow steps
+- No reliance on Claude "discovering" the guidelines file

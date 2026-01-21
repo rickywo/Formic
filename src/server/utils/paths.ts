@@ -41,3 +41,11 @@ export function getTaskDocsPath(id: string, slug: string): string {
 export function getRelativeDocsPath(id: string, slug: string): string {
   return `.agentrunner/tasks/${id}_${slug}`;
 }
+
+/**
+ * Get the .claude/commands directory path inside workspace
+ * This is the standard Claude Code location for project-level skills
+ */
+export function getClaudeCommandsDir(): string {
+  return path.join(getWorkspacePath(), '.claude', 'commands');
+}
