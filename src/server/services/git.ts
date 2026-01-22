@@ -92,11 +92,22 @@ export async function checkoutBranch(branchName: string): Promise<void> {
 
 /**
  * Check if there are uncommitted changes in the workspace
+ * Excludes .formic/ directory since that's internal state that shouldn't block queue
  */
 export function hasUncommittedChanges(): boolean {
   try {
     const status = gitExec('status --porcelain');
-    return status.length > 0;
+    if (status.length === 0) return false;
+
+    // Filter out .formic/ changes - these are internal and shouldn't block queue
+    const lines = status.split('\n').filter(line => line.trim().length > 0);
+    const nonFormicChanges = lines.filter(line => {
+      // Status format: XY filename or XY "filename with spaces"
+      const file = line.slice(3).replace(/^"(.*)"$/, '$1');
+      return !file.startsWith('.formic/') && !file.startsWith('.formic\\');
+    });
+
+    return nonFormicChanges.length > 0;
   } catch {
     return false;
   }
