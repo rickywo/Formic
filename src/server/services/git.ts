@@ -287,7 +287,33 @@ export function ensureFormicIgnored(): { modified: boolean; actions: string[] } 
     modified = true;
   }
 
-  // Step 2: Remove .formic/ from git index if it's tracked
+  // Step 2: Check if .formic/ is staged for addition (user ran git add)
+  // Must do this BEFORE Step 3 to avoid unstaging our own rm --cached
+  let didUnstage = false;
+  try {
+    // Check for staged additions (not deletions)
+    const stagedStatus = gitExec('diff --cached --name-status');
+    const stagedFormicAdditions = stagedStatus.split('\n').filter(line => {
+      // Format: "A\tfilename" for additions, "M\tfilename" for modifications
+      const [status, file] = line.split('\t');
+      return (status === 'A' || status === 'M') && file?.startsWith('.formic/');
+    });
+    if (stagedFormicAdditions.length > 0) {
+      // Unstage .formic/ files that user accidentally staged
+      try {
+        gitExec('reset HEAD .formic/');
+        actions.push('Unstaged .formic/ files from git index');
+        modified = true;
+        didUnstage = true;
+      } catch {
+        // Reset may fail if nothing staged
+      }
+    }
+  } catch {
+    // No staged files or git command failed
+  }
+
+  // Step 3: Remove .formic/ from git index if it's tracked
   try {
     const trackedFiles = gitExec('ls-files .formic/');
     if (trackedFiles.length > 0) {
@@ -302,24 +328,6 @@ export function ensureFormicIgnored(): { modified: boolean; actions: string[] } 
     }
   } catch {
     // ls-files failed, .formic/ is not tracked - this is fine
-  }
-
-  // Step 3: Check if .formic/ is staged (user ran git add)
-  try {
-    const stagedStatus = gitExec('diff --cached --name-only');
-    const stagedFormicFiles = stagedStatus.split('\n').filter(f => f.startsWith('.formic/'));
-    if (stagedFormicFiles.length > 0) {
-      // Unstage .formic/ files
-      try {
-        gitExec('reset HEAD .formic/');
-        actions.push('Unstaged .formic/ files from git index');
-        modified = true;
-      } catch {
-        // Reset may fail if nothing staged
-      }
-    }
-  } catch {
-    // No staged files or git command failed
   }
 
   if (actions.length === 0) {
