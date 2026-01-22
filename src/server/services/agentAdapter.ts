@@ -30,7 +30,9 @@ const AGENTS: Record<AgentType, AgentConfig> = {
   },
   copilot: {
     command: 'copilot',
-    buildArgs: (prompt: string) => ['--prompt', prompt, '--allow-all-tools'],
+    // --allow-all-paths required for autonomous execution (--add-dir has subdirectory bugs)
+    // See: https://github.com/github/copilot-cli/issues/261
+    buildArgs: (prompt: string) => ['--prompt', prompt, '--allow-all-tools', '--allow-all-paths'],
     skillsDir: '.claude/skills',
     envVars: {}, // Uses GitHub OAuth
   },
