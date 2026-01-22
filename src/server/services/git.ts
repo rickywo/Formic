@@ -355,3 +355,69 @@ export function isFormicIgnored(): boolean {
 
   return formicPatterns.some(pattern => lines.includes(pattern));
 }
+
+/**
+ * Commit all changes in the workspace
+ * Used to auto-commit after task execution completes
+ *
+ * @param taskId - Task ID for the commit message
+ * @param taskTitle - Task title for the commit message
+ * @returns Object with success status and commit hash (if successful)
+ */
+export async function commitChanges(
+  taskId: string,
+  taskTitle: string
+): Promise<{ success: boolean; commitHash?: string; message: string }> {
+  try {
+    // Ensure .formic/ is protected before committing
+    ensureFormicIgnored();
+
+    // Check if there are any changes to commit (excluding .formic/)
+    if (!hasUncommittedChanges()) {
+      return { success: true, message: 'No changes to commit' };
+    }
+
+    // Stage all changes (excluding .formic/ which is in .gitignore)
+    await gitExecAsync('add -A');
+
+    // Double-check .formic/ isn't staged
+    try {
+      const stagedStatus = gitExec('diff --cached --name-only');
+      const stagedFormicFiles = stagedStatus.split('\n').filter(f => f.startsWith('.formic/'));
+      if (stagedFormicFiles.length > 0) {
+        gitExec('reset HEAD .formic/');
+      }
+    } catch {
+      // Ignore errors
+    }
+
+    // Check if there's anything staged after filtering
+    const stagedChanges = gitExec('diff --cached --name-only');
+    if (!stagedChanges.trim()) {
+      return { success: true, message: 'No changes to commit (only .formic/ changes)' };
+    }
+
+    // Create commit message
+    const commitMessage = `[${taskId}] ${taskTitle}
+
+Automated commit by Formic after task completion.`;
+
+    // Commit the changes
+    await gitExecAsync(`commit -m "${commitMessage.replace(/"/g, '\\"')}"`);
+
+    // Get the commit hash
+    const commitHash = gitExec('rev-parse --short HEAD');
+
+    return {
+      success: true,
+      commitHash,
+      message: `Committed changes: ${commitHash}`,
+    };
+  } catch (error) {
+    const err = error as Error;
+    return {
+      success: false,
+      message: `Failed to commit: ${err.message}`,
+    };
+  }
+}

@@ -14,7 +14,7 @@ import {
   subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
-import { getBranchStatus } from './git.js';
+import { getBranchStatus, commitChanges, hasUncommittedChanges } from './git.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
 
@@ -222,7 +222,12 @@ IMPORTANT: Before implementing, read the task documentation at ${docsPath}/:
 Context: ${task.context}
 
 Follow the PLAN.md step by step. As you complete each subtask, update its status in subtasks.json to "completed".
-All code changes MUST comply with the project development guidelines provided above.`;
+All code changes MUST comply with the project development guidelines provided above.
+
+MANDATORY FINAL STEP: After completing all subtasks, you MUST commit your changes:
+1. Stage all changes: git add -A
+2. Commit with message: git commit -m "[${task.id}] ${task.title}"
+DO NOT skip this step - uncommitted changes will block subsequent tasks.`;
 }
 
 /**
@@ -252,7 +257,12 @@ Task documentation is at ${docsPath}/:
 Context: ${task.context}
 
 Please continue working on the incomplete subtasks listed above. As you complete each one, update its status in subtasks.json to "completed".
-All code changes MUST comply with the project development guidelines provided above.`;
+All code changes MUST comply with the project development guidelines provided above.
+
+MANDATORY FINAL STEP: After completing all subtasks, you MUST commit your changes:
+1. Stage all changes: git add -A
+2. Commit with message: git commit -m "[${task.id}] ${task.title}"
+DO NOT skip this step - uncommitted changes will block subsequent tasks.`;
 }
 
 /**
@@ -494,6 +504,33 @@ async function executeWithIterativeLoop(
       timestamp: new Date().toISOString(),
     });
     console.log(`[Workflow] Max iterations reached, some subtasks incomplete`);
+  }
+
+  // Auto-commit any remaining changes (safety net if agent didn't commit)
+  if (hasUncommittedChanges()) {
+    console.log(`[Workflow] Auto-committing changes for task ${taskId}`);
+    broadcastToTask(taskId, {
+      type: 'stdout',
+      data: `\n[AUTO-COMMIT] Committing remaining changes...\n`,
+      timestamp: new Date().toISOString(),
+    });
+
+    const commitResult = await commitChanges(taskId, task.title);
+    if (commitResult.success) {
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `[AUTO-COMMIT] ${commitResult.message}\n`,
+        timestamp: new Date().toISOString(),
+      });
+      console.log(`[Workflow] Auto-commit successful: ${commitResult.message}`);
+    } else {
+      broadcastToTask(taskId, {
+        type: 'stderr',
+        data: `[AUTO-COMMIT] ${commitResult.message}\n`,
+        timestamp: new Date().toISOString(),
+      });
+      console.error(`[Workflow] Auto-commit failed: ${commitResult.message}`);
+    }
   }
 
   console.log(`[Workflow] Iterative execution completed for task ${taskId}: iterations=${iteration - 1}, allComplete=${allComplete}`);
