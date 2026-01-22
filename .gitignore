@@ -40,6 +40,9 @@ docs/08_skill_workflow/test_screenshots/
 # Claude Code local config
 .claude/
 
+# Formic local state (board, tasks, logs)
+.formic/
+
 # Screenshots and test artifacts
 *.png
 !images/*.png

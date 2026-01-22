@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Formic local state (board, tasks, logs)
+.formic/
+
+# Claude Code local config
+.claude/
