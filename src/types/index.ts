@@ -1,6 +1,7 @@
-export type TaskStatus = 'todo' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
+export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'execute' | 'complete';
+export type BranchStatus = 'created' | 'ahead' | 'behind' | 'conflicts' | 'merged';
 
 export interface WorkflowLogs {
   brief?: string[];
@@ -20,6 +21,11 @@ export interface Task {
   // Workflow fields
   workflowStep?: WorkflowStep;
   workflowLogs?: WorkflowLogs;
+  // Branch fields (Phase 11)
+  branch?: string;
+  branchStatus?: BranchStatus;
+  baseBranch?: string;
+  createdAt?: string;
 }
 
 export interface BoardMeta {
@@ -39,6 +45,7 @@ export interface CreateTaskInput {
   title: string;
   context: string;
   priority?: TaskPriority;
+  baseBranch?: string;
 }
 
 export interface UpdateTaskInput {
@@ -48,6 +55,10 @@ export interface UpdateTaskInput {
   context?: string;
   workflowStep?: WorkflowStep;
   workflowLogs?: WorkflowLogs;
+  // Branch fields (Phase 11)
+  branch?: string;
+  branchStatus?: BranchStatus;
+  baseBranch?: string;
 }
 
 export interface LogMessage {

@@ -1,0 +1,225 @@
+{
+  "version": "1.0",
+  "taskId": "phase-11",
+  "title": "Phase 11: Auto-Queue System",
+  "createdAt": "2026-01-22T03:00:00.000Z",
+  "updatedAt": "2026-01-22T12:00:00.000Z",
+  "subtasks": [
+    {
+      "id": "1",
+      "content": "Add 'queued' to TaskStatus type in src/types/index.ts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "content": "Add new Task fields: branch (string), branchStatus (BranchStatus), baseBranch (string), createdAt (string) in src/types/index.ts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:00:00.000Z"
+    },
+    {
+      "id": "3",
+      "content": "Create BranchStatus type: 'created' | 'ahead' | 'behind' | 'conflicts' | 'merged' in src/types/index.ts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:00:00.000Z"
+    },
+    {
+      "id": "4",
+      "content": "Update CreateTaskInput interface to include optional baseBranch field",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:00:00.000Z"
+    },
+    {
+      "id": "5",
+      "content": "Create src/server/services/git.ts with getCurrentBranch() function using child_process",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:05:00.000Z"
+    },
+    {
+      "id": "6",
+      "content": "Implement createBranch(branchName, baseBranch) function in git.ts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:05:00.000Z"
+    },
+    {
+      "id": "7",
+      "content": "Implement checkoutBranch(branchName) function in git.ts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:05:00.000Z"
+    },
+    {
+      "id": "8",
+      "content": "Implement getBranchStatus(branchName) function - returns ahead/behind/conflicts status",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:05:00.000Z"
+    },
+    {
+      "id": "9",
+      "content": "Implement hasUncommittedChanges() function in git.ts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:05:00.000Z"
+    },
+    {
+      "id": "10",
+      "content": "Implement branchExists(branchName) function in git.ts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:05:00.000Z"
+    },
+    {
+      "id": "11",
+      "content": "Create src/server/services/queueProcessor.ts with getQueuedTasks() function sorted by priority then createdAt",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:10:00.000Z"
+    },
+    {
+      "id": "12",
+      "content": "Implement getRunningTasksCount() in queueProcessor.ts for concurrency control",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:10:00.000Z"
+    },
+    {
+      "id": "13",
+      "content": "Implement processQueue() main loop that checks concurrency and starts next task",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:10:00.000Z"
+    },
+    {
+      "id": "14",
+      "content": "Implement startQueuedTask(task) - creates branch and triggers workflow execution",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:10:00.000Z"
+    },
+    {
+      "id": "15",
+      "content": "Add MAX_CONCURRENT_TASKS environment variable support (default: 1)",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:10:00.000Z"
+    },
+    {
+      "id": "16",
+      "content": "Add queue processor startup with setInterval in src/server/index.ts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "17",
+      "content": "Update workflow.ts to checkout task branch before execution starts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:15:00.000Z"
+    },
+    {
+      "id": "18",
+      "content": "Update workflow.ts to set task.branch field when workflow starts",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:15:00.000Z"
+    },
+    {
+      "id": "19",
+      "content": "Update workflow.ts to update branchStatus after workflow completion",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:15:00.000Z"
+    },
+    {
+      "id": "20",
+      "content": "Update store.ts to persist branch, branchStatus, baseBranch, createdAt fields",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:20:00.000Z"
+    },
+    {
+      "id": "21",
+      "content": "Add POST /api/tasks/:id/conflict-task endpoint to create conflict resolution task",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:30:00.000Z"
+    },
+    {
+      "id": "22",
+      "content": "Update task creation to auto-populate createdAt timestamp",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:20:00.000Z"
+    },
+    {
+      "id": "23",
+      "content": "Add QUEUED column HTML structure in src/client/index.html (between TODO and RUNNING)",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:40:00.000Z"
+    },
+    {
+      "id": "24",
+      "content": "Add CSS styles for QUEUED column with distinct visual appearance (auto-execution indicator)",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:40:00.000Z"
+    },
+    {
+      "id": "25",
+      "content": "Update renderBoard() JavaScript to handle 'queued' status and render tasks in QUEUED column",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:45:00.000Z"
+    },
+    {
+      "id": "26",
+      "content": "Enable drag-and-drop support between TODO and QUEUED columns",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:45:00.000Z"
+    },
+    {
+      "id": "27",
+      "content": "Add branch name display to task detail modal (show when branch exists)",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:50:00.000Z"
+    },
+    {
+      "id": "28",
+      "content": "Add branch status badge to task detail modal (ahead/behind/conflicts indicator)",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:50:00.000Z"
+    },
+    {
+      "id": "29",
+      "content": "Add 'Create Conflict Resolution Task' button to task detail modal (visible when branchStatus is 'conflicts')",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:55:00.000Z"
+    },
+    {
+      "id": "30",
+      "content": "Implement createConflictTask() JavaScript function that calls POST /api/tasks/:id/conflict-task",
+      "status": "completed",
+      "completedAt": "2026-01-22T10:55:00.000Z"
+    },
+    {
+      "id": "31",
+      "content": "Add baseBranch input field to task creation form (optional, defaults to 'main')",
+      "status": "completed",
+      "completedAt": "2026-01-22T11:00:00.000Z"
+    },
+    {
+      "id": "32",
+      "content": "Test queue processing with multiple tasks of different priorities",
+      "status": "completed",
+      "completedAt": "2026-01-22T12:00:00.000Z"
+    },
+    {
+      "id": "33",
+      "content": "Test branch creation and isolation for queued tasks",
+      "status": "completed",
+      "completedAt": "2026-01-22T12:00:00.000Z"
+    },
+    {
+      "id": "34",
+      "content": "Test conflict detection and conflict resolution task creation",
+      "status": "completed",
+      "completedAt": "2026-01-22T12:00:00.000Z"
+    },
+    {
+      "id": "35",
+      "content": "Update SPEC.md with Phase 11 Auto-Queue System documentation",
+      "status": "completed",
+      "completedAt": "2026-01-22T12:00:00.000Z"
+    },
+    {
+      "id": "36",
+      "content": "Update README.md with queue feature usage instructions",
+      "status": "completed",
+      "completedAt": "2026-01-22T12:00:00.000Z"
+    }
+  ]
+}

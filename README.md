@@ -90,12 +90,14 @@ That's it. No prompt engineering. No context management. No babysitting.
 
 | Feature | Description |
 |---------|-------------|
-| 🐜 **Kanban Board** | Drag-and-drop task management across `todo`, `running`, `review`, `done` |
+| 🐜 **Kanban Board** | Drag-and-drop task management across `todo`, `queued`, `running`, `review`, `done` |
 | ⚡ **Live Terminal** | Real-time agent output streaming via WebSocket |
 | 📋 **Auto-Documentation** | Every task gets README.md, PLAN.md, and structured subtasks |
 | 🔄 **Iterative Execution** | Agent loops until all subtasks are complete |
 | 🎯 **Smart Bootstrap** | Auto-generates project-specific coding guidelines on first run |
 | 🔌 **Multi-Agent** | Switch between Claude Code CLI and GitHub Copilot CLI |
+| 🚀 **Auto-Queue** | Queue tasks for automatic execution with priority ordering |
+| 🌿 **Branch Isolation** | Each queued task runs on its own git branch |
 
 ### Workflow
 
@@ -108,6 +110,32 @@ That's it. No prompt engineering. No context management. No babysitting.
 │  EXECUTE → Iterative loop until all subtasks complete       │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Auto-Queue System
+
+Queue tasks for hands-off execution. The system automatically:
+- Picks tasks by **priority** (high > medium > low), then **FIFO**
+- Creates an isolated **git branch** per task (`formic/t-{id}_{slug}`)
+- Tracks branch status (ahead/behind/conflicts)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  TODO Column        →  Manual trigger only (click "Run")    │
+│  QUEUED Column      →  Auto-triggered by queue processor    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Configuration:**
+```bash
+# Max parallel tasks (default: 1)
+export MAX_CONCURRENT_TASKS=2
+
+# Queue poll interval in ms (default: 5000)
+export QUEUE_POLL_INTERVAL=3000
+```
+
+**Branch Conflict Resolution:**
+When a task branch has merge conflicts, click "Create Conflict Resolution Task" to generate a pre-filled task for resolving the conflicts.
 
 ---
 
@@ -157,6 +185,8 @@ your-project/
 | `WORKSPACE_PATH` | Project directory | `/app/workspace` |
 | `AGENT_TYPE` | Agent to use | `claude` |
 | `ANTHROPIC_API_KEY` | Claude API key | Required for Claude |
+| `MAX_CONCURRENT_TASKS` | Max parallel queued tasks | `1` |
+| `QUEUE_POLL_INTERVAL` | Queue check interval (ms) | `5000` |
 
 ### API
 
@@ -215,9 +245,12 @@ npm start
 - [x] 3-step workflow (brief → plan → execute)
 - [x] Iterative execution with subtask tracking
 - [x] Multi-agent support (Claude + Copilot)
-- [ ] Multi-agent concurrency
+- [x] Auto-queue with priority ordering
+- [x] Git branch isolation per task
+- [x] Branch status detection & conflict resolution
 - [ ] Task dependencies
-- [ ] Git auto-commit per task
+- [ ] Auto-merge after review
+- [ ] PR creation from task branches
 - [ ] Cloud deployment option
 
 ---

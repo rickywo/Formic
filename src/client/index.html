@@ -141,7 +141,7 @@
     /* Kanban Board */
     .board {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 16px;
       padding: 24px;
       min-height: calc(100vh - 180px);
@@ -179,9 +179,73 @@
     }
 
     .column[data-status="todo"] .column-title { color: var(--text-secondary); }
+    .column[data-status="queued"] .column-title { color: #a855f7; }
     .column[data-status="running"] .column-title { color: var(--accent-blue); }
     .column[data-status="review"] .column-title { color: var(--accent-yellow); }
     .column[data-status="done"] .column-title { color: var(--accent-green); }
+
+    /* Queued Task Styling */
+    .task-card--queued {
+      border: 1px solid #a855f7;
+      position: relative;
+    }
+
+    .task-card--queued::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #a855f7, #7c3aed);
+      border-radius: 4px 4px 0 0;
+    }
+
+    .queue-badge {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #a855f7, #7c3aed);
+      color: #fff;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+
+    /* Branch Info Styling */
+    .branch-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      padding: 6px 8px;
+      background-color: var(--bg-secondary);
+      border-radius: 4px;
+      font-size: 11px;
+    }
+
+    .branch-name {
+      color: var(--accent-blue);
+      font-family: Monaco, Menlo, monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 150px;
+    }
+
+    .branch-status {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .branch-status--created { background-color: var(--text-secondary); color: #000; }
+    .branch-status--ahead { background-color: var(--accent-green); color: #000; }
+    .branch-status--behind { background-color: var(--accent-yellow); color: #000; }
+    .branch-status--conflicts { background-color: var(--accent-red); color: #fff; }
+    .branch-status--merged { background-color: var(--accent-blue); color: #fff; }
 
     .tasks {
       display: flex;
@@ -632,6 +696,12 @@
     }
 
     /* Responsive Design */
+    @media (max-width: 1400px) {
+      .board {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
     @media (max-width: 1200px) {
       .board {
         grid-template-columns: repeat(2, 1fr);
@@ -735,6 +805,14 @@
       <div class="tasks" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
 
+    <div class="column" data-status="queued">
+      <div class="column-header">
+        <span class="column-title">Queued</span>
+        <span class="column-count" id="queued-count">0</span>
+      </div>
+      <div class="tasks" id="queued-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
     <div class="column" data-status="running">
       <div class="column-header">
         <span class="column-title">Running</span>
@@ -789,9 +867,23 @@
           <label>Priority</label>
           <span class="priority-badge" id="detail-priority"></span>
         </div>
+        <div class="detail-section" id="detail-created-section" style="display: none;">
+          <label>Created</label>
+          <span id="detail-created-at" style="font-size: 13px; color: var(--text-secondary);"></span>
+        </div>
         <div class="detail-section">
           <label>Context / Prompt</label>
           <pre class="detail-context" id="detail-context"></pre>
+        </div>
+        <div class="detail-section" id="detail-branch-section" style="display: none;">
+          <label>Branch</label>
+          <div class="branch-info" style="margin: 0;">
+            <span class="branch-name" id="detail-branch-name"></span>
+            <span class="branch-status" id="detail-branch-status"></span>
+          </div>
+          <button class="btn btn-danger" id="detail-conflict-btn" onclick="createConflictTask()" style="display: none; margin-top: 8px;">
+            Create Conflict Resolution Task
+          </button>
         </div>
         <div class="detail-section">
           <label>Docs Path</label>
@@ -834,6 +926,11 @@
             <option value="medium" selected>Medium</option>
             <option value="high">High</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label for="task-base-branch">Base Branch (for Queue)</label>
+          <input type="text" id="task-base-branch" placeholder="main" value="main">
+          <small style="color: var(--text-secondary); font-size: 11px;">Branch to create task branch from when queued</small>
         </div>
         <div class="form-actions">
           <button type="button" class="btn" onclick="closeCreateModal()">Cancel</button>
@@ -955,11 +1052,12 @@
       const title = document.getElementById('task-title').value;
       const context = document.getElementById('task-context').value;
       const priority = document.getElementById('task-priority').value;
+      const baseBranch = document.getElementById('task-base-branch').value || 'main';
 
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, context, priority }),
+        body: JSON.stringify({ title, context, priority, baseBranch }),
       });
 
       if (res.ok) {
@@ -967,6 +1065,7 @@
         document.getElementById('task-title').value = '';
         document.getElementById('task-context').value = '';
         document.getElementById('task-priority').value = 'medium';
+        document.getElementById('task-base-branch').value = 'main';
         await loadBoard();
       }
     }
@@ -1013,13 +1112,37 @@
       }
     }
 
+    async function queueTask(taskId) {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'queued' }),
+      });
+
+      if (res.ok) {
+        await loadBoard();
+      }
+    }
+
+    async function unqueueTask(taskId) {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'todo' }),
+      });
+
+      if (res.ok) {
+        await loadBoard();
+      }
+    }
+
     async function runBootstrapTask() {
       await runTask(BOOTSTRAP_TASK_ID);
     }
 
     // Render
     function renderBoard() {
-      const columns = ['todo', 'running', 'review', 'done'];
+      const columns = ['todo', 'queued', 'running', 'review', 'done'];
 
       // Map workflow statuses to columns
       // briefing, planning, running all go to the 'running' column
@@ -1053,7 +1176,11 @@
 
         container.innerHTML = tasks.map(task => {
           const isBootstrap = task.id === BOOTSTRAP_TASK_ID;
-          const cardClass = isBootstrap ? 'task-card task-card--bootstrap' : 'task-card';
+          const isQueued = task.status === 'queued';
+          let cardClass = 'task-card';
+          if (isBootstrap) cardClass = 'task-card task-card--bootstrap';
+          else if (isQueued) cardClass = 'task-card task-card--queued';
+
           const bootstrapBadge = isBootstrap ? '<span class="bootstrap-badge">Setup</span>' : '';
           const contextText = isBootstrap
             ? 'Analyzes your codebase and generates AI development guidelines tailored to your project.'
@@ -1081,7 +1208,7 @@
             `;
           }
 
-          // Build status badge for briefing/planning
+          // Build status badge for briefing/planning/queued
           let statusBadge = '';
           if (task.status === 'briefing') {
             statusBadge = '<span class="status-badge status-briefing">Briefing</span>';
@@ -1089,6 +1216,20 @@
             statusBadge = '<span class="status-badge status-planning">Planning</span>';
           } else if (task.status === 'running') {
             statusBadge = '<span class="status-badge status-running">Executing</span>';
+          } else if (task.status === 'queued') {
+            statusBadge = '<span class="queue-badge">Queued</span>';
+          }
+
+          // Branch info display (for queued and running tasks)
+          let branchInfo = '';
+          if (task.branch) {
+            const branchStatusClass = task.branchStatus ? `branch-status--${task.branchStatus}` : '';
+            branchInfo = `
+              <div class="branch-info">
+                <span class="branch-name" title="${escapeHtml(task.branch)}">${escapeHtml(task.branch)}</span>
+                ${task.branchStatus ? `<span class="branch-status ${branchStatusClass}">${task.branchStatus}</span>` : ''}
+              </div>
+            `;
           }
 
           // Check if task is in any running state
@@ -1101,14 +1242,21 @@
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
               </div>
               ${workflowIndicator}
+              ${branchInfo}
               <div class="task-context">${contextText}</div>
               <div class="task-actions">
-                ${task.status === 'todo' ? `<button class="btn btn-primary" onclick="runTask('${task.id}')">Run</button>` : ''}
+                ${task.status === 'todo' ? `
+                  <button class="btn btn-primary" onclick="runTask('${task.id}')">Run</button>
+                  <button class="btn" onclick="queueTask('${task.id}')" style="background: linear-gradient(90deg, #a855f7, #7c3aed); border-color: #a855f7; color: #fff;">Queue</button>
+                ` : ''}
+                ${task.status === 'queued' ? `
+                  <button class="btn" onclick="unqueueTask('${task.id}')">Unqueue</button>
+                ` : ''}
                 ${isRunning ? `
                   <button class="btn" onclick="openTerminal('${task.id}')">Logs</button>
                   <button class="btn btn-danger" onclick="stopTask('${task.id}')">Stop</button>
                 ` : ''}
-                ${!isRunning ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
+                ${!isRunning && task.status !== 'queued' ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
               </div>
             </div>
           `;
@@ -1141,11 +1289,16 @@
 
       // Prevent dragging to 'running' status
       if (newStatus === 'running') {
-        alert('Use the Run button to start a task');
+        alert('Use the Run button to start a task, or the Queue button to add to the auto-execution queue');
         return;
       }
 
-      updateTaskStatus(draggedTaskId, newStatus);
+      // Handle queue status changes
+      if (newStatus === 'queued') {
+        queueTask(draggedTaskId);
+      } else {
+        updateTaskStatus(draggedTaskId, newStatus);
+      }
       draggedTaskId = null;
     }
 
@@ -1264,6 +1417,17 @@
       priorityBadge.textContent = task.priority.toUpperCase();
       priorityBadge.className = `priority-badge priority-${task.priority}`;
 
+      // Created timestamp
+      const createdSection = document.getElementById('detail-created-section');
+      const createdAtEl = document.getElementById('detail-created-at');
+      if (task.createdAt) {
+        createdSection.style.display = 'block';
+        const createdDate = new Date(task.createdAt);
+        createdAtEl.textContent = createdDate.toLocaleString();
+      } else {
+        createdSection.style.display = 'none';
+      }
+
       // Workflow indicator
       const workflowEl = document.getElementById('detail-workflow');
       const workflowSteps = ['brief', 'plan', 'execute'];
@@ -1283,6 +1447,28 @@
       const runBtn = document.getElementById('detail-run-btn');
       const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
       runBtn.style.display = task.status === 'todo' ? 'block' : 'none';
+
+      // Branch info section
+      const branchSection = document.getElementById('detail-branch-section');
+      const branchNameEl = document.getElementById('detail-branch-name');
+      const branchStatusEl = document.getElementById('detail-branch-status');
+      const conflictBtn = document.getElementById('detail-conflict-btn');
+
+      if (task.branch) {
+        branchSection.style.display = 'block';
+        branchNameEl.textContent = task.branch;
+        branchStatusEl.textContent = task.branchStatus || 'created';
+        branchStatusEl.className = `branch-status branch-status--${task.branchStatus || 'created'}`;
+
+        // Show conflict resolution button if there are conflicts
+        if (task.branchStatus === 'conflicts' || task.branchStatus === 'behind') {
+          conflictBtn.style.display = 'block';
+        } else {
+          conflictBtn.style.display = 'none';
+        }
+      } else {
+        branchSection.style.display = 'none';
+      }
 
       // Load subtasks
       await loadSubtasksForDetail(taskId);
@@ -1337,6 +1523,24 @@
       if (currentDetailTaskId) {
         closeDetailModal();
         await runTask(currentDetailTaskId);
+      }
+    }
+
+    async function createConflictTask() {
+      if (!currentDetailTaskId) return;
+
+      const res = await fetch(`/api/tasks/${currentDetailTaskId}/conflict-task`, {
+        method: 'POST',
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        closeDetailModal();
+        await loadBoard();
+        alert(`Conflict resolution task created: ${result.conflictTask.title}`);
+      } else {
+        const error = await res.json();
+        alert(error.error || 'Failed to create conflict resolution task');
       }
     }
 

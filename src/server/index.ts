@@ -7,6 +7,7 @@ import { boardRoutes } from './routes/board.js';
 import { taskRoutes } from './routes/tasks.js';
 import { logsWebSocket } from './ws/logs.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
+import { startQueueProcessor, stopQueueProcessor, getQueueConfig } from './services/queueProcessor.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -56,6 +57,22 @@ async function main() {
     if (missingEnvVars.length > 0) {
       console.warn(`Warning: Missing environment variables for ${agentDisplayName}: ${missingEnvVars.join(', ')}`);
     }
+
+    // Start the queue processor (Phase 11: Auto-Queue System)
+    const queueConfig = getQueueConfig();
+    console.log(`Queue: Starting processor (poll interval: ${queueConfig.pollIntervalMs}ms, max concurrent: ${queueConfig.maxConcurrentTasks})`);
+    startQueueProcessor();
+
+    // Handle graceful shutdown
+    const shutdown = async () => {
+      console.log('Shutting down server...');
+      stopQueueProcessor();
+      await fastify.close();
+      process.exit(0);
+    };
+
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

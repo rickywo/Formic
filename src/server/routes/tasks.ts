@@ -15,6 +15,7 @@ import {
   subtasksExist,
 } from '../services/subtasks.js';
 import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../types/index.js';
+import { getCurrentBranch, getBranchStatus } from '../services/git.js';
 
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   // POST /api/tasks - Create a new task
@@ -298,6 +299,102 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       taskId: id,
       ...stats,
       allComplete: stats.completed === stats.total,
+    });
+  });
+
+  // ==================== Branch & Conflict Management (Phase 11) ====================
+
+  // POST /api/tasks/:id/conflict-task - Create a conflict resolution task
+  fastify.post<{ Params: { id: string } }>('/api/tasks/:id/conflict-task', async (request, reply) => {
+    const { id } = request.params;
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    // Ensure the task has branch info
+    if (!task.branch) {
+      return reply.status(400).send({ error: 'Task does not have a branch assigned' });
+    }
+
+    // Check branch status
+    const baseBranch = task.baseBranch || 'main';
+    const branchStatus = await getBranchStatus(task.branch, baseBranch);
+
+    if (branchStatus !== 'conflicts' && branchStatus !== 'behind') {
+      return reply.status(400).send({
+        error: 'No conflicts detected',
+        branchStatus,
+        message: `Branch ${task.branch} is ${branchStatus} relative to ${baseBranch}`,
+      });
+    }
+
+    // Create conflict resolution task
+    const conflictTitle = `Resolve conflicts: ${task.id} ↔ ${baseBranch}`;
+    const conflictContext = `## Conflict Resolution Task
+
+**Source Task:** ${task.id} - ${task.title}
+**Source Branch:** ${task.branch}
+**Base Branch:** ${baseBranch}
+**Status:** ${branchStatus}
+
+### Instructions
+1. Checkout the branch: \`git checkout ${task.branch}\`
+2. Merge the base branch: \`git merge ${baseBranch}\`
+3. Resolve any conflicts in the affected files
+4. Commit the resolution: \`git commit -m "Resolve merge conflicts with ${baseBranch}"\`
+5. Push the changes: \`git push\`
+
+### Context from Original Task
+${task.context}`;
+
+    const conflictTask = await createTask({
+      title: conflictTitle,
+      context: conflictContext,
+      priority: 'high', // Conflict resolution is high priority
+      baseBranch: task.branch, // Work on the conflicting branch
+    });
+
+    return reply.status(201).send({
+      success: true,
+      conflictTask,
+      originalTask: {
+        id: task.id,
+        branch: task.branch,
+        baseBranch,
+        branchStatus,
+      },
+    });
+  });
+
+  // GET /api/tasks/:id/branch-status - Get branch status for a task
+  fastify.get<{ Params: { id: string } }>('/api/tasks/:id/branch-status', async (request, reply) => {
+    const { id } = request.params;
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    if (!task.branch) {
+      return reply.send({
+        taskId: id,
+        branch: null,
+        branchStatus: null,
+        baseBranch: task.baseBranch || 'main',
+        message: 'Task does not have a branch assigned yet',
+      });
+    }
+
+    const baseBranch = task.baseBranch || 'main';
+    const branchStatus = await getBranchStatus(task.branch, baseBranch);
+
+    return reply.send({
+      taskId: id,
+      branch: task.branch,
+      branchStatus,
+      baseBranch,
     });
   });
 }

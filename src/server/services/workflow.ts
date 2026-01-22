@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
-import { updateTaskStatus, getTask, loadBoard, saveBoard } from './store.js';
+import { updateTaskStatus, getTask, loadBoard, saveBoard, updateTask } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
@@ -14,6 +14,7 @@ import {
   subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
+import { getBranchStatus } from './git.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
 
@@ -751,4 +752,45 @@ export async function stopWorkflow(taskId: string): Promise<boolean> {
   }, 5000);
 
   return true;
+}
+
+/**
+ * Run workflow for a task (used by queue processor)
+ * This wraps executeFullWorkflow and handles branch status updates after completion
+ */
+export async function runWorkflow(taskId: string): Promise<void> {
+  const task = await getTask(taskId);
+  if (!task) {
+    throw new Error(`Task ${taskId} not found`);
+  }
+
+  try {
+    // Execute the full workflow
+    await executeFullWorkflow(taskId);
+
+    // Note: Branch status will be updated by the queue processor
+    // or can be updated here after workflow completes
+  } catch (error) {
+    console.error(`[Workflow] runWorkflow failed for task ${taskId}:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Update branch status for a task after workflow completion
+ */
+export async function updateTaskBranchStatus(taskId: string): Promise<void> {
+  const task = await getTask(taskId);
+  if (!task || !task.branch) {
+    return;
+  }
+
+  try {
+    const baseBranch = task.baseBranch || 'main';
+    const branchStatus = await getBranchStatus(task.branch, baseBranch);
+    await updateTask(taskId, { branchStatus });
+    console.log(`[Workflow] Updated branch status for task ${taskId}: ${branchStatus}`);
+  } catch (error) {
+    console.error(`[Workflow] Failed to update branch status for task ${taskId}:`, error);
+  }
 }

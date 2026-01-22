@@ -144,6 +144,9 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     // Initialize workflow fields
     workflowStep: 'pending',
     workflowLogs: {},
+    // Initialize branch fields (Phase 11)
+    baseBranch: input.baseBranch || 'main',
+    createdAt: new Date().toISOString(),
   };
 
   board.tasks.push(task);

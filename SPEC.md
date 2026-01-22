@@ -364,8 +364,9 @@ You are a senior Technical Project Manager. Generate implementation plans.
 
 **Task Status Extended:**
 ```typescript
-type TaskStatus = 'todo' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
+type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
 type SubtaskStatus = 'pending' | 'in_progress' | 'completed';
+type BranchStatus = 'created' | 'ahead' | 'behind' | 'conflicts' | 'merged';
 ```
 
 **Workflow Execution:**
@@ -394,6 +395,58 @@ interface Task {
   };
 }
 ```
+
+### 2.9 Auto-Queue System (Phase 11)
+
+The Auto-Queue System enables hands-off task execution by automatically processing queued tasks based on priority and FIFO ordering. Each task runs on an isolated git branch.
+
+**Queue Processing Flow:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  User moves task to QUEUED column (or clicks Queue button)      │
+│                         ↓                                       │
+│  Queue Processor polls every 5 seconds (configurable)           │
+│                         ↓                                       │
+│  Check: Running tasks < MAX_CONCURRENT_TASKS?                   │
+│                         ↓                                       │
+│  Select next task: Sort by priority (high>med>low), then FIFO   │
+│                         ↓                                       │
+│  Create branch: formic/t-{id}_{slug} from baseBranch            │
+│                         ↓                                       │
+│  Execute workflow: brief → plan → execute                       │
+│                         ↓                                       │
+│  Update branch status on completion                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Branch Naming Convention:**
+```
+formic/t-1_add-dark-mode
+formic/t-2_fix-navbar-bug
+formic/t-bootstrap_setup-guidelines
+```
+
+**Branch Status Detection:**
+| Status | Meaning |
+|--------|---------|
+| `created` | Branch exists, no commits yet |
+| `ahead` | Branch has commits not in base |
+| `behind` | Base has commits not in branch |
+| `conflicts` | Merge would cause conflicts |
+| `merged` | Branch has been merged to base |
+
+**Environment Variables:**
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MAX_CONCURRENT_TASKS` | Maximum parallel task executions | `1` |
+| `QUEUE_POLL_INTERVAL` | Queue check interval in ms | `5000` |
+
+**Conflict Resolution:**
+When a task's branch has conflicts with its base branch, users can create a conflict resolution task with one click. The new task is pre-populated with:
+- Title: `Resolve conflicts: t-X ↔ {baseBranch}`
+- Context: Instructions for resolving the merge conflict
+- Priority: High (to resolve quickly)
+- Base branch: The conflicting task's branch
 
 ### 2.3 Agent Abstraction Layer
 
@@ -501,8 +554,9 @@ docker run -p 8000:8000 -v /Users/me/webapp:/app/workspace formic
 ### 3.2 TypeScript Types
 
 ```typescript
-type TaskStatus = 'todo' | 'running' | 'review' | 'done';
+type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
 type TaskPriority = 'low' | 'medium' | 'high';
+type BranchStatus = 'created' | 'ahead' | 'behind' | 'conflicts' | 'merged';
 
 interface Task {
   id: string;
@@ -513,6 +567,14 @@ interface Task {
   docsPath: string;
   agentLogs: string[];
   pid: number | null;
+  // Workflow fields
+  workflowStep?: WorkflowStep;
+  workflowLogs?: WorkflowLogs;
+  // Branch fields (Phase 11: Auto-Queue)
+  branch?: string;           // Git branch name (e.g., 'formic/t-1_add-feature')
+  branchStatus?: BranchStatus;  // Current branch status relative to base
+  baseBranch?: string;       // Branch to create from (default: 'main')
+  createdAt?: string;        // ISO 8601 timestamp for FIFO ordering
 }
 
 interface BoardMeta {
@@ -611,9 +673,10 @@ Each task's `docsPath` folder contains:
 ### 4.1 Frontend Features (Web UI)
 
 #### Kanban Board
-- Four-column layout: Todo, Running, Review, Done
+- Five-column layout: Todo, Queued, Running, Review, Done
 - Drag-and-drop task movement between columns
 - Visual status indicators
+- Queue column for automated task execution
 
 #### Task Creator
 - **Inputs:**
@@ -674,11 +737,13 @@ This ensures the agent:
 | Method | Path | Description | Request Body | Response |
 |--------|------|-------------|--------------|----------|
 | GET | `/api/board` | Get full board state | - | `Board` |
-| POST | `/api/tasks` | Create task | `{title, context, priority}` | `Task` |
+| POST | `/api/tasks` | Create task | `{title, context, priority, baseBranch?}` | `Task` |
 | PUT | `/api/tasks/:id` | Update task | `Partial<Task>` | `Task` |
 | DELETE | `/api/tasks/:id` | Delete task | - | 204 |
 | POST | `/api/tasks/:id/run` | Start agent | - | `{status, pid}` |
 | POST | `/api/tasks/:id/stop` | Stop agent | - | `{status}` |
+| POST | `/api/tasks/:id/conflict-task` | Create conflict resolution task | - | `{conflictTask, originalTask}` |
+| GET | `/api/tasks/:id/branch-status` | Get task branch status | - | `{taskId, branch, branchStatus, baseBranch}` |
 
 ### 5.2 WebSocket Endpoints
 
@@ -879,30 +944,54 @@ services:
 - [x] Update frontend to display subtask progress
 - [x] Remove CHECKLIST.md template and related code
 
-### Phase 10: Multi-Agent Support 🚧
-- [ ] Create agent abstraction layer (`agentAdapter.ts`):
+### Phase 10: Multi-Agent Support ✅
+- [x] Create agent abstraction layer (`agentAdapter.ts`):
   - Define `AgentConfig` interface
   - Implement agent-specific CLI flag builders
   - Support Claude Code and GitHub Copilot CLI
-- [ ] Update skill files for cross-agent compatibility:
+- [x] Update skill files for cross-agent compatibility:
   - Add `name` field to SKILL.md frontmatter
   - Change skills directory from `.claude/commands/` to `.claude/skills/`
-- [ ] Update workflow services:
+- [x] Update workflow services:
   - `workflow.ts`: Use agent adapter for process spawning
   - `runner.ts`: Use agent adapter for process spawning
-- [ ] Update path utilities:
+- [x] Update path utilities:
   - `paths.ts`: Change to `.claude/skills/` directory
   - `skills.ts`: Update skill copying and discovery
-- [ ] Add environment variable support:
+- [x] Add environment variable support:
   - `AGENT_TYPE`: Select agent type (`claude` or `copilot`)
   - Document authentication requirements per agent
-- [ ] Update documentation:
+- [x] Update documentation:
   - README.md: Multi-agent setup instructions
   - SPEC.md: Agent abstraction architecture
-- [ ] Test with both agents:
+- [x] Test with both agents:
   - Verify skill loading works with both CLIs
   - Verify workflow execution completes successfully
   - Verify output parsing is agent-agnostic
+
+### Phase 11: Auto-Queue System ✅
+- [x] Add `queued` status to TaskStatus type
+- [x] Create git service (`git.ts`) for branch operations:
+  - `createBranch()`, `checkoutBranch()`, `getBranchStatus()`
+  - `hasUncommittedChanges()`, `branchExists()`
+- [x] Create queue processor service (`queueProcessor.ts`):
+  - Priority-based task ordering (high > medium > low)
+  - FIFO ordering within same priority
+  - Configurable concurrency via `MAX_CONCURRENT_TASKS` env var
+  - Automatic branch creation per task (`formic/t-{id}_{slug}`)
+- [x] Update workflow integration:
+  - Auto-checkout task branch before execution
+  - Update branch status after workflow completion
+- [x] Add API endpoints:
+  - `POST /api/tasks/:id/conflict-task` - Create conflict resolution task
+  - `GET /api/tasks/:id/branch-status` - Get branch status
+- [x] Frontend updates:
+  - Add QUEUED column between TODO and RUNNING
+  - Queue/Unqueue buttons on task cards
+  - Branch info display (name + status badge)
+  - Create Conflict Resolution Task button in task details
+  - Base branch selector in task creation form
+  - Drag-and-drop support for QUEUED column
 
 ---
 
@@ -920,11 +1009,13 @@ services:
 
 ## 10. Future Considerations (v2+)
 
-- Multi-agent concurrency with queue management
+- ~~Multi-agent concurrency with queue management~~ ✅ Implemented in Phase 11
 - Task dependencies and workflows
 - Multiple project support
 - Agent conversation history persistence
-- Git integration (auto-commit, branch per task)
+- ~~Git integration (auto-commit, branch per task)~~ ✅ Branch per task implemented in Phase 11
 - Custom agent configurations
 - Cloud deployment option with authentication
 - React frontend migration for complex interactions
+- Auto-merge to main after review approval
+- PR creation from task branches
