@@ -17,6 +17,25 @@
       --accent-green: #3fb950;
       --accent-yellow: #d29922;
       --accent-red: #f85149;
+      --card-gradient-start: #21262d;
+      --card-gradient-end: #1a1f29;
+      --shadow-opacity: 0.3;
+    }
+
+    [data-theme="light"] {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f6f8fa;
+      --bg-tertiary: #eaeef2;
+      --border-color: #d0d7de;
+      --text-primary: #1f2328;
+      --text-secondary: #656d76;
+      --accent-blue: #0969da;
+      --accent-green: #1a7f37;
+      --accent-yellow: #9a6700;
+      --accent-red: #cf222e;
+      --card-gradient-start: #f0f3f6;
+      --card-gradient-end: #e6eaef;
+      --shadow-opacity: 0.15;
     }
 
     * {
@@ -96,6 +115,29 @@
       color: #fff;
     }
 
+    /* Header Actions */
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Theme Toggle */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 80px;
+    }
+
+    .theme-icon {
+      font-size: 14px;
+    }
+
+    .theme-label {
+      font-size: 12px;
+    }
+
     /* Kanban Board */
     .board {
       display: grid;
@@ -164,7 +206,7 @@
 
     .task-card:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, var(--shadow-opacity));
     }
 
     .task-card.dragging {
@@ -344,7 +386,7 @@
     /* Bootstrap Task */
     .task-card--bootstrap {
       border: 2px solid #a371f7;
-      background: linear-gradient(135deg, #21262d 0%, #1a1f29 100%);
+      background: linear-gradient(135deg, var(--card-gradient-start) 0%, var(--card-gradient-end) 100%);
       position: relative;
     }
 
@@ -667,7 +709,13 @@
 <body>
   <header class="header">
     <h1>Formic</h1>
-    <button class="btn btn-primary" onclick="openCreateModal()">+ New Task</button>
+    <div class="header-actions">
+      <button class="btn theme-toggle" id="theme-toggle" onclick="cycleTheme()" title="Toggle theme">
+        <span class="theme-icon" id="theme-icon"></span>
+        <span class="theme-label" id="theme-label">Dark</span>
+      </button>
+      <button class="btn btn-primary" onclick="openCreateModal()">+ New Task</button>
+    </div>
   </header>
 
   <div class="bootstrap-banner hidden" id="bootstrap-banner">
@@ -803,15 +851,93 @@
     let currentWs = null;
     let draggedTaskId = null;
     const BOOTSTRAP_TASK_ID = 't-bootstrap';
+    const THEME_KEY = 'formic-theme';
+
+    // Theme Management
+    function getStoredTheme() {
+      return localStorage.getItem(THEME_KEY) || 'dark';
+    }
+
+    function saveTheme(theme) {
+      localStorage.setItem(THEME_KEY, theme);
+    }
+
+    function isNightTime() {
+      const hour = new Date().getHours();
+      return hour >= 19 || hour < 7;
+    }
+
+    function getEffectiveTheme(preference) {
+      if (preference === 'auto') {
+        return isNightTime() ? 'dark' : 'light';
+      }
+      return preference;
+    }
+
+    function getTerminalTheme() {
+      const effectiveTheme = getEffectiveTheme(getStoredTheme());
+      if (effectiveTheme === 'light') {
+        return {
+          background: '#ffffff',
+          foreground: '#1f2328',
+          cursor: '#1f2328',
+        };
+      }
+      return {
+        background: '#0d1117',
+        foreground: '#e6edf3',
+        cursor: '#e6edf3',
+      };
+    }
+
+    function applyTheme(preference) {
+      const effectiveTheme = getEffectiveTheme(preference);
+
+      if (effectiveTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      } else {
+        document.documentElement.removeAttribute('data-theme');
+      }
+
+      const iconEl = document.getElementById('theme-icon');
+      const labelEl = document.getElementById('theme-label');
+
+      if (preference === 'auto') {
+        iconEl.textContent = '⚙';
+        labelEl.textContent = 'Auto';
+      } else if (preference === 'light') {
+        iconEl.textContent = '☀';
+        labelEl.textContent = 'Light';
+      } else {
+        iconEl.textContent = '☾';
+        labelEl.textContent = 'Dark';
+      }
+
+      if (terminal) {
+        terminal.options.theme = getTerminalTheme();
+      }
+    }
+
+    function cycleTheme() {
+      const current = getStoredTheme();
+      let next;
+      if (current === 'dark') {
+        next = 'light';
+      } else if (current === 'light') {
+        next = 'auto';
+      } else {
+        next = 'dark';
+      }
+      saveTheme(next);
+      applyTheme(next);
+    }
 
     // Initialize
     async function init() {
+      applyTheme(getStoredTheme());
       await loadBoard();
       terminal = new Terminal({
-        theme: {
-          background: '#0d1117',
-          foreground: '#e6edf3',
-        },
+        theme: getTerminalTheme(),
         fontSize: 13,
         fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
       });
@@ -1038,10 +1164,7 @@
       // Clear and reinitialize terminal
       terminalEl.innerHTML = '';
       terminal = new Terminal({
-        theme: {
-          background: '#0d1117',
-          foreground: '#e6edf3',
-        },
+        theme: getTerminalTheme(),
         fontSize: 13,
         fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
         convertEol: true,
@@ -1235,6 +1358,13 @@
 
     // Poll for updates every 5 seconds
     setInterval(loadBoard, 5000);
+
+    // Check auto theme every 60 seconds
+    setInterval(() => {
+      if (getStoredTheme() === 'auto') {
+        applyTheme('auto');
+      }
+    }, 60000);
   </script>
 </body>
 </html>
