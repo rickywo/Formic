@@ -30,7 +30,7 @@ const AGENTS: Record<AgentType, AgentConfig> = {
   },
   copilot: {
     command: 'copilot',
-    buildArgs: (prompt: string) => ['--prompt', prompt, '--allow-all-tools'],
+    buildArgs: (prompt: string) => ['--prompt', prompt, '--allow-all-tools', '--add-dir', '/tmp'],
     skillsDir: '.claude/skills',
     envVars: {}, // Uses GitHub OAuth
   },
