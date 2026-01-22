@@ -7,7 +7,7 @@
 
 import { loadBoard, updateTask } from './store.js';
 import { runWorkflow } from './workflow.js';
-import { createBranch, generateBranchName, hasUncommittedChanges, getCurrentBranch, getDefaultBaseBranch } from './git.js';
+import { createBranch, generateBranchName, hasUncommittedChanges, getCurrentBranch, getDefaultBaseBranch, ensureFormicIgnored } from './git.js';
 import { generateSlug } from '../utils/slug.js';
 import type { Task } from '../../types/index.js';
 
@@ -63,9 +63,15 @@ export async function getRunningTasksCount(): Promise<number> {
 async function startQueuedTask(task: Task): Promise<void> {
   console.log(`[Queue] Starting task: ${task.id} - ${task.title}`);
 
-  // Check for uncommitted changes
+  // Ensure .formic/ is protected from git before each task (handles user mistakes)
+  const formicProtection = ensureFormicIgnored();
+  if (formicProtection.modified) {
+    console.log(`[Queue] Auto-fixed git config: ${formicProtection.actions.join(', ')}`);
+  }
+
+  // Check for uncommitted changes (excluding .formic/)
   if (hasUncommittedChanges()) {
-    console.log(`[Queue] Skipping task ${task.id}: workspace has uncommitted changes`);
+    console.log(`[Queue] Skipping task ${task.id}: workspace has uncommitted changes (outside .formic/)`);
     return;
   }
 

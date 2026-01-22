@@ -7,6 +7,8 @@
 
 import { execSync, exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { existsSync, readFileSync, appendFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { getWorkspacePath } from '../utils/paths.js';
 import type { BranchStatus } from '../../types/index.js';
 
@@ -228,4 +230,120 @@ export async function safeSwitchBranch(branchName: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Ensure .formic/ directory is protected from git tracking
+ *
+ * This function handles all scenarios:
+ * 1. Adds .formic/ to .gitignore if missing
+ * 2. Removes .formic/ from git index if accidentally tracked
+ * 3. Creates .gitignore if it doesn't exist
+ *
+ * Should be called:
+ * - On server startup
+ * - Before starting any queued task
+ * - During bootstrap
+ */
+export function ensureFormicIgnored(): { modified: boolean; actions: string[] } {
+  const workspacePath = getWorkspacePath();
+  const gitignorePath = join(workspacePath, '.gitignore');
+  const actions: string[] = [];
+  let modified = false;
+
+  // Check if this is a git repository
+  try {
+    gitExec('rev-parse --git-dir');
+  } catch {
+    // Not a git repo, nothing to do
+    return { modified: false, actions: ['Not a git repository, skipping'] };
+  }
+
+  // Step 1: Ensure .gitignore exists and has .formic/
+  const formicPatterns = ['.formic/', '.formic', '/.formic/', '/.formic'];
+  let gitignoreContent = '';
+  let hasFormicIgnore = false;
+
+  if (existsSync(gitignorePath)) {
+    gitignoreContent = readFileSync(gitignorePath, 'utf-8');
+    // Check if any formic pattern is already in gitignore
+    const lines = gitignoreContent.split('\n').map(l => l.trim());
+    hasFormicIgnore = formicPatterns.some(pattern => lines.includes(pattern));
+  }
+
+  if (!hasFormicIgnore) {
+    // Add .formic/ to gitignore
+    const addition = gitignoreContent.length > 0 && !gitignoreContent.endsWith('\n')
+      ? '\n\n# Formic local state (auto-added)\n.formic/\n'
+      : '\n# Formic local state (auto-added)\n.formic/\n';
+
+    if (existsSync(gitignorePath)) {
+      appendFileSync(gitignorePath, addition);
+      actions.push('Added .formic/ to existing .gitignore');
+    } else {
+      writeFileSync(gitignorePath, '# Formic local state (auto-added)\n.formic/\n');
+      actions.push('Created .gitignore with .formic/ entry');
+    }
+    modified = true;
+  }
+
+  // Step 2: Remove .formic/ from git index if it's tracked
+  try {
+    const trackedFiles = gitExec('ls-files .formic/');
+    if (trackedFiles.length > 0) {
+      // .formic/ is tracked, remove it from index (keep local files)
+      try {
+        gitExec('rm -r --cached .formic/');
+        actions.push('Removed .formic/ from git tracking (files preserved locally)');
+        modified = true;
+      } catch (rmError) {
+        actions.push(`Warning: Could not remove .formic/ from index: ${rmError}`);
+      }
+    }
+  } catch {
+    // ls-files failed, .formic/ is not tracked - this is fine
+  }
+
+  // Step 3: Check if .formic/ is staged (user ran git add)
+  try {
+    const stagedStatus = gitExec('diff --cached --name-only');
+    const stagedFormicFiles = stagedStatus.split('\n').filter(f => f.startsWith('.formic/'));
+    if (stagedFormicFiles.length > 0) {
+      // Unstage .formic/ files
+      try {
+        gitExec('reset HEAD .formic/');
+        actions.push('Unstaged .formic/ files from git index');
+        modified = true;
+      } catch {
+        // Reset may fail if nothing staged
+      }
+    }
+  } catch {
+    // No staged files or git command failed
+  }
+
+  if (actions.length === 0) {
+    actions.push('.formic/ is already properly ignored');
+  }
+
+  return { modified, actions };
+}
+
+/**
+ * Check if .formic/ is properly ignored
+ * Quick check without modifying anything
+ */
+export function isFormicIgnored(): boolean {
+  const workspacePath = getWorkspacePath();
+  const gitignorePath = join(workspacePath, '.gitignore');
+
+  if (!existsSync(gitignorePath)) {
+    return false;
+  }
+
+  const gitignoreContent = readFileSync(gitignorePath, 'utf-8');
+  const lines = gitignoreContent.split('\n').map(l => l.trim());
+  const formicPatterns = ['.formic/', '.formic', '/.formic/', '/.formic'];
+
+  return formicPatterns.some(pattern => lines.includes(pattern));
 }

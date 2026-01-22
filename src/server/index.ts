@@ -8,6 +8,7 @@ import { taskRoutes } from './routes/tasks.js';
 import { logsWebSocket } from './ws/logs.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
 import { startQueueProcessor, stopQueueProcessor, getQueueConfig } from './services/queueProcessor.js';
+import { ensureFormicIgnored } from './services/git.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -56,6 +57,12 @@ async function main() {
     const missingEnvVars = validateAgentEnv();
     if (missingEnvVars.length > 0) {
       console.warn(`Warning: Missing environment variables for ${agentDisplayName}: ${missingEnvVars.join(', ')}`);
+    }
+
+    // Ensure .formic/ is protected from git (auto-adds to .gitignore, removes from index if tracked)
+    const formicProtection = ensureFormicIgnored();
+    if (formicProtection.modified) {
+      console.log(`Git: Protected .formic/ directory - ${formicProtection.actions.join(', ')}`);
     }
 
     // Start the queue processor (Phase 11: Auto-Queue System)
