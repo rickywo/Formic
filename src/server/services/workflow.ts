@@ -14,7 +14,7 @@ import {
   subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
-import { getBranchStatus, commitChanges, hasUncommittedChanges } from './git.js';
+import { getBranchStatus, commitChanges, hasUncommittedChanges, checkoutBranch, getDefaultBaseBranch } from './git.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
 
@@ -224,10 +224,11 @@ Context: ${task.context}
 Follow the PLAN.md step by step. As you complete each subtask, update its status in subtasks.json to "completed".
 All code changes MUST comply with the project development guidelines provided above.
 
-MANDATORY FINAL STEP: After completing all subtasks, you MUST commit your changes:
+MANDATORY FINAL STEPS: After completing all subtasks, you MUST:
 1. Stage all changes: git add -A
 2. Commit with message: git commit -m "[${task.id}] ${task.title}"
-DO NOT skip this step - uncommitted changes will block subsequent tasks.`;
+3. Switch back to base branch: git checkout ${task.baseBranch || 'main'}
+DO NOT skip these steps - uncommitted changes or staying on task branch will block subsequent tasks.`;
 }
 
 /**
@@ -259,10 +260,11 @@ Context: ${task.context}
 Please continue working on the incomplete subtasks listed above. As you complete each one, update its status in subtasks.json to "completed".
 All code changes MUST comply with the project development guidelines provided above.
 
-MANDATORY FINAL STEP: After completing all subtasks, you MUST commit your changes:
+MANDATORY FINAL STEPS: After completing all subtasks, you MUST:
 1. Stage all changes: git add -A
 2. Commit with message: git commit -m "[${task.id}] ${task.title}"
-DO NOT skip this step - uncommitted changes will block subsequent tasks.`;
+3. Switch back to base branch: git checkout ${task.baseBranch || 'main'}
+DO NOT skip these steps - uncommitted changes or staying on task branch will block subsequent tasks.`;
 }
 
 /**
@@ -531,6 +533,31 @@ async function executeWithIterativeLoop(
       });
       console.error(`[Workflow] Auto-commit failed: ${commitResult.message}`);
     }
+  }
+
+  // Switch back to base branch after task completion
+  const baseBranch = task.baseBranch || getDefaultBaseBranch();
+  try {
+    console.log(`[Workflow] Switching back to ${baseBranch} branch`);
+    broadcastToTask(taskId, {
+      type: 'stdout',
+      data: `\n[CLEANUP] Switching back to ${baseBranch} branch...\n`,
+      timestamp: new Date().toISOString(),
+    });
+    await checkoutBranch(baseBranch);
+    broadcastToTask(taskId, {
+      type: 'stdout',
+      data: `[CLEANUP] Now on ${baseBranch} branch\n`,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    const err = error as Error;
+    console.error(`[Workflow] Failed to switch to ${baseBranch}: ${err.message}`);
+    broadcastToTask(taskId, {
+      type: 'stderr',
+      data: `[CLEANUP] Warning: Could not switch to ${baseBranch}: ${err.message}\n`,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   console.log(`[Workflow] Iterative execution completed for task ${taskId}: iterations=${iteration - 1}, allComplete=${allComplete}`);
