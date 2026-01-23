@@ -46,6 +46,8 @@
 ┌─────────────────────────────────────────────────────┐
 │  You: "Add dark mode"                               │
 │           ↓                                         │
+│  Formic: Queue task (priority: high/medium/low)     │
+│           ↓                                         │
 │  Formic: Generates README.md (spec)                 │
 │           ↓                                         │
 │  Formic: Generates PLAN.md + subtasks.json          │
@@ -79,10 +81,12 @@ Open `http://localhost:8000` and start creating tasks.
 ### Three Steps to Autonomous Development
 
 1. **Create a task** — Describe what you want in plain English
-2. **Click Run** — Formic auto-generates specs, plans, and executes
+2. **Run or Queue** — Click **Run** for immediate execution, or **Queue** to add to the priority queue
 3. **Review & ship** — Agent moves completed work to Review for your approval
 
 That's it. No prompt engineering. No context management. No babysitting.
+
+> **Tip:** Use the Queue system to batch multiple tasks. High-priority tasks automatically run before medium and low priority ones.
 
 ---
 
@@ -90,24 +94,43 @@ That's it. No prompt engineering. No context management. No babysitting.
 
 | Feature | Description |
 |---------|-------------|
-| 🐜 **Kanban Board** | Drag-and-drop task management across `todo`, `running`, `review`, `done` |
+| 🐜 **Kanban Board** | Drag-and-drop task management across `todo`, `queued`, `running`, `review`, `done` |
+| 📊 **Priority Queue** | Smart queueing system with priority-based ordering (high → medium → low) |
 | ⚡ **Live Terminal** | Real-time agent output streaming via WebSocket |
 | 📋 **Auto-Documentation** | Every task gets README.md, PLAN.md, and structured subtasks |
-| 🔄 **Iterative Execution** | Agent loops until all subtasks are complete |
+| 🔄 **Iterative Execution** | Agent loops until all subtasks are complete (configurable iterations) |
 | 🎯 **Smart Bootstrap** | Auto-generates project-specific coding guidelines on first run |
 | 🔌 **Multi-Agent** | Switch between Claude Code CLI and GitHub Copilot CLI |
+| 🌙 **Theme Support** | Dark, Light, and Auto theme modes |
 
 ### Workflow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
+│  TODO → Task created, ready to run or queue                 │
+│           ↓                                                 │
+│  QUEUED → Waiting in priority queue (high > medium > low)   │
+│           ↓                                                 │
 │  BRIEF → Generate README.md (what to build)                 │
-│            ↓                                                │
+│           ↓                                                 │
 │  PLAN  → Generate PLAN.md + subtasks.json (how to build)    │
-│            ↓                                                │
+│           ↓                                                 │
 │  EXECUTE → Iterative loop until all subtasks complete       │
+│           ↓                                                 │
+│  REVIEW → Ready for human review                            │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+### Priority Queue System
+
+Tasks can be queued for automated execution with priority-based ordering:
+
+- **High priority** tasks run first
+- **Medium priority** tasks run after high
+- **Low priority** tasks run last
+- Within the same priority, tasks run in FIFO order (first queued, first run)
+
+Queue position is displayed on each queued task card. Configure concurrency with `MAX_CONCURRENT_TASKS`.
 
 ---
 
@@ -154,18 +177,52 @@ your-project/
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `8000` |
-| `WORKSPACE_PATH` | Project directory | `/app/workspace` |
-| `AGENT_TYPE` | Agent to use | `claude` |
+| `HOST` | Server hostname | `0.0.0.0` |
+| `WORKSPACE_PATH` | Project directory | `./workspace` |
+| `AGENT_TYPE` | Agent to use (`claude` or `copilot`) | `claude` |
+| `AGENT_COMMAND` | Override agent CLI command | (derived from AGENT_TYPE) |
 | `ANTHROPIC_API_KEY` | Claude API key | Required for Claude |
+| `QUEUE_ENABLED` | Enable/disable queue processor | `true` |
+| `QUEUE_POLL_INTERVAL` | Queue polling interval (ms) | `5000` |
+| `MAX_CONCURRENT_TASKS` | Max simultaneous running tasks | `1` |
+| `MAX_EXECUTE_ITERATIONS` | Max execute loop iterations | `5` |
+| `STEP_TIMEOUT_MS` | Timeout per workflow step (ms) | `600000` (10 min) |
 
 ### API
 
+**Board & Tasks**
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/board` | Fetch board state |
-| `POST /api/tasks` | Create task |
-| `POST /api/tasks/:id/run` | Execute full workflow |
-| `WS /ws/logs/:taskId` | Stream agent output |
+| `GET /api/board` | Fetch board state with all tasks |
+| `POST /api/tasks` | Create task (title, context, priority) |
+| `PUT /api/tasks/:id` | Update task properties |
+| `DELETE /api/tasks/:id` | Delete task |
+
+**Execution & Queue**
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/tasks/:id/run` | Execute full workflow (brief → plan → execute) |
+| `POST /api/tasks/:id/queue` | Add task to priority queue |
+| `POST /api/tasks/:id/stop` | Stop running workflow |
+
+**Workflow Steps** (granular control)
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/tasks/:id/workflow/brief` | Run only brief step |
+| `POST /api/tasks/:id/workflow/plan` | Run only plan step |
+| `POST /api/tasks/:id/workflow/execute` | Run only execute step |
+
+**Subtasks**
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/tasks/:id/subtasks` | Get all subtasks |
+| `PUT /api/tasks/:id/subtasks/:subtaskId` | Update subtask status |
+| `GET /api/tasks/:id/subtasks/completion` | Get completion stats |
+
+**WebSocket**
+| Endpoint | Description |
+|----------|-------------|
+| `WS /ws/logs/:taskId` | Stream real-time agent output |
 
 Full API reference in [SPEC.md](SPEC.md).
 
@@ -178,8 +235,9 @@ Full API reference in [SPEC.md](SPEC.md).
 | Runtime | Node.js 20 + TypeScript |
 | Server | Fastify |
 | WebSocket | @fastify/websocket |
-| Frontend | Vanilla HTML/CSS/JS |
+| Frontend | Vanilla JS + Tailwind CSS |
 | Terminal | xterm.js |
+| Font | Inter (Google Fonts) |
 | Agent | Claude Code / GitHub Copilot |
 | Deployment | Docker |
 
@@ -215,7 +273,9 @@ npm start
 - [x] 3-step workflow (brief → plan → execute)
 - [x] Iterative execution with subtask tracking
 - [x] Multi-agent support (Claude + Copilot)
-- [ ] Multi-agent concurrency
+- [x] Priority-based task queue system
+- [x] Configurable concurrency limits
+- [x] Theme support (dark/light/auto)
 - [ ] Task dependencies
 - [ ] Git auto-commit per task
 - [ ] Cloud deployment option
