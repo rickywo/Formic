@@ -1,6 +1,6 @@
 {
   "name": "formic",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Local-first agent orchestration and execution environment - Formic",
   "type": "module",
   "main": "dist/server/index.js",
