@@ -15,7 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
 const CLIENT_PATH = path.join(PROJECT_ROOT, 'src', 'client');
 
-const PORT = parseInt(process.env.PORT || '8000', 10);
+const PORT = parseInt(process.env.PORT || '7979', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 
 async function main() {
