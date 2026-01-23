@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import type { SubtasksFile, Subtask, SubtaskStatus } from '../../types/index.js';
+import type { SubtasksFile, Subtask, SubtaskStatus, Task, TaskStatus, WorkflowStep } from '../../types/index.js';
 
 const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const SUBTASKS_FILENAME = 'subtasks.json';
@@ -153,4 +153,77 @@ export function formatIncompleteSubtasksForPrompt(subtasks: SubtasksFile): strin
   });
 
   return `The following subtasks are NOT yet complete:\n${lines.join('\n')}`;
+}
+
+/**
+ * Calculate task progress percentage (0-100) based on workflow stage and subtask completion.
+ *
+ * Progress model:
+ * - Stage progress (0-25%): pending/todo=0%, briefing=5%, planning=18%, running=25%, review/done=100%
+ * - Subtask progress (25-100%): During 'execute' stage, remaining 75% divided among subtasks
+ *
+ * @param task - The task to calculate progress for
+ * @returns Progress percentage (0-100)
+ */
+export async function calculateTaskProgress(task: Task): Promise<number> {
+  const { status, workflowStep, docsPath, id } = task;
+
+  // Bootstrap task: 0% when pending/todo, 100% when done
+  if (id === 't-bootstrap') {
+    if (status === 'done' || status === 'review') {
+      return 100;
+    }
+    if (status === 'todo') {
+      return 0;
+    }
+    // If running, estimate based on status
+    if (status === 'briefing') return 10;
+    if (status === 'planning') return 30;
+    if (status === 'running') return 60;
+    return 0;
+  }
+
+  // Completed tasks
+  if (status === 'done') {
+    return 100;
+  }
+
+  // Review tasks (workflow complete, awaiting human review)
+  if (status === 'review') {
+    return 100;
+  }
+
+  // Todo tasks (not started)
+  if (status === 'todo') {
+    return 0;
+  }
+
+  // Stage-based progress for active workflow
+  // briefing = 5%, planning = 18%, running = 25% (base for execute)
+  const stageProgress: Record<TaskStatus, number> = {
+    'todo': 0,
+    'queued': 0,
+    'briefing': 5,
+    'planning': 18,
+    'running': 25,
+    'review': 100,
+    'done': 100,
+  };
+
+  let progress = stageProgress[status] ?? 0;
+
+  // Add subtask progress during execution phase
+  if (status === 'running' && (workflowStep === 'execute' || workflowStep === 'complete')) {
+    const subtasks = await loadSubtasks(docsPath);
+
+    if (subtasks && subtasks.subtasks.length > 0) {
+      const stats = getCompletionStats(subtasks);
+      // Subtasks contribute 75% of total progress (25% to 100%)
+      const subtaskProgress = (stats.completed / stats.total) * 75;
+      progress = 25 + subtaskProgress;
+    }
+    // If no subtasks.json yet during execute, stay at 25%
+  }
+
+  return Math.min(100, Math.round(progress));
 }

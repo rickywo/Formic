@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { createTask, updateTask, deleteTask, getTask } from '../services/store.js';
+import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks } from '../services/store.js';
 import { runAgent, stopAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
 import {
   executeFullWorkflow,
@@ -14,6 +14,7 @@ import {
   getCompletionStats,
   subtasksExist,
 } from '../services/subtasks.js';
+import { getQueuePosition } from '../services/queueProcessor.js';
 import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../types/index.js';
 
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
@@ -79,8 +80,8 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(404).send({ error: 'Task not found' });
     }
 
-    if (task.status !== 'todo') {
-      return reply.status(400).send({ error: 'Task must be in todo status to run' });
+    if (task.status !== 'todo' && task.status !== 'queued') {
+      return reply.status(400).send({ error: 'Task must be in todo or queued status to run' });
     }
 
     try {
@@ -102,6 +103,32 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       const message = err instanceof Error ? err.message : 'Unknown error';
       return reply.status(500).send({ error: message });
     }
+  });
+
+  // POST /api/tasks/:id/queue - Queue a task for automated execution
+  fastify.post<{ Params: { id: string } }>('/api/tasks/:id/queue', async (request, reply) => {
+    const { id } = request.params;
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    if (task.status !== 'todo') {
+      return reply.status(400).send({ error: 'Only tasks in todo status can be queued' });
+    }
+
+    const queuedTask = await queueTask(id);
+    if (!queuedTask) {
+      return reply.status(500).send({ error: 'Failed to queue task' });
+    }
+
+    const position = await getQueuePosition(id);
+    return reply.send({
+      status: 'queued',
+      task: queuedTask,
+      queuePosition: position,
+    });
   });
 
   // POST /api/tasks/:id/stop - Stop agent/workflow execution

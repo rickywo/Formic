@@ -7,6 +7,7 @@ import { boardRoutes } from './routes/board.js';
 import { taskRoutes } from './routes/tasks.js';
 import { logsWebSocket } from './ws/logs.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
+import { startQueueProcessor, getQueueProcessorConfig } from './services/queueProcessor.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -55,6 +56,15 @@ async function main() {
     const missingEnvVars = validateAgentEnv();
     if (missingEnvVars.length > 0) {
       console.warn(`Warning: Missing environment variables for ${agentDisplayName}: ${missingEnvVars.join(', ')}`);
+    }
+
+    // Start the queue processor
+    startQueueProcessor();
+    const queueConfig = getQueueProcessorConfig();
+    if (queueConfig.enabled) {
+      console.log(`Queue processor: enabled (poll: ${queueConfig.pollInterval}ms, max concurrent: ${queueConfig.maxConcurrent})`);
+    } else {
+      console.log('Queue processor: disabled');
     }
   } catch (err) {
     fastify.log.error(err);

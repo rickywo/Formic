@@ -1,4 +1,4 @@
-export type TaskStatus = 'todo' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
+export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'execute' | 'complete';
 
@@ -20,6 +20,11 @@ export interface Task {
   // Workflow fields
   workflowStep?: WorkflowStep;
   workflowLogs?: WorkflowLogs;
+  // Progress indicator (0-100, calculated from workflow stage + subtask completion)
+  progress?: number;
+  // Timestamps for queue ordering
+  createdAt?: string;
+  queuedAt?: string;
 }
 
 export interface BoardMeta {

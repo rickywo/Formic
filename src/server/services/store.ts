@@ -11,6 +11,7 @@ import {
   BOOTSTRAP_TASK_SLUG,
 } from './bootstrap.js';
 import { copySkillsToWorkspace } from './skills.js';
+import { calculateTaskProgress } from './subtasks.js';
 
 /**
  * Get project name from workspace folder name
@@ -90,9 +91,18 @@ export async function getBoardWithBootstrap(): Promise<Board> {
     await saveBoard(board);
   }
 
-  // Return board with bootstrap status
+  // Step 3: Enrich tasks with calculated progress
+  const tasksWithProgress = await Promise.all(
+    board.tasks.map(async (task) => ({
+      ...task,
+      progress: await calculateTaskProgress(task),
+    }))
+  );
+
+  // Return board with bootstrap status and enriched tasks
   return {
     ...board,
+    tasks: tasksWithProgress,
     bootstrapRequired: bootstrapStatus.required,
     guidelinesPath: bootstrapStatus.guidelinesPath,
   };
@@ -144,6 +154,8 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     // Initialize workflow fields
     workflowStep: 'pending',
     workflowLogs: {},
+    // Timestamp for queue ordering
+    createdAt: new Date().toISOString(),
   };
 
   board.tasks.push(task);
@@ -232,4 +244,63 @@ export async function appendTaskLogs(taskId: string, logs: string[]): Promise<vo
   }
 
   await saveBoard(board);
+}
+
+/**
+ * Queue a task - transition from todo to queued and set queuedAt timestamp
+ */
+export async function queueTask(taskId: string): Promise<Task | null> {
+  const board = await loadBoard();
+  const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+
+  if (taskIndex === -1) {
+    return null;
+  }
+
+  const task = board.tasks[taskIndex];
+
+  // Only allow queuing from 'todo' status
+  if (task.status !== 'todo') {
+    return null;
+  }
+
+  board.tasks[taskIndex] = {
+    ...task,
+    status: 'queued',
+    queuedAt: new Date().toISOString(),
+  };
+
+  await saveBoard(board);
+  return board.tasks[taskIndex];
+}
+
+/**
+ * Get all queued tasks sorted by priority (high > medium > low) then by queuedAt (FIFO)
+ */
+export async function getQueuedTasks(): Promise<Task[]> {
+  const board = await loadBoard();
+  const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+
+  return board.tasks
+    .filter(t => t.status === 'queued')
+    .sort((a, b) => {
+      // Sort by priority first
+      const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+      if (priorityDiff !== 0) return priorityDiff;
+
+      // Then by queuedAt (FIFO) - fall back to createdAt if queuedAt is missing
+      const aTime = a.queuedAt || a.createdAt || '';
+      const bTime = b.queuedAt || b.createdAt || '';
+      return new Date(aTime).getTime() - new Date(bTime).getTime();
+    });
+}
+
+/**
+ * Get the count of currently running tasks (briefing, planning, running)
+ */
+export async function getRunningTasksCount(): Promise<number> {
+  const board = await loadBoard();
+  return board.tasks.filter(t =>
+    t.status === 'briefing' || t.status === 'planning' || t.status === 'running'
+  ).length;
 }

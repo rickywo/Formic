@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
   <style>
     :root {
-      --bg-primary: #0d1117;
+      --bg-primary: #050505;
       --bg-secondary: #161b22;
       --bg-tertiary: #21262d;
       --border-color: #30363d;
@@ -36,6 +36,30 @@
       --card-gradient-start: #f0f3f6;
       --card-gradient-end: #e6eaef;
       --shadow-opacity: 0.15;
+      --progress-bar-bg: rgba(0, 0, 0, 0.08);
+      --progress-purple: #8250df;
+    }
+
+    /* Light theme progress bar adjustments */
+    [data-theme="light"] .task-progress-bar {
+      background: var(--progress-bar-bg);
+    }
+
+    [data-theme="light"] .task-progress-fill {
+      box-shadow: 0 0 6px rgba(9, 105, 218, 0.3);
+    }
+
+    [data-theme="light"] .task-progress-fill[data-progress-high],
+    [data-theme="light"] .task-progress-fill[data-progress-complete] {
+      box-shadow: 0 0 6px rgba(26, 127, 55, 0.3);
+    }
+
+    [data-theme="light"] .task-progress-fill[data-progress-mid] {
+      background: linear-gradient(90deg, var(--accent-blue), var(--progress-purple));
+    }
+
+    [data-theme="light"] .task-progress-fill[data-progress-high] {
+      background: linear-gradient(90deg, var(--progress-purple), var(--accent-green));
     }
 
     * {
@@ -141,17 +165,17 @@
     /* Kanban Board */
     .board {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 16px;
       padding: 24px;
       min-height: calc(100vh - 180px);
     }
 
     .column {
-      background-color: var(--bg-secondary);
+      background-color: transparent;
       border-radius: 8px;
       padding: 16px;
-      border: 1px solid var(--border-color);
+      border: none;
     }
 
     .column-header {
@@ -160,7 +184,7 @@
       align-items: center;
       margin-bottom: 16px;
       padding-bottom: 12px;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
 
     .column-title {
@@ -171,7 +195,7 @@
     }
 
     .column-count {
-      background-color: var(--bg-tertiary);
+      background-color: rgba(255,255,255,0.1);
       padding: 2px 8px;
       border-radius: 10px;
       font-size: 12px;
@@ -179,6 +203,7 @@
     }
 
     .column[data-status="todo"] .column-title { color: var(--text-secondary); }
+    .column[data-status="queued"] .column-title { color: var(--accent-blue); }
     .column[data-status="running"] .column-title { color: var(--accent-blue); }
     .column[data-status="review"] .column-title { color: var(--accent-yellow); }
     .column[data-status="done"] .column-title { color: var(--accent-green); }
@@ -192,12 +217,16 @@
 
     /* Task Card */
     .task-card {
-      background-color: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 12px;
+      position: relative;
+      background: linear-gradient(to bottom right, rgba(255,255,255,0.1), transparent);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: inset 0 1px 1px rgba(255,255,255,0.15);
+      border-radius: 24px;
+      padding: 16px;
+      padding-bottom: 20px;
       cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: border-color 0.2s, transform 0.2s;
+      overflow: hidden;
     }
 
     .task-card:active {
@@ -205,8 +234,8 @@
     }
 
     .task-card:hover {
+      border-color: rgba(255,255,255,0.25);
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, var(--shadow-opacity));
     }
 
     .task-card.dragging {
@@ -228,15 +257,27 @@
 
     .priority-badge {
       font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
+      padding: 4px 10px;
+      border-radius: 9999px;
       text-transform: uppercase;
-      font-weight: 600;
+      font-weight: 500;
+      letter-spacing: 0.05em;
     }
 
-    .priority-low { background-color: var(--text-secondary); color: #000; }
-    .priority-medium { background-color: var(--accent-yellow); color: #000; }
-    .priority-high { background-color: var(--accent-red); color: #fff; }
+    .priority-low {
+      background-color: rgba(139, 148, 158, 0.2);
+      color: #8b949e;
+    }
+
+    .priority-medium {
+      background-color: rgba(210, 153, 34, 0.2);
+      color: #d29922;
+    }
+
+    .priority-high {
+      background-color: rgba(248, 81, 73, 0.2);
+      color: #f85149;
+    }
 
     .task-context {
       font-size: 12px;
@@ -385,9 +426,21 @@
 
     /* Bootstrap Task */
     .task-card--bootstrap {
-      border: 2px solid #a371f7;
-      background: linear-gradient(135deg, var(--card-gradient-start) 0%, var(--card-gradient-end) 100%);
+      border: 1px solid rgba(163, 113, 247, 0.4);
+      background: linear-gradient(135deg, rgba(163, 113, 247, 0.12) 0%, transparent 100%);
+      box-shadow:
+        0 0 25px rgba(163, 113, 247, 0.25),
+        0 0 50px rgba(163, 113, 247, 0.1),
+        inset 0 1px 1px rgba(255, 255, 255, 0.1);
       position: relative;
+    }
+
+    .task-card--bootstrap:hover {
+      border-color: rgba(163, 113, 247, 0.6);
+      box-shadow:
+        0 0 30px rgba(163, 113, 247, 0.35),
+        0 0 60px rgba(163, 113, 247, 0.15),
+        inset 0 1px 1px rgba(255, 255, 255, 0.15);
     }
 
     .task-card--bootstrap::before {
@@ -396,19 +449,21 @@
       top: 0;
       left: 0;
       right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, #a371f7, #8957e5);
-      border-radius: 4px 4px 0 0;
+      height: 2px;
+      background: linear-gradient(90deg, rgba(163, 113, 247, 0.8), rgba(137, 87, 229, 0.8));
+      border-radius: 24px 24px 0 0;
+      opacity: 0.8;
     }
 
     .bootstrap-badge {
       font-size: 10px;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: linear-gradient(90deg, #a371f7, #8957e5);
-      color: #fff;
-      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: rgba(163, 113, 247, 0.2);
+      color: #a78bfa;
+      font-weight: 500;
       text-transform: uppercase;
+      letter-spacing: 0.05em;
       margin-right: 8px;
     }
 
@@ -456,49 +511,151 @@
 
     .workflow-step {
       font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 3px;
-      background-color: var(--bg-secondary);
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background-color: rgba(255,255,255,0.1);
       color: var(--text-secondary);
-      border: 1px solid var(--border-color);
+      border: none;
+      font-weight: 500;
+      letter-spacing: 0.05em;
     }
 
     .workflow-step.active {
-      background-color: var(--accent-blue);
-      color: #fff;
-      border-color: var(--accent-blue);
+      background-color: rgba(88, 166, 255, 0.2);
+      color: #58a6ff;
       animation: pulse 2s infinite;
     }
 
     .workflow-step.completed {
-      background-color: var(--accent-green);
-      color: #000;
-      border-color: var(--accent-green);
+      background-color: rgba(63, 185, 80, 0.2);
+      color: #3fb950;
+    }
+
+    /* Task Progress Bar */
+    .task-progress-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 0 0 6px 6px;
+      overflow: hidden;
+    }
+
+    .task-progress-fill {
+      height: 100%;
+      border-radius: 0 0 0 6px;
+      transition: width 0.5s ease-out;
+    }
+
+    /* Gradient coloring based on progress: blue (0%) -> purple (50%) -> green (100%) */
+    .task-progress-fill {
+      background: linear-gradient(90deg,
+        var(--accent-blue) 0%,
+        #a78bfa 50%,
+        var(--accent-green) 100%
+      );
+      background-size: 200% 100%;
+      background-position: calc(100% - var(--progress, 0) * 1%) 0;
+    }
+
+    /* Simplified gradient based on progress percentage */
+    .task-progress-fill[data-progress-low] {
+      background: var(--accent-blue);
+    }
+
+    .task-progress-fill[data-progress-mid] {
+      background: linear-gradient(90deg, var(--accent-blue), #a78bfa);
+    }
+
+    .task-progress-fill[data-progress-high] {
+      background: linear-gradient(90deg, #a78bfa, var(--accent-green));
+    }
+
+    .task-progress-fill[data-progress-complete] {
+      background: var(--accent-green);
+    }
+
+    /* Glow effect for progress bar */
+    .task-progress-fill {
+      box-shadow: 0 0 8px rgba(88, 166, 255, 0.4);
+    }
+
+    .task-progress-fill[data-progress-high],
+    .task-progress-fill[data-progress-complete] {
+      box-shadow: 0 0 8px rgba(63, 185, 80, 0.4);
+    }
+
+    /* Pulse animation for active tasks */
+    @keyframes progressPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    .task-progress-fill.active {
+      animation: progressPulse 2s ease-in-out infinite;
     }
 
     /* Status badges for briefing and planning */
     .status-badge {
       font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-weight: 500;
       text-transform: uppercase;
+      letter-spacing: 0.05em;
       margin-left: 8px;
     }
 
     .status-briefing {
-      background-color: #8b5cf6;
-      color: #fff;
+      background-color: rgba(139, 92, 246, 0.2);
+      color: #a78bfa;
     }
 
     .status-planning {
-      background-color: #6366f1;
-      color: #fff;
+      background-color: rgba(99, 102, 241, 0.2);
+      color: #818cf8;
     }
 
     .status-running {
-      background-color: var(--accent-blue);
+      background-color: rgba(88, 166, 255, 0.2);
+      color: #58a6ff;
+    }
+
+    .status-queued {
+      background-color: rgba(88, 166, 255, 0.2);
+      color: #58a6ff;
+    }
+
+    /* Queued task card styling */
+    .task-card[data-status="queued"] {
+      border-color: rgba(88, 166, 255, 0.3);
+      animation: queue-pulse 3s ease-in-out infinite;
+    }
+
+    @keyframes queue-pulse {
+      0%, 100% { box-shadow: 0 0 15px rgba(88, 166, 255, 0.2); }
+      50% { box-shadow: 0 0 25px rgba(88, 166, 255, 0.4); }
+    }
+
+    /* Queue position indicator */
+    .queue-position {
+      position: absolute;
+      top: -8px;
+      left: -8px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent-blue);
       color: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 10px rgba(88, 166, 255, 0.5);
+      z-index: 10;
     }
 
     /* Task Detail Modal */
@@ -632,7 +789,13 @@
     }
 
     /* Responsive Design */
-    @media (max-width: 1200px) {
+    @media (max-width: 1400px) {
+      .board {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 1000px) {
       .board {
         grid-template-columns: repeat(2, 1fr);
       }
@@ -683,6 +846,7 @@
     @media (max-width: 480px) {
       .task-card {
         padding: 10px;
+        padding-bottom: 14px;
       }
 
       .task-header {
@@ -702,6 +866,11 @@
         margin: 16px;
         max-height: calc(100vh - 32px);
         overflow-y: auto;
+      }
+
+      /* Ensure progress bar is visible on mobile */
+      .task-progress-bar {
+        height: 3px;
       }
     }
   </style>
@@ -733,6 +902,14 @@
         <span class="column-count" id="todo-count">0</span>
       </div>
       <div class="tasks" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
+    <div class="column" data-status="queued">
+      <div class="column-header">
+        <span class="column-title">Queued</span>
+        <span class="column-count" id="queued-count">0</span>
+      </div>
+      <div class="tasks" id="queued-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
 
     <div class="column" data-status="running">
@@ -1013,13 +1190,52 @@
       }
     }
 
+    async function queueTask(taskId) {
+      const res = await fetch(`/api/tasks/${taskId}/queue`, { method: 'POST' });
+
+      if (res.ok) {
+        await loadBoard();
+      } else {
+        const error = await res.json();
+        alert(error.error);
+      }
+    }
+
+    async function unqueueTask(taskId) {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'todo' }),
+      });
+
+      if (res.ok) {
+        await loadBoard();
+      }
+    }
+
+    function getQueuePositionForTask(task) {
+      // Get all queued tasks and sort them by priority then queuedAt
+      const queuedTasks = board.tasks
+        .filter(t => t.status === 'queued')
+        .sort((a, b) => {
+          const priorityOrder = { high: 0, medium: 1, low: 2 };
+          const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
+          if (priorityDiff !== 0) return priorityDiff;
+          const aTime = a.queuedAt || a.createdAt || '';
+          const bTime = b.queuedAt || b.createdAt || '';
+          return new Date(aTime).getTime() - new Date(bTime).getTime();
+        });
+      const index = queuedTasks.findIndex(t => t.id === task.id);
+      return index === -1 ? 0 : index + 1;
+    }
+
     async function runBootstrapTask() {
       await runTask(BOOTSTRAP_TASK_ID);
     }
 
     // Render
     function renderBoard() {
-      const columns = ['todo', 'running', 'review', 'done'];
+      const columns = ['todo', 'queued', 'running', 'review', 'done'];
 
       // Map workflow statuses to columns
       // briefing, planning, running all go to the 'running' column
@@ -1094,8 +1310,40 @@
           // Check if task is in any running state
           const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
 
+          // Build progress bar HTML
+          const progress = task.progress || 0;
+          const showProgressBar = progress > 0;
+          const isActive = isRunning;
+
+          // Determine progress level for gradient
+          let progressAttr = '';
+          if (progress <= 25) {
+            progressAttr = 'data-progress-low';
+          } else if (progress <= 50) {
+            progressAttr = 'data-progress-mid';
+          } else if (progress < 100) {
+            progressAttr = 'data-progress-high';
+          } else {
+            progressAttr = 'data-progress-complete';
+          }
+
+          const progressBarHtml = showProgressBar ? `
+            <div class="task-progress-bar">
+              <div class="task-progress-fill ${isActive ? 'active' : ''}"
+                   ${progressAttr}
+                   style="width: ${progress}%"
+                   title="${progress}% complete">
+              </div>
+            </div>
+          ` : '';
+
+          // Calculate queue position for queued tasks
+          const queuePosition = task.status === 'queued' ? getQueuePositionForTask(task) : 0;
+          const queuePositionHtml = queuePosition > 0 ? `<div class="queue-position">${queuePosition}</div>` : '';
+
           return `
-            <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" onclick="openDetailModal('${task.id}', event)">
+            <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
+              ${queuePositionHtml}
               <div class="task-header">
                 <span class="task-title">${bootstrapBadge}${escapeHtml(task.title)}${statusBadge}</span>
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
@@ -1103,13 +1351,21 @@
               ${workflowIndicator}
               <div class="task-context">${contextText}</div>
               <div class="task-actions">
-                ${task.status === 'todo' ? `<button class="btn btn-primary" onclick="runTask('${task.id}')">Run</button>` : ''}
+                ${task.status === 'todo' ? `
+                  <button class="btn" onclick="queueTask('${task.id}')">Queue</button>
+                  <button class="btn btn-primary" onclick="runTask('${task.id}')">Run</button>
+                ` : ''}
+                ${task.status === 'queued' ? `
+                  <button class="btn btn-primary" onclick="runTask('${task.id}')">Run Now</button>
+                  <button class="btn" onclick="unqueueTask('${task.id}')">Dequeue</button>
+                ` : ''}
                 ${isRunning ? `
                   <button class="btn" onclick="openTerminal('${task.id}')">Logs</button>
                   <button class="btn btn-danger" onclick="stopTask('${task.id}')">Stop</button>
                 ` : ''}
-                ${!isRunning ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
+                ${!isRunning && task.status !== 'queued' ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
               </div>
+              ${progressBarHtml}
             </div>
           `;
         }).join('');
@@ -1142,6 +1398,18 @@
       // Prevent dragging to 'running' status
       if (newStatus === 'running') {
         alert('Use the Run button to start a task');
+        return;
+      }
+
+      // Handle queueing via drag-and-drop
+      if (newStatus === 'queued') {
+        const task = board.tasks.find(t => t.id === draggedTaskId);
+        if (task && task.status === 'todo') {
+          queueTask(draggedTaskId);
+        } else if (task) {
+          alert('Only tasks in TODO can be queued');
+        }
+        draggedTaskId = null;
         return;
       }
 
@@ -1256,6 +1524,7 @@
       if (task.status === 'briefing') statusBadge.classList.add('status-briefing');
       else if (task.status === 'planning') statusBadge.classList.add('status-planning');
       else if (task.status === 'running') statusBadge.classList.add('status-running');
+      else if (task.status === 'queued') statusBadge.classList.add('status-queued');
       else if (task.status === 'review') statusBadge.style.backgroundColor = 'var(--accent-yellow)';
       else if (task.status === 'done') statusBadge.style.backgroundColor = 'var(--accent-green)';
 
@@ -1282,7 +1551,8 @@
       // Run button visibility
       const runBtn = document.getElementById('detail-run-btn');
       const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
-      runBtn.style.display = task.status === 'todo' ? 'block' : 'none';
+      runBtn.style.display = (task.status === 'todo' || task.status === 'queued') ? 'block' : 'none';
+      runBtn.textContent = task.status === 'queued' ? 'Run Now' : 'Run Task';
 
       // Load subtasks
       await loadSubtasksForDetail(taskId);
