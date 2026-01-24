@@ -2,8 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Formic - Mission Control</title>
+
+  <!-- PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Formic">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#000000">
+  <meta name="msapplication-TileColor" content="#000000">
+
+  <!-- PWA Manifest & Icons -->
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-192.svg">
+  <link rel="icon" type="image/svg+xml" sizes="192x192" href="/icon-192.svg">
+  <link rel="icon" type="image/svg+xml" sizes="512x512" href="/icon-512.svg">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1986,9 +2000,476 @@
         margin-top: 65px;
       }
     }
+
+    /* ============================================
+       Mobile PWA Overrides
+       ============================================ */
+
+    /* Disable mobile browser defaults */
+    html, body {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: none;
+    }
+
+    body {
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Safe area padding for notched devices */
+    @supports (padding-top: env(safe-area-inset-top)) {
+      body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    }
+
+    /* ============================================
+       Tactical View Styles (Mobile Only)
+       ============================================ */
+
+    /* Hide tactical view on desktop */
+    .tactical-view {
+      display: none;
+    }
+
+    /* Mobile: Show tactical view, hide board */
+    @media (max-width: 767px) {
+      .board {
+        display: none !important;
+      }
+
+      .bootstrap-banner {
+        display: none !important;
+      }
+
+      .floating-actions {
+        display: none !important;
+      }
+
+      .assistant-panel {
+        display: none !important;
+      }
+
+      .assistant-fab {
+        display: none !important;
+      }
+
+      .tactical-view {
+        display: flex !important;
+        flex-direction: column;
+        min-height: 100vh;
+        min-height: 100dvh;
+        background: #000;
+        font-family: 'Courier New', 'Monaco', monospace;
+      }
+    }
+
+    /* Tactical Header */
+    .tactical-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      background: linear-gradient(180deg, rgba(0, 20, 0, 0.9) 0%, rgba(0, 0, 0, 0.95) 100%);
+      border-bottom: 1px solid rgba(34, 197, 94, 0.3);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .tactical-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #22c55e;
+      text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+    }
+
+    .tactical-connection {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .connection-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #6b7280;
+    }
+
+    .connection-dot.connected {
+      background: #22c55e;
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
+      animation: connectionPulse 2s infinite;
+    }
+
+    .connection-dot.disconnected {
+      background: #ef4444;
+      box-shadow: 0 0 8px rgba(239, 68, 68, 0.5);
+    }
+
+    .connection-dot.reconnecting {
+      background: #f59e0b;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+      animation: connectionPulse 0.5s infinite;
+    }
+
+    @keyframes connectionPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .connection-text {
+      color: #6b7280;
+    }
+
+    .connection-text.connected {
+      color: #22c55e;
+    }
+
+    .connection-text.disconnected {
+      color: #ef4444;
+    }
+
+    .connection-text.reconnecting {
+      color: #f59e0b;
+    }
+
+    /* Tactical Content */
+    .tactical-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      padding-bottom: 100px;
+    }
+
+    .tactical-section {
+      margin-bottom: 24px;
+    }
+
+    .tactical-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: rgba(34, 197, 94, 0.7);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    /* Active Agent Card */
+    .tactical-agent-card {
+      background: linear-gradient(135deg, rgba(0, 30, 0, 0.8) 0%, rgba(0, 10, 0, 0.9) 100%);
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      position: relative;
+      overflow: hidden;
+      animation: agentGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes agentGlow {
+      0%, 100% {
+        box-shadow: 0 0 15px -5px rgba(34, 197, 94, 0.4), inset 0 0 20px -10px rgba(34, 197, 94, 0.2);
+      }
+      50% {
+        box-shadow: 0 0 25px -5px rgba(34, 197, 94, 0.6), inset 0 0 30px -10px rgba(34, 197, 94, 0.3);
+      }
+    }
+
+    .tactical-agent-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .tactical-agent-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #22c55e;
+      flex: 1;
+      line-height: 1.4;
+    }
+
+    .tactical-agent-status {
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      background: rgba(34, 197, 94, 0.3);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+
+    .tactical-agent-status.briefing {
+      background: rgba(168, 85, 247, 0.3);
+      color: #c4b5fd;
+      border-color: rgba(168, 85, 247, 0.4);
+    }
+
+    .tactical-agent-status.planning {
+      background: rgba(99, 102, 241, 0.3);
+      color: #a5b4fc;
+      border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .tactical-log-preview {
+      font-size: 12px;
+      color: rgba(34, 197, 94, 0.7);
+      margin-bottom: 12px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 6px;
+      border: 1px solid rgba(34, 197, 94, 0.15);
+      font-family: 'Courier New', monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-height: 40px;
+    }
+
+    .tactical-agent-progress {
+      height: 3px;
+      background: rgba(34, 197, 94, 0.2);
+      border-radius: 2px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .tactical-agent-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #22c55e, #4ade80);
+      box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+      transition: width 0.5s ease-out;
+    }
+
+    .tactical-stop-btn {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tactical-stop-btn:hover, .tactical-stop-btn:active {
+      background: rgba(239, 68, 68, 0.3);
+      border-color: rgba(239, 68, 68, 0.7);
+      box-shadow: 0 0 15px -5px rgba(239, 68, 68, 0.5);
+    }
+
+    /* Quick Action Card */
+    .tactical-action-card {
+      background: linear-gradient(135deg, rgba(20, 20, 20, 0.9) 0%, rgba(10, 10, 10, 0.95) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .tactical-action-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .tactical-action-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 4px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .tactical-action-priority {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      font-weight: 600;
+      display: inline-block;
+    }
+
+    .tactical-action-priority.high {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    .tactical-action-priority.medium {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+    }
+
+    .tactical-action-priority.low {
+      background: rgba(107, 114, 128, 0.2);
+      color: #9ca3af;
+    }
+
+    .tactical-run-btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: 1px solid rgba(34, 197, 94, 0.5);
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .tactical-run-btn:hover, .tactical-run-btn:active {
+      background: rgba(34, 197, 94, 0.3);
+      border-color: rgba(34, 197, 94, 0.7);
+      box-shadow: 0 0 15px -5px rgba(34, 197, 94, 0.5);
+    }
+
+    /* Tactical FAB */
+    .tactical-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: 1px solid rgba(34, 197, 94, 0.5);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.3) 0%, rgba(22, 163, 74, 0.2) 100%);
+      color: #4ade80;
+      font-size: 28px;
+      font-weight: 300;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px -5px rgba(34, 197, 94, 0.5);
+      transition: all 0.2s ease;
+      z-index: 50;
+    }
+
+    .tactical-fab:hover, .tactical-fab:active {
+      transform: scale(1.1);
+      box-shadow: 0 0 30px -5px rgba(34, 197, 94, 0.7);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.4) 0%, rgba(22, 163, 74, 0.3) 100%);
+    }
+
+    /* Hide tactical FAB on desktop */
+    @media (min-width: 768px) {
+      .tactical-fab {
+        display: none !important;
+      }
+    }
+
+    /* Empty state */
+    .tactical-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: rgba(107, 114, 128, 0.7);
+      font-size: 13px;
+    }
+
+    .tactical-empty-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    /* Queued Task Card - Blue tint */
+    .tactical-agent-card.queued {
+      background: linear-gradient(135deg, rgba(0, 10, 30, 0.8) 0%, rgba(0, 5, 15, 0.9) 100%);
+      border-color: rgba(96, 165, 250, 0.4);
+      animation: queuedGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes queuedGlow {
+      0%, 100% {
+        box-shadow: 0 0 15px -5px rgba(96, 165, 250, 0.4), inset 0 0 20px -10px rgba(96, 165, 250, 0.2);
+      }
+      50% {
+        box-shadow: 0 0 25px -5px rgba(96, 165, 250, 0.6), inset 0 0 30px -10px rgba(96, 165, 250, 0.3);
+      }
+    }
+
+    .tactical-agent-card.queued .tactical-agent-title {
+      color: #93c5fd;
+    }
+
+    .tactical-agent-card.queued .tactical-agent-status {
+      background: rgba(96, 165, 250, 0.3);
+      color: #93c5fd;
+      border-color: rgba(96, 165, 250, 0.4);
+    }
+
+    .tactical-agent-card.queued .tactical-log-preview {
+      color: rgba(96, 165, 250, 0.7);
+      border-color: rgba(96, 165, 250, 0.15);
+    }
   </style>
 </head>
 <body>
+  <!-- Tactical View (Mobile Only) -->
+  <div class="tactical-view" id="tactical-view">
+    <header class="tactical-header">
+      <span class="tactical-title">FORMIC // MOBILE</span>
+      <div class="tactical-connection">
+        <span class="connection-dot" id="tactical-connection-dot"></span>
+        <span class="connection-text" id="tactical-connection-text">OFFLINE</span>
+      </div>
+    </header>
+
+    <div class="tactical-content">
+      <!-- Active Agents Section -->
+      <section class="tactical-section" id="tactical-agents-section">
+        <h2 class="tactical-section-title">Active Agents</h2>
+        <div id="tactical-agents-list">
+          <div class="tactical-empty">
+            <div class="tactical-empty-icon">◇</div>
+            <div>No active agents</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Actions Section -->
+      <section class="tactical-section" id="tactical-actions-section">
+        <h2 class="tactical-section-title">Quick Actions</h2>
+        <div id="tactical-actions-list">
+          <div class="tactical-empty">
+            <div class="tactical-empty-icon">◇</div>
+            <div>No pending tasks</div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- FAB for creating new tasks -->
+    <button class="tactical-fab" id="tactical-fab" onclick="openCreateModal()">+</button>
+  </div>
+
   <!-- Floating Action Buttons -->
   <div class="floating-actions">
     <button class="btn theme-toggle" id="theme-toggle" onclick="cycleTheme()" title="Toggle theme">
@@ -2260,6 +2741,19 @@
         fontSize: 13,
         fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
       });
+
+      // Register service worker for PWA
+      if ('serviceWorker' in navigator) {
+        try {
+          await navigator.serviceWorker.register('/sw.js');
+          console.log('[PWA] Service worker registered');
+        } catch (err) {
+          console.error('[PWA] Service worker registration failed:', err);
+        }
+      }
+
+      // Initialize tactical view if on mobile
+      initTacticalView();
     }
 
     // API calls
@@ -3020,6 +3514,316 @@
         toggleAssistant();
       }
     });
+
+    // ============================================
+    // Tactical View (Mobile PWA)
+    // ============================================
+
+    let tacticalWs = null;
+    let tacticalReconnectTimer = null;
+    let tacticalLogCache = {}; // Cache last log line per task
+    const TACTICAL_RECONNECT_DELAY = 3000;
+
+    function isMobileView() {
+      return window.innerWidth < 768;
+    }
+
+    function initTacticalView() {
+      if (!isMobileView()) return;
+
+      // Connect to WebSocket for real-time updates
+      connectTacticalWebSocket();
+
+      // Set up resize listener to handle orientation changes
+      window.addEventListener('resize', handleViewportChange);
+
+      // Initial render
+      renderTacticalView();
+    }
+
+    function handleViewportChange() {
+      const wasMobile = document.querySelector('.tactical-view').style.display !== 'none';
+      const isMobile = isMobileView();
+
+      if (isMobile && !tacticalWs) {
+        connectTacticalWebSocket();
+      } else if (!isMobile && tacticalWs) {
+        disconnectTacticalWebSocket();
+      }
+
+      if (isMobile) {
+        renderTacticalView();
+      }
+    }
+
+    function connectTacticalWebSocket() {
+      if (tacticalWs && tacticalWs.readyState === WebSocket.OPEN) return;
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+      // Get the first running task to connect to its logs
+      const runningTasks = board.tasks.filter(t =>
+        t.status === 'running' || t.status === 'briefing' || t.status === 'planning'
+      );
+
+      if (runningTasks.length === 0) {
+        updateTacticalConnectionStatus('disconnected');
+        return;
+      }
+
+      // Connect to the first running task's logs
+      const taskId = runningTasks[0].id;
+      tacticalWs = new WebSocket(`${protocol}//${window.location.host}/ws/logs/${taskId}`);
+
+      tacticalWs.onopen = () => {
+        console.log('[Tactical] WebSocket connected');
+        updateTacticalConnectionStatus('connected');
+        if (tacticalReconnectTimer) {
+          clearTimeout(tacticalReconnectTimer);
+          tacticalReconnectTimer = null;
+        }
+      };
+
+      tacticalWs.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'stdout' || msg.type === 'history') {
+            // Extract last line for preview
+            const lines = msg.data.split('\n').filter(l => l.trim());
+            if (lines.length > 0) {
+              tacticalLogCache[taskId] = lines[lines.length - 1].slice(0, 100);
+              updateTacticalLogPreview(taskId);
+            }
+          }
+        } catch (e) {
+          console.error('[Tactical] WebSocket message error:', e);
+        }
+      };
+
+      tacticalWs.onclose = () => {
+        console.log('[Tactical] WebSocket disconnected');
+        updateTacticalConnectionStatus('disconnected');
+        tacticalWs = null;
+
+        // Schedule reconnection if still on mobile
+        if (isMobileView()) {
+          updateTacticalConnectionStatus('reconnecting');
+          tacticalReconnectTimer = setTimeout(() => {
+            loadBoard().then(() => {
+              if (isMobileView()) {
+                connectTacticalWebSocket();
+              }
+            });
+          }, TACTICAL_RECONNECT_DELAY);
+        }
+      };
+
+      tacticalWs.onerror = (err) => {
+        console.error('[Tactical] WebSocket error:', err);
+        updateTacticalConnectionStatus('disconnected');
+      };
+    }
+
+    function disconnectTacticalWebSocket() {
+      if (tacticalWs) {
+        tacticalWs.close();
+        tacticalWs = null;
+      }
+      if (tacticalReconnectTimer) {
+        clearTimeout(tacticalReconnectTimer);
+        tacticalReconnectTimer = null;
+      }
+    }
+
+    function updateTacticalConnectionStatus(status) {
+      const dot = document.getElementById('tactical-connection-dot');
+      const text = document.getElementById('tactical-connection-text');
+
+      if (!dot || !text) return;
+
+      dot.className = 'connection-dot ' + status;
+      text.className = 'connection-text ' + status;
+
+      switch (status) {
+        case 'connected':
+          text.textContent = 'ONLINE';
+          break;
+        case 'disconnected':
+          text.textContent = 'OFFLINE';
+          break;
+        case 'reconnecting':
+          text.textContent = 'RECONNECTING...';
+          break;
+      }
+    }
+
+    function updateTacticalLogPreview(taskId) {
+      const logEl = document.getElementById(`tactical-log-${taskId}`);
+      if (logEl && tacticalLogCache[taskId]) {
+        logEl.textContent = tacticalLogCache[taskId];
+      }
+    }
+
+    function renderTacticalView() {
+      if (!isMobileView()) return;
+
+      renderTacticalAgents();
+      renderTacticalActions();
+
+      // Reconnect to WebSocket if we have running tasks
+      const runningTasks = board.tasks.filter(t =>
+        t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'queued'
+      );
+
+      if (runningTasks.length > 0 && (!tacticalWs || tacticalWs.readyState !== WebSocket.OPEN)) {
+        connectTacticalWebSocket();
+      } else if (runningTasks.length === 0) {
+        updateTacticalConnectionStatus('disconnected');
+      }
+    }
+
+    function renderTacticalAgents() {
+      const container = document.getElementById('tactical-agents-list');
+      if (!container) return;
+
+      // Get running and queued tasks
+      const activeTasks = board.tasks.filter(t =>
+        t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'queued'
+      );
+
+      if (activeTasks.length === 0) {
+        container.innerHTML = `
+          <div class="tactical-empty">
+            <div class="tactical-empty-icon">◇</div>
+            <div>No active agents</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = activeTasks.map(task => {
+        const isQueued = task.status === 'queued';
+        const statusLabel = getStatusLabel(task.status);
+        const statusClass = task.status === 'briefing' ? 'briefing' :
+                           task.status === 'planning' ? 'planning' : '';
+        const cardClass = isQueued ? 'tactical-agent-card queued' : 'tactical-agent-card';
+        const logPreview = tacticalLogCache[task.id] || (isQueued ? 'Waiting in queue...' : 'Initializing agent...');
+        const progress = task.progress || 0;
+
+        return `
+          <div class="${cardClass}" data-task-id="${task.id}">
+            <div class="tactical-agent-header">
+              <span class="tactical-agent-title">${escapeHtml(task.title)}</span>
+              <span class="tactical-agent-status ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="tactical-log-preview" id="tactical-log-${task.id}">${escapeHtml(logPreview)}</div>
+            ${!isQueued ? `
+              <div class="tactical-agent-progress">
+                <div class="tactical-agent-progress-fill" style="width: ${progress}%"></div>
+              </div>
+            ` : ''}
+            <button class="tactical-stop-btn" onclick="tacticalStopTask('${task.id}')">
+              ${isQueued ? 'DEQUEUE' : 'STOP AGENT'}
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getStatusLabel(status) {
+      switch (status) {
+        case 'briefing': return 'BRIEFING';
+        case 'planning': return 'PLANNING';
+        case 'running': return 'EXECUTING';
+        case 'queued': return 'QUEUED';
+        default: return status.toUpperCase();
+      }
+    }
+
+    function renderTacticalActions() {
+      const container = document.getElementById('tactical-actions-list');
+      if (!container) return;
+
+      // Get todo tasks (excluding bootstrap if it's completed)
+      const todoTasks = board.tasks.filter(t => t.status === 'todo');
+
+      if (todoTasks.length === 0) {
+        container.innerHTML = `
+          <div class="tactical-empty">
+            <div class="tactical-empty-icon">◇</div>
+            <div>No pending tasks</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = todoTasks.map(task => {
+        return `
+          <div class="tactical-action-card" data-task-id="${task.id}">
+            <div class="tactical-action-info">
+              <div class="tactical-action-title">${escapeHtml(task.title)}</div>
+              <span class="tactical-action-priority ${task.priority}">${task.priority}</span>
+            </div>
+            <button class="tactical-run-btn" onclick="tacticalRunTask('${task.id}')">RUN</button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function tacticalRunTask(taskId) {
+      try {
+        const res = await fetch(`/api/tasks/${taskId}/run`, { method: 'POST' });
+        if (res.ok) {
+          await loadBoard();
+          renderTacticalView();
+        } else {
+          const error = await res.json();
+          alert(error.error || 'Failed to start task');
+        }
+      } catch (err) {
+        console.error('[Tactical] Run task error:', err);
+        alert('Failed to start task');
+      }
+    }
+
+    async function tacticalStopTask(taskId) {
+      try {
+        const task = board.tasks.find(t => t.id === taskId);
+        const isQueued = task && task.status === 'queued';
+
+        if (isQueued) {
+          // Dequeue - move back to todo
+          const res = await fetch(`/api/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'todo' }),
+          });
+          if (res.ok) {
+            await loadBoard();
+            renderTacticalView();
+          }
+        } else {
+          // Stop running task
+          const res = await fetch(`/api/tasks/${taskId}/stop`, { method: 'POST' });
+          if (res.ok) {
+            await loadBoard();
+            renderTacticalView();
+          }
+        }
+      } catch (err) {
+        console.error('[Tactical] Stop task error:', err);
+        alert('Failed to stop task');
+      }
+    }
+
+    // Override loadBoard to also update tactical view
+    const originalLoadBoard = loadBoard;
+    loadBoard = async function() {
+      await originalLoadBoard.apply(this, arguments);
+      if (isMobileView()) {
+        renderTacticalView();
+      }
+    };
   </script>
 </body>
 </html>
