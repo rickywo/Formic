@@ -510,6 +510,14 @@
       background: rgba(0, 0, 0, 0.04);
     }
 
+    [data-theme="light"] .assistant-message.streaming {
+      border-color: rgba(37, 99, 235, 0.3);
+    }
+
+    [data-theme="light"] .streaming-cursor {
+      color: rgba(37, 99, 235, 0.8);
+    }
+
     [data-theme="light"] .assistant-input-area {
       border-top: 1px solid rgba(0, 0, 0, 0.08);
       background: rgba(0, 0, 0, 0.02);
@@ -1537,6 +1545,21 @@
       padding: 0;
     }
 
+    /* Streaming message cursor */
+    .assistant-message.streaming {
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .streaming-cursor {
+      animation: blink 1s step-end infinite;
+      color: rgba(59, 130, 246, 0.8);
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
     .assistant-input-area {
       display: flex;
       gap: 8px;
@@ -2533,6 +2556,8 @@
     let assistantWs = null;
     let assistantSession = { status: 'idle' };
     let assistantMessages = [];
+    let streamingContent = '';  // Accumulates streaming content
+    let isStreaming = false;    // Whether we're currently receiving a stream
 
     function toggleAssistant() {
       const panel = document.getElementById('assistant-panel');
@@ -2576,12 +2601,29 @@
           // Load message history
           assistantMessages = data.messages || [];
           renderAssistantMessages();
+        } else if (data.type === 'stream_delta') {
+          // Streaming content delta - accumulate and show in real-time
+          if (!isStreaming) {
+            isStreaming = true;
+            streamingContent = '';
+            document.getElementById('assistant-fab').classList.add('responding');
+          }
+          streamingContent += data.delta;
+          renderStreamingMessage();
         } else if (data.type === 'message') {
-          // New message received
+          // Complete message received
+          if (isStreaming && data.message.type === 'assistant') {
+            // End of streaming - the full message is now in history
+            isStreaming = false;
+            streamingContent = '';
+            document.getElementById('assistant-fab').classList.remove('responding');
+          }
           assistantMessages.push(data.message);
           renderAssistantMessages();
         } else if (data.type === 'error') {
           console.error('[Assistant] Error:', data.error);
+          isStreaming = false;
+          streamingContent = '';
         }
       };
 
@@ -2618,7 +2660,7 @@
     function renderAssistantMessages() {
       const container = document.getElementById('assistant-messages');
 
-      if (assistantMessages.length === 0) {
+      if (assistantMessages.length === 0 && !isStreaming) {
         container.innerHTML = `
           <div class="assistant-empty">
             <div class="assistant-empty-icon">✨</div>
@@ -2629,13 +2671,26 @@
         return;
       }
 
-      container.innerHTML = assistantMessages.map(msg => {
+      let html = assistantMessages.map(msg => {
         const content = formatMessageContent(msg.content);
         return `<div class="assistant-message ${msg.type}">${content}</div>`;
       }).join('');
 
+      // Add streaming message if active
+      if (isStreaming && streamingContent) {
+        const content = formatMessageContent(streamingContent);
+        html += `<div class="assistant-message assistant streaming">${content}<span class="streaming-cursor">▊</span></div>`;
+      }
+
+      container.innerHTML = html;
+
       // Scroll to bottom
       container.scrollTop = container.scrollHeight;
+    }
+
+    function renderStreamingMessage() {
+      // Re-render with current streaming content
+      renderAssistantMessages();
     }
 
     function formatMessageContent(content) {
