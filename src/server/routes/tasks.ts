@@ -15,6 +15,7 @@ import {
   subtasksExist,
 } from '../services/subtasks.js';
 import { getQueuePosition } from '../services/queueProcessor.js';
+import { broadcastBoardUpdate } from '../services/boardNotifier.js';
 import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../types/index.js';
 
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
@@ -27,6 +28,10 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     const task = await createTask({ title, context, priority });
+
+    // Broadcast board update to all connected clients
+    broadcastBoardUpdate();
+
     return reply.status(201).send(task);
   });
 

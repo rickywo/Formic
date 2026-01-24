@@ -6,6 +6,7 @@ import type { WebSocket } from 'ws';
 import type { AssistantSession, AssistantMessage } from '../../types/index.js';
 import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
 import { loadBoard } from './store.js';
+import { broadcastBoardUpdate } from './boardNotifier.js';
 
 // Session state
 let session: AssistantSession = {
@@ -74,6 +75,11 @@ async function processTaskCreation(content: string): Promise<void> {
     console.log('[AssistantManager] Detected task creation request:', taskData.title);
 
     const result = await createTaskViaAPI(taskData);
+
+    // Broadcast board update to all connected clients so they refresh their view
+    if (result.success) {
+      broadcastBoardUpdate();
+    }
 
     // Broadcast confirmation message
     const confirmMessage: AssistantMessage = {

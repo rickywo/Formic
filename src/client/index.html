@@ -4185,6 +4185,10 @@
           console.error('[Assistant] Error:', data.error);
           isStreaming = false;
           streamingContent = '';
+        } else if (data.type === 'board-updated') {
+          // Board state changed (e.g., task created) - refresh the board
+          console.log('[Assistant] Board updated, refreshing...');
+          loadBoard();
         }
       };
 
@@ -4947,6 +4951,10 @@
           mobileChatStreaming = false;
           mobileChatStreamContent = '';
           document.getElementById('mobile-chat-fab').classList.remove('responding');
+        } else if (data.type === 'board-updated') {
+          // Board state changed (e.g., task created) - refresh the board and tactical view
+          console.log('[MobileChat] Board updated, refreshing...');
+          loadBoard();
         }
       };
 

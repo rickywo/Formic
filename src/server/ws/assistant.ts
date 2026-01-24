@@ -7,6 +7,10 @@ import {
   getMessageHistory,
   sendUserMessage,
 } from '../services/assistantManager.js';
+import {
+  registerBoardConnection,
+  unregisterBoardConnection,
+} from '../services/boardNotifier.js';
 
 export async function assistantWebSocket(fastify: FastifyInstance): Promise<void> {
   fastify.get('/ws/assistant', { websocket: true }, async (connection: SocketStream) => {
@@ -16,6 +20,7 @@ export async function assistantWebSocket(fastify: FastifyInstance): Promise<void
 
     // Register this connection for broadcasts
     registerAssistantConnection(socket);
+    registerBoardConnection(socket);
 
     // Send current status and history on connect
     const session = getAssistantSession();
@@ -50,11 +55,13 @@ export async function assistantWebSocket(fastify: FastifyInstance): Promise<void
     socket.on('close', () => {
       console.log('[AssistantWS] Connection closed');
       unregisterAssistantConnection(socket);
+      unregisterBoardConnection(socket);
     });
 
     socket.on('error', (error) => {
       console.error('[AssistantWS] Socket error:', error);
       unregisterAssistantConnection(socket);
+      unregisterBoardConnection(socket);
     });
   });
 }
