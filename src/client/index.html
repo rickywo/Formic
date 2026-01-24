@@ -432,122 +432,166 @@
       color: rgba(0, 0, 0, 0.7);
     }
 
-    /* Light theme AI Assistant */
+    /* Light theme AI Assistant - Luminous Light Design */
     [data-theme="light"] .assistant-fab {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(139, 92, 246, 0.95));
-      border: 1px solid rgba(0, 0, 0, 0.1);
-      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.7));
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 8px 32px -8px rgba(0, 0, 0, 0.15);
+      color: rgba(0, 0, 0, 0.6);
     }
 
     [data-theme="light"] .assistant-fab:hover {
-      box-shadow: 0 6px 30px rgba(99, 102, 241, 0.5);
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+      border-color: rgba(0, 0, 0, 0.12);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 12px 40px -8px rgba(0, 0, 0, 0.2);
+      color: rgba(0, 0, 0, 0.8);
     }
 
     [data-theme="light"] .assistant-fab.active {
-      background: linear-gradient(135deg, rgba(22, 163, 74, 0.95), rgba(34, 197, 94, 0.95));
-      box-shadow: 0 4px 20px rgba(22, 163, 74, 0.3);
+      background: linear-gradient(135deg, rgba(22, 163, 74, 0.12), rgba(34, 197, 94, 0.08));
+      border-color: rgba(22, 163, 74, 0.2);
+      color: #16a34a;
+      box-shadow: inset 0 1px 0 0 rgba(22, 163, 74, 0.1), 0 0 24px -4px rgba(22, 163, 74, 0.2);
     }
 
     [data-theme="light"] .assistant-panel {
-      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.98), rgba(250, 250, 250, 0.98));
-      border: 1px solid rgba(0, 0, 0, 0.1);
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.98), rgba(252, 252, 252, 0.95));
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.8),
+        0 32px 64px -16px rgba(0, 0, 0, 0.12),
+        0 0 0 1px rgba(0, 0, 0, 0.03);
     }
 
     [data-theme="light"] .assistant-header {
-      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-      background: rgba(0, 0, 0, 0.02);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(0, 0, 0, 0.01);
     }
 
     [data-theme="light"] .assistant-title {
-      color: rgba(0, 0, 0, 0.85);
+      color: rgba(0, 0, 0, 0.45);
     }
 
     [data-theme="light"] .assistant-status.idle {
-      background: rgba(107, 114, 128, 0.12);
+      background: rgba(107, 114, 128, 0.1);
+      border-color: rgba(107, 114, 128, 0.08);
       color: #6b7280;
     }
 
     [data-theme="light"] .assistant-status.running {
-      background: rgba(22, 163, 74, 0.12);
+      background: rgba(22, 163, 74, 0.1);
+      border-color: rgba(22, 163, 74, 0.08);
       color: #16a34a;
     }
 
     [data-theme="light"] .assistant-status.error {
-      background: rgba(220, 38, 38, 0.12);
+      background: rgba(220, 38, 38, 0.1);
+      border-color: rgba(220, 38, 38, 0.08);
       color: #dc2626;
     }
 
     [data-theme="light"] .assistant-message.user {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
-      border: 1px solid rgba(99, 102, 241, 0.15);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+      border: 1px solid rgba(99, 102, 241, 0.12);
+      box-shadow: inset 0 1px 0 0 rgba(99, 102, 241, 0.06);
       color: rgba(0, 0, 0, 0.85);
     }
 
     [data-theme="light"] .assistant-message.assistant {
-      background: rgba(0, 0, 0, 0.03);
+      background: linear-gradient(to bottom right, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.01));
       border: 1px solid rgba(0, 0, 0, 0.05);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
       color: rgba(0, 0, 0, 0.75);
     }
 
     [data-theme="light"] .assistant-message.system {
-      background: rgba(202, 138, 4, 0.08);
-      border: 1px solid rgba(202, 138, 4, 0.1);
+      background: rgba(202, 138, 4, 0.06);
+      border: 1px solid rgba(202, 138, 4, 0.08);
       color: #a16207;
     }
 
     [data-theme="light"] .assistant-message.error {
-      background: rgba(220, 38, 38, 0.08);
-      border: 1px solid rgba(220, 38, 38, 0.1);
+      background: rgba(220, 38, 38, 0.06);
+      border: 1px solid rgba(220, 38, 38, 0.08);
       color: #dc2626;
     }
 
     [data-theme="light"] .assistant-message code {
-      background: rgba(0, 0, 0, 0.06);
+      background: rgba(0, 0, 0, 0.05);
+      border: 1px solid rgba(0, 0, 0, 0.04);
     }
 
     [data-theme="light"] .assistant-message pre {
-      background: rgba(0, 0, 0, 0.04);
+      background: rgba(0, 0, 0, 0.03);
+      border: 1px solid rgba(0, 0, 0, 0.04);
     }
 
     [data-theme="light"] .assistant-message.streaming {
-      border-color: rgba(37, 99, 235, 0.3);
+      border-color: rgba(99, 102, 241, 0.25);
+      box-shadow:
+        inset 0 1px 0 0 rgba(99, 102, 241, 0.06),
+        0 0 20px -8px rgba(99, 102, 241, 0.15);
     }
 
     [data-theme="light"] .streaming-cursor {
-      color: rgba(37, 99, 235, 0.8);
+      background: rgba(99, 102, 241, 0.7);
     }
 
     [data-theme="light"] .assistant-input-area {
-      border-top: 1px solid rgba(0, 0, 0, 0.08);
-      background: rgba(0, 0, 0, 0.02);
+      border-top: 1px solid rgba(0, 0, 0, 0.05);
+      background: rgba(0, 0, 0, 0.015);
     }
 
     [data-theme="light"] .assistant-input {
-      background: rgba(0, 0, 0, 0.03);
+      background: rgba(255, 255, 255, 0.8);
       border: 1px solid rgba(0, 0, 0, 0.1);
       color: var(--text-primary);
     }
 
     [data-theme="light"] .assistant-input:focus {
-      border-color: rgba(99, 102, 241, 0.4);
-      background: rgba(0, 0, 0, 0.05);
+      border-color: rgba(99, 102, 241, 0.35);
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.08);
     }
 
     [data-theme="light"] .assistant-input::placeholder {
-      color: rgba(0, 0, 0, 0.35);
-    }
-
-    [data-theme="light"] .assistant-empty {
       color: rgba(0, 0, 0, 0.3);
     }
 
-    [data-theme="light"] .assistant-shortcut {
+    [data-theme="light"] .assistant-send-btn {
+      background: linear-gradient(to bottom right, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.02));
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      color: rgba(0, 0, 0, 0.7);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.5);
+    }
+
+    [data-theme="light"] .assistant-send-btn:hover {
+      background: linear-gradient(to bottom right, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.03));
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.9);
+    }
+
+    [data-theme="light"] .assistant-empty {
+      color: rgba(0, 0, 0, 0.35);
+    }
+
+    [data-theme="light"] .assistant-empty-icon {
+      background: linear-gradient(to bottom right, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.02));
+      border: 1px solid rgba(0, 0, 0, 0.05);
+      color: rgba(0, 0, 0, 0.35);
+    }
+
+    [data-theme="light"] .assistant-empty-text {
       color: rgba(0, 0, 0, 0.4);
     }
 
+    [data-theme="light"] .assistant-shortcut {
+      color: rgba(0, 0, 0, 0.35);
+    }
+
     [data-theme="light"] .assistant-shortcut kbd {
-      background: rgba(0, 0, 0, 0.06);
+      background: rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(0, 0, 0, 0.04);
     }
 
     * {
@@ -1350,59 +1394,77 @@
       color: rgba(255, 255, 255, 0.7);
     }
 
-    /* AI Assistant Floating Button */
+    /* AI Assistant - Luminous Void Style */
+
+    /* Floating Action Button */
     .assistant-fab {
       position: fixed;
       bottom: 24px;
       right: 24px;
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(168, 85, 247, 0.9));
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: white;
-      font-size: 24px;
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 8px 32px -8px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 20px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
       transition: all 0.3s ease;
       z-index: 50;
-      backdrop-filter: blur(8px);
     }
 
     .assistant-fab:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 30px rgba(99, 102, 241, 0.6);
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04));
+      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08), 0 12px 40px -8px rgba(0, 0, 0, 0.6);
+      transform: translateY(-2px);
+      color: rgba(255, 255, 255, 0.9);
     }
 
     .assistant-fab.active {
-      background: linear-gradient(135deg, rgba(74, 222, 128, 0.9), rgba(34, 197, 94, 0.9));
-      box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+      background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(34, 197, 94, 0.08));
+      border-color: rgba(74, 222, 128, 0.2);
+      color: #86efac;
+      box-shadow: inset 0 1px 0 0 rgba(74, 222, 128, 0.1), 0 0 24px -4px rgba(74, 222, 128, 0.3);
     }
 
     .assistant-fab.responding {
-      animation: fab-pulse 1.5s ease-in-out infinite;
+      animation: fab-glow 2s ease-in-out infinite;
     }
 
-    @keyframes fab-pulse {
-      0%, 100% { box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4); }
-      50% { box-shadow: 0 4px 30px rgba(168, 85, 247, 0.8); }
+    @keyframes fab-glow {
+      0%, 100% {
+        box-shadow: inset 0 1px 0 0 rgba(99, 102, 241, 0.1), 0 0 20px -4px rgba(99, 102, 241, 0.2);
+        border-color: rgba(99, 102, 241, 0.2);
+      }
+      50% {
+        box-shadow: inset 0 1px 0 0 rgba(168, 85, 247, 0.15), 0 0 32px -4px rgba(168, 85, 247, 0.4);
+        border-color: rgba(168, 85, 247, 0.3);
+      }
     }
 
-    /* Assistant Chat Panel */
+    /* Chat Panel - Luminous Glass Panel */
     .assistant-panel {
       position: fixed;
-      bottom: 96px;
+      bottom: 92px;
       right: 24px;
-      width: 400px;
+      width: 420px;
       max-height: 70vh;
-      background: linear-gradient(to bottom right, rgba(20, 20, 20, 0.95), rgba(10, 10, 10, 0.98));
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(24px);
+      background: linear-gradient(to bottom right, rgba(18, 18, 18, 0.95), rgba(8, 8, 8, 0.98));
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 24px;
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.04),
+        0 32px 64px -16px rgba(0, 0, 0, 0.7),
+        0 0 0 1px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
       display: none;
       flex-direction: column;
       z-index: 49;
@@ -1411,15 +1473,28 @@
 
     .assistant-panel.open {
       display: flex;
+      animation: panel-enter 0.25s ease-out;
     }
 
+    @keyframes panel-enter {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Header */
     .assistant-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 16px 20px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      background: rgba(255, 255, 255, 0.01);
     }
 
     .assistant-header-left {
@@ -1429,221 +1504,284 @@
     }
 
     .assistant-title {
-      font-size: 14px;
+      font-size: 11px;
       font-weight: 600;
-      color: rgba(255, 255, 255, 0.9);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.5);
     }
 
+    /* Status Badge - Ghost Pill Style */
     .assistant-status {
-      font-size: 10px;
+      font-size: 9px;
       padding: 4px 10px;
       border-radius: 9999px;
       text-transform: uppercase;
       font-weight: 700;
       letter-spacing: 0.05em;
+      border: 1px solid transparent;
     }
 
     .assistant-status.idle {
-      background: rgba(107, 114, 128, 0.2);
+      background: rgba(107, 114, 128, 0.15);
+      border-color: rgba(107, 114, 128, 0.1);
       color: #9ca3af;
     }
 
     .assistant-status.running {
-      background: rgba(74, 222, 128, 0.2);
+      background: rgba(74, 222, 128, 0.15);
+      border-color: rgba(74, 222, 128, 0.1);
       color: #86efac;
     }
 
     .assistant-status.error {
-      background: rgba(239, 68, 68, 0.2);
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.1);
       color: #fca5a5;
     }
 
     .assistant-header-actions {
       display: flex;
-      gap: 8px;
+      gap: 6px;
     }
 
     .assistant-header-actions .btn {
-      padding: 6px 12px;
-      font-size: 11px;
+      padding: 6px 10px;
+      font-size: 10px;
+      border-radius: 8px;
     }
 
+    /* Messages Container */
     .assistant-messages {
       flex: 1;
       overflow-y: auto;
-      padding: 16px;
+      padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 16px;
       min-height: 200px;
-      max-height: calc(70vh - 140px);
+      max-height: calc(70vh - 150px);
     }
 
+    /* Message Bubbles */
     .assistant-message {
-      padding: 12px 16px;
-      border-radius: 16px;
+      padding: 14px 18px;
+      border-radius: 18px;
       font-size: 13px;
-      line-height: 1.5;
-      max-width: 85%;
+      line-height: 1.6;
+      max-width: 88%;
       word-wrap: break-word;
       white-space: pre-wrap;
+      position: relative;
     }
 
+    /* User Message - Accent Gradient */
     .assistant-message.user {
       align-self: flex-end;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(168, 85, 247, 0.2));
-      border: 1px solid rgba(99, 102, 241, 0.2);
-      color: rgba(255, 255, 255, 0.9);
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.12));
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      box-shadow: inset 0 1px 0 0 rgba(99, 102, 241, 0.1);
+      color: rgba(255, 255, 255, 0.95);
+      border-bottom-right-radius: 6px;
     }
 
+    /* Assistant Message - Subtle Glass */
     .assistant-message.assistant {
       align-self: flex-start;
-      background: rgba(255, 255, 255, 0.05);
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
       border: 1px solid rgba(255, 255, 255, 0.05);
-      color: rgba(255, 255, 255, 0.8);
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.85);
+      border-bottom-left-radius: 6px;
     }
 
+    /* System Message - Minimal Indicator */
     .assistant-message.system {
       align-self: center;
-      background: rgba(251, 191, 36, 0.1);
-      border: 1px solid rgba(251, 191, 36, 0.1);
-      color: rgba(251, 191, 36, 0.9);
-      font-size: 12px;
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.08);
+      color: rgba(251, 191, 36, 0.8);
+      font-size: 11px;
+      font-weight: 500;
       max-width: 100%;
       text-align: center;
+      padding: 10px 16px;
+      border-radius: 12px;
     }
 
+    /* Error Message */
     .assistant-message.error {
       align-self: center;
-      background: rgba(239, 68, 68, 0.1);
+      background: rgba(239, 68, 68, 0.08);
       border: 1px solid rgba(239, 68, 68, 0.1);
-      color: rgba(239, 68, 68, 0.9);
-      font-size: 12px;
+      color: rgba(248, 113, 113, 0.9);
+      font-size: 11px;
+      font-weight: 500;
       max-width: 100%;
       text-align: center;
+      padding: 10px 16px;
+      border-radius: 12px;
     }
 
-    /* Code blocks in messages */
+    /* Code Blocks in Messages */
     .assistant-message code {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: 'Monaco', 'Menlo', monospace;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 7px;
+      border-radius: 6px;
+      font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
       font-size: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .assistant-message pre {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 12px;
-      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 14px 16px;
+      border-radius: 12px;
       overflow-x: auto;
-      margin: 8px 0;
+      margin: 10px 0;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .assistant-message pre code {
       background: none;
       padding: 0;
+      border: none;
     }
 
-    /* Streaming message cursor */
+    /* Streaming State */
     .assistant-message.streaming {
-      border-color: rgba(59, 130, 246, 0.3);
+      border-color: rgba(139, 92, 246, 0.25);
+      box-shadow:
+        inset 0 1px 0 0 rgba(139, 92, 246, 0.08),
+        0 0 20px -8px rgba(139, 92, 246, 0.2);
     }
 
     .streaming-cursor {
-      animation: blink 1s step-end infinite;
-      color: rgba(59, 130, 246, 0.8);
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: rgba(139, 92, 246, 0.8);
       margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: cursor-blink 1s step-end infinite;
     }
 
-    @keyframes blink {
+    @keyframes cursor-blink {
       50% { opacity: 0; }
     }
 
+    /* Input Area */
     .assistant-input-area {
       display: flex;
-      gap: 8px;
-      padding: 16px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      background: rgba(255, 255, 255, 0.02);
+      gap: 10px;
+      padding: 16px 20px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      background: rgba(0, 0, 0, 0.15);
     }
 
     .assistant-input {
       flex: 1;
       padding: 12px 16px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
       color: var(--text-primary);
       font-size: 13px;
+      font-family: inherit;
       resize: none;
       min-height: 44px;
       max-height: 120px;
+      transition: all 0.2s ease;
     }
 
     .assistant-input:focus {
       outline: none;
-      border-color: rgba(99, 102, 241, 0.5);
-      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
     }
 
     .assistant-input::placeholder {
-      color: rgba(255, 255, 255, 0.3);
+      color: rgba(255, 255, 255, 0.25);
     }
 
+    /* Send Button */
     .assistant-send-btn {
-      padding: 12px 20px;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.8), rgba(168, 85, 247, 0.8));
-      border: none;
-      border-radius: 12px;
-      color: white;
-      font-size: 13px;
+      padding: 0 18px;
+      min-width: 70px;
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
+      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
     }
 
     .assistant-send-btn:hover {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 1), rgba(168, 85, 247, 1));
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+      border-color: rgba(255, 255, 255, 0.15);
+      color: white;
+      transform: translateY(-1px);
+    }
+
+    .assistant-send-btn:active {
+      transform: translateY(0);
     }
 
     .assistant-send-btn:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
+      transform: none;
     }
 
+    /* Empty State */
     .assistant-empty {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 12px;
-      padding: 40px;
-      color: rgba(255, 255, 255, 0.3);
+      gap: 16px;
+      padding: 48px 32px;
       text-align: center;
     }
 
     .assistant-empty-icon {
-      font-size: 32px;
-      opacity: 0.5;
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: rgba(255, 255, 255, 0.4);
     }
 
     .assistant-empty-text {
       font-size: 13px;
+      color: rgba(255, 255, 255, 0.4);
+      line-height: 1.5;
     }
 
     .assistant-shortcut {
       font-size: 11px;
-      color: rgba(255, 255, 255, 0.4);
-      margin-top: 8px;
+      color: rgba(255, 255, 255, 0.3);
+      margin-top: 4px;
     }
 
     .assistant-shortcut kbd {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 2px 6px;
-      border-radius: 4px;
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 3px 7px;
+      border-radius: 6px;
       font-family: inherit;
       font-size: 10px;
+      margin: 0 2px;
     }
 
     /* Responsive Design */
@@ -1920,7 +2058,7 @@
     </div>
     <div class="assistant-messages" id="assistant-messages">
       <div class="assistant-empty">
-        <div class="assistant-empty-icon">✨</div>
+        <div class="assistant-empty-icon">◇</div>
         <div class="assistant-empty-text">Start a conversation with Claude Code</div>
         <div class="assistant-shortcut">Press <kbd>⌘</kbd><kbd>K</kbd> to toggle</div>
       </div>
@@ -1933,7 +2071,9 @@
 
   <!-- AI Assistant Floating Action Button -->
   <button class="assistant-fab" id="assistant-fab" onclick="toggleAssistant()" title="AI Assistant (⌘K)">
-    ✨
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+    </svg>
   </button>
 
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
@@ -2663,7 +2803,7 @@
       if (assistantMessages.length === 0 && !isStreaming) {
         container.innerHTML = `
           <div class="assistant-empty">
-            <div class="assistant-empty-icon">✨</div>
+            <div class="assistant-empty-icon">◇</div>
             <div class="assistant-empty-text">Start a conversation with Claude Code</div>
             <div class="assistant-shortcut">Press <kbd>⌘</kbd><kbd>K</kbd> to toggle</div>
           </div>
