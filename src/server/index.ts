@@ -5,7 +5,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { boardRoutes } from './routes/board.js';
 import { taskRoutes } from './routes/tasks.js';
+import { assistantRoutes } from './routes/assistant.js';
 import { logsWebSocket } from './ws/logs.js';
+import { assistantWebSocket } from './ws/assistant.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
 import { startQueueProcessor, getQueueProcessorConfig } from './services/queueProcessor.js';
 
@@ -35,9 +37,11 @@ async function main() {
   // Register API routes
   await fastify.register(boardRoutes);
   await fastify.register(taskRoutes);
+  await fastify.register(assistantRoutes);
 
   // Register WebSocket routes
   await fastify.register(logsWebSocket);
+  await fastify.register(assistantWebSocket);
 
   // Health check endpoint
   fastify.get('/health', async () => ({ status: 'ok' }));

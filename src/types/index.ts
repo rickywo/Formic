@@ -79,3 +79,19 @@ export interface SubtasksFile {
   updatedAt: string;
   subtasks: Subtask[];
 }
+
+// AI Assistant Types
+export type AssistantStatus = 'idle' | 'running' | 'error';
+
+export interface AssistantMessage {
+  type: 'user' | 'assistant' | 'system' | 'error';
+  content: string;
+  timestamp: string;
+}
+
+export interface AssistantSession {
+  status: AssistantStatus;
+  pid: number | null;
+  startedAt: string | null;
+  lastError: string | null;
+}
