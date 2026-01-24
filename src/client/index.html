@@ -2014,6 +2014,8 @@
     body {
       -webkit-touch-callout: none;
       -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
     }
 
     /* Safe area padding for notched devices */
@@ -2037,6 +2039,11 @@
 
     /* Mobile: Show tactical view, hide board */
     @media (max-width: 767px) {
+      body {
+        -webkit-user-select: none !important;
+        user-select: none !important;
+      }
+
       .board {
         display: none !important;
       }
