@@ -1,14 +1,16 @@
-# Product Specification: Formic v1
+# Product Specification: Formic v0.3.0
 
 ## 1. Executive Summary
 
 | Attribute | Value |
 |-----------|-------|
 | Product Name | Formic |
-| Version | 1.0 |
+| Version | 0.3.0 |
 | Type | Local-First Agent Orchestration & Execution Environment |
 | Target Audience | Developers using AI coding agents for project development |
 | Supported Agents | Claude Code CLI, GitHub Copilot CLI |
+| Platform | PWA (Mobile, Tablet, Desktop) |
+| Remote Access | Tailscale-compatible |
 
 ### Core Concept
 
@@ -24,6 +26,16 @@ Formic supports multiple AI coding agents through a unified abstraction layer:
 | GitHub Copilot CLI | `copilot` | GitHub OAuth | `.claude/skills/` |
 
 Both agents support the same skill format (`SKILL.md` with YAML frontmatter), enabling seamless switching between agents without workflow changes.
+
+### v0.3.0 New Features
+
+| Feature | Description |
+|---------|-------------|
+| **Progressive Web App (PWA)** | Full offline-capable PWA with mobile-first design, installable on any device |
+| **AI Task Manager** | Conversational interface for task creation with deep codebase understanding |
+| **Autonomous Queue Processing** | Continuous agent execution without manual triggers |
+| **Remote Development** | Tailscale-compatible for secure remote access from anywhere |
+| **Mobile-First UI** | Touch-optimized interface with responsive design |
 
 ---
 
@@ -395,7 +407,154 @@ interface Task {
 }
 ```
 
-### 2.3 Agent Abstraction Layer
+### 2.9 Progressive Web App (PWA) Architecture
+
+Formic is designed as a Progressive Web App, enabling installation on any device and providing a native-like experience.
+
+**PWA Manifest Configuration:**
+```json
+{
+  "name": "Formic - Agent Orchestration",
+  "short_name": "Formic",
+  "description": "Mission Control for AI coding agents",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#58a6ff",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
+```
+
+**Service Worker Features:**
+- Asset caching for offline-capable UI
+- Background sync for task operations
+- Push notification readiness (future)
+
+**Mobile-First Design Principles:**
+- Touch-optimized controls (minimum 44px tap targets)
+- Responsive layout adapts to screen size
+- Bottom navigation for thumb-friendly access
+- Pull-to-refresh for board updates
+- Swipe gestures for task management
+
+**Remote Access via Tailscale:**
+
+Formic is designed to work seamlessly with Tailscale for secure remote development:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Mobile Device (PWA)                                        │
+│  └── Tailscale VPN ──────────────────────┐                  │
+│                                          ↓                  │
+│                              Development Machine            │
+│                              └── Formic Server (port 8000)  │
+│                                  └── Claude Code / Copilot  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+Users can:
+1. Install Tailscale on both mobile device and development machine
+2. Access Formic via Tailscale IP (e.g., `http://100.x.x.x:8000`)
+3. Create tasks, monitor progress, and review code from anywhere
+
+### 2.10 AI Task Manager
+
+The AI Task Manager provides a conversational interface for task creation, leveraging deep understanding of the repository context.
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User: "Add user profile editing"                           │
+│                         ↓                                   │
+│  AI Task Manager receives natural language request          │
+│                         ↓                                   │
+│  Analyzes repository:                                       │
+│  • File structure and patterns                              │
+│  • Existing components and services                         │
+│  • Coding conventions (from development guidelines)         │
+│  • Related existing functionality                           │
+│                         ↓                                   │
+│  Generates optimized task:                                  │
+│  • Clear title                                              │
+│  • Context-rich prompt with file references                 │
+│  • Appropriate priority suggestion                          │
+│                         ↓                                   │
+│  Task created and queued for agent processing               │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**API Endpoint:**
+```typescript
+POST /api/chat
+{
+  "message": "Add user profile editing with avatar upload"
+}
+
+Response:
+{
+  "response": "I'll create a task for adding user profile editing...",
+  "task": {
+    "id": "t-15",
+    "title": "Implement user profile editing with avatar upload",
+    "context": "...(optimized prompt with codebase context)...",
+    "priority": "medium"
+  }
+}
+```
+
+**Context Injection:**
+The AI Task Manager automatically includes:
+- Relevant file paths based on the request
+- Existing patterns for similar functionality
+- Project-specific guidelines from `kanban-development-guideline.md`
+- API structure and data models
+
+### 2.11 Autonomous Queue Processing
+
+Tasks in the queue are processed automatically without manual intervention.
+
+**Queue Processor Behavior:**
+```typescript
+// Configuration
+QUEUE_ENABLED=true          // Enable/disable auto-processing
+QUEUE_POLL_INTERVAL=5000    // Check queue every 5 seconds
+MAX_CONCURRENT_TASKS=1      // Tasks running simultaneously
+
+// Processing loop
+┌─────────────────────────────────────────────────────────────┐
+│  Queue Processor (background service)                       │
+│                         ↓                                   │
+│  Check: Any tasks in 'queued' status?                       │
+│         ↓ YES                    ↓ NO                       │
+│  Check: Running tasks < MAX_CONCURRENT?                     │
+│         ↓ YES                    ↓ NO                       │
+│  Dequeue highest priority task (FIFO within priority)       │
+│         ↓                        Wait for slot              │
+│  Start workflow: Brief → Plan → Execute                     │
+│         ↓                                                   │
+│  On completion: Move to 'review'                            │
+│         ↓                                                   │
+│  Loop continues...                                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Priority Ordering:**
+1. `high` priority tasks (oldest first)
+2. `medium` priority tasks (oldest first)
+3. `low` priority tasks (oldest first)
+
+**WebSocket Notifications:**
+The queue processor broadcasts status updates to all connected clients:
+```typescript
+// Board update notification
+{ "type": "board_updated", "reason": "task_started", "taskId": "t-15" }
+{ "type": "board_updated", "reason": "task_completed", "taskId": "t-15" }
+```
+
+### 2.12 Agent Abstraction Layer
 
 Formic implements a pluggable agent system that supports multiple AI coding assistants through a unified interface.
 
@@ -447,11 +606,11 @@ description: Generates implementation plan for a Formic task.
 
 The `name` field is required for GitHub Copilot CLI compatibility. Both agents load skills from the `.claude/skills/` directory.
 
-### 2.4 Container Strategy
+### 2.13 Container Strategy
 
 Single Node.js container serving both API and static frontend. The container requires the configured agent CLI installed globally (Claude Code or GitHub Copilot CLI).
 
-### 2.5 Volume Requirements
+### 2.14 Volume Requirements
 
 | Volume | Container Path | Purpose |
 |--------|----------------|---------|
@@ -680,18 +839,49 @@ This ensures the agent:
 | POST | `/api/tasks/:id/run` | Start agent | - | `{status, pid}` |
 | POST | `/api/tasks/:id/stop` | Stop agent | - | `{status}` |
 
-### 5.2 WebSocket Endpoints
+### 5.2 AI Task Manager Endpoint
+
+| Method | Path | Description | Request Body | Response |
+|--------|------|-------------|--------------|----------|
+| POST | `/api/chat` | Create task via conversation | `{message: string}` | `{response: string, task?: Task}` |
+
+**Request Example:**
+```json
+{
+  "message": "Add a dark mode toggle to the settings page"
+}
+```
+
+**Response Example:**
+```json
+{
+  "response": "I'll create a task for adding a dark mode toggle to the settings page. Based on the codebase, I see you're using Tailwind CSS and have a Settings component at src/components/Settings.tsx.",
+  "task": {
+    "id": "t-16",
+    "title": "Add dark mode toggle to settings page",
+    "context": "Add a dark mode toggle switch to the Settings component...",
+    "priority": "medium",
+    "status": "queued"
+  }
+}
+```
+
+### 5.3 WebSocket Endpoints
 
 | Path | Purpose | Message Format |
 |------|---------|----------------|
 | `/ws/logs/:taskId` | Stream agent output | `{type: "stdout" \| "stderr", data: string}` |
+| `/ws/board` | Board update notifications | `{type: "board_updated", reason: string, taskId?: string}` |
 
-### 5.3 Static Files
+### 5.4 Static Files
 
 | Path | Serves |
 |------|--------|
 | `/` | `src/client/index.html` |
 | `/static/*` | Static assets (CSS, JS if separated) |
+| `/manifest.json` | PWA manifest |
+| `/sw.js` | Service worker |
+| `/icons/*` | PWA app icons |
 
 ---
 
@@ -879,30 +1069,65 @@ services:
 - [x] Update frontend to display subtask progress
 - [x] Remove CHECKLIST.md template and related code
 
-### Phase 10: Multi-Agent Support 🚧
-- [ ] Create agent abstraction layer (`agentAdapter.ts`):
+### Phase 10: Multi-Agent Support ✅
+- [x] Create agent abstraction layer (`agentAdapter.ts`):
   - Define `AgentConfig` interface
   - Implement agent-specific CLI flag builders
   - Support Claude Code and GitHub Copilot CLI
-- [ ] Update skill files for cross-agent compatibility:
+- [x] Update skill files for cross-agent compatibility:
   - Add `name` field to SKILL.md frontmatter
   - Change skills directory from `.claude/commands/` to `.claude/skills/`
-- [ ] Update workflow services:
+- [x] Update workflow services:
   - `workflow.ts`: Use agent adapter for process spawning
   - `runner.ts`: Use agent adapter for process spawning
-- [ ] Update path utilities:
+- [x] Update path utilities:
   - `paths.ts`: Change to `.claude/skills/` directory
   - `skills.ts`: Update skill copying and discovery
-- [ ] Add environment variable support:
+- [x] Add environment variable support:
   - `AGENT_TYPE`: Select agent type (`claude` or `copilot`)
   - Document authentication requirements per agent
-- [ ] Update documentation:
+- [x] Update documentation:
   - README.md: Multi-agent setup instructions
   - SPEC.md: Agent abstraction architecture
-- [ ] Test with both agents:
+- [x] Test with both agents:
   - Verify skill loading works with both CLIs
   - Verify workflow execution completes successfully
   - Verify output parsing is agent-agnostic
+
+### Phase 11: Progressive Web App (PWA) ✅
+- [x] Create PWA manifest (`manifest.json`)
+- [x] Implement service worker for asset caching
+- [x] Add mobile-first responsive design
+- [x] Optimize touch interactions (44px+ tap targets)
+- [x] Add app icons for all platforms (iOS, Android, desktop)
+- [x] Implement pull-to-refresh for board updates
+- [x] Add bottom navigation for mobile
+- [x] Test installation on iOS, Android, and desktop
+
+### Phase 12: AI Task Manager ✅
+- [x] Create chat API endpoint (`POST /api/chat`)
+- [x] Implement repository context analysis
+- [x] Build prompt optimization engine
+- [x] Create chat UI component (mobile-first)
+- [x] Integrate with task creation flow
+- [x] Add conversation history (session-based)
+- [x] Test with various natural language inputs
+
+### Phase 13: Autonomous Queue Processing ✅
+- [x] Implement queue processor background service
+- [x] Add priority-based task ordering
+- [x] Create WebSocket notifications for queue events
+- [x] Add queue position display on task cards
+- [x] Implement automatic task pickup on completion
+- [x] Add configuration options (poll interval, concurrency)
+- [x] Test continuous processing workflow
+
+### Phase 14: Remote Development Support ✅
+- [x] Validate Tailscale compatibility
+- [x] Add network-agnostic WebSocket connections
+- [x] Optimize for high-latency connections
+- [x] Document remote access setup
+- [x] Test mobile-to-desktop workflow
 
 ---
 
@@ -918,13 +1143,15 @@ services:
 
 ---
 
-## 10. Future Considerations (v2+)
+## 10. Future Considerations (v1.0+)
 
-- Multi-agent concurrency with queue management
 - Task dependencies and workflows
-- Multiple project support
+- Multiple project support (project switcher)
 - Agent conversation history persistence
 - Git integration (auto-commit, branch per task)
 - Custom agent configurations
 - Cloud deployment option with authentication
-- React frontend migration for complex interactions
+- Push notifications for task completion
+- Team collaboration (multiple users, permissions)
+- Voice input for task creation
+- Offline task queue (sync when online)
