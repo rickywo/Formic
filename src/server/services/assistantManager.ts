@@ -28,6 +28,75 @@ const MAX_HISTORY = 100;
 // Flag to track if this is the first message (don't use --continue)
 let isFirstMessage = true;
 
+// Pattern to detect task creation in assistant responses
+const TASK_CREATE_PATTERN = /```task-create\n([\s\S]*?)\n```/;
+
+// Get the server port for API calls
+const getServerPort = () => parseInt(process.env.PORT || '8000', 10);
+
+/**
+ * Create a task via the Formic API
+ */
+async function createTaskViaAPI(taskData: { title: string; context: string; priority?: string }): Promise<{ success: boolean; taskId?: string; error?: string }> {
+  try {
+    const port = getServerPort();
+    const response = await fetch(`http://localhost:${port}/api/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(taskData),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[AssistantManager] Task creation failed:', errorText);
+      return { success: false, error: errorText };
+    }
+
+    const result = await response.json() as { id: string };
+    console.log('[AssistantManager] Task created:', result.id);
+    return { success: true, taskId: result.id };
+  } catch (error) {
+    const err = error as Error;
+    console.error('[AssistantManager] Task creation error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Process assistant response content for task creation commands
+ */
+async function processTaskCreation(content: string): Promise<void> {
+  const match = content.match(TASK_CREATE_PATTERN);
+  if (!match) return;
+
+  try {
+    const taskData = JSON.parse(match[1]) as { title: string; context: string; priority?: string };
+    console.log('[AssistantManager] Detected task creation request:', taskData.title);
+
+    const result = await createTaskViaAPI(taskData);
+
+    // Broadcast confirmation message
+    const confirmMessage: AssistantMessage = {
+      type: 'system',
+      content: result.success
+        ? `Task created: "${taskData.title}" [${result.taskId}]`
+        : `Failed to create task: ${result.error}`,
+      timestamp: new Date().toISOString(),
+    };
+    broadcastMessage(confirmMessage);
+  } catch (error) {
+    const err = error as Error;
+    console.error('[AssistantManager] Failed to parse task data:', err.message);
+
+    const errorMessage: AssistantMessage = {
+      type: 'system',
+      content: `Failed to parse task creation request: ${err.message}`,
+      timestamp: new Date().toISOString(),
+    };
+    broadcastMessage(errorMessage);
+  }
+}
+
 /**
  * Register a WebSocket connection for assistant messages
  */
@@ -104,13 +173,9 @@ export function getMessageHistory(): AssistantMessage[] {
  * Generate the context file (.formic/CLAUDE.md) with API docs and board state
  */
 export async function generateContextFile(): Promise<string> {
-  const formicDir = getFormicDir();
-  const contextPath = path.join(formicDir, 'CLAUDE.md');
-
-  // Ensure .formic directory exists
-  if (!existsSync(formicDir)) {
-    await mkdir(formicDir, { recursive: true });
-  }
+  const workspacePath = getWorkspacePath();
+  // Put CLAUDE.md at the workspace root so Claude Code CLI reads it automatically
+  const contextPath = path.join(workspacePath, 'CLAUDE.md');
 
   // Load current board state
   const board = await loadBoard();
@@ -136,9 +201,49 @@ export async function generateContextFile(): Promise<string> {
     .map(([status, tasks]) => `### ${status.charAt(0).toUpperCase() + status.slice(1)}\n${tasks.join('\n')}`)
     .join('\n\n');
 
-  const contextContent = `# Formic AI Assistant Context
+  const contextContent = `# Formic Task Manager Assistant
 
-You are an AI assistant integrated with Formic, a local-first agent orchestration platform. You can help users manage their kanban board, create tasks, and provide software development guidance.
+You are the **Formic Task Manager**, an AI assistant focused on helping users:
+1. **Brainstorm** ideas for features, improvements, and fixes
+2. **Analyze** the codebase (read-only) to understand context
+3. **Create tasks** with well-crafted prompts for the Formic workflow
+
+## Your Capabilities
+
+### What You CAN Do:
+- Read and explore files in the codebase
+- Search for code patterns and understand architecture
+- Discuss ideas and help refine requirements
+- Create Formic tasks with optimized descriptions
+- View the current board state and task queue
+
+### What You CANNOT Do:
+- Write, edit, or delete files
+- Execute commands that modify the system
+- Directly implement features (that's what tasks are for)
+
+## Creating Tasks
+
+When the user is ready to create a task, output it in this exact format:
+
+\`\`\`task-create
+{
+  "title": "Short, action-oriented title",
+  "context": "Detailed description with what needs to be done, why it's needed, technical considerations, and acceptance criteria",
+  "priority": "medium"
+}
+\`\`\`
+
+The server will automatically detect this format and create the task via the Formic API.
+
+### Task Prompt Best Practices:
+1. **Title**: Start with a verb (Add, Implement, Fix, Update, Refactor)
+2. **Context**: Be specific about requirements, constraints, and expected outcomes. Include:
+   - What needs to be done (clear requirements)
+   - Why it's needed (motivation/problem being solved)
+   - Technical considerations (files to modify, patterns to follow)
+   - Acceptance criteria (how to verify it's done)
+3. **Priority**: high (urgent/blocking), medium (normal), low (nice-to-have)
 
 ## Current Board State
 
@@ -147,76 +252,24 @@ You are an AI assistant integrated with Formic, a local-first agent orchestratio
 
 ${taskSummary || 'No tasks on the board yet.'}
 
-## Formic API Reference
+## Formic Workflow
 
-All endpoints are available at \`http://localhost:8000\`.
-
-### Board Operations
-
-\`\`\`bash
-# Get board state
-curl http://localhost:8000/api/board
-
-# Health check
-curl http://localhost:8000/health
-\`\`\`
-
-### Task Operations
-
-\`\`\`bash
-# Create a new task
-curl -X POST http://localhost:8000/api/tasks \\
-  -H "Content-Type: application/json" \\
-  -d '{"title": "Task title", "context": "Description", "priority": "medium"}'
-
-# Queue a task (adds to automated queue)
-curl -X POST http://localhost:8000/api/tasks/{taskId}/queue
-
-# Run a task immediately (starts workflow: brief -> plan -> execute)
-curl -X POST http://localhost:8000/api/tasks/{taskId}/run
-
-# Stop a running task
-curl -X POST http://localhost:8000/api/tasks/{taskId}/stop
-
-# Update a task
-curl -X PUT http://localhost:8000/api/tasks/{taskId} \\
-  -H "Content-Type: application/json" \\
-  -d '{"status": "done", "priority": "high"}'
-
-# Delete a task
-curl -X DELETE http://localhost:8000/api/tasks/{taskId}
-\`\`\`
-
-### Task Statuses
-
-- **todo**: Not started
-- **queued**: Waiting in priority queue for automated execution
+Tasks go through these stages:
+- **todo**: Not started, waiting to be queued
+- **queued**: In priority queue for automated execution
 - **briefing**: AI is generating the feature specification (README.md)
 - **planning**: AI is creating the implementation plan (PLAN.md, subtasks.json)
 - **running**: AI is executing the implementation
 - **review**: Completed, awaiting human review
 - **done**: Completed and approved
 
-### Priority Levels
+## How to Work with Users
 
-- **high**: Executed first in the queue
-- **medium**: Default priority
-- **low**: Executed last
-
-## Best Practices
-
-1. **Creating Tasks**: Provide clear, specific context describing what needs to be done
-2. **Priority**: Use 'high' for urgent bugs or blockers, 'medium' for features, 'low' for nice-to-haves
-3. **Task Size**: Keep tasks focused on a single feature or fix for better AI execution
-4. **Review**: Always review AI-generated code before moving tasks to 'done'
-
-## Commands You Can Help With
-
-- Creating new tasks with appropriate priorities
-- Explaining the current board state
-- Suggesting how to break down large features into smaller tasks
-- Answering questions about the Formic workflow
-- Providing coding assistance and architecture advice
+1. **Listen and Understand**: Ask clarifying questions to understand requirements
+2. **Explore the Codebase**: Use your read-only tools to understand existing patterns
+3. **Brainstorm Solutions**: Discuss approaches, trade-offs, and considerations
+4. **Craft the Task**: When ready, create a well-structured task with clear context
+5. **Iterate**: Refine the task description based on user feedback before finalizing
 `;
 
   await writeFile(contextPath, contextContent, 'utf-8');
@@ -259,12 +312,13 @@ function processMessage(content: string): void {
 
   const workspacePath = getWorkspacePath();
 
-  // Build command args
+  // Build command args - read-only tools for Task Manager role
   const args = [
     '--print',                          // Non-interactive print mode
     '--output-format', 'stream-json',   // Stream JSON output
     '--verbose',                        // Required for stream-json
-    '--dangerously-skip-permissions',   // Required for non-interactive mode
+    '--allowedTools', 'Read,Glob,Grep,LS,WebSearch,WebFetch',  // Read-only tools only
+    '--dangerously-skip-permissions',   // Auto-accept (only for allowed tools above)
   ];
 
   // Use --continue for subsequent messages to maintain conversation context
@@ -354,6 +408,11 @@ function processMessage(content: string): void {
             };
             broadcastMessage(message);
             console.log('[AssistantManager] Response:', finalContent.substring(0, 100));
+
+            // Check for task creation commands in the response
+            processTaskCreation(finalContent).catch(err => {
+              console.error('[AssistantManager] Task creation processing error:', err);
+            });
           }
         } else if (eventType === 'system') {
           // Session init event
@@ -393,6 +452,11 @@ function processMessage(content: string): void {
               timestamp: new Date().toISOString(),
             };
             broadcastMessage(message);
+
+            // Check for task creation commands in the response
+            processTaskCreation(content).catch(err => {
+              console.error('[AssistantManager] Task creation processing error:', err);
+            });
           }
         }
       } catch {
@@ -440,7 +504,7 @@ export async function startAssistant(): Promise<AssistantSession> {
     // Send welcome message
     const welcomeMessage: AssistantMessage = {
       type: 'system',
-      content: 'Claude Code assistant ready. Type your message below.',
+      content: 'Formic Task Manager ready. I can help you brainstorm ideas, explore the codebase, and create well-crafted tasks.',
       timestamp: new Date().toISOString(),
     };
     broadcastMessage(welcomeMessage);
