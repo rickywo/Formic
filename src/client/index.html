@@ -2787,7 +2787,7 @@
        ============================================ */
     .mobile-chat-fab {
       position: fixed;
-      bottom: 24px;
+      bottom: calc(24px + env(safe-area-inset-bottom, 0px));
       left: 24px;
       width: 52px;
       height: 52px;
@@ -2802,7 +2802,6 @@
       box-shadow: 0 0 16px -4px rgba(34, 197, 94, 0.4);
       transition: all 0.2s ease;
       z-index: 50;
-      padding-bottom: env(safe-area-inset-bottom, 0px);
     }
 
     @media (max-width: 767px) {
