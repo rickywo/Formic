@@ -222,6 +222,37 @@
       border: 1px solid rgba(220, 38, 38, 0.15);
     }
 
+    /* Light theme create task card */
+    [data-theme="light"] .create-task-card {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.03));
+      border: 2px dashed rgba(99, 102, 241, 0.25);
+    }
+
+    [data-theme="light"] .create-task-card:hover {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.06));
+      border-color: rgba(99, 102, 241, 0.4);
+      box-shadow: 0 8px 25px -5px rgba(99, 102, 241, 0.15);
+    }
+
+    [data-theme="light"] .create-task-card .create-icon {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      color: rgba(99, 102, 241, 0.7);
+    }
+
+    [data-theme="light"] .create-task-card:hover .create-icon {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+      color: rgba(99, 102, 241, 0.9);
+    }
+
+    [data-theme="light"] .create-task-card .create-label {
+      color: rgba(99, 102, 241, 0.7);
+    }
+
+    [data-theme="light"] .create-task-card:hover .create-label {
+      color: rgba(99, 102, 241, 0.9);
+    }
+
     /* Light theme workflow steps */
     [data-theme="light"] .workflow-step {
       background-color: rgba(0, 0, 0, 0.05);
@@ -812,6 +843,62 @@
 
     .task-card.dragging {
       opacity: 0.5;
+    }
+
+    /* Create Task Card - Special styling */
+    .create-task-card {
+      position: relative;
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04));
+      border: 2px dashed rgba(99, 102, 241, 0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .create-task-card:hover {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
+      border-color: rgba(99, 102, 241, 0.5);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px -5px rgba(99, 102, 241, 0.2);
+    }
+
+    .create-task-card .create-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+      border: 1px solid rgba(99, 102, 241, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 300;
+      color: rgba(99, 102, 241, 0.8);
+      transition: all 0.3s ease;
+    }
+
+    .create-task-card:hover .create-icon {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.25));
+      transform: scale(1.1);
+      color: rgba(99, 102, 241, 1);
+    }
+
+    .create-task-card .create-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(99, 102, 241, 0.8);
+      letter-spacing: 0.02em;
+    }
+
+    .create-task-card:hover .create-label {
+      color: rgba(99, 102, 241, 1);
     }
 
     .task-header {
@@ -1908,7 +1995,6 @@
       <span class="theme-icon" id="theme-icon"></span>
       <span class="theme-label" id="theme-label">Dark</span>
     </button>
-    <button class="btn btn-primary" onclick="openCreateModal()">+ New Task</button>
   </div>
 
   <div class="bootstrap-banner hidden" id="bootstrap-banner">
@@ -2318,12 +2404,20 @@
 
         document.getElementById(`${column}-count`).textContent = tasks.length;
 
+        // Create task card for TODO column (always shown as first item)
+        const createTaskCardHtml = column === 'todo' ? `
+          <div class="create-task-card" onclick="openCreateModal()">
+            <div class="create-icon">+</div>
+            <span class="create-label">Create New Task</span>
+          </div>
+        ` : '';
+
         if (tasks.length === 0) {
-          container.innerHTML = '<div class="empty-state">No tasks</div>';
+          container.innerHTML = createTaskCardHtml || '<div class="empty-state">No tasks</div>';
           return;
         }
 
-        container.innerHTML = tasks.map(task => {
+        container.innerHTML = createTaskCardHtml + tasks.map(task => {
           const isBootstrap = task.id === BOOTSTRAP_TASK_ID;
           const cardClass = isBootstrap ? 'task-card task-card--bootstrap' : 'task-card';
           const bootstrapBadge = isBootstrap ? '<span class="bootstrap-badge">Setup</span>' : '';
