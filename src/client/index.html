@@ -2436,6 +2436,747 @@
       color: rgba(96, 165, 250, 0.7);
       border-color: rgba(96, 165, 250, 0.15);
     }
+
+    /* ============================================
+       View Toggle (Tactical vs Board)
+       ============================================ */
+    .tactical-view-toggle {
+      display: flex;
+      gap: 4px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 8px;
+      padding: 3px;
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .tactical-view-toggle-btn {
+      padding: 6px 12px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      border: none;
+      background: transparent;
+      color: rgba(107, 114, 128, 0.8);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tactical-view-toggle-btn.active {
+      background: rgba(34, 197, 94, 0.3);
+      color: #4ade80;
+      box-shadow: 0 0 8px -2px rgba(34, 197, 94, 0.5);
+    }
+
+    .tactical-view-toggle-btn:not(.active):hover {
+      color: rgba(255, 255, 255, 0.7);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* ============================================
+       Mobile Board View
+       ============================================ */
+    .mobile-board-view {
+      display: none;
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      gap: 12px;
+      padding: 16px;
+      padding-bottom: 100px;
+    }
+
+    .mobile-board-view.active {
+      display: flex;
+    }
+
+    .mobile-column {
+      flex: 0 0 140px;
+      min-width: 140px;
+      scroll-snap-align: start;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mobile-column-header {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(107, 114, 128, 0.7);
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mobile-column-count {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Column header colors by status */
+    .mobile-column[data-status="todo"] .mobile-column-header { color: rgba(107, 114, 128, 0.8); }
+    .mobile-column[data-status="queued"] .mobile-column-header { color: rgba(96, 165, 250, 0.8); }
+    .mobile-column[data-status="running"] .mobile-column-header { color: rgba(34, 197, 94, 0.8); }
+    .mobile-column[data-status="review"] .mobile-column-header { color: rgba(251, 191, 36, 0.8); }
+    .mobile-column[data-status="done"] .mobile-column-header { color: rgba(34, 197, 94, 0.7); }
+
+    .mobile-column-tasks {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ============================================
+       Mobile Task Card (Minimal)
+       ============================================ */
+    .mobile-task-card {
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      border-left: 3px solid #6b7280;
+      font-size: 13px;
+      line-height: 1.3;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .mobile-task-card:active {
+      transform: scale(0.98);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    /* Priority border colors */
+    .mobile-task-card[data-priority="high"] { border-left-color: #ef4444; }
+    .mobile-task-card[data-priority="medium"] { border-left-color: #fbbf24; }
+    .mobile-task-card[data-priority="low"] { border-left-color: #6b7280; }
+
+    /* Running task pulse animation */
+    .mobile-task-card.running {
+      border-left-color: #22c55e;
+      animation: mobileRunningPulse 2.5s ease-in-out infinite;
+    }
+
+    @keyframes mobileRunningPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+        background: rgba(34, 197, 94, 0.08);
+      }
+      50% {
+        box-shadow: 0 0 12px -3px rgba(34, 197, 94, 0.5);
+        background: rgba(34, 197, 94, 0.12);
+      }
+    }
+
+    /* Queued task pulse */
+    .mobile-task-card.queued {
+      border-left-color: #60a5fa;
+      animation: mobileQueuedPulse 3s ease-in-out infinite;
+    }
+
+    @keyframes mobileQueuedPulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(96, 165, 250, 0);
+        background: rgba(96, 165, 250, 0.06);
+      }
+      50% {
+        box-shadow: 0 0 10px -3px rgba(96, 165, 250, 0.4);
+        background: rgba(96, 165, 250, 0.1);
+      }
+    }
+
+    .mobile-column-empty {
+      padding: 16px 8px;
+      text-align: center;
+      font-size: 11px;
+      color: rgba(107, 114, 128, 0.5);
+    }
+
+    /* ============================================
+       Mobile Bottom Sheet
+       ============================================ */
+    .mobile-bottom-sheet-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .mobile-bottom-sheet-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .mobile-bottom-sheet {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(10, 10, 10, 0.99) 100%);
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: none;
+      z-index: 201;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      max-height: 85vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    .mobile-bottom-sheet-overlay.open .mobile-bottom-sheet {
+      transform: translateY(0);
+    }
+
+    .mobile-bottom-sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      margin: 12px auto;
+      flex-shrink: 0;
+    }
+
+    .mobile-bottom-sheet-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px 20px;
+    }
+
+    .mobile-bottom-sheet-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+      margin-bottom: 16px;
+      line-height: 1.4;
+    }
+
+    .mobile-bottom-sheet-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .mobile-bottom-sheet-badge {
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    .mobile-bottom-sheet-badge.todo { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+    .mobile-bottom-sheet-badge.queued { background: rgba(96, 165, 250, 0.2); color: #93c5fd; }
+    .mobile-bottom-sheet-badge.running { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+    .mobile-bottom-sheet-badge.briefing { background: rgba(168, 85, 247, 0.2); color: #c4b5fd; }
+    .mobile-bottom-sheet-badge.planning { background: rgba(99, 102, 241, 0.2); color: #a5b4fc; }
+    .mobile-bottom-sheet-badge.review { background: rgba(251, 191, 36, 0.2); color: #fcd34d; }
+    .mobile-bottom-sheet-badge.done { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+
+    .mobile-bottom-sheet-priority {
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
+    .mobile-bottom-sheet-priority.high { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .mobile-bottom-sheet-priority.medium { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+    .mobile-bottom-sheet-priority.low { background: rgba(107, 114, 128, 0.2); color: #9ca3af; }
+
+    .mobile-bottom-sheet-context {
+      font-size: 14px;
+      line-height: 1.6;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 20px;
+      padding: 14px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .mobile-bottom-sheet-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .mobile-bottom-sheet-btn {
+      padding: 14px 16px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border: 1px solid;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .mobile-bottom-sheet-btn:active {
+      transform: scale(0.97);
+    }
+
+    .mobile-bottom-sheet-btn.run {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+    }
+
+    .mobile-bottom-sheet-btn.queue {
+      background: rgba(96, 165, 250, 0.15);
+      border-color: rgba(96, 165, 250, 0.4);
+      color: #93c5fd;
+    }
+
+    .mobile-bottom-sheet-btn.stop {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.4);
+      color: #f87171;
+    }
+
+    .mobile-bottom-sheet-btn.delete {
+      background: rgba(107, 114, 128, 0.1);
+      border-color: rgba(107, 114, 128, 0.3);
+      color: #9ca3af;
+    }
+
+    .mobile-bottom-sheet-btn.done-btn {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+    }
+
+    .mobile-bottom-sheet-btn.full-width {
+      grid-column: 1 / -1;
+    }
+
+    /* ============================================
+       Mobile Chat FAB
+       ============================================ */
+    .mobile-chat-fab {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.15) 100%);
+      color: #4ade80;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 16px -4px rgba(34, 197, 94, 0.4);
+      transition: all 0.2s ease;
+      z-index: 50;
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    @media (max-width: 767px) {
+      .mobile-chat-fab {
+        display: flex;
+      }
+    }
+
+    .mobile-chat-fab:active {
+      transform: scale(1.1);
+      box-shadow: 0 0 24px -4px rgba(34, 197, 94, 0.6);
+    }
+
+    .mobile-chat-fab.responding {
+      animation: chatFabPulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes chatFabPulse {
+      0%, 100% { box-shadow: 0 0 16px -4px rgba(34, 197, 94, 0.4); }
+      50% { box-shadow: 0 0 28px -2px rgba(34, 197, 94, 0.7); }
+    }
+
+    .mobile-chat-fab svg {
+      width: 22px;
+      height: 22px;
+    }
+
+    /* ============================================
+       Mobile Chat Panel (Full-Screen Overlay)
+       ============================================ */
+    .mobile-chat-panel {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(5, 15, 5, 0.98) 0%, rgba(0, 0, 0, 0.99) 100%);
+      z-index: 300;
+      display: none;
+      flex-direction: column;
+      font-family: 'Courier New', 'Monaco', monospace;
+    }
+
+    .mobile-chat-panel.open {
+      display: flex;
+    }
+
+    .mobile-chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      padding-top: calc(16px + env(safe-area-inset-top, 0px));
+      background: linear-gradient(180deg, rgba(0, 20, 0, 0.9) 0%, transparent 100%);
+      border-bottom: 1px solid rgba(34, 197, 94, 0.3);
+      flex-shrink: 0;
+    }
+
+    .mobile-chat-title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #22c55e;
+      text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+    }
+
+    .mobile-chat-status {
+      font-size: 9px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      font-weight: 700;
+      background: rgba(107, 114, 128, 0.2);
+      color: #9ca3af;
+      margin-left: 10px;
+    }
+
+    .mobile-chat-status.running {
+      background: rgba(34, 197, 94, 0.2);
+      color: #86efac;
+    }
+
+    .mobile-chat-close {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mobile-chat-close:active {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .mobile-chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .mobile-chat-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: rgba(107, 114, 128, 0.6);
+      text-align: center;
+      padding: 40px;
+    }
+
+    .mobile-chat-empty-icon {
+      font-size: 36px;
+      margin-bottom: 16px;
+      opacity: 0.4;
+    }
+
+    .mobile-chat-empty-text {
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .mobile-chat-empty-hint {
+      font-size: 11px;
+      color: rgba(34, 197, 94, 0.5);
+    }
+
+    /* Mobile chat messages - reuse styling from desktop with mobile tweaks */
+    .mobile-chat-message {
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.5;
+      max-width: 90%;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    .mobile-chat-message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.12));
+      border: 1px solid rgba(99, 102, 241, 0.15);
+      color: rgba(255, 255, 255, 0.95);
+      border-bottom-right-radius: 4px;
+    }
+
+    .mobile-chat-message.assistant {
+      align-self: flex-start;
+      background: linear-gradient(to bottom right, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0.03));
+      border: 1px solid rgba(34, 197, 94, 0.15);
+      color: rgba(255, 255, 255, 0.85);
+      border-bottom-left-radius: 4px;
+    }
+
+    .mobile-chat-message.system {
+      align-self: center;
+      background: rgba(251, 191, 36, 0.08);
+      border: 1px solid rgba(251, 191, 36, 0.1);
+      color: rgba(251, 191, 36, 0.8);
+      font-size: 12px;
+      max-width: 100%;
+      text-align: center;
+    }
+
+    .mobile-chat-message.streaming::after {
+      content: '▊';
+      animation: cursorBlink 0.8s infinite;
+    }
+
+    @keyframes cursorBlink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    .mobile-chat-message code {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+
+    .mobile-chat-message pre {
+      background: rgba(0, 0, 0, 0.4);
+      padding: 12px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 8px 0;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .mobile-chat-message pre code {
+      background: none;
+      padding: 0;
+    }
+
+    .mobile-chat-input-area {
+      display: flex;
+      gap: 10px;
+      padding: 12px 16px;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 20px));
+      background: rgba(0, 0, 0, 0.5);
+      border-top: 1px solid rgba(34, 197, 94, 0.2);
+      flex-shrink: 0;
+    }
+
+    .mobile-chat-input {
+      flex: 1;
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: rgba(0, 0, 0, 0.4);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 15px;
+      font-family: inherit;
+      resize: none;
+      max-height: 120px;
+    }
+
+    .mobile-chat-input::placeholder {
+      color: rgba(107, 114, 128, 0.6);
+    }
+
+    .mobile-chat-input:focus {
+      outline: none;
+      border-color: rgba(34, 197, 94, 0.5);
+      box-shadow: 0 0 12px -4px rgba(34, 197, 94, 0.4);
+    }
+
+    .mobile-chat-send {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+      font-size: 18px;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mobile-chat-send:active {
+      background: rgba(34, 197, 94, 0.3);
+      transform: scale(0.95);
+    }
+
+    /* ============================================
+       Light Theme - Mobile Components
+       ============================================ */
+    [data-theme="light"] .tactical-view-toggle {
+      background: rgba(255, 255, 255, 0.8);
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .tactical-view-toggle-btn {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .tactical-view-toggle-btn.active {
+      background: rgba(22, 163, 74, 0.2);
+      color: #15803d;
+    }
+
+    [data-theme="light"] .mobile-board-view {
+      background: #fafafa;
+    }
+
+    [data-theme="light"] .mobile-column-header {
+      border-bottom-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .mobile-column-count {
+      background: rgba(0, 0, 0, 0.05);
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .mobile-task-card {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-left: 3px solid;
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .mobile-task-card:active {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    [data-theme="light"] .mobile-bottom-sheet {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 250, 0.99) 100%);
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .mobile-bottom-sheet-handle {
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="light"] .mobile-bottom-sheet-title {
+      color: rgba(0, 0, 0, 0.9);
+    }
+
+    [data-theme="light"] .mobile-bottom-sheet-context {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.08);
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    [data-theme="light"] .mobile-bottom-sheet-actions {
+      border-top-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .mobile-chat-fab {
+      background: linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(22, 163, 74, 0.08));
+      border-color: rgba(22, 163, 74, 0.3);
+      color: #15803d;
+    }
+
+    [data-theme="light"] .mobile-chat-panel {
+      background: linear-gradient(180deg, rgba(250, 250, 250, 0.98) 0%, rgba(255, 255, 255, 0.99) 100%);
+    }
+
+    [data-theme="light"] .mobile-chat-header {
+      background: linear-gradient(180deg, rgba(22, 163, 74, 0.08) 0%, transparent 100%);
+      border-bottom-color: rgba(22, 163, 74, 0.2);
+    }
+
+    [data-theme="light"] .mobile-chat-title {
+      color: #15803d;
+      text-shadow: none;
+    }
+
+    [data-theme="light"] .mobile-chat-close {
+      border-color: rgba(0, 0, 0, 0.1);
+      background: rgba(0, 0, 0, 0.03);
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .mobile-chat-message.assistant {
+      background: linear-gradient(to bottom right, rgba(22, 163, 74, 0.08), rgba(22, 163, 74, 0.03));
+      border-color: rgba(22, 163, 74, 0.15);
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .mobile-chat-message.user {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+      border-color: rgba(99, 102, 241, 0.15);
+      color: rgba(0, 0, 0, 0.9);
+    }
+
+    [data-theme="light"] .mobile-chat-input-area {
+      background: rgba(255, 255, 255, 0.8);
+      border-top-color: rgba(22, 163, 74, 0.15);
+    }
+
+    [data-theme="light"] .mobile-chat-input {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(22, 163, 74, 0.2);
+      color: rgba(0, 0, 0, 0.9);
+    }
+
+    [data-theme="light"] .mobile-chat-send {
+      background: rgba(22, 163, 74, 0.15);
+      border-color: rgba(22, 163, 74, 0.3);
+      color: #15803d;
+    }
   </style>
 </head>
 <body>
@@ -2443,13 +3184,14 @@
   <div class="tactical-view" id="tactical-view">
     <header class="tactical-header">
       <span class="tactical-title">FORMIC // MOBILE</span>
-      <div class="tactical-connection">
-        <span class="connection-dot" id="tactical-connection-dot"></span>
-        <span class="connection-text" id="tactical-connection-text">OFFLINE</span>
+      <div class="tactical-view-toggle">
+        <button class="tactical-view-toggle-btn active" id="toggle-tactical" onclick="toggleMobileView('tactical')">Tactical</button>
+        <button class="tactical-view-toggle-btn" id="toggle-board" onclick="toggleMobileView('board')">Board</button>
       </div>
     </header>
 
-    <div class="tactical-content">
+    <!-- Tactical Content (Default View) -->
+    <div class="tactical-content" id="tactical-content">
       <!-- Active Agents Section -->
       <section class="tactical-section" id="tactical-agents-section">
         <h2 class="tactical-section-title">Active Agents</h2>
@@ -2473,8 +3215,94 @@
       </section>
     </div>
 
+    <!-- Mobile Board View (Horizontal Scroll) -->
+    <div class="mobile-board-view" id="mobile-board-view">
+      <div class="mobile-column" data-status="todo">
+        <div class="mobile-column-header">
+          <span>Todo</span>
+          <span class="mobile-column-count" id="mobile-todo-count">0</span>
+        </div>
+        <div class="mobile-column-tasks" id="mobile-todo-tasks"></div>
+      </div>
+      <div class="mobile-column" data-status="queued">
+        <div class="mobile-column-header">
+          <span>Queued</span>
+          <span class="mobile-column-count" id="mobile-queued-count">0</span>
+        </div>
+        <div class="mobile-column-tasks" id="mobile-queued-tasks"></div>
+      </div>
+      <div class="mobile-column" data-status="running">
+        <div class="mobile-column-header">
+          <span>Running</span>
+          <span class="mobile-column-count" id="mobile-running-count">0</span>
+        </div>
+        <div class="mobile-column-tasks" id="mobile-running-tasks"></div>
+      </div>
+      <div class="mobile-column" data-status="review">
+        <div class="mobile-column-header">
+          <span>Review</span>
+          <span class="mobile-column-count" id="mobile-review-count">0</span>
+        </div>
+        <div class="mobile-column-tasks" id="mobile-review-tasks"></div>
+      </div>
+      <div class="mobile-column" data-status="done">
+        <div class="mobile-column-header">
+          <span>Done</span>
+          <span class="mobile-column-count" id="mobile-done-count">0</span>
+        </div>
+        <div class="mobile-column-tasks" id="mobile-done-tasks"></div>
+      </div>
+    </div>
+
     <!-- FAB for creating new tasks -->
     <button class="tactical-fab" id="tactical-fab" onclick="openCreateModal()">+</button>
+
+    <!-- Chat FAB for AI Assistant -->
+    <button class="mobile-chat-fab" id="mobile-chat-fab" onclick="openMobileChatPanel()">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Mobile Bottom Sheet (Task Details) -->
+  <div class="mobile-bottom-sheet-overlay" id="mobile-bottom-sheet-overlay" onclick="closeMobileBottomSheet(event)">
+    <div class="mobile-bottom-sheet" id="mobile-bottom-sheet">
+      <div class="mobile-bottom-sheet-handle"></div>
+      <div class="mobile-bottom-sheet-content">
+        <h2 class="mobile-bottom-sheet-title" id="mobile-sheet-title">Task Title</h2>
+        <div class="mobile-bottom-sheet-status">
+          <span class="mobile-bottom-sheet-badge" id="mobile-sheet-status">todo</span>
+          <span class="mobile-bottom-sheet-priority" id="mobile-sheet-priority">medium</span>
+        </div>
+        <div class="mobile-bottom-sheet-context" id="mobile-sheet-context">Task context goes here...</div>
+        <div class="mobile-bottom-sheet-actions" id="mobile-sheet-actions">
+          <!-- Action buttons will be dynamically populated -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Chat Panel (Full-Screen) -->
+  <div class="mobile-chat-panel" id="mobile-chat-panel">
+    <header class="mobile-chat-header">
+      <div>
+        <span class="mobile-chat-title">FORMIC // TASK MANAGER</span>
+        <span class="mobile-chat-status" id="mobile-chat-status">Idle</span>
+      </div>
+      <button class="mobile-chat-close" onclick="closeMobileChatPanel()">×</button>
+    </header>
+    <div class="mobile-chat-messages" id="mobile-chat-messages">
+      <div class="mobile-chat-empty">
+        <div class="mobile-chat-empty-icon">◇</div>
+        <div class="mobile-chat-empty-text">Start a conversation</div>
+        <div class="mobile-chat-empty-hint">Ask me to brainstorm ideas or create tasks</div>
+      </div>
+    </div>
+    <div class="mobile-chat-input-area">
+      <textarea class="mobile-chat-input" id="mobile-chat-input" placeholder="Ask something..." rows="1"></textarea>
+      <button class="mobile-chat-send" onclick="sendMobileChatMessage()">→</button>
+    </div>
   </div>
 
   <!-- Floating Action Buttons -->
@@ -3823,12 +4651,432 @@
       }
     }
 
+    // ==================== Mobile Board View ====================
+    let mobileViewMode = 'tactical'; // 'tactical' or 'board'
+
+    function toggleMobileView(mode) {
+      mobileViewMode = mode;
+      const tacticalContent = document.getElementById('tactical-content');
+      const boardView = document.getElementById('mobile-board-view');
+      const tacticalBtn = document.getElementById('toggle-tactical');
+      const boardBtn = document.getElementById('toggle-board');
+
+      if (mode === 'board') {
+        tacticalContent.style.display = 'none';
+        boardView.classList.add('active');
+        tacticalBtn.classList.remove('active');
+        boardBtn.classList.add('active');
+        renderMobileBoard();
+      } else {
+        tacticalContent.style.display = 'block';
+        boardView.classList.remove('active');
+        tacticalBtn.classList.add('active');
+        boardBtn.classList.remove('active');
+      }
+    }
+
+    function renderMobileBoard() {
+      if (!isMobileView() || mobileViewMode !== 'board') return;
+
+      const statuses = ['todo', 'queued', 'running', 'review', 'done'];
+
+      statuses.forEach(status => {
+        const container = document.getElementById(`mobile-${status}-tasks`);
+        const countEl = document.getElementById(`mobile-${status}-count`);
+        if (!container) return;
+
+        // Include briefing and planning tasks in running column
+        let tasks;
+        if (status === 'running') {
+          tasks = board.tasks.filter(t =>
+            t.status === 'running' || t.status === 'briefing' || t.status === 'planning'
+          );
+        } else {
+          tasks = board.tasks.filter(t => t.status === status);
+        }
+
+        countEl.textContent = tasks.length;
+
+        if (tasks.length === 0) {
+          container.innerHTML = `<div class="mobile-column-empty">No tasks</div>`;
+          return;
+        }
+
+        container.innerHTML = tasks.map(task => {
+          let statusClass = '';
+          if (task.status === 'running' || task.status === 'briefing' || task.status === 'planning') {
+            statusClass = 'running';
+          } else if (task.status === 'queued') {
+            statusClass = 'queued';
+          }
+
+          return `
+            <div class="mobile-task-card ${statusClass}"
+                 data-task-id="${task.id}"
+                 data-priority="${task.priority}"
+                 onclick="openMobileBottomSheet('${task.id}')">
+              ${escapeHtml(task.title)}
+            </div>
+          `;
+        }).join('');
+      });
+    }
+
+    // ==================== Mobile Bottom Sheet ====================
+    let currentBottomSheetTaskId = null;
+    let bottomSheetTouchStartY = 0;
+
+    function openMobileBottomSheet(taskId) {
+      currentBottomSheetTaskId = taskId;
+      const task = board.tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      const overlay = document.getElementById('mobile-bottom-sheet-overlay');
+      const sheet = document.getElementById('mobile-bottom-sheet');
+
+      // Populate content
+      document.getElementById('mobile-sheet-title').textContent = task.title;
+
+      const statusBadge = document.getElementById('mobile-sheet-status');
+      statusBadge.textContent = task.status.toUpperCase();
+      statusBadge.className = `mobile-bottom-sheet-badge ${task.status}`;
+
+      const priorityBadge = document.getElementById('mobile-sheet-priority');
+      priorityBadge.textContent = task.priority.toUpperCase();
+      priorityBadge.className = `mobile-bottom-sheet-priority ${task.priority}`;
+
+      document.getElementById('mobile-sheet-context').textContent = task.context || 'No description provided.';
+
+      // Generate action buttons based on status
+      const actionsContainer = document.getElementById('mobile-sheet-actions');
+      let actionsHtml = '';
+
+      const isRunning = ['running', 'briefing', 'planning'].includes(task.status);
+
+      if (task.status === 'todo') {
+        actionsHtml = `
+          <button class="mobile-bottom-sheet-btn run" onclick="mobileSheetAction('run')">Run</button>
+          <button class="mobile-bottom-sheet-btn queue" onclick="mobileSheetAction('queue')">Queue</button>
+          <button class="mobile-bottom-sheet-btn delete full-width" onclick="mobileSheetAction('delete')">Delete</button>
+        `;
+      } else if (task.status === 'queued') {
+        actionsHtml = `
+          <button class="mobile-bottom-sheet-btn run" onclick="mobileSheetAction('run')">Run Now</button>
+          <button class="mobile-bottom-sheet-btn stop" onclick="mobileSheetAction('dequeue')">Dequeue</button>
+        `;
+      } else if (isRunning) {
+        actionsHtml = `
+          <button class="mobile-bottom-sheet-btn stop full-width" onclick="mobileSheetAction('stop')">Stop Agent</button>
+        `;
+      } else if (task.status === 'review') {
+        actionsHtml = `
+          <button class="mobile-bottom-sheet-btn done-btn" onclick="mobileSheetAction('done')">Mark Done</button>
+          <button class="mobile-bottom-sheet-btn run" onclick="mobileSheetAction('run')">Re-run</button>
+          <button class="mobile-bottom-sheet-btn delete full-width" onclick="mobileSheetAction('delete')">Delete</button>
+        `;
+      } else if (task.status === 'done') {
+        actionsHtml = `
+          <button class="mobile-bottom-sheet-btn run" onclick="mobileSheetAction('run')">Re-run</button>
+          <button class="mobile-bottom-sheet-btn delete" onclick="mobileSheetAction('delete')">Delete</button>
+        `;
+      }
+
+      actionsContainer.innerHTML = actionsHtml;
+
+      // Show overlay
+      overlay.classList.add('open');
+
+      // Add touch event for swipe-down dismiss
+      sheet.addEventListener('touchstart', handleSheetTouchStart);
+      sheet.addEventListener('touchmove', handleSheetTouchMove);
+      sheet.addEventListener('touchend', handleSheetTouchEnd);
+    }
+
+    function closeMobileBottomSheet(event) {
+      // If clicking on sheet content, don't close
+      if (event && event.target.closest('.mobile-bottom-sheet')) {
+        return;
+      }
+
+      const overlay = document.getElementById('mobile-bottom-sheet-overlay');
+      const sheet = document.getElementById('mobile-bottom-sheet');
+
+      overlay.classList.remove('open');
+      currentBottomSheetTaskId = null;
+
+      // Remove touch listeners
+      sheet.removeEventListener('touchstart', handleSheetTouchStart);
+      sheet.removeEventListener('touchmove', handleSheetTouchMove);
+      sheet.removeEventListener('touchend', handleSheetTouchEnd);
+    }
+
+    function handleSheetTouchStart(e) {
+      bottomSheetTouchStartY = e.touches[0].clientY;
+    }
+
+    function handleSheetTouchMove(e) {
+      const sheet = document.getElementById('mobile-bottom-sheet');
+      const deltaY = e.touches[0].clientY - bottomSheetTouchStartY;
+
+      if (deltaY > 0) {
+        sheet.style.transform = `translateY(${deltaY}px)`;
+      }
+    }
+
+    function handleSheetTouchEnd(e) {
+      const sheet = document.getElementById('mobile-bottom-sheet');
+      const deltaY = e.changedTouches[0].clientY - bottomSheetTouchStartY;
+
+      if (deltaY > 100) {
+        closeMobileBottomSheet();
+      }
+      sheet.style.transform = '';
+    }
+
+    async function mobileSheetAction(action) {
+      if (!currentBottomSheetTaskId) return;
+      const taskId = currentBottomSheetTaskId;
+
+      try {
+        switch (action) {
+          case 'run':
+            await fetch(`/api/tasks/${taskId}/run`, { method: 'POST' });
+            break;
+          case 'queue':
+            await fetch(`/api/tasks/${taskId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'queued' }),
+            });
+            break;
+          case 'dequeue':
+            await fetch(`/api/tasks/${taskId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'todo' }),
+            });
+            break;
+          case 'stop':
+            await fetch(`/api/tasks/${taskId}/stop`, { method: 'POST' });
+            break;
+          case 'done':
+            await fetch(`/api/tasks/${taskId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'done' }),
+            });
+            break;
+          case 'delete':
+            if (confirm('Delete this task?')) {
+              await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
+            } else {
+              return;
+            }
+            break;
+        }
+
+        closeMobileBottomSheet();
+        await loadBoard();
+        renderMobileBoard();
+      } catch (err) {
+        console.error('[MobileSheet] Action error:', err);
+        alert('Action failed');
+      }
+    }
+
+    // ==================== Mobile Chat Panel ====================
+    let mobileChatWs = null;
+    let mobileChatMessages = [];
+    let mobileChatStreaming = false;
+    let mobileChatStreamContent = '';
+
+    function openMobileChatPanel() {
+      const panel = document.getElementById('mobile-chat-panel');
+      const fab = document.getElementById('mobile-chat-fab');
+
+      panel.classList.add('open');
+      connectMobileChatWs();
+
+      // Focus input after animation
+      setTimeout(() => {
+        document.getElementById('mobile-chat-input').focus();
+      }, 300);
+    }
+
+    function closeMobileChatPanel() {
+      const panel = document.getElementById('mobile-chat-panel');
+      panel.classList.remove('open');
+    }
+
+    function connectMobileChatWs() {
+      if (mobileChatWs && mobileChatWs.readyState === WebSocket.OPEN) {
+        return;
+      }
+
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      mobileChatWs = new WebSocket(`${protocol}//${window.location.host}/ws/assistant`);
+
+      mobileChatWs.onopen = () => {
+        console.log('[MobileChat] WebSocket connected');
+      };
+
+      mobileChatWs.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'status') {
+          updateMobileChatStatus(data.session);
+        } else if (data.type === 'history') {
+          mobileChatMessages = data.messages || [];
+          renderMobileChatMessages();
+        } else if (data.type === 'stream_delta') {
+          if (!mobileChatStreaming) {
+            mobileChatStreaming = true;
+            mobileChatStreamContent = '';
+            document.getElementById('mobile-chat-fab').classList.add('responding');
+          }
+          mobileChatStreamContent += data.delta;
+          renderMobileChatMessages();
+        } else if (data.type === 'message') {
+          if (mobileChatStreaming && data.message.type === 'assistant') {
+            mobileChatStreaming = false;
+            mobileChatStreamContent = '';
+            document.getElementById('mobile-chat-fab').classList.remove('responding');
+          }
+          mobileChatMessages.push(data.message);
+          renderMobileChatMessages();
+        } else if (data.type === 'error') {
+          console.error('[MobileChat] Error:', data.error);
+          mobileChatStreaming = false;
+          mobileChatStreamContent = '';
+          document.getElementById('mobile-chat-fab').classList.remove('responding');
+        }
+      };
+
+      mobileChatWs.onclose = () => {
+        console.log('[MobileChat] WebSocket disconnected');
+        setTimeout(() => {
+          if (document.getElementById('mobile-chat-panel').classList.contains('open')) {
+            connectMobileChatWs();
+          }
+        }, 3000);
+      };
+
+      mobileChatWs.onerror = (error) => {
+        console.error('[MobileChat] WebSocket error:', error);
+      };
+    }
+
+    function updateMobileChatStatus(session) {
+      const statusEl = document.getElementById('mobile-chat-status');
+      statusEl.textContent = session.status.charAt(0).toUpperCase() + session.status.slice(1);
+      statusEl.className = 'mobile-chat-status ' + session.status;
+    }
+
+    function renderMobileChatMessages() {
+      const container = document.getElementById('mobile-chat-messages');
+
+      if (mobileChatMessages.length === 0 && !mobileChatStreaming) {
+        container.innerHTML = `
+          <div class="mobile-chat-empty">
+            <div class="mobile-chat-empty-icon">◇</div>
+            <div class="mobile-chat-empty-text">Start a conversation</div>
+            <div class="mobile-chat-empty-hint">Ask me to brainstorm ideas or create tasks</div>
+          </div>
+        `;
+        return;
+      }
+
+      let html = mobileChatMessages.map(msg => {
+        const content = formatMobileChatContent(msg.content);
+        return `<div class="mobile-chat-message ${msg.type}">${content}</div>`;
+      }).join('');
+
+      if (mobileChatStreaming && mobileChatStreamContent) {
+        const content = formatMobileChatContent(mobileChatStreamContent);
+        html += `<div class="mobile-chat-message assistant streaming">${content}</div>`;
+      }
+
+      container.innerHTML = html;
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function formatMobileChatContent(content) {
+      let formatted = escapeHtml(content);
+
+      // Code blocks
+      formatted = formatted.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+
+      // Inline code
+      formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+      // Bold
+      formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+      // Links
+      formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+      return formatted;
+    }
+
+    async function sendMobileChatMessage() {
+      const input = document.getElementById('mobile-chat-input');
+      const content = input.value.trim();
+
+      if (!content) return;
+
+      input.value = '';
+
+      // Start session if needed
+      const statusEl = document.getElementById('mobile-chat-status');
+      if (statusEl.textContent.toLowerCase() !== 'running') {
+        try {
+          await fetch('/api/assistant/start', { method: 'POST' });
+        } catch (err) {
+          console.error('[MobileChat] Failed to start session:', err);
+        }
+      }
+
+      // Send via WebSocket
+      if (mobileChatWs && mobileChatWs.readyState === WebSocket.OPEN) {
+        mobileChatWs.send(JSON.stringify({ type: 'message', content }));
+      } else {
+        // Fallback to REST
+        await fetch('/api/assistant/message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content }),
+        });
+      }
+    }
+
+    // Handle Enter key for mobile chat input
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileChatInput = document.getElementById('mobile-chat-input');
+      if (mobileChatInput) {
+        mobileChatInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMobileChatMessage();
+          }
+        });
+
+        // Auto-resize textarea
+        mobileChatInput.addEventListener('input', () => {
+          mobileChatInput.style.height = 'auto';
+          mobileChatInput.style.height = Math.min(mobileChatInput.scrollHeight, 120) + 'px';
+        });
+      }
+    });
+
     // Override loadBoard to also update tactical view
     const originalLoadBoard = loadBoard;
     loadBoard = async function() {
       await originalLoadBoard.apply(this, arguments);
       if (isMobileView()) {
         renderTacticalView();
+        if (mobileViewMode === 'board') {
+          renderMobileBoard();
+        }
       }
     };
   </script>
