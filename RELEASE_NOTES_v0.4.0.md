@@ -38,6 +38,7 @@ This release introduces **Multi-Workspace Support** — switch between project r
 - **Workspace Input Field** — Improved visibility and sizing
 - **Dropdown Width** — Increased workspace dropdown width for better readability
 - **Workspace Switching UI** — Fixed mobile tactical view and project brief panel not refreshing on workspace switch
+- **Mobile Add Workspace** — Added dedicated add workspace form inside mobile bottom sheet (previously tried to use hidden desktop form)
 
 ---
 
@@ -198,6 +199,7 @@ Open `http://localhost:8000` and start creating tasks.
 
 ## Commits in this Release
 
+- `946bee6` Add mobile workspace add form inside bottom sheet
 - `fd2d152` Fix mobile tactical view and project brief panel on workspace switch
 - `b5a03b4` Update documentation for v0.4.0 release
 - `78ff8bb` Fix AI assistant to create multiple tasks from single response
