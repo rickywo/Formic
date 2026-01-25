@@ -341,6 +341,79 @@
       color: #15803d;
     }
 
+    /* Light theme project brief panel */
+    [data-theme="light"] .project-brief-panel {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.5) 100%);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .project-brief-path {
+      color: rgba(0, 0, 0, 0.6);
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .project-brief-badge.todo {
+      background: rgba(107, 114, 128, 0.12);
+      color: #6b7280;
+      border-color: rgba(107, 114, 128, 0.15);
+    }
+
+    [data-theme="light"] .project-brief-badge.queued {
+      background: rgba(37, 99, 235, 0.12);
+      color: #2563eb;
+      border-color: rgba(37, 99, 235, 0.15);
+    }
+
+    [data-theme="light"] .project-brief-badge.running {
+      background: rgba(22, 163, 74, 0.12);
+      color: #16a34a;
+      border-color: rgba(22, 163, 74, 0.15);
+    }
+
+    [data-theme="light"] .project-brief-badge.review {
+      background: rgba(202, 138, 4, 0.12);
+      color: #a16207;
+      border-color: rgba(202, 138, 4, 0.15);
+    }
+
+    [data-theme="light"] .project-brief-badge.done {
+      background: rgba(22, 163, 74, 0.08);
+      color: rgba(22, 163, 74, 0.6);
+      border-color: rgba(22, 163, 74, 0.1);
+    }
+
+    [data-theme="light"] .project-brief-badge.total {
+      background: rgba(139, 92, 246, 0.12);
+      color: #7c3aed;
+      border-color: rgba(139, 92, 246, 0.15);
+    }
+
+    [data-theme="light"] .project-brief-activity {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .project-brief-activity-time {
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .project-brief-toggle {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.08);
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .project-brief-toggle:hover {
+      background: rgba(0, 0, 0, 0.08);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    [data-theme="light"] .project-brief-collapsed-label {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
     /* Light theme queued task */
     [data-theme="light"] .task-card[data-status="queued"] {
       border-color: rgba(37, 99, 235, 0.2);
@@ -499,6 +572,134 @@
       box-shadow: inset 0 1px 0 0 rgba(22, 163, 74, 0.1), 0 0 24px -4px rgba(22, 163, 74, 0.2);
     }
 
+    /* Light theme - Desktop Header & Workspace Switcher */
+    [data-theme="light"] .desktop-header {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.6) 70%, transparent 100%);
+    }
+
+    [data-theme="light"] .workspace-trigger {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .workspace-trigger:hover {
+      background: rgba(0, 0, 0, 0.06);
+      border-color: rgba(0, 0, 0, 0.12);
+    }
+
+    [data-theme="light"] .workspace-trigger-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .workspace-trigger-chevron {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .workspace-trigger-spinner {
+      border-color: rgba(0, 0, 0, 0.1);
+      border-top-color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .workspace-dropdown {
+      background: rgba(255, 255, 255, 0.98);
+      border-color: rgba(0, 0, 0, 0.1);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="light"] .workspace-item:hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .workspace-item.active {
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    [data-theme="light"] .workspace-item-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .workspace-item-tasks {
+      color: rgba(0, 0, 0, 0.45);
+    }
+
+    [data-theme="light"] .workspace-item-time {
+      color: rgba(0, 0, 0, 0.35);
+    }
+
+    [data-theme="light"] .workspace-dropdown-divider {
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .workspace-add-btn {
+      border-color: rgba(139, 92, 246, 0.25);
+      color: rgba(139, 92, 246, 0.9);
+    }
+
+    [data-theme="light"] .workspace-add-btn:hover {
+      background: rgba(139, 92, 246, 0.08);
+      border-color: rgba(139, 92, 246, 0.4);
+    }
+
+    [data-theme="light"] .add-workspace-form-title {
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .add-workspace-form-close {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .add-workspace-form-close:hover {
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    [data-theme="light"] .path-input {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.1);
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .path-input:focus {
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="light"] .validation-message {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .add-workspace-submit {
+      background: rgba(139, 92, 246, 0.2);
+      color: #7c3aed;
+    }
+
+    [data-theme="light"] .add-workspace-submit:hover:not(:disabled) {
+      background: rgba(139, 92, 246, 0.3);
+    }
+
+    /* Light theme - Toast Notifications */
+    [data-theme="light"] .toast {
+      background: rgba(255, 255, 255, 0.98);
+      border-color: rgba(0, 0, 0, 0.1);
+      color: rgba(0, 0, 0, 0.85);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .toast.success {
+      border-color: rgba(22, 163, 74, 0.25);
+    }
+
+    [data-theme="light"] .toast.success .toast-icon {
+      color: #16a34a;
+    }
+
+    [data-theme="light"] .toast.error {
+      border-color: rgba(220, 38, 38, 0.25);
+    }
+
+    [data-theme="light"] .toast.error .toast-icon {
+      color: #dc2626;
+    }
+
     [data-theme="light"] .assistant-panel {
       background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.98), rgba(252, 252, 252, 0.95));
       border: 1px solid rgba(0, 0, 0, 0.06);
@@ -639,6 +840,173 @@
       border: 1px solid rgba(0, 0, 0, 0.04);
     }
 
+    /* Light theme - Settings Panel */
+    [data-theme="light"] .settings-backdrop {
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .settings-panel {
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.98), rgba(252, 252, 252, 0.98));
+      border-left: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow:
+        inset 1px 0 0 0 rgba(255, 255, 255, 0.9),
+        -20px 0 60px -10px rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="light"] .settings-header {
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      background: rgba(0, 0, 0, 0.01);
+    }
+
+    [data-theme="light"] .settings-title {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .settings-close-btn {
+      background: rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .settings-close-btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.8);
+    }
+
+    [data-theme="light"] .settings-section-title {
+      color: rgba(0, 0, 0, 0.45);
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .settings-label {
+      color: rgba(0, 0, 0, 0.75);
+    }
+
+    [data-theme="light"] .settings-theme-selector {
+      background: rgba(0, 0, 0, 0.03);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .theme-option {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .theme-option:hover {
+      color: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .theme-option.active {
+      background: rgba(99, 102, 241, 0.12);
+      color: #4f46e5;
+      border: 1px solid rgba(99, 102, 241, 0.15);
+    }
+
+    [data-theme="light"] .toggle-slider {
+      background: rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .toggle-slider::before {
+      background: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .settings-toggle input:checked + .toggle-slider {
+      background: rgba(22, 163, 74, 0.25);
+      border-color: rgba(22, 163, 74, 0.25);
+    }
+
+    [data-theme="light"] .settings-toggle input:checked + .toggle-slider::before {
+      background: #16a34a;
+    }
+
+    [data-theme="light"] .settings-number-input {
+      background: rgba(0, 0, 0, 0.03);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .number-btn {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .number-btn:hover {
+      background: rgba(0, 0, 0, 0.06);
+      color: rgba(0, 0, 0, 0.8);
+    }
+
+    [data-theme="light"] .number-value {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .workspace-item {
+      background: rgba(0, 0, 0, 0.02);
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="light"] .workspace-item:hover {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .workspace-item.active {
+      border-color: rgba(99, 102, 241, 0.25);
+      background: rgba(99, 102, 241, 0.06);
+    }
+
+    [data-theme="light"] .workspace-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .workspace-name-input {
+      background: rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(99, 102, 241, 0.4);
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .workspace-path {
+      color: rgba(0, 0, 0, 0.45);
+    }
+
+    [data-theme="light"] .workspace-action-btn {
+      background: rgba(0, 0, 0, 0.04);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      color: rgba(0, 0, 0, 0.45);
+    }
+
+    [data-theme="light"] .workspace-action-btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+      border-color: rgba(0, 0, 0, 0.1);
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    [data-theme="light"] .workspace-action-btn.delete:hover {
+      background: rgba(220, 38, 38, 0.1);
+      border-color: rgba(220, 38, 38, 0.15);
+      color: #dc2626;
+    }
+
+    [data-theme="light"] .color-picker-dropdown {
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.2);
+    }
+
+    [data-theme="light"] .add-workspace-input {
+      background: rgba(0, 0, 0, 0.03);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .add-workspace-input:focus {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .add-workspace-input::placeholder {
+      color: rgba(0, 0, 0, 0.35);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -666,6 +1034,439 @@
       align-items: center;
       gap: 12px;
       z-index: 40;
+    }
+
+    /* Desktop Header with Workspace Switcher */
+    .desktop-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 50;
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.4) 70%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .desktop-header > * {
+      pointer-events: auto;
+    }
+
+    .desktop-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .desktop-header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    /* Workspace Switcher */
+    .workspace-switcher {
+      position: relative;
+    }
+
+    .workspace-trigger {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .workspace-trigger:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .workspace-trigger.loading {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .workspace-color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .workspace-trigger-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .workspace-trigger-chevron {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.5);
+      transition: transform 0.2s ease;
+    }
+
+    .workspace-switcher.open .workspace-trigger-chevron {
+      transform: rotate(180deg);
+    }
+
+    .workspace-trigger-spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      border-top-color: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Workspace Dropdown */
+    .workspace-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      min-width: 300px;
+      max-height: 400px;
+      overflow-y: auto;
+      background: rgba(15, 15, 15, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      transition: all 0.2s ease;
+    }
+
+    .workspace-switcher.open .workspace-dropdown {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .workspace-dropdown-list {
+      padding: 8px;
+    }
+
+    .workspace-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .workspace-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .workspace-item.active {
+      background: rgba(139, 92, 246, 0.15);
+    }
+
+    .workspace-item-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .workspace-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .workspace-item-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .workspace-item-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .workspace-item-tasks {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .workspace-item-time {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .workspace-item-check {
+      font-size: 14px;
+      color: #8b5cf6;
+      opacity: 0;
+    }
+
+    .workspace-item.active .workspace-item-check {
+      opacity: 1;
+    }
+
+    .workspace-dropdown-divider {
+      height: 1px;
+      background: rgba(255, 255, 255, 0.08);
+      margin: 4px 8px;
+    }
+
+    .workspace-add-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: calc(100% - 16px);
+      margin: 4px 8px 8px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px dashed rgba(139, 92, 246, 0.3);
+      background: transparent;
+      color: rgba(139, 92, 246, 0.8);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .workspace-add-btn:hover {
+      background: rgba(139, 92, 246, 0.1);
+      border-color: rgba(139, 92, 246, 0.5);
+      color: #a78bfa;
+    }
+
+    .workspace-add-icon {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 300;
+    }
+
+    /* Add Workspace Form (inline in dropdown) */
+    .add-workspace-form {
+      padding: 12px;
+      display: none;
+    }
+
+    .add-workspace-form.visible {
+      display: block;
+    }
+
+    .add-workspace-form-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .add-workspace-form-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .add-workspace-form-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+    }
+
+    .add-workspace-form-close:hover {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .path-input-wrapper {
+      position: relative;
+    }
+
+    .path-input {
+      width: 100%;
+      padding: 10px 12px;
+      padding-right: 36px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 13px;
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+
+    .path-input:focus {
+      outline: none;
+      border-color: rgba(139, 92, 246, 0.5);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .path-input.valid {
+      border-color: rgba(34, 197, 94, 0.5);
+    }
+
+    .path-input.invalid {
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    .validation-status {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+    }
+
+    .validation-status.validating {
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .validation-message {
+      font-size: 11px;
+      margin-top: 6px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .validation-message.error {
+      color: #ef4444;
+    }
+
+    .validation-message.success {
+      color: #22c55e;
+    }
+
+    .add-workspace-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .add-workspace-submit {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      background: rgba(139, 92, 246, 0.3);
+      color: #c4b5fd;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .add-workspace-submit:hover:not(:disabled) {
+      background: rgba(139, 92, 246, 0.4);
+      color: #ddd6fe;
+    }
+
+    .add-workspace-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Toast Notifications */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      padding: 12px 16px;
+      border-radius: 12px;
+      background: rgba(15, 15, 15, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toast-in 0.3s ease;
+      max-width: 320px;
+    }
+
+    .toast.toast-out {
+      animation: toast-out 0.3s ease forwards;
+    }
+
+    .toast-icon {
+      font-size: 16px;
+    }
+
+    .toast.success {
+      border-color: rgba(34, 197, 94, 0.3);
+    }
+
+    .toast.success .toast-icon {
+      color: #22c55e;
+    }
+
+    .toast.error {
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .toast.error .toast-icon {
+      color: #ef4444;
+    }
+
+    @keyframes toast-in {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes toast-out {
+      from {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(20px);
+      }
     }
 
     @keyframes pulse {
@@ -1206,6 +2007,167 @@
 
     .bootstrap-banner .btn:hover {
       background: rgba(74, 222, 128, 0.3);
+    }
+
+    /* Project Brief Panel - Glass Morphic Collapsible */
+    .project-brief-panel {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      margin: 24px 32px 0 32px;
+      padding: 16px 24px;
+      backdrop-filter: blur(8px);
+      transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+      overflow: hidden;
+      max-height: 200px;
+    }
+
+    .project-brief-panel.collapsed {
+      max-height: 48px;
+      padding: 12px 24px;
+    }
+
+    .project-brief-content {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .project-brief-info {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .project-brief-path {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      font-family: Monaco, Menlo, "Ubuntu Mono", monospace;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 300px;
+    }
+
+    .project-brief-stats {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .project-brief-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      letter-spacing: 0.03em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .project-brief-badge .badge-count {
+      font-weight: 700;
+    }
+
+    .project-brief-badge.todo {
+      background: rgba(107, 114, 128, 0.2);
+      color: rgba(156, 163, 175, 0.9);
+      border: 1px solid rgba(107, 114, 128, 0.15);
+    }
+
+    .project-brief-badge.queued {
+      background: rgba(96, 165, 250, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(96, 165, 250, 0.15);
+    }
+
+    .project-brief-badge.running {
+      background: rgba(74, 222, 128, 0.2);
+      color: #86efac;
+      border: 1px solid rgba(74, 222, 128, 0.15);
+    }
+
+    .project-brief-badge.review {
+      background: rgba(250, 204, 21, 0.2);
+      color: #fde047;
+      border: 1px solid rgba(250, 204, 21, 0.15);
+    }
+
+    .project-brief-badge.done {
+      background: rgba(74, 222, 128, 0.15);
+      color: rgba(134, 239, 172, 0.7);
+      border: 1px solid rgba(74, 222, 128, 0.1);
+    }
+
+    .project-brief-badge.total {
+      background: rgba(139, 92, 246, 0.2);
+      color: #c4b5fd;
+      border: 1px solid rgba(139, 92, 246, 0.15);
+    }
+
+    .project-brief-activity {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      white-space: nowrap;
+    }
+
+    .project-brief-activity-time {
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .project-brief-toggle {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.5);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .project-brief-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Collapsed state - hide expanded content, show collapsed content */
+    .project-brief-panel.collapsed .project-brief-expanded {
+      display: none;
+    }
+
+    .project-brief-panel .project-brief-collapsed {
+      display: none;
+    }
+
+    .project-brief-panel.collapsed .project-brief-collapsed {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .project-brief-collapsed-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .project-brief-collapsed-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
     }
 
     /* Workflow Step Indicator - Ghost Pill Style */
@@ -1885,6 +2847,482 @@
       margin: 0 2px;
     }
 
+    /* Settings Button */
+    .settings-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      padding: 8px 12px;
+    }
+
+    .settings-icon {
+      font-size: 16px;
+    }
+
+    /* Settings Panel Backdrop */
+    .settings-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 98;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+
+    .settings-backdrop.open {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    /* Settings Panel */
+    .settings-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 400px;
+      max-width: 100vw;
+      background: linear-gradient(to bottom right, rgba(18, 18, 18, 0.98), rgba(8, 8, 8, 0.99));
+      border-left: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow:
+        inset 1px 0 0 0 rgba(255, 255, 255, 0.03),
+        -20px 0 60px -10px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      z-index: 99;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    .settings-panel.open {
+      transform: translateX(0);
+    }
+
+    /* Settings Header */
+    .settings-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(255, 255, 255, 0.01);
+    }
+
+    .settings-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .settings-icon-header {
+      font-size: 18px;
+    }
+
+    .settings-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      letter-spacing: 0.02em;
+    }
+
+    .settings-close-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .settings-close-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Settings Content */
+    .settings-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+
+    .settings-section {
+      margin-bottom: 32px;
+    }
+
+    .settings-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .settings-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .settings-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+    }
+
+    .settings-label {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    /* Theme Selector */
+    .settings-theme-selector {
+      display: flex;
+      gap: 4px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .theme-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .theme-option:hover {
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .theme-option.active {
+      background: rgba(139, 92, 246, 0.2);
+      color: #c4b5fd;
+      border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+
+    .theme-option-icon {
+      font-size: 12px;
+    }
+
+    /* Toggle Switch */
+    .settings-toggle {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+
+    .settings-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      transition: all 0.25s ease;
+    }
+
+    .toggle-slider::before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 2px;
+      bottom: 2px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+      transition: all 0.25s ease;
+    }
+
+    .settings-toggle input:checked + .toggle-slider {
+      background: rgba(74, 222, 128, 0.3);
+      border-color: rgba(74, 222, 128, 0.3);
+    }
+
+    .settings-toggle input:checked + .toggle-slider::before {
+      transform: translateX(20px);
+      background: #4ade80;
+    }
+
+    /* Number Input */
+    .settings-number-input {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .number-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .number-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .number-btn:active {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .number-value {
+      min-width: 32px;
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Workspaces List */
+    .workspaces-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .workspace-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      transition: all 0.2s ease;
+    }
+
+    .workspace-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .workspace-item.active {
+      border-color: rgba(139, 92, 246, 0.3);
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    .workspace-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .workspace-color:hover {
+      transform: scale(1.2);
+    }
+
+    .workspace-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .workspace-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 2px;
+    }
+
+    .workspace-name-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      outline: none;
+    }
+
+    .workspace-path {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .workspace-actions {
+      display: flex;
+      gap: 4px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .workspace-item:hover .workspace-actions {
+      opacity: 1;
+    }
+
+    .workspace-action-btn {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .workspace-action-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .workspace-action-btn.delete:hover {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+    }
+
+    .workspace-action-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .workspace-action-btn:disabled:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* Color Picker Dropdown */
+    .color-picker-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 0;
+      display: flex;
+      gap: 6px;
+      padding: 10px;
+      background: rgba(18, 18, 18, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-4px);
+      transition: all 0.2s ease;
+    }
+
+    .color-picker-dropdown.open {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .color-swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.15);
+    }
+
+    .color-swatch.selected {
+      border-color: white;
+      box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+    }
+
+    /* Add Workspace Form */
+    .add-workspace-form {
+      display: flex;
+      gap: 8px;
+    }
+
+    .add-workspace-input {
+      flex: 1;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 13px;
+      transition: all 0.2s ease;
+    }
+
+    .add-workspace-input:focus {
+      outline: none;
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .add-workspace-input::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .add-workspace-btn {
+      padding: 10px 16px;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
     /* Responsive Design */
     @media (max-width: 1400px) {
       .board {
@@ -1929,6 +3367,18 @@
         font-size: 20px;
       }
 
+      /* Settings panel - full screen on mobile */
+      .settings-panel {
+        width: 100%;
+        max-width: 100vw;
+        border-left: none;
+        border-radius: 0;
+      }
+
+      .settings-panel.open {
+        box-shadow: none;
+      }
+
       .tasks {
         min-height: 60px;
       }
@@ -1944,6 +3394,21 @@
         right: 16px;
       }
 
+      /* Hide desktop header on mobile - mobile has its own tactical view */
+      .desktop-header {
+        display: none;
+      }
+
+      .toast-container {
+        bottom: 80px;
+        right: 16px;
+        left: 16px;
+      }
+
+      .toast {
+        max-width: 100%;
+      }
+
       .bootstrap-banner {
         flex-direction: column;
         gap: 12px;
@@ -1956,6 +3421,11 @@
       .bootstrap-banner-content {
         flex-direction: column;
         gap: 8px;
+      }
+
+      /* Project brief panel - hide on mobile, tactical view is used */
+      .project-brief-panel {
+        display: none;
       }
     }
 
@@ -2782,6 +4252,233 @@
     }
 
     /* ============================================
+       Workspace Bottom Sheet (Mobile)
+       ============================================ */
+    .workspace-sheet-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+    }
+
+    .workspace-sheet-overlay.open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .workspace-sheet {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(10, 10, 10, 0.99) 100%);
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: none;
+      z-index: 201;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      max-height: 70vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+    }
+
+    .workspace-sheet-overlay.open .workspace-sheet {
+      transform: translateY(0);
+    }
+
+    .workspace-sheet-handle {
+      width: 36px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      margin: 12px auto;
+      flex-shrink: 0;
+    }
+
+    .workspace-sheet-header {
+      padding: 0 20px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .workspace-sheet-title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.6);
+      margin: 0;
+    }
+
+    .workspace-sheet-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+    }
+
+    /* Workspace Sheet Trigger Button */
+    .workspace-sheet-trigger {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: transparent;
+      border: none;
+      padding: 6px 10px;
+      margin: -6px -10px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .workspace-sheet-trigger:active {
+      background: rgba(34, 197, 94, 0.15);
+    }
+
+    .workspace-sheet-trigger .color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .workspace-sheet-trigger .workspace-name {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #22c55e;
+      text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+    }
+
+    .workspace-sheet-trigger .chevron {
+      font-size: 10px;
+      color: rgba(34, 197, 94, 0.6);
+      transition: transform 0.2s ease;
+    }
+
+    /* Workspace Sheet Item */
+    .workspace-sheet-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 48px;
+      padding: 12px;
+      margin: 4px 0;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+
+    .workspace-sheet-item:active {
+      transform: scale(0.98);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .workspace-sheet-item.active {
+      background: rgba(139, 92, 246, 0.1);
+      border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    .workspace-sheet-item .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .workspace-sheet-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .workspace-sheet-item-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .workspace-sheet-item-path {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .workspace-sheet-item-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;
+    }
+
+    .workspace-sheet-task-count {
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 500;
+    }
+
+    .workspace-sheet-checkmark {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #8b5cf6;
+      font-size: 14px;
+    }
+
+    /* Add Workspace Button */
+    .workspace-sheet-add-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: calc(100% - 8px);
+      margin: 8px 4px 4px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px dashed rgba(139, 92, 246, 0.3);
+      background: transparent;
+      color: rgba(139, 92, 246, 0.8);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .workspace-sheet-add-btn:active {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(139, 92, 246, 0.5);
+      color: #a78bfa;
+      transform: scale(0.98);
+    }
+
+    .workspace-sheet-add-icon {
+      font-size: 18px;
+      font-weight: 300;
+    }
+
+    /* ============================================
        Mobile Chat FAB
        ============================================ */
     .mobile-chat-fab {
@@ -3121,6 +4818,69 @@
       border-top-color: rgba(0, 0, 0, 0.08);
     }
 
+    /* Light Theme - Workspace Sheet */
+    [data-theme="light"] .workspace-sheet {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 250, 250, 0.99) 100%);
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .workspace-sheet-handle {
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="light"] .workspace-sheet-header {
+      border-bottom-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .workspace-sheet-title {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .workspace-sheet-trigger:active {
+      background: rgba(22, 163, 74, 0.15);
+    }
+
+    [data-theme="light"] .workspace-sheet-trigger .workspace-name {
+      color: #15803d;
+      text-shadow: none;
+    }
+
+    [data-theme="light"] .workspace-sheet-trigger .chevron {
+      color: rgba(22, 163, 74, 0.6);
+    }
+
+    [data-theme="light"] .workspace-sheet-item:active {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    [data-theme="light"] .workspace-sheet-item.active {
+      background: rgba(139, 92, 246, 0.08);
+      border-color: rgba(139, 92, 246, 0.2);
+    }
+
+    [data-theme="light"] .workspace-sheet-item-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .workspace-sheet-item-path {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .workspace-sheet-task-count {
+      background: rgba(0, 0, 0, 0.05);
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .workspace-sheet-add-btn {
+      border-color: rgba(139, 92, 246, 0.25);
+      color: rgba(139, 92, 246, 0.8);
+    }
+
+    [data-theme="light"] .workspace-sheet-add-btn:active {
+      background: rgba(139, 92, 246, 0.1);
+      border-color: rgba(139, 92, 246, 0.4);
+    }
+
     [data-theme="light"] .mobile-chat-fab {
       background: linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(22, 163, 74, 0.08));
       border-color: rgba(22, 163, 74, 0.3);
@@ -3181,7 +4941,11 @@
   <!-- Tactical View (Mobile Only) -->
   <div class="tactical-view" id="tactical-view">
     <header class="tactical-header">
-      <span class="tactical-title">FORMIC // MOBILE</span>
+      <button class="workspace-sheet-trigger" id="workspace-sheet-trigger" onclick="openWorkspaceSheet()">
+        <span class="color-dot" id="mobile-workspace-color-dot" style="background-color: #8b5cf6;"></span>
+        <span class="workspace-name" id="mobile-workspace-name">FORMIC</span>
+        <span class="chevron">▼</span>
+      </button>
       <div class="tactical-view-toggle">
         <button class="tactical-view-toggle-btn active" id="toggle-tactical" onclick="toggleMobileView('tactical')">Tactical</button>
         <button class="tactical-view-toggle-btn" id="toggle-board" onclick="toggleMobileView('board')">Board</button>
@@ -3281,6 +5045,23 @@
     </div>
   </div>
 
+  <!-- Workspace Bottom Sheet (Mobile) -->
+  <div class="workspace-sheet-overlay" id="workspace-sheet-overlay" onclick="closeWorkspaceSheet(event)">
+    <div class="workspace-sheet" id="workspace-sheet">
+      <div class="workspace-sheet-handle"></div>
+      <div class="workspace-sheet-header">
+        <h3 class="workspace-sheet-title">Workspaces</h3>
+      </div>
+      <div class="workspace-sheet-list" id="workspace-sheet-list">
+        <!-- Workspace items will be dynamically populated -->
+      </div>
+      <button class="workspace-sheet-add-btn" id="workspace-sheet-add-btn" onclick="addWorkspaceFromSheet()">
+        <span class="workspace-sheet-add-icon">+</span>
+        <span>Add Workspace</span>
+      </button>
+    </div>
+  </div>
+
   <!-- Mobile Chat Panel (Full-Screen) -->
   <div class="mobile-chat-panel" id="mobile-chat-panel">
     <header class="mobile-chat-header">
@@ -3303,13 +5084,92 @@
     </div>
   </div>
 
-  <!-- Floating Action Buttons -->
-  <div class="floating-actions">
-    <button class="btn theme-toggle" id="theme-toggle" onclick="cycleTheme()" title="Toggle theme">
-      <span class="theme-icon" id="theme-icon"></span>
-      <span class="theme-label" id="theme-label">Dark</span>
-    </button>
+  <!-- Desktop Header with Workspace Switcher -->
+  <header class="desktop-header" id="desktop-header">
+    <div class="desktop-header-left">
+      <!-- Workspace Switcher -->
+      <div class="workspace-switcher" id="workspace-switcher">
+        <button class="workspace-trigger" id="workspace-trigger" onclick="toggleWorkspaceDropdown()">
+          <span class="workspace-color-dot" id="workspace-color-dot" style="background-color: #8b5cf6;"></span>
+          <span class="workspace-trigger-name" id="workspace-trigger-name">Loading...</span>
+          <span class="workspace-trigger-chevron" id="workspace-trigger-chevron">▼</span>
+        </button>
+
+        <!-- Dropdown Menu -->
+        <div class="workspace-dropdown" id="workspace-dropdown">
+          <div class="workspace-dropdown-list" id="workspace-dropdown-list">
+            <!-- Workspace items will be rendered here -->
+          </div>
+
+          <div class="workspace-dropdown-divider"></div>
+
+          <button class="workspace-add-btn" id="workspace-add-btn" onclick="showAddWorkspaceForm()">
+            <span class="workspace-add-icon">+</span>
+            <span>Add Workspace</span>
+          </button>
+
+          <!-- Inline Add Workspace Form -->
+          <div class="add-workspace-form" id="add-workspace-form">
+            <div class="add-workspace-form-header">
+              <span class="add-workspace-form-title">Add Workspace</span>
+              <button class="add-workspace-form-close" onclick="hideAddWorkspaceForm()">×</button>
+            </div>
+            <div class="path-input-wrapper">
+              <input type="text" class="path-input" id="workspace-path-input" placeholder="/path/to/project" />
+              <span class="validation-status" id="validation-status"></span>
+            </div>
+            <div class="validation-message" id="validation-message"></div>
+            <div class="add-workspace-actions">
+              <button class="add-workspace-submit" id="add-workspace-submit" onclick="addWorkspaceFromDropdown()" disabled>
+                Add & Switch
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="desktop-header-right">
+      <button class="btn theme-toggle" id="theme-toggle" onclick="cycleTheme()" title="Toggle theme">
+        <span class="theme-icon" id="theme-icon"></span>
+        <span class="theme-label" id="theme-label">Dark</span>
+      </button>
+      <button class="btn settings-btn" id="settings-btn" onclick="openSettings()" title="Settings">
+        <span class="settings-icon">⚙</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Project Brief Panel - Collapsible Workspace Info -->
+  <div class="project-brief-panel" id="project-brief-panel">
+    <!-- Expanded Content -->
+    <div class="project-brief-content project-brief-expanded">
+      <div class="project-brief-info">
+        <span class="project-brief-path" id="project-brief-path">Loading...</span>
+        <div class="project-brief-stats" id="project-brief-stats">
+          <!-- Task count badges will be rendered here -->
+        </div>
+        <div class="project-brief-activity" id="project-brief-activity">
+          <!-- Last activity will be rendered here -->
+        </div>
+      </div>
+      <button class="project-brief-toggle" onclick="toggleProjectBriefPanel()">Hide</button>
+    </div>
+
+    <!-- Collapsed Content -->
+    <div class="project-brief-content project-brief-collapsed">
+      <div class="project-brief-collapsed-info">
+        <span class="project-brief-collapsed-label">Workspace</span>
+        <span class="project-brief-badge total" id="project-brief-total-badge">
+          <span class="badge-count">0</span> tasks
+        </span>
+      </div>
+      <button class="project-brief-toggle" onclick="toggleProjectBriefPanel()">Show</button>
+    </div>
   </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
 
   <div class="bootstrap-banner hidden" id="bootstrap-banner">
     <div class="bootstrap-banner-content">
@@ -3476,23 +5336,98 @@
     </svg>
   </button>
 
+  <!-- Settings Panel Backdrop -->
+  <div class="settings-backdrop" id="settings-backdrop" onclick="closeSettings()"></div>
+
+  <!-- Settings Panel -->
+  <div class="settings-panel" id="settings-panel">
+    <div class="settings-header">
+      <div class="settings-header-left">
+        <span class="settings-icon-header">⚙️</span>
+        <span class="settings-title">Settings</span>
+      </div>
+      <button class="settings-close-btn" onclick="closeSettings()">×</button>
+    </div>
+
+    <div class="settings-content">
+      <!-- General Section -->
+      <div class="settings-section">
+        <div class="settings-section-title">General</div>
+
+        <div class="settings-row">
+          <label class="settings-label">Theme</label>
+          <div class="settings-theme-selector" id="settings-theme-selector">
+            <button class="theme-option" data-theme="dark" onclick="setThemeFromSettings('dark')">
+              <span class="theme-option-icon">☾</span>
+              <span>Dark</span>
+            </button>
+            <button class="theme-option" data-theme="light" onclick="setThemeFromSettings('light')">
+              <span class="theme-option-icon">☀</span>
+              <span>Light</span>
+            </button>
+            <button class="theme-option" data-theme="auto" onclick="setThemeFromSettings('auto')">
+              <span class="theme-option-icon">⚙</span>
+              <span>Auto</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label">Notifications</label>
+          <label class="settings-toggle">
+            <input type="checkbox" id="settings-notifications" onchange="toggleNotifications(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Execution Section -->
+      <div class="settings-section">
+        <div class="settings-section-title">Execution</div>
+
+        <div class="settings-row">
+          <label class="settings-label">Max Concurrent Sessions</label>
+          <div class="settings-number-input">
+            <button class="number-btn" onclick="adjustConcurrentSessions(-1)">−</button>
+            <span class="number-value" id="concurrent-sessions-value">1</span>
+            <button class="number-btn" onclick="adjustConcurrentSessions(1)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Workspaces Section -->
+      <div class="settings-section">
+        <div class="settings-section-title">Workspaces</div>
+
+        <div class="workspaces-list" id="workspaces-list">
+          <!-- Workspace items rendered dynamically -->
+        </div>
+
+        <div class="add-workspace-form" id="add-workspace-form">
+          <input type="text" class="add-workspace-input" id="add-workspace-path" placeholder="Enter workspace path...">
+          <button class="btn btn-primary add-workspace-btn" onclick="addWorkspaceFromSettings()">+ Add</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+  <script src="/configStore.js"></script>
   <script>
     let board = { meta: {}, tasks: [], bootstrapRequired: false };
     let terminal = null;
     let currentWs = null;
     let draggedTaskId = null;
     const BOOTSTRAP_TASK_ID = 't-bootstrap';
-    const THEME_KEY = 'formic-theme';
 
-    // Theme Management
+    // Theme Management (using configStore)
     function getStoredTheme() {
-      return localStorage.getItem(THEME_KEY) || 'dark';
+      return window.configStore.getSetting('theme') || 'dark';
     }
 
     function saveTheme(theme) {
-      localStorage.setItem(THEME_KEY, theme);
+      window.configStore.setSetting('theme', theme);
     }
 
     function isNightTime() {
@@ -3565,8 +5500,592 @@
       applyTheme(next);
     }
 
+    // ============================================
+    // Workspace Switcher Functions
+    // ============================================
+
+    // State for workspace switcher
+    let workspaceDropdownOpen = false;
+    let workspaceValidationTimeout = null;
+    let currentValidation = null;
+    let isSwitchingWorkspace = false;
+
+    /**
+     * Format a timestamp as a relative time string
+     * @param {string} isoString - ISO-8601 timestamp
+     * @returns {string} Relative time (e.g., "2 hours ago", "yesterday")
+     */
+    function formatRelativeTime(isoString) {
+      if (!isoString) return '';
+
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHour = Math.floor(diffMin / 60);
+      const diffDay = Math.floor(diffHour / 24);
+
+      if (diffSec < 60) return 'just now';
+      if (diffMin < 60) return `${diffMin}m ago`;
+      if (diffHour < 24) return `${diffHour}h ago`;
+      if (diffDay === 1) return 'yesterday';
+      if (diffDay < 7) return `${diffDay}d ago`;
+      if (diffDay < 30) return `${Math.floor(diffDay / 7)}w ago`;
+      return date.toLocaleDateString();
+    }
+
+    /**
+     * Calculate total task count from TaskCounts object
+     * @param {Object} taskCounts - Object with status counts
+     * @returns {number} Total number of tasks
+     */
+    function getTotalTaskCount(taskCounts) {
+      if (!taskCounts) return 0;
+      return Object.values(taskCounts).reduce((sum, count) => sum + count, 0);
+    }
+
+    /**
+     * Show toast notification
+     * @param {string} message - Message to display
+     * @param {'success'|'error'} type - Toast type
+     */
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `
+        <span class="toast-icon">${type === 'success' ? '✓' : '✕'}</span>
+        <span>${message}</span>
+      `;
+
+      container.appendChild(toast);
+
+      // Auto-remove after 4 seconds
+      setTimeout(() => {
+        toast.classList.add('toast-out');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    /**
+     * Update the workspace trigger display
+     */
+    function updateWorkspaceTrigger() {
+      const activeWorkspace = window.configStore.getActiveWorkspace();
+      const nameEl = document.getElementById('workspace-trigger-name');
+      const dotEl = document.getElementById('workspace-color-dot');
+
+      if (activeWorkspace) {
+        nameEl.textContent = activeWorkspace.name;
+        dotEl.style.backgroundColor = activeWorkspace.color;
+      } else {
+        nameEl.textContent = 'No Workspace';
+        dotEl.style.backgroundColor = '#6b7280';
+      }
+    }
+
+    /**
+     * Toggle the workspace dropdown open/closed
+     */
+    function toggleWorkspaceDropdown() {
+      const switcher = document.getElementById('workspace-switcher');
+
+      if (workspaceDropdownOpen) {
+        closeWorkspaceDropdown();
+      } else {
+        switcher.classList.add('open');
+        workspaceDropdownOpen = true;
+        renderWorkspaceDropdown();
+      }
+    }
+
+    /**
+     * Close the workspace dropdown
+     */
+    function closeWorkspaceDropdown() {
+      const switcher = document.getElementById('workspace-switcher');
+      switcher.classList.remove('open');
+      workspaceDropdownOpen = false;
+      hideAddWorkspaceForm();
+    }
+
+    /**
+     * Render the workspace dropdown list
+     */
+    async function renderWorkspaceDropdown() {
+      const listEl = document.getElementById('workspace-dropdown-list');
+      const workspaces = window.configStore.getWorkspaces();
+      const activeWorkspace = window.configStore.getActiveWorkspace();
+
+      // Sort by lastAccessed (most recent first)
+      const sortedWorkspaces = [...workspaces].sort((a, b) => {
+        const dateA = new Date(a.lastAccessed || 0);
+        const dateB = new Date(b.lastAccessed || 0);
+        return dateB - dateA;
+      });
+
+      // Fetch task counts for all workspaces in parallel
+      const workspacesWithCounts = await Promise.all(
+        sortedWorkspaces.map(async (ws) => {
+          // If this is the active workspace, we already have the board loaded
+          if (activeWorkspace && ws.id === activeWorkspace.id) {
+            // Count from loaded board
+            const counts = { todo: 0, queued: 0, running: 0, review: 0, done: 0 };
+            if (window.board && window.board.tasks) {
+              window.board.tasks.forEach(task => {
+                if (task.status in counts) counts[task.status]++;
+              });
+            }
+            return { ...ws, taskCount: getTotalTaskCount(counts) };
+          }
+
+          // For other workspaces, try to fetch counts via API (optional - could skip for performance)
+          // For now, just show unknown count
+          return { ...ws, taskCount: null };
+        })
+      );
+
+      listEl.innerHTML = workspacesWithCounts.map(ws => {
+        const isActive = activeWorkspace && ws.id === activeWorkspace.id;
+        const taskCountText = ws.taskCount !== null ? `${ws.taskCount} tasks` : '';
+        const timeText = formatRelativeTime(ws.lastAccessed);
+
+        return `
+          <div class="workspace-item ${isActive ? 'active' : ''}" onclick="switchWorkspace('${ws.id}')">
+            <span class="workspace-item-dot" style="background-color: ${ws.color};"></span>
+            <div class="workspace-item-info">
+              <div class="workspace-item-name">${escapeHtml(ws.name)}</div>
+              <div class="workspace-item-meta">
+                ${taskCountText ? `<span class="workspace-item-tasks">${taskCountText}</span>` : ''}
+                ${timeText ? `<span class="workspace-item-time">${timeText}</span>` : ''}
+              </div>
+            </div>
+            <span class="workspace-item-check">✓</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    /**
+     * Switch to a different workspace
+     * @param {string} workspaceId - The workspace ID to switch to
+     */
+    async function switchWorkspace(workspaceId) {
+      const workspace = window.configStore.getWorkspaces().find(ws => ws.id === workspaceId);
+      if (!workspace) {
+        showToast('Workspace not found', 'error');
+        return;
+      }
+
+      // Check if already active
+      const activeWorkspace = window.configStore.getActiveWorkspace();
+      if (activeWorkspace && activeWorkspace.id === workspaceId) {
+        closeWorkspaceDropdown();
+        return;
+      }
+
+      // Show loading state
+      isSwitchingWorkspace = true;
+      const triggerEl = document.getElementById('workspace-trigger');
+      const chevronEl = document.getElementById('workspace-trigger-chevron');
+      triggerEl.classList.add('loading');
+      chevronEl.innerHTML = '<span class="workspace-trigger-spinner"></span>';
+
+      try {
+        // Call API to switch workspace on server
+        const res = await fetch('/api/workspace/switch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: workspace.path }),
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || 'Failed to switch workspace');
+        }
+
+        // Update local config store
+        window.configStore.setActiveWorkspace(workspaceId);
+
+        // Close dropdown and update trigger
+        closeWorkspaceDropdown();
+        updateWorkspaceTrigger();
+
+        // Reload board with new workspace data
+        await loadBoard();
+
+        showToast(`Switched to ${workspace.name}`, 'success');
+      } catch (err) {
+        console.error('[WorkspaceSwitcher] Switch failed:', err);
+        showToast(err.message || 'Failed to switch workspace', 'error');
+      } finally {
+        isSwitchingWorkspace = false;
+        triggerEl.classList.remove('loading');
+        chevronEl.textContent = '▼';
+      }
+    }
+
+    /**
+     * Show the add workspace form
+     */
+    function showAddWorkspaceForm() {
+      const addBtn = document.getElementById('workspace-add-btn');
+      const form = document.getElementById('add-workspace-form');
+
+      addBtn.style.display = 'none';
+      form.classList.add('visible');
+
+      // Focus the input
+      setTimeout(() => {
+        document.getElementById('workspace-path-input').focus();
+      }, 100);
+    }
+
+    /**
+     * Hide the add workspace form
+     */
+    function hideAddWorkspaceForm() {
+      const addBtn = document.getElementById('workspace-add-btn');
+      const form = document.getElementById('add-workspace-form');
+
+      addBtn.style.display = 'flex';
+      form.classList.remove('visible');
+
+      // Reset form
+      document.getElementById('workspace-path-input').value = '';
+      document.getElementById('workspace-path-input').className = 'path-input';
+      document.getElementById('validation-status').textContent = '';
+      document.getElementById('validation-message').textContent = '';
+      document.getElementById('add-workspace-submit').disabled = true;
+      currentValidation = null;
+    }
+
+    /**
+     * Validate workspace path with debouncing
+     * @param {string} path - Path to validate
+     */
+    function validateWorkspacePath(path) {
+      // Clear previous timeout
+      if (workspaceValidationTimeout) {
+        clearTimeout(workspaceValidationTimeout);
+      }
+
+      const inputEl = document.getElementById('workspace-path-input');
+      const statusEl = document.getElementById('validation-status');
+      const messageEl = document.getElementById('validation-message');
+      const submitBtn = document.getElementById('add-workspace-submit');
+
+      // Reset state
+      inputEl.className = 'path-input';
+      statusEl.textContent = '';
+      statusEl.className = 'validation-status';
+      messageEl.textContent = '';
+      messageEl.className = 'validation-message';
+      submitBtn.disabled = true;
+      currentValidation = null;
+
+      // Don't validate empty paths
+      if (!path.trim()) {
+        return;
+      }
+
+      // Show validating state
+      statusEl.textContent = '...';
+      statusEl.className = 'validation-status validating';
+
+      // Debounce validation
+      workspaceValidationTimeout = setTimeout(async () => {
+        try {
+          const res = await fetch('/api/workspace/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: path.trim() }),
+          });
+
+          const validation = await res.json();
+
+          if (validation.valid) {
+            inputEl.className = 'path-input valid';
+            statusEl.textContent = '✓';
+            statusEl.className = 'validation-status';
+
+            if (validation.hasFormic) {
+              messageEl.textContent = 'Existing Formic workspace found';
+            } else {
+              messageEl.textContent = 'Will initialize new Formic workspace';
+            }
+            messageEl.className = 'validation-message success';
+            submitBtn.disabled = false;
+            currentValidation = { path: path.trim(), validation };
+          } else {
+            inputEl.className = 'path-input invalid';
+            statusEl.textContent = '✕';
+            statusEl.className = 'validation-status';
+            messageEl.textContent = validation.error || 'Invalid path';
+            messageEl.className = 'validation-message error';
+            submitBtn.disabled = true;
+          }
+        } catch (err) {
+          console.error('[WorkspaceSwitcher] Validation failed:', err);
+          inputEl.className = 'path-input invalid';
+          statusEl.textContent = '✕';
+          messageEl.textContent = 'Failed to validate path';
+          messageEl.className = 'validation-message error';
+        }
+      }, 300);
+    }
+
+    /**
+     * Add a new workspace from the dropdown form
+     */
+    async function addWorkspaceFromDropdown() {
+      if (!currentValidation) {
+        showToast('Please enter a valid path', 'error');
+        return;
+      }
+
+      const { path } = currentValidation;
+      const submitBtn = document.getElementById('add-workspace-submit');
+
+      // Show loading state
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Adding...';
+
+      try {
+        // Add to local config store
+        const workspace = window.configStore.addWorkspace({ path });
+
+        // Switch to the new workspace
+        await switchWorkspace(workspace.id);
+
+        // Hide form
+        hideAddWorkspaceForm();
+
+        showToast(`Added workspace ${workspace.name}`, 'success');
+      } catch (err) {
+        console.error('[WorkspaceSwitcher] Add workspace failed:', err);
+        showToast(err.message || 'Failed to add workspace', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add & Switch';
+      }
+    }
+
+    /**
+     * Initialize workspace switcher
+     */
+    function initWorkspaceSwitcher() {
+      // Update trigger with current workspace (desktop)
+      updateWorkspaceTrigger();
+
+      // Update mobile workspace trigger
+      updateMobileWorkspaceTrigger();
+
+      // Set up path input validation
+      const pathInput = document.getElementById('workspace-path-input');
+      if (pathInput) {
+        pathInput.addEventListener('input', (e) => {
+          validateWorkspacePath(e.target.value);
+        });
+      }
+
+      // Click outside handler
+      document.addEventListener('click', (e) => {
+        const switcher = document.getElementById('workspace-switcher');
+        if (workspaceDropdownOpen && switcher && !switcher.contains(e.target)) {
+          closeWorkspaceDropdown();
+        }
+      });
+
+      // Escape key handler
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && workspaceDropdownOpen) {
+          closeWorkspaceDropdown();
+        }
+      });
+    }
+
+    // ============================================
+    // End Workspace Switcher Functions
+    // ============================================
+
+    // ============================================
+    // Project Brief Panel Functions
+    // ============================================
+
+    /**
+     * Fetch workspace information from the server
+     * @returns {Promise<Object|null>} Workspace info object or null on error
+     */
+    async function fetchProjectBriefData() {
+      try {
+        const res = await fetch('/api/workspace/info');
+        if (!res.ok) {
+          console.error('[ProjectBrief] Failed to fetch workspace info:', res.status);
+          return null;
+        }
+        return await res.json();
+      } catch (err) {
+        console.error('[ProjectBrief] Error fetching workspace info:', err);
+        return null;
+      }
+    }
+
+    /**
+     * Format relative time for last activity
+     * @param {string} isoTimestamp - ISO timestamp string
+     * @returns {string} Formatted relative time
+     */
+    function formatRelativeTime(isoTimestamp) {
+      if (!isoTimestamp) return 'No activity';
+
+      const date = new Date(isoTimestamp);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffSecs = Math.floor(diffMs / 1000);
+      const diffMins = Math.floor(diffSecs / 60);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+
+      if (diffSecs < 60) return 'just now';
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays < 7) return `${diffDays}d ago`;
+
+      return date.toLocaleDateString();
+    }
+
+    /**
+     * Render the project brief panel with workspace data
+     * @param {Object} data - Workspace info from API
+     */
+    function renderProjectBriefPanel(data) {
+      if (!data) return;
+
+      const panel = document.getElementById('project-brief-panel');
+      if (!panel) return;
+
+      // Update workspace path
+      const pathEl = document.getElementById('project-brief-path');
+      if (pathEl) {
+        pathEl.textContent = data.path || 'Unknown';
+        pathEl.title = data.path || '';
+      }
+
+      // Render task count badges
+      const statsEl = document.getElementById('project-brief-stats');
+      if (statsEl && data.taskCounts) {
+        const counts = data.taskCounts;
+        const total = Object.values(counts).reduce((sum, c) => sum + c, 0);
+
+        // Only show badges for statuses with tasks
+        const badges = [];
+        if (counts.todo > 0) badges.push(`<span class="project-brief-badge todo"><span class="badge-count">${counts.todo}</span> todo</span>`);
+        if (counts.queued > 0) badges.push(`<span class="project-brief-badge queued"><span class="badge-count">${counts.queued}</span> queued</span>`);
+        if (counts.running > 0 || counts.briefing > 0 || counts.planning > 0) {
+          const activeCount = counts.running + (counts.briefing || 0) + (counts.planning || 0);
+          badges.push(`<span class="project-brief-badge running"><span class="badge-count">${activeCount}</span> running</span>`);
+        }
+        if (counts.review > 0) badges.push(`<span class="project-brief-badge review"><span class="badge-count">${counts.review}</span> review</span>`);
+        if (counts.done > 0) badges.push(`<span class="project-brief-badge done"><span class="badge-count">${counts.done}</span> done</span>`);
+
+        statsEl.innerHTML = badges.join('');
+
+        // Update collapsed total badge
+        const totalBadge = document.getElementById('project-brief-total-badge');
+        if (totalBadge) {
+          totalBadge.innerHTML = `<span class="badge-count">${total}</span> task${total !== 1 ? 's' : ''}`;
+        }
+      }
+
+      // Render last activity
+      const activityEl = document.getElementById('project-brief-activity');
+      if (activityEl) {
+        if (data.lastActivity) {
+          const relTime = formatRelativeTime(data.lastActivity);
+          activityEl.innerHTML = `Last activity: <span class="project-brief-activity-time">${relTime}</span>`;
+        } else {
+          activityEl.textContent = 'No recent activity';
+        }
+      }
+    }
+
+    /**
+     * Toggle the project brief panel collapsed/expanded state
+     */
+    function toggleProjectBriefPanel() {
+      const panel = document.getElementById('project-brief-panel');
+      if (!panel) return;
+
+      const isCollapsed = panel.classList.toggle('collapsed');
+
+      // Persist preference
+      window.configStore.setSetting('projectBriefCollapsed', isCollapsed);
+    }
+
+    /**
+     * Refresh the project brief panel data
+     */
+    async function refreshProjectBriefPanel() {
+      const data = await fetchProjectBriefData();
+      if (data) {
+        renderProjectBriefPanel(data);
+      }
+    }
+
+    /**
+     * Initialize the project brief panel
+     * - Load saved collapse preference
+     * - Default to collapsed on mobile
+     * - Fetch and render initial data
+     */
+    async function initProjectBriefPanel() {
+      const panel = document.getElementById('project-brief-panel');
+      if (!panel) return;
+
+      // Check saved preference
+      const savedCollapsed = window.configStore.getSetting('projectBriefCollapsed');
+
+      // Default to collapsed on mobile (viewport width <= 768px)
+      const isMobile = window.innerWidth <= 768;
+
+      if (savedCollapsed !== undefined) {
+        // Use saved preference
+        if (savedCollapsed) {
+          panel.classList.add('collapsed');
+        } else {
+          panel.classList.remove('collapsed');
+        }
+      } else if (isMobile) {
+        // First visit on mobile - default to collapsed
+        panel.classList.add('collapsed');
+        window.configStore.setSetting('projectBriefCollapsed', true);
+      }
+
+      // Fetch and render initial data
+      await refreshProjectBriefPanel();
+    }
+
+    // ============================================
+    // End Project Brief Panel Functions
+    // ============================================
+
     // Initialize
     async function init() {
+      // Migrate from legacy storage on first load (imports workspace and theme)
+      await window.configStore.migrateFromLegacy();
+
       applyTheme(getStoredTheme());
       await loadBoard();
       terminal = new Terminal({
@@ -3587,6 +6106,12 @@
 
       // Initialize tactical view if on mobile
       initTacticalView();
+
+      // Initialize workspace switcher
+      initWorkspaceSwitcher();
+
+      // Initialize project brief panel
+      await initProjectBriefPanel();
     }
 
     // API calls
@@ -4141,6 +6666,241 @@
       fab.classList.remove('active');
     }
 
+    // ============================================
+    // Settings Panel Functions
+    // ============================================
+
+    let colorPickerOpen = null; // Track which workspace's color picker is open
+    let editingWorkspaceId = null; // Track which workspace is being edited
+
+    function openSettings() {
+      const panel = document.getElementById('settings-panel');
+      const backdrop = document.getElementById('settings-backdrop');
+      panel.classList.add('open');
+      backdrop.classList.add('open');
+      initializeSettingsPanel();
+    }
+
+    function closeSettings() {
+      const panel = document.getElementById('settings-panel');
+      const backdrop = document.getElementById('settings-backdrop');
+      panel.classList.remove('open');
+      backdrop.classList.remove('open');
+      closeAllColorPickers();
+      editingWorkspaceId = null;
+    }
+
+    function initializeSettingsPanel() {
+      // Initialize theme selector
+      const currentTheme = window.configStore.getSetting('theme') || 'dark';
+      updateThemeSelector(currentTheme);
+
+      // Initialize notifications toggle
+      const notificationsEnabled = window.configStore.getSetting('notificationsEnabled');
+      document.getElementById('settings-notifications').checked = notificationsEnabled !== false;
+
+      // Initialize concurrent sessions
+      const maxSessions = window.configStore.getSetting('maxConcurrentSessions') || 1;
+      document.getElementById('concurrent-sessions-value').textContent = maxSessions;
+
+      // Render workspace list
+      renderWorkspaceList();
+    }
+
+    function updateThemeSelector(theme) {
+      const buttons = document.querySelectorAll('#settings-theme-selector .theme-option');
+      buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === theme);
+      });
+    }
+
+    function setThemeFromSettings(theme) {
+      saveTheme(theme);
+      applyTheme(theme);
+      updateThemeSelector(theme);
+    }
+
+    function toggleNotifications(enabled) {
+      window.configStore.setSetting('notificationsEnabled', enabled);
+    }
+
+    function adjustConcurrentSessions(delta) {
+      const valueEl = document.getElementById('concurrent-sessions-value');
+      let value = parseInt(valueEl.textContent) + delta;
+      value = Math.max(1, Math.min(5, value)); // Clamp between 1-5
+      valueEl.textContent = value;
+      window.configStore.setSetting('maxConcurrentSessions', value);
+    }
+
+    function renderWorkspaceList() {
+      const container = document.getElementById('workspaces-list');
+      const workspaces = window.configStore.getWorkspaces();
+      const activeWorkspace = window.configStore.getActiveWorkspace();
+      const activeId = activeWorkspace ? activeWorkspace.id : null;
+
+      if (workspaces.length === 0) {
+        container.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: rgba(255,255,255,0.4); font-size: 13px;">No workspaces configured</div>';
+        return;
+      }
+
+      container.innerHTML = workspaces.map(ws => {
+        const isActive = ws.id === activeId;
+        const isEditing = ws.id === editingWorkspaceId;
+
+        return `
+          <div class="workspace-item ${isActive ? 'active' : ''}" data-id="${ws.id}">
+            <div class="workspace-color" style="background: ${ws.color}" onclick="toggleColorPicker('${ws.id}', event)" title="Change color">
+              <div class="color-picker-dropdown" id="color-picker-${ws.id}">
+                ${window.configStore.COLOR_PALETTE.map(color => `
+                  <div class="color-swatch ${color === ws.color ? 'selected' : ''}"
+                       style="background: ${color}"
+                       onclick="setWorkspaceColor('${ws.id}', '${color}', event)"></div>
+                `).join('')}
+              </div>
+            </div>
+            <div class="workspace-info">
+              ${isEditing ? `
+                <input type="text" class="workspace-name-input" value="${ws.name}"
+                       onblur="saveWorkspaceName('${ws.id}', this.value)"
+                       onkeydown="handleWorkspaceNameKeydown(event, '${ws.id}', this.value)"
+                       autofocus>
+              ` : `
+                <div class="workspace-name">${ws.name}</div>
+              `}
+              <div class="workspace-path" title="${ws.path}">${truncatePath(ws.path)}</div>
+            </div>
+            <div class="workspace-actions">
+              <button class="workspace-action-btn" onclick="startEditWorkspace('${ws.id}')" title="Rename">✎</button>
+              <button class="workspace-action-btn delete" onclick="deleteWorkspace('${ws.id}')"
+                      ${isActive ? 'disabled title="Cannot delete active workspace"' : 'title="Delete"'}>🗑</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Focus the input if editing
+      if (editingWorkspaceId) {
+        const input = container.querySelector('.workspace-name-input');
+        if (input) {
+          input.focus();
+          input.select();
+        }
+      }
+    }
+
+    function truncatePath(path) {
+      if (path.length <= 35) return path;
+      const parts = path.split('/');
+      if (parts.length <= 3) return path;
+      return '.../' + parts.slice(-2).join('/');
+    }
+
+    function toggleColorPicker(workspaceId, event) {
+      event.stopPropagation();
+      const picker = document.getElementById(`color-picker-${workspaceId}`);
+
+      if (colorPickerOpen === workspaceId) {
+        picker.classList.remove('open');
+        colorPickerOpen = null;
+      } else {
+        closeAllColorPickers();
+        picker.classList.add('open');
+        colorPickerOpen = workspaceId;
+      }
+    }
+
+    function closeAllColorPickers() {
+      document.querySelectorAll('.color-picker-dropdown').forEach(el => {
+        el.classList.remove('open');
+      });
+      colorPickerOpen = null;
+    }
+
+    function setWorkspaceColor(workspaceId, color, event) {
+      event.stopPropagation();
+      const config = window.configStore.getConfig();
+      const workspace = config.workspaces.find(ws => ws.id === workspaceId);
+      if (workspace) {
+        workspace.color = color;
+        window.configStore.saveConfig(config);
+        renderWorkspaceList();
+      }
+      closeAllColorPickers();
+    }
+
+    function startEditWorkspace(workspaceId) {
+      editingWorkspaceId = workspaceId;
+      renderWorkspaceList();
+    }
+
+    function saveWorkspaceName(workspaceId, newName) {
+      if (newName.trim()) {
+        const config = window.configStore.getConfig();
+        const workspace = config.workspaces.find(ws => ws.id === workspaceId);
+        if (workspace) {
+          workspace.name = newName.trim();
+          window.configStore.saveConfig(config);
+        }
+      }
+      editingWorkspaceId = null;
+      renderWorkspaceList();
+    }
+
+    function handleWorkspaceNameKeydown(event, workspaceId, value) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveWorkspaceName(workspaceId, value);
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        editingWorkspaceId = null;
+        renderWorkspaceList();
+      }
+    }
+
+    function deleteWorkspace(workspaceId) {
+      const activeWorkspace = window.configStore.getActiveWorkspace();
+      if (activeWorkspace && activeWorkspace.id === workspaceId) {
+        alert('Cannot delete the active workspace');
+        return;
+      }
+
+      if (confirm('Are you sure you want to remove this workspace?')) {
+        window.configStore.removeWorkspace(workspaceId);
+        renderWorkspaceList();
+      }
+    }
+
+    function addWorkspaceFromSettings() {
+      const input = document.getElementById('add-workspace-path');
+      const path = input.value.trim();
+
+      if (!path) {
+        alert('Please enter a workspace path');
+        return;
+      }
+
+      window.configStore.addWorkspace({ path });
+      input.value = '';
+      renderWorkspaceList();
+    }
+
+    // Close settings panel on Escape key
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        const settingsPanel = document.getElementById('settings-panel');
+        if (settingsPanel.classList.contains('open')) {
+          closeSettings();
+        }
+      }
+    });
+
+    // Close color picker when clicking outside
+    document.addEventListener('click', (event) => {
+      if (colorPickerOpen && !event.target.closest('.workspace-color')) {
+        closeAllColorPickers();
+      }
+    });
+
     function connectAssistantWebSocket() {
       if (assistantWs && assistantWs.readyState === WebSocket.OPEN) {
         return;
@@ -4189,6 +6949,7 @@
           // Board state changed (e.g., task created) - refresh the board
           console.log('[Assistant] Board updated, refreshing...');
           loadBoard();
+          refreshProjectBriefPanel();
         }
       };
 
@@ -4886,6 +7647,180 @@
       }
     }
 
+    // ==================== Workspace Bottom Sheet ====================
+    let workspaceSheetTouchStartY = 0;
+
+    /**
+     * Open the workspace bottom sheet
+     */
+    function openWorkspaceSheet() {
+      const overlay = document.getElementById('workspace-sheet-overlay');
+      const sheet = document.getElementById('workspace-sheet');
+
+      // Render the workspace list
+      renderWorkspaceSheetList();
+
+      // Show the sheet
+      overlay.classList.add('open');
+
+      // Lock body scroll
+      document.body.style.overflow = 'hidden';
+
+      // Add touch listeners for swipe-to-dismiss
+      sheet.addEventListener('touchstart', handleWorkspaceSheetTouchStart);
+      sheet.addEventListener('touchmove', handleWorkspaceSheetTouchMove);
+      sheet.addEventListener('touchend', handleWorkspaceSheetTouchEnd);
+    }
+
+    /**
+     * Close the workspace bottom sheet
+     */
+    function closeWorkspaceSheet(event) {
+      // If clicking on sheet content, don't close
+      if (event && event.target.closest('.workspace-sheet')) {
+        return;
+      }
+
+      const overlay = document.getElementById('workspace-sheet-overlay');
+      const sheet = document.getElementById('workspace-sheet');
+
+      overlay.classList.remove('open');
+
+      // Unlock body scroll
+      document.body.style.overflow = '';
+
+      // Reset sheet transform
+      sheet.style.transform = '';
+
+      // Remove touch listeners
+      sheet.removeEventListener('touchstart', handleWorkspaceSheetTouchStart);
+      sheet.removeEventListener('touchmove', handleWorkspaceSheetTouchMove);
+      sheet.removeEventListener('touchend', handleWorkspaceSheetTouchEnd);
+    }
+
+    /**
+     * Render the list of workspaces in the sheet
+     */
+    function renderWorkspaceSheetList() {
+      const listContainer = document.getElementById('workspace-sheet-list');
+      const workspaces = configStore.getWorkspaces();
+      const activeWorkspace = configStore.getActiveWorkspace();
+
+      if (workspaces.length === 0) {
+        listContainer.innerHTML = `
+          <div style="text-align: center; padding: 40px 20px; color: rgba(255, 255, 255, 0.4);">
+            <div style="font-size: 32px; margin-bottom: 12px;">◇</div>
+            <div>No workspaces configured</div>
+          </div>
+        `;
+        return;
+      }
+
+      // Get task count for current workspace (board data is only available for active workspace)
+      const currentTaskCount = board && board.tasks ? board.tasks.length : 0;
+
+      listContainer.innerHTML = workspaces.map(ws => {
+        const isActive = activeWorkspace && ws.id === activeWorkspace.id;
+        const taskCount = isActive ? currentTaskCount : '—';
+
+        return `
+          <button class="workspace-sheet-item ${isActive ? 'active' : ''}" onclick="selectWorkspaceFromSheet('${ws.id}')">
+            <span class="color-dot" style="background-color: ${ws.color};"></span>
+            <div class="workspace-sheet-item-info">
+              <div class="workspace-sheet-item-name">${escapeHtml(ws.name)}</div>
+              <div class="workspace-sheet-item-path">${escapeHtml(ws.path)}</div>
+            </div>
+            <div class="workspace-sheet-item-meta">
+              <span class="workspace-sheet-task-count">${taskCount} tasks</span>
+              ${isActive ? '<span class="workspace-sheet-checkmark">✓</span>' : ''}
+            </div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Select a workspace from the sheet
+     */
+    function selectWorkspaceFromSheet(workspaceId) {
+      const activeWorkspace = configStore.getActiveWorkspace();
+
+      // If already active, just close the sheet
+      if (activeWorkspace && workspaceId === activeWorkspace.id) {
+        closeWorkspaceSheet();
+        return;
+      }
+
+      // Set the new active workspace and reload
+      configStore.setActiveWorkspace(workspaceId);
+      const workspace = configStore.getWorkspaces().find(ws => ws.id === workspaceId);
+
+      if (workspace) {
+        // Redirect to the workspace path
+        window.location.href = `/?workspace=${encodeURIComponent(workspace.path)}`;
+      }
+    }
+
+    /**
+     * Open add workspace form from the sheet (uses desktop dropdown form)
+     */
+    function addWorkspaceFromSheet() {
+      closeWorkspaceSheet();
+      // Delay slightly to allow sheet to close, then open desktop dropdown with form
+      setTimeout(() => {
+        // Open the desktop dropdown if not already open
+        const dropdown = document.getElementById('workspace-dropdown');
+        if (!dropdown.classList.contains('open')) {
+          toggleWorkspaceDropdown();
+        }
+        // Show the add workspace form
+        showAddWorkspaceForm();
+      }, 200);
+    }
+
+    /**
+     * Update the mobile workspace trigger with current workspace info
+     */
+    function updateMobileWorkspaceTrigger() {
+      const activeWorkspace = configStore.getActiveWorkspace();
+      const colorDot = document.getElementById('mobile-workspace-color-dot');
+      const nameEl = document.getElementById('mobile-workspace-name');
+
+      if (activeWorkspace) {
+        colorDot.style.backgroundColor = activeWorkspace.color;
+        nameEl.textContent = activeWorkspace.name.toUpperCase();
+      } else {
+        colorDot.style.backgroundColor = '#8b5cf6';
+        nameEl.textContent = 'FORMIC';
+      }
+    }
+
+    // Touch handlers for workspace sheet swipe-to-dismiss
+    function handleWorkspaceSheetTouchStart(e) {
+      workspaceSheetTouchStartY = e.touches[0].clientY;
+    }
+
+    function handleWorkspaceSheetTouchMove(e) {
+      const sheet = document.getElementById('workspace-sheet');
+      const deltaY = e.touches[0].clientY - workspaceSheetTouchStartY;
+
+      // Only allow downward swipe
+      if (deltaY > 0) {
+        sheet.style.transform = `translateY(${deltaY}px)`;
+      }
+    }
+
+    function handleWorkspaceSheetTouchEnd(e) {
+      const sheet = document.getElementById('workspace-sheet');
+      const deltaY = e.changedTouches[0].clientY - workspaceSheetTouchStartY;
+
+      // If swiped down more than 100px, close the sheet
+      if (deltaY > 100) {
+        closeWorkspaceSheet();
+      }
+      sheet.style.transform = '';
+    }
+
     // ==================== Mobile Chat Panel ====================
     let mobileChatWs = null;
     let mobileChatMessages = [];
@@ -4955,6 +7890,7 @@
           // Board state changed (e.g., task created) - refresh the board and tactical view
           console.log('[MobileChat] Board updated, refreshing...');
           loadBoard();
+          refreshProjectBriefPanel();
         }
       };
 

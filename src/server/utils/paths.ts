@@ -1,10 +1,24 @@
 import path from 'node:path';
 
 /**
- * Get the workspace path from environment variable
+ * Module-level workspace path, initialized from environment variable.
+ * Can be updated at runtime via setWorkspacePath().
+ */
+let currentWorkspacePath: string = process.env.WORKSPACE_PATH || './workspace';
+
+/**
+ * Get the current workspace path
  */
 export function getWorkspacePath(): string {
-  return process.env.WORKSPACE_PATH || './workspace';
+  return currentWorkspacePath;
+}
+
+/**
+ * Set the workspace path at runtime for dynamic workspace switching
+ */
+export function setWorkspacePath(newPath: string): void {
+  currentWorkspacePath = newPath;
+  console.log('[Paths] Workspace path updated to:', newPath);
 }
 
 /**

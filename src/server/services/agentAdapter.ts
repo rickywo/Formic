@@ -19,6 +19,20 @@ export interface AgentConfig {
 export type AgentType = 'claude' | 'copilot';
 
 /**
+ * Assistant-specific configuration for read-only Task Manager mode
+ */
+export interface AssistantConfig {
+  /** Output format flag (e.g., 'stream-json' for Claude) */
+  outputFormat: string | null;
+  /** List of read-only tools allowed for the assistant */
+  readOnlyTools: string[];
+  /** Whether the agent supports --continue for conversation context */
+  supportsConversationContinue: boolean;
+  /** Build CLI arguments for assistant (read-only) mode */
+  buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => string[];
+}
+
+/**
  * Agent configurations for supported agents
  */
 const AGENTS: Record<AgentType, AgentConfig> = {
@@ -33,6 +47,44 @@ const AGENTS: Record<AgentType, AgentConfig> = {
     buildArgs: (prompt: string) => ['--prompt', prompt, '--allow-all-tools'],
     skillsDir: '.claude/skills',
     envVars: {}, // Uses GitHub OAuth
+  },
+};
+
+/**
+ * Assistant-specific configurations for read-only Task Manager mode
+ */
+const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
+  claude: {
+    outputFormat: 'stream-json',
+    readOnlyTools: ['Read', 'Glob', 'Grep', 'LS', 'WebSearch', 'WebFetch'],
+    supportsConversationContinue: true,
+    buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
+      const args = [
+        '--print',
+        '--output-format', 'stream-json',
+        '--verbose',
+        '--allowedTools', 'Read,Glob,Grep,LS,WebSearch,WebFetch',
+        '--dangerously-skip-permissions',
+      ];
+      if (options?.continue) {
+        args.push('--continue');
+      }
+      args.push(prompt);
+      return args;
+    },
+  },
+  copilot: {
+    outputFormat: null, // Copilot uses plain text output
+    readOnlyTools: ['read', 'glob', 'grep', 'ls'],
+    supportsConversationContinue: false, // Copilot doesn't support --continue
+    buildAssistantArgs: (prompt: string, _options?: { continue?: boolean }) => {
+      // Copilot CLI uses different argument format
+      // Note: Copilot may not support tool restrictions the same way
+      return [
+        '--prompt', prompt,
+        '--read-only', // Copilot flag for read-only mode if available
+      ];
+    },
   },
 };
 
@@ -115,4 +167,41 @@ export function validateAgentEnv(): string[] {
   }
 
   return missing;
+}
+
+/**
+ * Get the assistant configuration for the configured agent type
+ */
+export function getAssistantConfig(): AssistantConfig {
+  const agentType = getAgentType();
+  return ASSISTANT_CONFIGS[agentType];
+}
+
+/**
+ * Build CLI arguments for assistant (read-only) mode
+ */
+export function buildAssistantArgs(prompt: string, options?: { continue?: boolean }): string[] {
+  return getAssistantConfig().buildAssistantArgs(prompt, options);
+}
+
+/**
+ * Get the output format for the configured agent's assistant mode
+ * Returns null if the agent uses plain text output
+ */
+export function getAssistantOutputFormat(): string | null {
+  return getAssistantConfig().outputFormat;
+}
+
+/**
+ * Check if the configured agent supports conversation continuation (--continue flag)
+ */
+export function supportsConversationContinue(): boolean {
+  return getAssistantConfig().supportsConversationContinue;
+}
+
+/**
+ * Get the list of read-only tools allowed for the assistant
+ */
+export function getAssistantReadOnlyTools(): string[] {
+  return getAssistantConfig().readOnlyTools;
 }

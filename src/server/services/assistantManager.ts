@@ -7,6 +7,14 @@ import type { AssistantSession, AssistantMessage } from '../../types/index.js';
 import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
 import { loadBoard } from './store.js';
 import { broadcastBoardUpdate } from './boardNotifier.js';
+import {
+  getAgentCommand,
+  getAgentType,
+  getAgentDisplayName,
+  buildAssistantArgs,
+  supportsConversationContinue,
+} from './agentAdapter.js';
+import { parseAgentOutput, usesJsonOutput } from './outputParser.js';
 
 // Session state
 let session: AssistantSession = {
@@ -176,12 +184,31 @@ export function getMessageHistory(): AssistantMessage[] {
 }
 
 /**
- * Generate the context file (.formic/CLAUDE.md) with API docs and board state
+ * Get the context file name based on agent type
+ * Claude uses CLAUDE.md, other agents use their own conventions
+ */
+function getContextFileName(): string {
+  const agentType = getAgentType();
+  switch (agentType) {
+    case 'claude':
+      return 'CLAUDE.md';
+    case 'copilot':
+      // GitHub Copilot may use different conventions; for now use a generic name
+      return 'COPILOT_CONTEXT.md';
+    default:
+      return 'CLAUDE.md';
+  }
+}
+
+/**
+ * Generate the context file with API docs and board state
+ * File name depends on the configured agent type
  */
 export async function generateContextFile(): Promise<string> {
   const workspacePath = getWorkspacePath();
-  // Put CLAUDE.md at the workspace root so Claude Code CLI reads it automatically
-  const contextPath = path.join(workspacePath, 'CLAUDE.md');
+  const contextFileName = getContextFileName();
+  // Put context file at the workspace root so CLI reads it automatically
+  const contextPath = path.join(workspacePath, contextFileName);
 
   // Load current board state
   const board = await loadBoard();
@@ -311,42 +338,33 @@ export function sendUserMessage(content: string): boolean {
 }
 
 /**
- * Process a message by spawning Claude
+ * Process a message by spawning the configured agent CLI
  */
 function processMessage(content: string): void {
   isProcessing = true;
 
   const workspacePath = getWorkspacePath();
+  const agentType = getAgentType();
+  const agentCommand = getAgentCommand();
+  const agentDisplayName = getAgentDisplayName();
 
-  // Build command args - read-only tools for Task Manager role
-  const args = [
-    '--print',                          // Non-interactive print mode
-    '--output-format', 'stream-json',   // Stream JSON output
-    '--verbose',                        // Required for stream-json
-    '--allowedTools', 'Read,Glob,Grep,LS,WebSearch,WebFetch',  // Read-only tools only
-    '--dangerously-skip-permissions',   // Auto-accept (only for allowed tools above)
-  ];
+  // Determine if we should use --continue based on agent support and message history
+  const useContinue = !isFirstMessage && supportsConversationContinue();
 
-  // Use --continue for subsequent messages to maintain conversation context
-  if (!isFirstMessage) {
-    args.push('--continue');
-  }
-
-  // Add the prompt
-  args.push(content);
+  // Build agent-specific args using the adapter
+  const args = buildAssistantArgs(content, { continue: useContinue });
 
   console.log('[AssistantManager] Processing message in:', workspacePath);
+  console.log('[AssistantManager] Agent:', agentType, '| Command:', agentCommand);
   console.log('[AssistantManager] Args:', args.join(' ').substring(0, 100));
 
-  console.log('[AssistantManager] Spawning claude with cwd:', workspacePath);
-
-  const child = spawn('claude', args, {
+  const child = spawn(agentCommand, args, {
     cwd: workspacePath,
     env: { ...process.env },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
 
-  // Close stdin immediately - Claude waits for stdin to close before processing
+  // Close stdin immediately - agents may wait for stdin to close before processing
   child.stdin?.end();
 
   console.log('[AssistantManager] Spawned with PID:', child.pid);
@@ -362,15 +380,17 @@ function processMessage(content: string): void {
     const errorMessage: AssistantMessage = {
       type: 'error',
       content: err.code === 'ENOENT'
-        ? 'Claude Code CLI not found. Please install it.'
+        ? `${agentDisplayName} not found. Please install it.`
         : err.message,
       timestamp: new Date().toISOString(),
     };
     broadcastMessage(errorMessage);
   });
 
-  // Handle stdout - parse stream-json events
+  // Handle stdout - parse output using agent-specific parser
   let outputBuffer = '';
+  const isJsonOutput = usesJsonOutput(agentType);
+
   child.stdout?.on('data', (data: Buffer) => {
     const chunk = data.toString();
     console.log('[AssistantManager] STDOUT chunk received, length:', chunk.length);
@@ -383,50 +403,36 @@ function processMessage(content: string): void {
     for (const line of lines) {
       if (!line.trim()) continue;
 
-      try {
-        const event = JSON.parse(line);
-        const eventType = event.type as string;
+      // Use the agent-agnostic output parser
+      const result = parseAgentOutput(line, agentType);
 
-        if (eventType === 'assistant') {
-          // Extract text from assistant message
-          const msg = event.message as {
-            content?: Array<{ type: string; text?: string }>;
-          } | undefined;
+      if (result.type === 'text' && result.content) {
+        streamingContent += result.content;
+        broadcastStreamDelta(result.content);
+      } else if (result.type === 'result') {
+        // Final result
+        const finalContent = streamingContent.trim() || result.content || '';
 
-          if (msg?.content) {
-            for (const block of msg.content) {
-              if (block.type === 'text' && block.text) {
-                streamingContent += block.text;
-                broadcastStreamDelta(block.text);
-              }
-            }
-          }
-        } else if (eventType === 'result') {
-          // Final result
-          const result = event.result as string | undefined;
-          const finalContent = streamingContent.trim() || result || '';
+        if (finalContent) {
+          const message: AssistantMessage = {
+            type: 'assistant',
+            content: finalContent,
+            timestamp: new Date().toISOString(),
+          };
+          broadcastMessage(message);
+          console.log('[AssistantManager] Response:', finalContent.substring(0, 100));
 
-          if (finalContent) {
-            const message: AssistantMessage = {
-              type: 'assistant',
-              content: finalContent,
-              timestamp: new Date().toISOString(),
-            };
-            broadcastMessage(message);
-            console.log('[AssistantManager] Response:', finalContent.substring(0, 100));
-
-            // Check for task creation commands in the response
-            processTaskCreation(finalContent).catch(err => {
-              console.error('[AssistantManager] Task creation processing error:', err);
-            });
-          }
-        } else if (eventType === 'system') {
-          // Session init event
-          console.log('[AssistantManager] System event:', event.subtype);
+          // Check for task creation commands in the response
+          processTaskCreation(finalContent).catch(err => {
+            console.error('[AssistantManager] Task creation processing error:', err);
+          });
         }
-      } catch {
-        // Non-JSON output
-        console.log('[AssistantManager] Non-JSON:', line.substring(0, 100));
+      } else if (result.type === 'system') {
+        console.log('[AssistantManager] System event:', result.content);
+      } else if (!isJsonOutput && result.type === 'unknown' && line.trim()) {
+        // For non-JSON agents, treat unknown lines as potential text content
+        streamingContent += line + '\n';
+        broadcastStreamDelta(line + '\n');
       }
     }
   });
@@ -434,6 +440,7 @@ function processMessage(content: string): void {
   // Handle stderr
   child.stderr?.on('data', (data: Buffer) => {
     const text = data.toString().trim();
+    // Filter out spinner characters
     if (text && !text.includes('⠋') && !text.includes('⠙') && !text.includes('⠹')) {
       console.log('[AssistantManager] stderr:', text);
     }
@@ -443,14 +450,19 @@ function processMessage(content: string): void {
   child.on('close', (code) => {
     console.log('[AssistantManager] Process exited with code:', code);
     isProcessing = false;
-    isFirstMessage = false;  // Next message should use --continue
+
+    // Only set isFirstMessage to false if agent supports continuation
+    if (supportsConversationContinue()) {
+      isFirstMessage = false;
+    }
 
     // Flush any remaining content
     if (outputBuffer.trim()) {
-      try {
-        const event = JSON.parse(outputBuffer);
-        if (event.type === 'result' && event.result) {
-          const content = streamingContent.trim() || event.result;
+      if (isJsonOutput) {
+        // Try to parse remaining JSON
+        const result = parseAgentOutput(outputBuffer, agentType);
+        if (result.type === 'result' && result.content) {
+          const content = streamingContent.trim() || result.content;
           if (content && !messageHistory.some(m => m.content === content && m.type === 'assistant')) {
             const message: AssistantMessage = {
               type: 'assistant',
@@ -459,14 +471,31 @@ function processMessage(content: string): void {
             };
             broadcastMessage(message);
 
-            // Check for task creation commands in the response
             processTaskCreation(content).catch(err => {
               console.error('[AssistantManager] Task creation processing error:', err);
             });
           }
         }
-      } catch {
-        // Ignore
+      } else {
+        // For non-JSON output, treat remaining buffer as text
+        streamingContent += outputBuffer;
+      }
+    }
+
+    // For non-JSON agents, broadcast the final accumulated content
+    if (!isJsonOutput && streamingContent.trim()) {
+      const finalContent = streamingContent.trim();
+      if (!messageHistory.some(m => m.content === finalContent && m.type === 'assistant')) {
+        const message: AssistantMessage = {
+          type: 'assistant',
+          content: finalContent,
+          timestamp: new Date().toISOString(),
+        };
+        broadcastMessage(message);
+
+        processTaskCreation(finalContent).catch(err => {
+          console.error('[AssistantManager] Task creation processing error:', err);
+        });
       }
     }
 
@@ -507,15 +536,16 @@ export async function startAssistant(): Promise<AssistantSession> {
 
     broadcastStatus();
 
-    // Send welcome message
+    // Send welcome message with agent info
+    const agentDisplayName = getAgentDisplayName();
     const welcomeMessage: AssistantMessage = {
       type: 'system',
-      content: 'Formic Task Manager ready. I can help you brainstorm ideas, explore the codebase, and create well-crafted tasks.',
+      content: `Formic Task Manager ready (using ${agentDisplayName}). I can help you brainstorm ideas, explore the codebase, and create well-crafted tasks.`,
       timestamp: new Date().toISOString(),
     };
     broadcastMessage(welcomeMessage);
 
-    console.log('[AssistantManager] Session started');
+    console.log('[AssistantManager] Session started with agent:', getAgentType());
     return session;
 
   } catch (error) {

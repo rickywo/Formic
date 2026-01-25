@@ -43,3 +43,24 @@ export function broadcastBoardUpdate(): void {
 
   console.log('[BoardNotifier] Broadcast board-updated to', sentCount, 'clients');
 }
+
+/**
+ * Broadcast a workspace-changed event to all connected clients
+ * Call this after switching to a different workspace
+ */
+export function broadcastWorkspaceChanged(workspacePath: string): void {
+  const message = JSON.stringify({
+    type: 'workspace-changed',
+    path: workspacePath,
+  });
+
+  let sentCount = 0;
+  for (const ws of boardConnections) {
+    if (ws.readyState === 1) { // WebSocket.OPEN
+      ws.send(message);
+      sentCount++;
+    }
+  }
+
+  console.log('[BoardNotifier] Broadcast workspace-changed to', sentCount, 'clients');
+}

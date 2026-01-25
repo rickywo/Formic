@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { boardRoutes } from './routes/board.js';
 import { taskRoutes } from './routes/tasks.js';
 import { assistantRoutes } from './routes/assistant.js';
+import { workspaceRoutes } from './routes/workspace.js';
 import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
@@ -38,6 +39,7 @@ async function main() {
   await fastify.register(boardRoutes);
   await fastify.register(taskRoutes);
   await fastify.register(assistantRoutes);
+  await fastify.register(workspaceRoutes);
 
   // Register WebSocket routes
   await fastify.register(logsWebSocket);

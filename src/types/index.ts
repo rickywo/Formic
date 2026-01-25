@@ -95,3 +95,45 @@ export interface AssistantSession {
   startedAt: string | null;
   lastError: string | null;
 }
+
+// Output Parser Types (for agent-agnostic CLI output parsing)
+export type OutputEventType = 'text' | 'result' | 'system' | 'error' | 'unknown';
+
+export interface OutputParseResult {
+  /** Type of parsed event */
+  type: OutputEventType;
+  /** Text content if available */
+  content?: string;
+  /** Whether this is the final result event */
+  isFinal?: boolean;
+  /** Raw event data for debugging */
+  raw?: unknown;
+}
+
+// Workspace Management Types
+export interface TaskCounts {
+  todo: number;
+  queued: number;
+  briefing: number;
+  planning: number;
+  running: number;
+  review: number;
+  done: number;
+}
+
+export interface WorkspaceInfo {
+  path: string;
+  projectName: string;
+  taskCounts: TaskCounts;
+  formicInitialized: boolean;
+  lastActivity: string | null;
+}
+
+export interface WorkspaceValidation {
+  valid: boolean;
+  exists: boolean;
+  isDirectory: boolean;
+  isWritable: boolean;
+  hasFormic: boolean;
+  error?: string;
+}
