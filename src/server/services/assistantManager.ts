@@ -14,7 +14,7 @@ import {
   buildAssistantArgs,
   supportsConversationContinue,
 } from './agentAdapter.js';
-import { parseAgentOutput, usesJsonOutput } from './outputParser.js';
+import { parseAgentOutput, usesJsonOutput, cleanAgentOutput } from './outputParser.js';
 
 // Session state
 let session: AssistantSession = {
@@ -38,7 +38,8 @@ const MAX_HISTORY = 100;
 let isFirstMessage = true;
 
 // Pattern to detect task creation in assistant responses
-const TASK_CREATE_PATTERN = /```task-create\n([\s\S]*?)\n```/;
+// Supports both formats: with newline after task-create or directly after
+const TASK_CREATE_PATTERN = /```task-create\s*([\s\S]*?)\s*```/;
 
 // Get the server port for API calls
 const getServerPort = () => parseInt(process.env.PORT || '8000', 10);
@@ -185,7 +186,7 @@ export function getMessageHistory(): AssistantMessage[] {
 
 /**
  * Get the context file name based on agent type
- * Claude uses CLAUDE.md, other agents use their own conventions
+ * Claude uses CLAUDE.md, Copilot uses AGENTS.md
  */
 function getContextFileName(): string {
   const agentType = getAgentType();
@@ -193,8 +194,8 @@ function getContextFileName(): string {
     case 'claude':
       return 'CLAUDE.md';
     case 'copilot':
-      // GitHub Copilot may use different conventions; for now use a generic name
-      return 'COPILOT_CONTEXT.md';
+      // GitHub Copilot CLI reads custom instructions from AGENTS.md
+      return 'AGENTS.md';
     default:
       return 'CLAUDE.md';
   }
@@ -484,8 +485,9 @@ function processMessage(content: string): void {
 
     // For non-JSON agents, broadcast the final accumulated content
     if (!isJsonOutput && streamingContent.trim()) {
-      const finalContent = streamingContent.trim();
-      if (!messageHistory.some(m => m.content === finalContent && m.type === 'assistant')) {
+      // Clean up function call XML blocks that may appear in Copilot output
+      const finalContent = cleanAgentOutput(streamingContent);
+      if (finalContent && !messageHistory.some(m => m.content === finalContent && m.type === 'assistant')) {
         const message: AssistantMessage = {
           type: 'assistant',
           content: finalContent,

@@ -44,7 +44,7 @@ const AGENTS: Record<AgentType, AgentConfig> = {
   },
   copilot: {
     command: 'copilot',
-    buildArgs: (prompt: string) => ['--prompt', prompt, '--allow-all-tools'],
+    buildArgs: (prompt: string) => ['-p', prompt, '--allow-all-tools', '-s'],
     skillsDir: '.claude/skills',
     envVars: {}, // Uses GitHub OAuth
   },
@@ -75,15 +75,20 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
   },
   copilot: {
     outputFormat: null, // Copilot uses plain text output
-    readOnlyTools: ['read', 'glob', 'grep', 'ls'],
-    supportsConversationContinue: false, // Copilot doesn't support --continue
-    buildAssistantArgs: (prompt: string, _options?: { continue?: boolean }) => {
-      // Copilot CLI uses different argument format
-      // Note: Copilot may not support tool restrictions the same way
-      return [
-        '--prompt', prompt,
-        '--read-only', // Copilot flag for read-only mode if available
+    readOnlyTools: ['Read', 'Glob', 'Grep', 'LS', 'WebSearch', 'WebFetch'],
+    supportsConversationContinue: true, // Copilot supports --continue
+    buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
+      // Copilot CLI: use --available-tools to restrict to read-only tools
+      // Use -s (silent) for cleaner output without stats
+      const args = [
+        '-p', prompt,
+        '-s', // Silent mode - output only agent response
+        '--available-tools', 'Read,Glob,Grep,LS,WebSearch,WebFetch',
       ];
+      if (options?.continue) {
+        args.push('--continue');
+      }
+      return args;
     },
   },
 };

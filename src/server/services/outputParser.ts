@@ -96,6 +96,46 @@ export function parseCopilotOutput(line: string): OutputParseResult {
 }
 
 /**
+ * Clean up agent output by removing function call XML blocks
+ * This is useful for Copilot which may include raw XML in its text output
+ */
+export function cleanAgentOutput(content: string): string {
+  // List of known tool call XML tag patterns to remove
+  const toolCallPatterns = [
+    // Generic function calls
+    /<function_calls>[\s\S]*?<\/function_calls>/g,
+    /<function_calls>[\s\S]*?<\/antml:function_calls>/g,
+    /<tool_call>[\s\S]*?<\/tool_call>/g,
+    // Invoke patterns
+    /<invoke[^>]*>[\s\S]*?<\/invoke>/g,
+    /<invoke[^>]*>[\s\S]*?<\/antml:invoke>/g,
+    // Copilot-specific tool patterns
+    /<read_file>[\s\S]*?<\/read_file>/g,
+    /<write_file>[\s\S]*?<\/write_file>/g,
+    /<root_command_execution>[\s\S]*?<\/root_command_execution>/g,
+    /<command_execution>[\s\S]*?<\/command_execution>/g,
+    /<search_files>[\s\S]*?<\/search_files>/g,
+    /<list_directory>[\s\S]*?<\/list_directory>/g,
+    // Generic XML blocks with path/command children
+    /<[a-z_]+><path>[^<]*<\/path><\/[a-z_]+>/g,
+    /<[a-z_]+><command>[^<]*<\/command>[\s\S]*?<\/[a-z_]+>/g,
+    // Parameter blocks
+    /<parameter[^>]*>[\s\S]*?<\/parameter>/g,
+  ];
+
+  let cleaned = content;
+  for (const pattern of toolCallPatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+
+  // Clean up any resulting multiple spaces or newlines
+  return cleaned
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * Parse agent output line based on agent type
  * Delegates to agent-specific parsers
  */
