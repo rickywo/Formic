@@ -5722,6 +5722,7 @@
         // Close dropdown and update trigger
         closeWorkspaceDropdown();
         updateWorkspaceTrigger();
+        updateMobileWorkspaceTrigger();
 
         // Reload board with new workspace data
         await loadBoard();
@@ -7742,7 +7743,7 @@
     /**
      * Select a workspace from the sheet
      */
-    function selectWorkspaceFromSheet(workspaceId) {
+    async function selectWorkspaceFromSheet(workspaceId) {
       const activeWorkspace = configStore.getActiveWorkspace();
 
       // If already active, just close the sheet
@@ -7751,13 +7752,42 @@
         return;
       }
 
-      // Set the new active workspace and reload
-      configStore.setActiveWorkspace(workspaceId);
       const workspace = configStore.getWorkspaces().find(ws => ws.id === workspaceId);
+      if (!workspace) {
+        showToast('Workspace not found', 'error');
+        return;
+      }
 
-      if (workspace) {
-        // Redirect to the workspace path
-        window.location.href = `/?workspace=${encodeURIComponent(workspace.path)}`;
+      // Close sheet first for better UX
+      closeWorkspaceSheet();
+
+      try {
+        // Call API to switch workspace on server
+        const res = await fetch('/api/workspace/switch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: workspace.path }),
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || 'Failed to switch workspace');
+        }
+
+        // Update local config store
+        configStore.setActiveWorkspace(workspaceId);
+
+        // Update triggers
+        updateWorkspaceTrigger();
+        updateMobileWorkspaceTrigger();
+
+        // Reload board with new workspace data
+        await loadBoard();
+
+        showToast(`Switched to ${workspace.name}`, 'success');
+      } catch (err) {
+        console.error('[WorkspaceSheet] Switch failed:', err);
+        showToast(err.message || 'Failed to switch workspace', 'error');
       }
     }
 
