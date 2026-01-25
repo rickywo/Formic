@@ -39,7 +39,8 @@ let isFirstMessage = true;
 
 // Pattern to detect task creation in assistant responses
 // Supports both formats: with newline after task-create or directly after
-const TASK_CREATE_PATTERN = /```task-create\s*([\s\S]*?)\s*```/;
+// Global flag allows matching multiple task-create blocks
+const TASK_CREATE_PATTERN = /```task-create\s*([\s\S]*?)\s*```/g;
 
 // Get the server port for API calls
 const getServerPort = () => parseInt(process.env.PORT || '8000', 10);
@@ -74,42 +75,81 @@ async function createTaskViaAPI(taskData: { title: string; context: string; prio
 
 /**
  * Process assistant response content for task creation commands
+ * Supports multiple task-create blocks in a single response
  */
 async function processTaskCreation(content: string): Promise<void> {
-  const match = content.match(TASK_CREATE_PATTERN);
-  if (!match) return;
+  const matches = [...content.matchAll(TASK_CREATE_PATTERN)];
+  if (matches.length === 0) return;
 
-  try {
-    const taskData = JSON.parse(match[1]) as { title: string; context: string; priority?: string };
-    console.log('[AssistantManager] Detected task creation request:', taskData.title);
+  console.log(`[AssistantManager] Found ${matches.length} task creation request(s)`);
 
-    const result = await createTaskViaAPI(taskData);
+  const results: Array<{ success: boolean; title: string; taskId?: string; error?: string }> = [];
 
-    // Broadcast board update to all connected clients so they refresh their view
-    if (result.success) {
-      broadcastBoardUpdate();
+  for (const match of matches) {
+    try {
+      const taskData = JSON.parse(match[1]) as { title: string; context: string; priority?: string };
+      console.log('[AssistantManager] Creating task:', taskData.title);
+
+      const result = await createTaskViaAPI(taskData);
+      results.push({
+        success: result.success,
+        title: taskData.title,
+        taskId: result.taskId,
+        error: result.error,
+      });
+    } catch (error) {
+      const err = error as Error;
+      console.error('[AssistantManager] Failed to parse task data:', err.message);
+      results.push({
+        success: false,
+        title: 'Unknown',
+        error: `Parse error: ${err.message}`,
+      });
     }
-
-    // Broadcast confirmation message
-    const confirmMessage: AssistantMessage = {
-      type: 'system',
-      content: result.success
-        ? `Task created: "${taskData.title}" [${result.taskId}]`
-        : `Failed to create task: ${result.error}`,
-      timestamp: new Date().toISOString(),
-    };
-    broadcastMessage(confirmMessage);
-  } catch (error) {
-    const err = error as Error;
-    console.error('[AssistantManager] Failed to parse task data:', err.message);
-
-    const errorMessage: AssistantMessage = {
-      type: 'system',
-      content: `Failed to parse task creation request: ${err.message}`,
-      timestamp: new Date().toISOString(),
-    };
-    broadcastMessage(errorMessage);
   }
+
+  // Broadcast board update if any tasks were created
+  if (results.some(r => r.success)) {
+    broadcastBoardUpdate();
+  }
+
+  // Broadcast summary message
+  const successCount = results.filter(r => r.success).length;
+  const failCount = results.filter(r => !r.success).length;
+
+  let summaryContent: string;
+  if (results.length === 1) {
+    // Single task - show detailed message
+    const r = results[0];
+    summaryContent = r.success
+      ? `Task created: "${r.title}" [${r.taskId}]`
+      : `Failed to create task: ${r.error}`;
+  } else {
+    // Multiple tasks - show summary
+    const successList = results
+      .filter(r => r.success)
+      .map(r => `"${r.title}" [${r.taskId}]`)
+      .join(', ');
+    const failList = results
+      .filter(r => !r.success)
+      .map(r => `"${r.title}": ${r.error}`)
+      .join('; ');
+
+    if (failCount === 0) {
+      summaryContent = `Created ${successCount} tasks: ${successList}`;
+    } else if (successCount === 0) {
+      summaryContent = `Failed to create ${failCount} task(s): ${failList}`;
+    } else {
+      summaryContent = `Created ${successCount} task(s): ${successList}. Failed: ${failList}`;
+    }
+  }
+
+  const confirmMessage: AssistantMessage = {
+    type: 'system',
+    content: summaryContent,
+    timestamp: new Date().toISOString(),
+  };
+  broadcastMessage(confirmMessage);
 }
 
 /**
