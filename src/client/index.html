@@ -4478,6 +4478,112 @@
       font-weight: 300;
     }
 
+    /* Mobile Add Workspace Form (inside sheet) */
+    .workspace-sheet-add-form {
+      display: none;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 12px;
+      margin: 0 16px 16px 16px;
+    }
+
+    .workspace-sheet-add-form.visible {
+      display: block;
+    }
+
+    .workspace-sheet-add-form-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .workspace-sheet-add-form-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .workspace-sheet-add-form-close {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+
+    .workspace-sheet-add-form-close:active {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .workspace-sheet-path-input {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 14px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      margin-bottom: 8px;
+    }
+
+    .workspace-sheet-path-input:focus {
+      outline: none;
+      border-color: rgba(139, 92, 246, 0.5);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .workspace-sheet-path-input.valid {
+      border-color: rgba(34, 197, 94, 0.5);
+    }
+
+    .workspace-sheet-path-input.invalid {
+      border-color: rgba(239, 68, 68, 0.5);
+    }
+
+    .workspace-sheet-validation-msg {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 12px;
+      min-height: 18px;
+    }
+
+    .workspace-sheet-validation-msg.error {
+      color: #f87171;
+    }
+
+    .workspace-sheet-validation-msg.success {
+      color: #4ade80;
+    }
+
+    .workspace-sheet-submit-btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      background: rgba(139, 92, 246, 0.15);
+      color: #a78bfa;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .workspace-sheet-submit-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .workspace-sheet-submit-btn:not(:disabled):active {
+      background: rgba(139, 92, 246, 0.25);
+      transform: scale(0.98);
+    }
+
     /* ============================================
        Mobile Chat FAB
        ============================================ */
@@ -4881,6 +4987,39 @@
       border-color: rgba(139, 92, 246, 0.4);
     }
 
+    [data-theme="light"] .workspace-sheet-add-form {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    [data-theme="light"] .workspace-sheet-add-form-title {
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .workspace-sheet-add-form-close {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .workspace-sheet-path-input {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.1);
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .workspace-sheet-path-input:focus {
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="light"] .workspace-sheet-validation-msg {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .workspace-sheet-submit-btn {
+      background: rgba(139, 92, 246, 0.1);
+      border-color: rgba(139, 92, 246, 0.25);
+      color: rgba(139, 92, 246, 0.9);
+    }
+
     [data-theme="light"] .mobile-chat-fab {
       background: linear-gradient(135deg, rgba(22, 163, 74, 0.15), rgba(22, 163, 74, 0.08));
       border-color: rgba(22, 163, 74, 0.3);
@@ -5055,7 +5194,32 @@
       <div class="workspace-sheet-list" id="workspace-sheet-list">
         <!-- Workspace items will be dynamically populated -->
       </div>
-      <button class="workspace-sheet-add-btn" id="workspace-sheet-add-btn" onclick="addWorkspaceFromSheet()">
+
+      <!-- Mobile Add Workspace Form -->
+      <div class="workspace-sheet-add-form" id="workspace-sheet-add-form">
+        <div class="workspace-sheet-add-form-header">
+          <span class="workspace-sheet-add-form-title">Add Workspace</span>
+          <button class="workspace-sheet-add-form-close" onclick="hideMobileAddWorkspaceForm()">×</button>
+        </div>
+        <input
+          type="text"
+          class="workspace-sheet-path-input"
+          id="workspace-sheet-path-input"
+          placeholder="/path/to/project"
+          oninput="validateMobileWorkspacePath(this.value)"
+        />
+        <div class="workspace-sheet-validation-msg" id="workspace-sheet-validation-msg"></div>
+        <button
+          class="workspace-sheet-submit-btn"
+          id="workspace-sheet-submit-btn"
+          onclick="submitMobileAddWorkspace()"
+          disabled
+        >
+          Add & Switch
+        </button>
+      </div>
+
+      <button class="workspace-sheet-add-btn" id="workspace-sheet-add-btn" onclick="showMobileAddWorkspaceForm()">
         <span class="workspace-sheet-add-icon">+</span>
         <span>Add Workspace</span>
       </button>
@@ -7799,23 +7963,6 @@
     }
 
     /**
-     * Open add workspace form from the sheet (uses desktop dropdown form)
-     */
-    function addWorkspaceFromSheet() {
-      closeWorkspaceSheet();
-      // Delay slightly to allow sheet to close, then open desktop dropdown with form
-      setTimeout(() => {
-        // Open the desktop dropdown if not already open
-        const dropdown = document.getElementById('workspace-dropdown');
-        if (!dropdown.classList.contains('open')) {
-          toggleWorkspaceDropdown();
-        }
-        // Show the add workspace form
-        showAddWorkspaceForm();
-      }, 200);
-    }
-
-    /**
      * Update the mobile workspace trigger with current workspace info
      */
     function updateMobileWorkspaceTrigger() {
@@ -7829,6 +7976,158 @@
       } else {
         colorDot.style.backgroundColor = '#8b5cf6';
         nameEl.textContent = 'FORMIC';
+      }
+    }
+
+    // ==================== Mobile Add Workspace Form ====================
+    let mobileWorkspaceValidation = null;
+    let mobileValidationTimeout = null;
+
+    /**
+     * Show the mobile add workspace form
+     */
+    function showMobileAddWorkspaceForm() {
+      const addBtn = document.getElementById('workspace-sheet-add-btn');
+      const form = document.getElementById('workspace-sheet-add-form');
+
+      addBtn.style.display = 'none';
+      form.classList.add('visible');
+
+      // Focus the input
+      setTimeout(() => {
+        document.getElementById('workspace-sheet-path-input').focus();
+      }, 100);
+    }
+
+    /**
+     * Hide the mobile add workspace form
+     */
+    function hideMobileAddWorkspaceForm() {
+      const addBtn = document.getElementById('workspace-sheet-add-btn');
+      const form = document.getElementById('workspace-sheet-add-form');
+
+      addBtn.style.display = 'flex';
+      form.classList.remove('visible');
+
+      // Reset form
+      const input = document.getElementById('workspace-sheet-path-input');
+      input.value = '';
+      input.className = 'workspace-sheet-path-input';
+      document.getElementById('workspace-sheet-validation-msg').textContent = '';
+      document.getElementById('workspace-sheet-validation-msg').className = 'workspace-sheet-validation-msg';
+      document.getElementById('workspace-sheet-submit-btn').disabled = true;
+      mobileWorkspaceValidation = null;
+    }
+
+    /**
+     * Validate mobile workspace path with debouncing
+     */
+    function validateMobileWorkspacePath(path) {
+      const input = document.getElementById('workspace-sheet-path-input');
+      const msgEl = document.getElementById('workspace-sheet-validation-msg');
+      const submitBtn = document.getElementById('workspace-sheet-submit-btn');
+
+      // Clear previous timeout
+      if (mobileValidationTimeout) {
+        clearTimeout(mobileValidationTimeout);
+      }
+
+      // Reset state
+      input.className = 'workspace-sheet-path-input';
+      msgEl.textContent = '';
+      msgEl.className = 'workspace-sheet-validation-msg';
+      submitBtn.disabled = true;
+      mobileWorkspaceValidation = null;
+
+      // Don't validate empty or short paths
+      if (!path || path.length < 2) {
+        return;
+      }
+
+      // Debounce validation
+      mobileValidationTimeout = setTimeout(async () => {
+        msgEl.textContent = 'Validating...';
+
+        try {
+          const res = await fetch('/api/workspace/validate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path }),
+          });
+
+          const result = await res.json();
+
+          if (result.valid) {
+            input.className = 'workspace-sheet-path-input valid';
+            msgEl.className = 'workspace-sheet-validation-msg success';
+            msgEl.textContent = `✓ ${result.projectName || 'Valid workspace'}`;
+            submitBtn.disabled = false;
+            mobileWorkspaceValidation = result;
+          } else {
+            input.className = 'workspace-sheet-path-input invalid';
+            msgEl.className = 'workspace-sheet-validation-msg error';
+            msgEl.textContent = result.error || 'Invalid path';
+            submitBtn.disabled = true;
+          }
+        } catch (err) {
+          input.className = 'workspace-sheet-path-input invalid';
+          msgEl.className = 'workspace-sheet-validation-msg error';
+          msgEl.textContent = 'Validation failed';
+          submitBtn.disabled = true;
+        }
+      }, 300);
+    }
+
+    /**
+     * Submit the mobile add workspace form
+     */
+    async function submitMobileAddWorkspace() {
+      if (!mobileWorkspaceValidation) return;
+
+      const path = document.getElementById('workspace-sheet-path-input').value.trim();
+      const submitBtn = document.getElementById('workspace-sheet-submit-btn');
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Adding...';
+
+      try {
+        // Add to config store
+        const newWorkspace = configStore.addWorkspace({
+          path: path,
+          name: mobileWorkspaceValidation.projectName || path.split('/').pop()
+        });
+
+        // Switch to the new workspace via API
+        const res = await fetch('/api/workspace/switch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path }),
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || 'Failed to switch workspace');
+        }
+
+        // Update active workspace
+        configStore.setActiveWorkspace(newWorkspace.id);
+
+        // Hide form and close sheet
+        hideMobileAddWorkspaceForm();
+        closeWorkspaceSheet();
+
+        // Update UI
+        updateWorkspaceTrigger();
+        updateMobileWorkspaceTrigger();
+        await loadBoard();
+        await refreshProjectBriefPanel();
+
+        showToast(`Added & switched to ${newWorkspace.name}`, 'success');
+      } catch (err) {
+        console.error('[MobileAddWorkspace] Error:', err);
+        showToast(err.message || 'Failed to add workspace', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Add & Switch';
       }
     }
 
