@@ -1,11 +1,11 @@
-# Product Specification: Formic v0.3.0
+# Product Specification: Formic v0.4.0
 
 ## 1. Executive Summary
 
 | Attribute | Value |
 |-----------|-------|
 | Product Name | Formic |
-| Version | 0.3.0 |
+| Version | 0.4.0 |
 | Type | Local-First Agent Orchestration & Execution Environment |
 | Target Audience | Developers using AI coding agents for project development |
 | Supported Agents | Claude Code CLI, GitHub Copilot CLI |
@@ -27,7 +27,17 @@ Formic supports multiple AI coding agents through a unified abstraction layer:
 
 Both agents support the same skill format (`SKILL.md` with YAML frontmatter), enabling seamless switching between agents without workflow changes.
 
-### v0.3.0 New Features
+### v0.4.0 New Features
+
+| Feature | Description |
+|---------|-------------|
+| **Multi-Workspace Support** | Switch between project repositories without restarting the server |
+| **Multiple Task Creation** | AI Task Manager can create multiple tasks in a single response |
+| **GitHub Copilot Integration** | Full AI Task Manager support for GitHub Copilot CLI |
+| **Stall Detection** | Automatic task completion when stuck on manual testing subtasks |
+| **Improved UI/UX** | Better workspace input visibility, fixed panel layouts |
+
+### v0.3.0 Features
 
 | Feature | Description |
 |---------|-------------|
@@ -554,7 +564,56 @@ The queue processor broadcasts status updates to all connected clients:
 { "type": "board_updated", "reason": "task_completed", "taskId": "t-15" }
 ```
 
-### 2.12 Agent Abstraction Layer
+### 2.12 Multi-Workspace Management
+
+Formic v0.4.0 introduces the ability to switch between project workspaces without restarting the server.
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Workspace Switcher (UI Header)                             │
+│                         ↓                                   │
+│  POST /api/workspace/switch { path: "/path/to/project" }    │
+│                         ↓                                   │
+│  Validation:                                                │
+│  • Path exists and is absolute                              │
+│  • Directory is writable                                    │
+│  • Create .formic/ if not present                           │
+│                         ↓                                   │
+│  Update runtime WORKSPACE_PATH                              │
+│                         ↓                                   │
+│  Broadcast workspace_changed to all WebSocket clients       │
+│                         ↓                                   │
+│  Clients reload board from new workspace                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**API Endpoints:**
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/workspace/validate` | Validate a path before switching |
+| `GET /api/workspace/info` | Get current workspace metadata |
+| `POST /api/workspace/switch` | Switch to a different workspace |
+
+**Workspace Info Response:**
+```typescript
+interface WorkspaceInfo {
+  path: string;           // Absolute path to workspace
+  projectName: string;    // Directory basename
+  taskCounts: TaskCounts; // Tasks by status
+  formicInitialized: boolean; // Has .formic/ directory
+  lastActivity: string | null; // ISO timestamp
+}
+```
+
+**WebSocket Notification:**
+```typescript
+// Broadcast to all clients on workspace change
+{ "type": "workspace_changed", "path": "/new/workspace/path" }
+```
+
+### 2.14 Agent Abstraction Layer
 
 Formic implements a pluggable agent system that supports multiple AI coding assistants through a unified interface.
 
@@ -606,11 +665,11 @@ description: Generates implementation plan for a Formic task.
 
 The `name` field is required for GitHub Copilot CLI compatibility. Both agents load skills from the `.claude/skills/` directory.
 
-### 2.13 Container Strategy
+### 2.15 Container Strategy
 
 Single Node.js container serving both API and static frontend. The container requires the configured agent CLI installed globally (Claude Code or GitHub Copilot CLI).
 
-### 2.14 Volume Requirements
+### 2.16 Volume Requirements
 
 | Volume | Container Path | Purpose |
 |--------|----------------|---------|
@@ -866,14 +925,22 @@ This ensures the agent:
 }
 ```
 
-### 5.3 WebSocket Endpoints
+### 5.3 Workspace Endpoints
+
+| Method | Path | Description | Request Body | Response |
+|--------|------|-------------|--------------|----------|
+| POST | `/api/workspace/validate` | Validate a workspace path | `{path: string}` | `WorkspaceValidation` |
+| GET | `/api/workspace/info` | Get current workspace metadata | - | `WorkspaceInfo` |
+| POST | `/api/workspace/switch` | Switch to a different workspace | `{path: string}` | `{success: boolean, workspace: {...}}` |
+
+### 5.4 WebSocket Endpoints
 
 | Path | Purpose | Message Format |
 |------|---------|----------------|
 | `/ws/logs/:taskId` | Stream agent output | `{type: "stdout" \| "stderr", data: string}` |
 | `/ws/board` | Board update notifications | `{type: "board_updated", reason: string, taskId?: string}` |
 
-### 5.4 Static Files
+### 5.5 Static Files
 
 | Path | Serves |
 |------|--------|
@@ -1128,6 +1195,24 @@ services:
 - [x] Optimize for high-latency connections
 - [x] Document remote access setup
 - [x] Test mobile-to-desktop workflow
+
+### Phase 15: Multi-Workspace Management ✅
+- [x] Create workspace routes (`/api/workspace/*`)
+- [x] Implement path validation service
+- [x] Add runtime workspace switching
+- [x] Create WebSocket workspace_changed notification
+- [x] Build workspace switcher UI component
+- [x] Auto-initialize .formic/ for new workspaces
+- [x] Display workspace info (task counts, last activity)
+- [x] Test workspace switching without server restart
+
+### Phase 16: AI Task Manager Improvements ✅
+- [x] Support multiple task creation in single response
+- [x] Fix GitHub Copilot CLI integration
+- [x] Add output parser for Copilot XML filtering
+- [x] Implement stall detection for manual testing subtasks
+- [x] Add 'skipped' status for non-automatable subtasks
+- [x] Improve UI visibility (workspace input, panel layouts)
 
 ---
 

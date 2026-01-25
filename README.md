@@ -13,7 +13,7 @@
 <p align="center">
   <a href="#quickstart"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker" alt="Docker Ready"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/Version-0.3.0-blue?style=flat-square" alt="Version 0.3.0">
+  <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=flat-square" alt="Version 0.4.0">
   <img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=flat-square&logo=pwa" alt="PWA Ready">
   <img src="https://img.shields.io/badge/Built%20with-Claude-blueviolet?style=flat-square" alt="Built with Claude">
 </p>
@@ -77,7 +77,40 @@
 
 ---
 
-## 🆕 What's New in v0.3.0
+## 🆕 What's New in v0.4.0
+
+### 🗂️ Multi-Workspace Support — Switch Projects Seamlessly
+
+Formic now supports **multiple workspaces** in a single session. Switch between different project repositories without restarting the server. Each workspace maintains its own board state, tasks, and configuration.
+
+<p align="center">
+  <!-- TODO: Add screenshot of workspace switcher -->
+  <img src="images/formic-workspace-switcher.png" alt="Workspace Switcher" width="600">
+  <br>
+  <em>Switch between projects with a single click</em>
+</p>
+
+**Key Features:**
+- 🔄 **Live Workspace Switching** — Change projects without restarting
+- 📁 **Path Validation** — Validates directories before switching
+- 📊 **Workspace Info** — Shows task counts and last activity per workspace
+- 🔔 **Real-Time Sync** — WebSocket broadcasts workspace changes to all clients
+- ✨ **Auto-Initialize** — Creates `.formic` directory for new workspaces
+
+### 🤖 Improved AI Task Manager
+
+- **Multiple Task Creation** — Create multiple tasks in a single response
+- **GitHub Copilot CLI Support** — Full integration with Copilot for task creation
+- **Cleaner Output** — Filters XML tool calls from Copilot responses
+
+### 🔧 Bug Fixes & Improvements
+
+- **Stall Detection** — Tasks no longer hang on manual testing subtasks
+- **UI Fixes** — Project brief panel and workspace input field visibility improved
+
+---
+
+## What's New in v0.3.0
 
 ### 📱 Progressive Web App (PWA) — Work From Anywhere
 
@@ -172,6 +205,7 @@ That's it. No prompt engineering. No context management. No babysitting.
 
 | Feature | Description |
 |---------|-------------|
+| 🗂️ **Multi-Workspace** | Switch between project repositories without restarting — each with its own board and tasks |
 | 📱 **PWA Ready** | Install on any device — mobile, tablet, desktop — for native-like experience |
 | 🤖 **AI Task Manager** | Chat with AI to create tasks — it understands your codebase and crafts optimal prompts |
 | 🚀 **Autonomous Queue** | Set priority and forget — agents process tasks automatically, no manual triggers |
@@ -349,7 +383,14 @@ npm start
 
 ## Roadmap
 
-### v0.3.0 (Current)
+### v0.4.0 (Current)
+- [x] **Multi-Workspace Support** — Switch between projects without restarting
+- [x] **Multiple Task Creation** — AI can create multiple tasks in a single response
+- [x] **GitHub Copilot Integration** — Full AI Task Manager support for Copilot CLI
+- [x] **Stall Detection** — Tasks auto-complete when stuck on manual testing subtasks
+- [x] **UI/UX Improvements** — Better workspace input visibility and panel layouts
+
+### v0.3.0
 - [x] **Progressive Web App (PWA)** — Install on mobile/tablet for native experience
 - [x] **AI Task Manager** — Chat interface to create tasks with codebase-aware prompts
 - [x] **Autonomous Queue Processing** — Agents run continuously, no manual triggers
