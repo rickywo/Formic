@@ -107,34 +107,40 @@ export async function updateSubtaskStatus(
 export function getCompletionStats(subtasks: SubtasksFile): {
   total: number;
   completed: number;
+  skipped: number;
   inProgress: number;
   pending: number;
   percentage: number;
 } {
   const total = subtasks.subtasks.length;
   const completed = subtasks.subtasks.filter(s => s.status === 'completed').length;
+  const skipped = subtasks.subtasks.filter(s => s.status === 'skipped').length;
   const inProgress = subtasks.subtasks.filter(s => s.status === 'in_progress').length;
   const pending = subtasks.subtasks.filter(s => s.status === 'pending').length;
-  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+  // Both completed and skipped count toward progress
+  const doneCount = completed + skipped;
+  const percentage = total > 0 ? Math.round((doneCount / total) * 100) : 0;
 
-  return { total, completed, inProgress, pending, percentage };
+  return { total, completed, skipped, inProgress, pending, percentage };
 }
 
 /**
- * Check if all subtasks are completed
+ * Check if all subtasks are completed or skipped
+ * Skipped subtasks are those that require manual verification and cannot be automated
  */
 export function isAllComplete(subtasks: SubtasksFile): boolean {
   if (subtasks.subtasks.length === 0) {
     return true; // No subtasks means complete
   }
-  return subtasks.subtasks.every(s => s.status === 'completed');
+  // Both 'completed' and 'skipped' count as done for workflow purposes
+  return subtasks.subtasks.every(s => s.status === 'completed' || s.status === 'skipped');
 }
 
 /**
- * Get all incomplete subtasks (pending or in_progress)
+ * Get all incomplete subtasks (pending or in_progress, not skipped)
  */
 export function getIncompleteSubtasks(subtasks: SubtasksFile): Subtask[] {
-  return subtasks.subtasks.filter(s => s.status !== 'completed');
+  return subtasks.subtasks.filter(s => s.status !== 'completed' && s.status !== 'skipped');
 }
 
 /**
@@ -219,7 +225,9 @@ export async function calculateTaskProgress(task: Task): Promise<number> {
     if (subtasks && subtasks.subtasks.length > 0) {
       const stats = getCompletionStats(subtasks);
       // Subtasks contribute 75% of total progress (25% to 100%)
-      const subtaskProgress = (stats.completed / stats.total) * 75;
+      // Both completed and skipped count toward progress
+      const doneCount = stats.completed + stats.skipped;
+      const subtaskProgress = (doneCount / stats.total) * 75;
       progress = 25 + subtaskProgress;
     }
     // If no subtasks.json yet during execute, stay at 25%

@@ -62,7 +62,8 @@ export interface LogMessage {
 }
 
 // Subtask Management Types (Phase 9)
-export type SubtaskStatus = 'pending' | 'in_progress' | 'completed';
+// 'skipped' status is for subtasks that require manual verification and cannot be automated
+export type SubtaskStatus = 'pending' | 'in_progress' | 'completed' | 'skipped';
 
 export interface Subtask {
   id: string;

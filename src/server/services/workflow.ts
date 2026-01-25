@@ -221,6 +221,9 @@ IMPORTANT: Before implementing, read the task documentation at ${docsPath}/:
 Context: ${task.context}
 
 Follow the PLAN.md step by step. As you complete each subtask, update its status in subtasks.json to "completed".
+
+IMPORTANT: For subtasks that require manual verification, interactive testing, or cannot be automated (e.g., "Test with different environment variables", "Verify manually", "Test in browser"), mark their status as "skipped" instead of leaving them pending. This indicates the subtask needs human verification during review.
+
 All code changes MUST comply with the project development guidelines provided above.`;
 }
 
@@ -251,6 +254,9 @@ Task documentation is at ${docsPath}/:
 Context: ${task.context}
 
 Please continue working on the incomplete subtasks listed above. As you complete each one, update its status in subtasks.json to "completed".
+
+IMPORTANT: If a subtask requires manual verification, interactive testing, or cannot be automated (e.g., requires different environment variables, needs a running server, requires human verification), mark its status as "skipped" in subtasks.json. Do not leave them pending if you cannot complete them.
+
 All code changes MUST comply with the project development guidelines provided above.`;
 }
 
@@ -392,7 +398,8 @@ function runExecuteIteration(
 
 /**
  * Execute with iterative completion checking (Ralph Wiggum style)
- * Continues running until all subtasks are complete or max iterations reached
+ * Continues running until all subtasks are complete, max iterations reached,
+ * or progress has stalled (no new subtasks completed for consecutive iterations)
  */
 async function executeWithIterativeLoop(
   taskId: string,
@@ -402,6 +409,9 @@ async function executeWithIterativeLoop(
   const guidelines = await loadProjectGuidelines();
   let iteration = 1;
   let allComplete = false;
+  let previousCompletedCount = 0;
+  let stalledIterations = 0;
+  const STALL_THRESHOLD = 2; // Stop after 2 iterations with no progress
 
   // Broadcast start of iterative execution
   broadcastToTask(taskId, {
@@ -470,6 +480,32 @@ async function executeWithIterativeLoop(
 
       console.log(`[Workflow] Subtask completion after iteration ${iteration}: ${stats.completed}/${stats.total} (${stats.percentage}%), allComplete=${allComplete}`);
 
+      // Stall detection: check if progress was made this iteration
+      if (stats.completed === previousCompletedCount && iteration > 1) {
+        stalledIterations++;
+        console.log(`[Workflow] No progress made in iteration ${iteration}. Stalled iterations: ${stalledIterations}/${STALL_THRESHOLD}`);
+
+        if (stalledIterations >= STALL_THRESHOLD) {
+          // Progress has stalled - likely manual testing subtasks remaining
+          broadcastToTask(taskId, {
+            type: 'stdout',
+            data: `\n[INFO] No progress for ${STALL_THRESHOLD} iterations. Remaining subtasks likely require manual verification.\n`,
+            timestamp: new Date().toISOString(),
+          });
+          broadcastToTask(taskId, {
+            type: 'stdout',
+            data: `[INFO] Moving to review. Please verify remaining subtasks manually.\n`,
+            timestamp: new Date().toISOString(),
+          });
+          console.log(`[Workflow] Stall detected - stopping execution loop. Remaining subtasks need manual verification.`);
+          break;
+        }
+      } else {
+        // Progress was made, reset stall counter
+        stalledIterations = 0;
+      }
+      previousCompletedCount = stats.completed;
+
       if (allComplete) {
         broadcastToTask(taskId, {
           type: 'stdout',
@@ -486,7 +522,10 @@ async function executeWithIterativeLoop(
     iteration++;
   }
 
-  if (!allComplete && iteration > MAX_EXECUTE_ITERATIONS) {
+  if (!allComplete && stalledIterations >= STALL_THRESHOLD) {
+    // Stalled - this is expected for manual testing subtasks
+    console.log(`[Workflow] Execution stalled after ${iteration - 1} iterations, moving to review for manual verification`);
+  } else if (!allComplete && iteration > MAX_EXECUTE_ITERATIONS) {
     broadcastToTask(taskId, {
       type: 'stdout',
       data: `\n[WARNING] Max iterations (${MAX_EXECUTE_ITERATIONS}) reached. Some subtasks may be incomplete.\n`,
@@ -495,7 +534,7 @@ async function executeWithIterativeLoop(
     console.log(`[Workflow] Max iterations reached, some subtasks incomplete`);
   }
 
-  console.log(`[Workflow] Iterative execution completed for task ${taskId}: iterations=${iteration - 1}, allComplete=${allComplete}`);
+  console.log(`[Workflow] Iterative execution completed for task ${taskId}: iterations=${iteration - 1}, allComplete=${allComplete}, stalled=${stalledIterations >= STALL_THRESHOLD}`);
   return { success: true, iterations: iteration - 1, allComplete };
 }
 
