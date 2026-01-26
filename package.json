@@ -1,14 +1,47 @@
 {
   "name": "formic",
-  "version": "0.4.0",
-  "description": "Local-first agent orchestration and execution environment - Formic",
+  "version": "0.5.0",
+  "description": "Local-first agent orchestration and execution environment for AI coding tasks",
   "type": "module",
   "main": "dist/server/index.js",
+  "bin": {
+    "formic": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist/",
+    "src/client/",
+    "skills/",
+    "templates/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "tsx watch src/server/index.ts",
     "build": "tsc",
     "start": "node dist/server/index.js",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "task-manager",
+    "claude",
+    "copilot",
+    "automation",
+    "orchestration",
+    "kanban",
+    "workflow"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anthropics/formic.git"
+  },
+  "homepage": "https://github.com/anthropics/formic#readme",
+  "bugs": {
+    "url": "https://github.com/anthropics/formic/issues"
   },
   "dependencies": {
     "@fastify/static": "^7.0.0",
@@ -24,6 +57,5 @@
   },
   "engines": {
     "node": ">=20.0.0"
-  },
-  "private": true
+  }
 }
