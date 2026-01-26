@@ -1,6 +1,6 @@
 {
   "name": "@rickywo/formic",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Local-first agent orchestration and execution environment for AI coding tasks",
   "type": "module",
   "main": "dist/server/index.js",
