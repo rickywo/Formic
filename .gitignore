@@ -49,3 +49,8 @@ __pycache__/
 # Workspace folders (mounted at runtime)
 workspace/
 _workspace/
+
+# Test artifacts
+test-workspaces/
+test-results/
+playwright-report/
