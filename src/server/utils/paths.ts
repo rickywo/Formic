@@ -1,4 +1,34 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Get the package root directory.
+ * This resolves correctly whether running from source (src/) or compiled (dist/),
+ * and whether installed globally via npm or running locally.
+ */
+export function getPackageRoot(): string {
+  // __dirname is either src/server/utils or dist/server/utils
+  // Package root is 3 levels up
+  return path.resolve(__dirname, '..', '..', '..');
+}
+
+/**
+ * Get the path to bundled skills directory.
+ * Works for both local development and global npm installs.
+ */
+export function getBundledSkillsPath(): string {
+  return path.join(getPackageRoot(), 'skills');
+}
+
+/**
+ * Get the path to bundled templates directory.
+ * Works for both local development and global npm installs.
+ */
+export function getBundledTemplatesPath(): string {
+  return path.join(getPackageRoot(), 'templates');
+}
 
 /**
  * Module-level workspace path, initialized from environment variable.
