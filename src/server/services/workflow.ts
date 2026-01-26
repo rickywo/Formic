@@ -17,7 +17,6 @@ import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
 
-const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 const MAX_EXECUTE_ITERATIONS = parseInt(process.env.MAX_EXECUTE_ITERATIONS || '5', 10);
@@ -27,7 +26,7 @@ const STEP_TIMEOUT_MS = parseInt(process.env.STEP_TIMEOUT_MS || '600000', 10); /
  * Load the project development guidelines if they exist
  */
 async function loadProjectGuidelines(): Promise<string> {
-  const guidelinePath = path.join(WORKSPACE_PATH, GUIDELINE_FILENAME);
+  const guidelinePath = path.join(getWorkspacePath(), GUIDELINE_FILENAME);
 
   if (!existsSync(guidelinePath)) {
     return '';
@@ -136,7 +135,7 @@ async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'exec
  * Used when skill file is not available or fails to load
  */
 function buildBriefPromptFallback(task: Task, guidelines: string): string {
-  const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
+  const docsPath = path.join(getWorkspacePath(), task.docsPath);
 
   return `${guidelines}
 You are generating a feature specification for a task.
@@ -176,7 +175,7 @@ Write the README.md to: ${docsPath}/README.md`;
  * Used when skill file is not available or fails to load
  */
 function buildPlanPromptFallback(task: Task, guidelines: string): string {
-  const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
+  const docsPath = path.join(getWorkspacePath(), task.docsPath);
 
   return `${guidelines}
 You are generating implementation planning documents for a task.
@@ -208,7 +207,7 @@ Ensure all implementation steps follow the project development guidelines above.
  * Build the prompt for the execute step (initial iteration)
  */
 function buildExecutePrompt(task: Task, guidelines: string): string {
-  const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
+  const docsPath = path.join(getWorkspacePath(), task.docsPath);
 
   return `${guidelines}
 Task: ${task.title}
@@ -237,7 +236,7 @@ function buildIterativeExecutePrompt(
   iteration: number,
   incompleteSubtasksInfo: string
 ): string {
-  const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
+  const docsPath = path.join(getWorkspacePath(), task.docsPath);
 
   return `${guidelines}
 Task: ${task.title}
@@ -276,7 +275,7 @@ function runWorkflowStep(
   const agentArgs = buildAgentArgs(prompt);
 
   const child = spawn(agentCommand, agentArgs, {
-    cwd: WORKSPACE_PATH,
+    cwd: getWorkspacePath(),
     env: { ...process.env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });

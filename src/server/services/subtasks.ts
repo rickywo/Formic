@@ -2,15 +2,15 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type { SubtasksFile, Subtask, SubtaskStatus, Task, TaskStatus, WorkflowStep } from '../../types/index.js';
+import { getWorkspacePath } from '../utils/paths.js';
 
-const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const SUBTASKS_FILENAME = 'subtasks.json';
 
 /**
  * Get the path to the subtasks.json file for a task
  */
 export function getSubtasksPath(docsPath: string): string {
-  return path.join(WORKSPACE_PATH, docsPath, SUBTASKS_FILENAME);
+  return path.join(getWorkspacePath(), docsPath, SUBTASKS_FILENAME);
 }
 
 /**
