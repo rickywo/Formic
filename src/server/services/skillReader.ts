@@ -5,7 +5,6 @@ import { getSkillPath, skillExists, getSkillContent } from './skills.js';
 import { getWorkspacePath } from '../utils/paths.js';
 import type { Task } from '../../types/index.js';
 
-const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 
 /**
@@ -57,7 +56,7 @@ function substituteVariables(content: string, variables: Record<string, string>)
  * Load project development guidelines if they exist
  */
 async function loadProjectGuidelines(): Promise<string> {
-  const guidelinePath = path.join(WORKSPACE_PATH, GUIDELINE_FILENAME);
+  const guidelinePath = path.join(getWorkspacePath(), GUIDELINE_FILENAME);
 
   if (!existsSync(guidelinePath)) {
     return '';
@@ -107,7 +106,7 @@ export async function loadSkillPrompt(
     const { body } = parseSkillFile(rawContent);
 
     // Build variables for substitution
-    const docsPath = path.join(WORKSPACE_PATH, task.docsPath);
+    const docsPath = path.join(getWorkspacePath(), task.docsPath);
     const variables: Record<string, string> = {
       TASK_ID: task.id,
       TASK_TITLE: task.title,

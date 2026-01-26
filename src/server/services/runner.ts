@@ -4,10 +4,10 @@ import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, appendTaskLogs } from './store.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
+import { getWorkspacePath } from '../utils/paths.js';
 import type { LogMessage } from '../../types/index.js';
 import path from 'node:path';
 
-const WORKSPACE_PATH = process.env.WORKSPACE_PATH || './workspace';
 const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 
@@ -15,7 +15,7 @@ const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
  * Load the project development guidelines if they exist
  */
 async function loadProjectGuidelines(): Promise<string> {
-  const guidelinePath = path.join(WORKSPACE_PATH, GUIDELINE_FILENAME);
+  const guidelinePath = path.join(getWorkspacePath(), GUIDELINE_FILENAME);
 
   if (!existsSync(guidelinePath)) {
     return '';
@@ -108,7 +108,7 @@ All code changes MUST comply with the project development guidelines provided ab
   const agentArgs = buildAgentArgs(prompt);
 
   const child = spawn(agentCommand, agentArgs, {
-    cwd: WORKSPACE_PATH,
+    cwd: getWorkspacePath(),
     env: { ...process.env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
