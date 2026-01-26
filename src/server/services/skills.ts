@@ -1,36 +1,7 @@
 import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { getFormicDir, getSkillsDir } from '../utils/paths.js';
-
-// Get __dirname equivalent for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Legacy path for backwards compatibility
-const LEGACY_SKILLS_PATH = '.formic/skills';
-
-/**
- * Get the path to the bundled skills directory
- */
-function getBundledSkillsPath(): string {
-  // Check multiple possible locations for the skills directory
-  const possiblePaths = [
-    path.join(process.cwd(), 'skills'),
-    path.join('/app', 'skills'),
-    path.join(__dirname, '..', '..', '..', 'skills'),
-  ];
-
-  for (const skillsPath of possiblePaths) {
-    if (existsSync(skillsPath)) {
-      return skillsPath;
-    }
-  }
-
-  // Default to cwd-relative path
-  return path.join(process.cwd(), 'skills');
-}
+import { getFormicDir, getSkillsDir, getBundledSkillsPath } from '../utils/paths.js';
 
 /**
  * Get the path to the workspace skills directory (.claude/skills/)

@@ -138,3 +138,13 @@ export interface WorkspaceValidation {
   hasFormic: boolean;
   error?: string;
 }
+
+// CLI Server Options
+export interface ServerOptions {
+  /** Server port (default: 8000) */
+  port?: number;
+  /** Server host (default: 0.0.0.0) */
+  host?: string;
+  /** Workspace directory path (default: process.cwd()) */
+  workspacePath?: string;
+}
