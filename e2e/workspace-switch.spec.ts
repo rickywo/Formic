@@ -2,9 +2,9 @@ import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-const WORKSPACE_A = '/Users/rickywo/WebstormProjects/Kanban/test-workspaces/workspace-a';
-const WORKSPACE_B = '/Users/rickywo/WebstormProjects/Kanban/test-workspaces/workspace-b';
-const BASE_URL = 'http://localhost:7999';
+const WORKSPACE_A = '/Users/rickywo/WebstormProjects/Formic/test-workspaces/workspace-a';
+const WORKSPACE_B = '/Users/rickywo/WebstormProjects/Formic/test-workspaces/workspace-b';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:8000';
 
 // Helper to clean up test files
 function cleanupTestFiles() {
