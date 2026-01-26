@@ -1,11 +1,12 @@
-# Product Specification: Formic v0.4.0
+# Product Specification: Formic v0.5.0
 
 ## 1. Executive Summary
 
 | Attribute | Value |
 |-----------|-------|
 | Product Name | Formic |
-| Version | 0.4.0 |
+| Version | 0.5.0 |
+| npm Package | `@rickywo/formic` |
 | Type | Local-First Agent Orchestration & Execution Environment |
 | Target Audience | Developers using AI coding agents for project development |
 | Supported Agents | Claude Code CLI, GitHub Copilot CLI |
@@ -27,7 +28,15 @@ Formic supports multiple AI coding agents through a unified abstraction layer:
 
 Both agents support the same skill format (`SKILL.md` with YAML frontmatter), enabling seamless switching between agents without workflow changes.
 
-### v0.4.0 New Features
+### v0.5.0 New Features
+
+| Feature | Description |
+|---------|-------------|
+| **npm Global Install** | Install via `npm install -g @rickywo/formic` for easy global access |
+| **CLI Commands** | `formic init` initializes a project, `formic start` launches the server |
+| **Portable Package** | Works in any project directory without cloning the repository |
+
+### v0.4.0 Features
 
 | Feature | Description |
 |---------|-------------|
@@ -611,6 +620,68 @@ interface WorkspaceInfo {
 ```typescript
 // Broadcast to all clients on workspace change
 { "type": "workspace_changed", "path": "/new/workspace/path" }
+```
+
+### 2.13 CLI Interface
+
+Formic v0.5.0 introduces a CLI for easy installation and usage via npm.
+
+**Installation:**
+```bash
+npm install -g @rickywo/formic
+```
+
+**CLI Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `formic init` | Initialize Formic in the current directory (creates `.formic/`) |
+| `formic start` | Start the Formic server on default port (8000) |
+| `formic start --port <n>` | Start server on custom port |
+| `formic --help` | Show help message |
+| `formic --version` | Show version number |
+
+**Architecture:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│  $ formic init                                              │
+│                         ↓                                   │
+│  Creates .formic/ directory with:                           │
+│  ├── board.json (empty board)                               │
+│  └── tasks/ (empty directory)                               │
+│                                                             │
+│  $ formic start                                             │
+│                         ↓                                   │
+│  1. Loads .env file from workspace (if exists)              │
+│  2. Validates .formic/ directory exists                     │
+│  3. Calls startServer({ port, workspacePath })              │
+│  4. Server starts at http://localhost:8000                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Environment Variables:**
+
+The CLI automatically loads environment variables from a `.env` file in the workspace directory:
+
+```bash
+# .env file in your project
+ANTHROPIC_API_KEY=your-api-key
+AGENT_TYPE=claude
+PORT=8000
+```
+
+**Programmatic Usage:**
+
+The server can also be started programmatically:
+
+```typescript
+import { startServer } from '@rickywo/formic';
+
+await startServer({
+  port: 3000,
+  host: '0.0.0.0',
+  workspacePath: '/path/to/project'
+});
 ```
 
 ### 2.14 Agent Abstraction Layer
@@ -1213,6 +1284,22 @@ services:
 - [x] Implement stall detection for manual testing subtasks
 - [x] Add 'skipped' status for non-automatable subtasks
 - [x] Improve UI visibility (workspace input, panel layouts)
+
+### Phase 17: npm Package & CLI ✅
+- [x] Create CLI entry point (`src/cli/index.ts`)
+- [x] Implement `formic init` command to initialize projects
+- [x] Implement `formic start` command to launch server
+- [x] Add `--port` flag for custom port configuration
+- [x] Export `startServer()` function for programmatic use
+- [x] Centralize path resolution for global npm installs
+- [x] Add `ServerOptions` type for CLI configuration
+- [x] Prepare `package.json` for npm publishing:
+  - Add `bin` entry for CLI command
+  - Add `files` array for package contents
+  - Remove `private: true` flag
+  - Add npm metadata (keywords, repository, homepage)
+- [x] Publish to npm as `@rickywo/formic`
+- [x] Add MIT LICENSE file
 
 ---
 
