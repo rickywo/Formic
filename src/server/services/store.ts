@@ -304,3 +304,36 @@ export async function getRunningTasksCount(): Promise<number> {
     t.status === 'briefing' || t.status === 'planning' || t.status === 'running'
   ).length;
 }
+
+/**
+ * Recover stuck tasks on server startup.
+ * Tasks can get stuck in active states (briefing, planning, running, queued) when the server
+ * restarts while they are being processed. This function resets them to 'todo' so they can
+ * be restarted.
+ *
+ * @returns The number of tasks that were recovered
+ */
+export async function recoverStuckTasks(): Promise<number> {
+  const board = await loadBoard();
+  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'running', 'queued'];
+
+  let recoveredCount = 0;
+
+  for (const task of board.tasks) {
+    if (activeStatuses.includes(task.status)) {
+      console.log(`[Recovery] Resetting stuck task ${task.id} from '${task.status}' to 'todo'`);
+      task.status = 'todo';
+      task.pid = null;
+      // Keep workflowStep as is - this preserves the last completed step
+      // so the user can see where the task was and manually restart from there
+      recoveredCount++;
+    }
+  }
+
+  if (recoveredCount > 0) {
+    await saveBoard(board);
+    console.log(`[Recovery] Reset ${recoveredCount} stuck task(s) to 'todo' status`);
+  }
+
+  return recoveredCount;
+}
