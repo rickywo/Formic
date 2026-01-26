@@ -12,6 +12,7 @@ import { assistantWebSocket } from './ws/assistant.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
 import { startQueueProcessor, getQueueProcessorConfig } from './services/queueProcessor.js';
 import { setWorkspacePath } from './utils/paths.js';
+import { recoverStuckTasks } from './services/store.js';
 import type { ServerOptions } from '../types/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -87,6 +88,10 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     if (missingEnvVars.length > 0) {
       console.warn(`Warning: Missing environment variables for ${agentDisplayName}: ${missingEnvVars.join(', ')}`);
     }
+
+    // Recover any stuck tasks from previous server session
+    // This must run BEFORE the queue processor starts
+    await recoverStuckTasks();
 
     // Start the queue processor
     startQueueProcessor();
