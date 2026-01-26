@@ -11,6 +11,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/@rickywo/formic"><img src="https://img.shields.io/npm/v/@rickywo/formic?style=flat-square&logo=npm&color=CB3837" alt="npm"></a>
   <a href="#quickstart"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker" alt="Docker Ready"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
   <img src="https://img.shields.io/badge/Version-0.5.0-blue?style=flat-square" alt="Version 0.5.0">
@@ -77,7 +78,34 @@
 
 ---
 
-## 🆕 What's New in v0.4.0
+## 🆕 What's New in v0.5.0
+
+### 📦 npm Global Install — Run Formic Anywhere
+
+Formic is now available on npm. Install globally and run in any project directory with a single command.
+
+```bash
+# Install globally
+npm install -g @rickywo/formic
+
+# Initialize and start in any project
+cd your-project
+formic init
+formic start
+```
+
+**CLI Commands:**
+| Command | Description |
+|---------|-------------|
+| `formic init` | Initialize Formic in the current directory (creates `.formic/`) |
+| `formic start` | Start the Formic server (default: port 8000) |
+| `formic start --port 3000` | Start on a custom port |
+| `formic --help` | Show help and available commands |
+| `formic --version` | Show version number |
+
+---
+
+## What's New in v0.4.0
 
 ### 🗂️ Multi-Workspace Support — Switch Projects Seamlessly
 
@@ -178,7 +206,21 @@ Queue tasks from anywhere and let the agents work while you sleep. No buttons to
 
 ## Quickstart
 
-### 🐳 One Command
+### 📦 npm (Recommended)
+
+```bash
+# Install globally
+npm install -g @rickywo/formic
+
+# In your project directory
+cd your-project
+formic init
+formic start
+```
+
+Open `http://localhost:8000` and start creating tasks.
+
+### 🐳 Docker
 
 ```bash
 docker run -p 8000:8000 \
@@ -186,8 +228,6 @@ docker run -p 8000:8000 \
   -e ANTHROPIC_API_KEY=your-api-key \
   ghcr.io/your-org/formic:latest
 ```
-
-Open `http://localhost:8000` and start creating tasks.
 
 ### Three Steps to Autonomous Development
 
@@ -383,7 +423,12 @@ npm start
 
 ## Roadmap
 
-### v0.4.0 (Current)
+### v0.5.0 (Current)
+- [x] **npm Global Install** — Install via `npm install -g @rickywo/formic`
+- [x] **CLI Commands** — `formic init` and `formic start` for easy setup
+- [x] **Portable Package** — Works in any project directory
+
+### v0.4.0
 - [x] **Multi-Workspace Support** — Switch between projects without restarting
 - [x] **Multiple Task Creation** — AI can create multiple tasks in a single response
 - [x] **GitHub Copilot Integration** — Full AI Task Manager support for Copilot CLI
