@@ -13,7 +13,7 @@
 <p align="center">
   <a href="#quickstart"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker" alt="Docker Ready"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/Version-0.4.0-blue?style=flat-square" alt="Version 0.4.0">
+  <img src="https://img.shields.io/badge/Version-0.5.0-blue?style=flat-square" alt="Version 0.5.0">
   <img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=flat-square&logo=pwa" alt="PWA Ready">
   <img src="https://img.shields.io/badge/Built%20with-Claude-blueviolet?style=flat-square" alt="Built with Claude">
 </p>

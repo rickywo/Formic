@@ -11,17 +11,40 @@ import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
 import { startQueueProcessor, getQueueProcessorConfig } from './services/queueProcessor.js';
+import { setWorkspacePath } from './utils/paths.js';
+import type { ServerOptions } from '../types/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Resolve project root (works for both src/server and dist/server)
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..');
-const CLIENT_PATH = path.join(PROJECT_ROOT, 'src', 'client');
+/**
+ * Resolve the client path for static file serving.
+ * Handles both development (src/) and production (dist/) scenarios,
+ * as well as global npm installs where package location differs from CWD.
+ */
+function resolveClientPath(): string {
+  // In both dev and production, client files are in src/client relative to project root
+  // __dirname is either src/server or dist/server
+  const projectRoot = path.resolve(__dirname, '..', '..');
+  return path.join(projectRoot, 'src', 'client');
+}
 
-const PORT = parseInt(process.env.PORT || '8000', 10);
-const HOST = process.env.HOST || '0.0.0.0';
+const DEFAULT_PORT = 8000;
+const DEFAULT_HOST = '0.0.0.0';
 
-async function main() {
+/**
+ * Start the Formic server with the given options.
+ * This function can be called from the CLI or directly.
+ */
+export async function startServer(options: ServerOptions = {}): Promise<void> {
+  const port = options.port ?? parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
+  const host = options.host ?? process.env.HOST ?? DEFAULT_HOST;
+  const workspacePath = options.workspacePath ?? process.env.WORKSPACE_PATH ?? process.cwd();
+
+  // Set the workspace path for all services
+  setWorkspacePath(workspacePath);
+
+  const clientPath = resolveClientPath();
+
   const fastify = Fastify({
     logger: true,
   });
@@ -31,7 +54,7 @@ async function main() {
 
   // Serve static files from client directory
   await fastify.register(fastifyStatic, {
-    root: CLIENT_PATH,
+    root: clientPath,
     prefix: '/',
   });
 
@@ -49,8 +72,9 @@ async function main() {
   fastify.get('/health', async () => ({ status: 'ok' }));
 
   try {
-    await fastify.listen({ port: PORT, host: HOST });
-    console.log(`Formic server running at http://${HOST}:${PORT}`);
+    await fastify.listen({ port, host });
+    console.log(`Formic server running at http://${host}:${port}`);
+    console.log(`Workspace: ${workspacePath}`);
 
     // Log agent configuration
     const agentType = getAgentType();
@@ -73,9 +97,28 @@ async function main() {
       console.log('Queue processor: disabled');
     }
   } catch (err) {
+    const error = err as NodeJS.ErrnoException;
+
+    // Provide helpful error messages for common issues
+    if (error.code === 'EADDRINUSE') {
+      console.error(`Error: Port ${port} is already in use.`);
+      console.error(`Try running: formic start --port ${port + 1}`);
+      process.exit(1);
+    }
+
     fastify.log.error(err);
     process.exit(1);
   }
 }
 
-main();
+// Run server directly if this is the main module (for npm run dev/start)
+// Check if this file was run directly vs imported
+const isMainModule = process.argv[1] && (
+  process.argv[1].endsWith('/server/index.js') ||
+  process.argv[1].endsWith('/server/index.ts') ||
+  process.argv[1].includes('dist/server/index')
+);
+
+if (isMainModule) {
+  startServer();
+}
