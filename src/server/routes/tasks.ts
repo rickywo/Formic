@@ -21,13 +21,18 @@ import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../type
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   // POST /api/tasks - Create a new task
   fastify.post<{ Body: CreateTaskInput }>('/api/tasks', async (request, reply) => {
-    const { title, context, priority } = request.body;
+    const { title, context, priority, type } = request.body;
 
     if (!title || !context) {
       return reply.status(400).send({ error: 'Title and context are required' });
     }
 
-    const task = await createTask({ title, context, priority });
+    // Validate task type if provided
+    if (type && type !== 'standard' && type !== 'quick') {
+      return reply.status(400).send({ error: 'Invalid task type. Must be "standard" or "quick"' });
+    }
+
+    const task = await createTask({ title, context, priority, type });
 
     // Broadcast board update to all connected clients
     broadcastBoardUpdate();

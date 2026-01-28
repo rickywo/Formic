@@ -1,6 +1,7 @@
 export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'execute' | 'complete';
+export type TaskType = 'standard' | 'quick';
 
 export interface WorkflowLogs {
   brief?: string[];
@@ -17,6 +18,8 @@ export interface Task {
   docsPath: string;
   agentLogs: string[];
   pid: number | null;
+  // Task type: 'standard' uses full workflow (brief → plan → execute), 'quick' skips to execute
+  type?: TaskType;
   // Workflow fields
   workflowStep?: WorkflowStep;
   workflowLogs?: WorkflowLogs;
@@ -44,6 +47,7 @@ export interface CreateTaskInput {
   title: string;
   context: string;
   priority?: TaskPriority;
+  type?: TaskType;
 }
 
 export interface UpdateTaskInput {

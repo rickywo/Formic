@@ -151,6 +151,8 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     docsPath,
     agentLogs: [],
     pid: null,
+    // Task type: 'standard' (full workflow) or 'quick' (direct execution)
+    type: input.type || 'standard',
     // Initialize workflow fields
     workflowStep: 'pending',
     workflowLogs: {},
