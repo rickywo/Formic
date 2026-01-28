@@ -260,6 +260,22 @@ All code changes MUST comply with the project development guidelines provided ab
 }
 
 /**
+ * Build the prompt for quick task execution (skips brief/plan stages)
+ * Uses task.context directly as the execution prompt with project guidelines
+ */
+function buildQuickExecutePrompt(task: Task, guidelines: string): string {
+  return `${guidelines}
+Task: ${task.title}
+
+Context: ${task.context}
+
+This is a QUICK TASK - execute directly without generating documentation files.
+Complete the task as specified in the context above.
+
+All code changes MUST comply with the project development guidelines provided above.`;
+}
+
+/**
  * Run a single workflow step
  */
 function runWorkflowStep(
@@ -535,6 +551,77 @@ async function executeWithIterativeLoop(
 
   console.log(`[Workflow] Iterative execution completed for task ${taskId}: iterations=${iteration - 1}, allComplete=${allComplete}, stalled=${stalledIterations >= STALL_THRESHOLD}`);
   return { success: true, iterations: iteration - 1, allComplete };
+}
+
+/**
+ * Execute a quick task (skips brief/plan stages, runs execute directly)
+ * Quick tasks use task.context directly as the execution prompt
+ */
+export async function executeQuickTask(taskId: string): Promise<{ pid: number }> {
+  const task = await getTask(taskId);
+  if (!task) {
+    throw new Error(`Task ${taskId} not found`);
+  }
+
+  // Check if a workflow is already running
+  if (activeWorkflows.has(taskId)) {
+    throw new Error('A workflow is already running for this task');
+  }
+
+  console.log(`[Workflow] Starting quick task execution for ${taskId}`);
+
+  // Load project guidelines
+  const guidelines = await loadProjectGuidelines();
+
+  // Build the quick execute prompt
+  const prompt = buildQuickExecutePrompt(task, guidelines);
+
+  // Update task status to running
+  await updateTaskStatus(taskId, 'running', null);
+  await updateWorkflowStep(taskId, 'execute');
+
+  // Broadcast start
+  broadcastToTask(taskId, {
+    type: 'stdout',
+    data: `\n========== Starting QUICK TASK execution (no brief/plan) ==========\n`,
+    timestamp: new Date().toISOString(),
+  });
+
+  const startPid = process.pid;
+
+  // Run the execute step
+  (async () => {
+    const success = await new Promise<boolean>((resolve) => {
+      const child = runWorkflowStep(taskId, 'execute', prompt, (success) => {
+        resolve(success);
+      });
+
+      if (child.pid) {
+        activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
+      }
+    });
+
+    activeWorkflows.delete(taskId);
+
+    if (success) {
+      await updateWorkflowStep(taskId, 'complete');
+      await updateTaskStatus(taskId, 'review', null);
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `\n[SUCCESS] Quick task completed. Ready for review.\n`,
+        timestamp: new Date().toISOString(),
+      });
+    } else {
+      await updateTaskStatus(taskId, 'todo', null);
+      broadcastToTask(taskId, {
+        type: 'error',
+        data: `\n[FAILED] Quick task execution failed.\n`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  })();
+
+  return { pid: startPid };
 }
 
 /**
