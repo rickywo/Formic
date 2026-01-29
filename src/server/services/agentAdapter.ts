@@ -53,17 +53,45 @@ const AGENTS: Record<AgentType, AgentConfig> = {
 /**
  * Assistant-specific configurations for read-only Task Manager mode
  */
+/**
+ * MCP Playwright tools for screenshot capabilities in assistant mode
+ */
+const MCP_PLAYWRIGHT_TOOLS = [
+  'mcp__playwright__browser_navigate',
+  'mcp__playwright__browser_snapshot',
+  'mcp__playwright__browser_take_screenshot',
+  'mcp__playwright__browser_close',
+];
+
+/**
+ * Base read-only tools available in assistant mode
+ */
+const BASE_READONLY_TOOLS = ['Read', 'Glob', 'Grep', 'LS', 'WebSearch', 'WebFetch'];
+
+/**
+ * All assistant tools (base read-only + MCP Playwright for screenshots)
+ * Used by the desktop UI assistant which has MCP server configured
+ */
+const ASSISTANT_TOOLS = [...BASE_READONLY_TOOLS, ...MCP_PLAYWRIGHT_TOOLS];
+
+/**
+ * Messaging assistant tools (base read-only only, no MCP Playwright)
+ * MCP tools are unreachable in the messaging subprocess context because
+ * no MCP server configuration is injected into the spawned CLI process.
+ */
+const MESSAGING_ASSISTANT_TOOLS = [...BASE_READONLY_TOOLS];
+
 const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
   claude: {
     outputFormat: 'stream-json',
-    readOnlyTools: ['Read', 'Glob', 'Grep', 'LS', 'WebSearch', 'WebFetch'],
+    readOnlyTools: ASSISTANT_TOOLS,
     supportsConversationContinue: true,
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
       const args = [
         '--print',
         '--output-format', 'stream-json',
         '--verbose',
-        '--allowedTools', 'Read,Glob,Grep,LS,WebSearch,WebFetch',
+        '--allowedTools', ASSISTANT_TOOLS.join(','),
         '--dangerously-skip-permissions',
       ];
       if (options?.continue) {
@@ -75,7 +103,7 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
   },
   copilot: {
     outputFormat: null, // Copilot uses plain text output
-    readOnlyTools: ['Read', 'Glob', 'Grep', 'LS', 'WebSearch', 'WebFetch'],
+    readOnlyTools: ASSISTANT_TOOLS,
     supportsConversationContinue: true, // Copilot supports --continue
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
       // Copilot CLI: use --available-tools to restrict to read-only tools
@@ -83,7 +111,7 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
       const args = [
         '-p', prompt,
         '-s', // Silent mode - output only agent response
-        '--available-tools', 'Read,Glob,Grep,LS,WebSearch,WebFetch',
+        '--available-tools', ASSISTANT_TOOLS.join(','),
       ];
       if (options?.continue) {
         args.push('--continue');
@@ -209,4 +237,39 @@ export function supportsConversationContinue(): boolean {
  */
 export function getAssistantReadOnlyTools(): string[] {
   return getAssistantConfig().readOnlyTools;
+}
+
+/**
+ * Build CLI arguments for messaging assistant mode (no MCP Playwright tools).
+ * The messaging subprocess cannot access MCP tools because no MCP server
+ * configuration is injected into the spawned process.
+ */
+export function buildMessagingAssistantArgs(prompt: string, options?: { continue?: boolean }): string[] {
+  const agentType = getAgentType();
+
+  if (agentType === 'copilot') {
+    const args = [
+      '-p', prompt,
+      '-s',
+      '--available-tools', MESSAGING_ASSISTANT_TOOLS.join(','),
+    ];
+    if (options?.continue) {
+      args.push('--continue');
+    }
+    return args;
+  }
+
+  // Default: claude
+  const args = [
+    '--print',
+    '--output-format', 'stream-json',
+    '--verbose',
+    '--allowedTools', MESSAGING_ASSISTANT_TOOLS.join(','),
+    '--dangerously-skip-permissions',
+  ];
+  if (options?.continue) {
+    args.push('--continue');
+  }
+  args.push(prompt);
+  return args;
 }
