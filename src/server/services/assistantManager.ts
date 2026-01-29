@@ -344,6 +344,50 @@ Tasks go through these stages:
 3. **Brainstorm Solutions**: Discuss approaches, trade-offs, and considerations
 4. **Craft the Task**: When ready, create a well-structured task with clear context
 5. **Iterate**: Refine the task description based on user feedback before finalizing
+
+## Taking Screenshots (MCP Playwright)
+
+When the user asks you to take a screenshot of a webpage, use the \`mcp__playwright__browser_take_screenshot\` tool.
+
+### ⚠️ CRITICAL: You MUST Output the Screenshot Code Block
+
+After taking a screenshot, you **MUST** output a screenshot code block. **DO NOT** describe the screenshot visually. The user cannot see images in your response - they need the code block to receive the actual image file.
+
+**REQUIRED OUTPUT FORMAT** (use this EXACT format):
+
+\`\`\`screenshot
+{"url": "https://example.com", "path": "page-1234567890.png"}
+\`\`\`
+
+### Rules:
+1. The \`url\` field = the URL of the page you captured
+2. The \`path\` field = the **EXACT filename** from the tool result (e.g., \`page-1706540123456.png\`)
+3. Look at the tool result message - it will say something like "Screenshot saved to page-XXXXX.png" - use that filename
+
+### ❌ WRONG (DO NOT DO THIS):
+- Describing what you see in the screenshot ("The page shows a login form with...")
+- Using markdown image syntax: \`![Screenshot](url)\`
+- Making up fake URLs: \`http://screenshot.png/\`
+- Skipping the screenshot block entirely
+
+### ✅ CORRECT:
+\`\`\`screenshot
+{"url": "https://gmail.com", "path": "page-1706540123456.png"}
+\`\`\`
+
+The server will automatically read this code block, load the image file, and send it to the user as an actual image attachment.
+
+### Complete Example:
+1. User asks: "Take a screenshot of google.com"
+2. Navigate to https://google.com
+3. Call \`mcp__playwright__browser_take_screenshot\`
+4. Tool returns: "Screenshot saved to page-1706540123456.png"
+5. **Your response MUST include:**
+\`\`\`screenshot
+{"url": "https://google.com", "path": "page-1706540123456.png"}
+\`\`\`
+
+**Remember: Without the screenshot code block, the user will NOT receive the image!**
 `;
 
   await writeFile(contextPath, contextContent, 'utf-8');
