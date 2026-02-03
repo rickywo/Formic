@@ -143,6 +143,42 @@ export interface WorkspaceValidation {
   error?: string;
 }
 
+// ==================== Global Config Types ====================
+
+/** A workspace entry in the global config */
+export interface ConfigWorkspace {
+  /** Unique workspace identifier (ws-{uuid}) */
+  id: string;
+  /** Absolute path to the workspace directory */
+  path: string;
+  /** Display name for the workspace */
+  name: string;
+  /** Hex color for visual differentiation */
+  color: string;
+  /** ISO-8601 timestamp of last access */
+  lastAccessed: string;
+}
+
+/** User settings stored in global config */
+export interface ConfigSettings {
+  maxConcurrentSessions: number;
+  theme: string;
+  notificationsEnabled: boolean;
+  projectBriefCollapsed: boolean;
+}
+
+/** Root schema for ~/.formic/config.json */
+export interface FormicConfig {
+  /** Schema version for future migrations */
+  version: number;
+  /** Registered workspaces */
+  workspaces: ConfigWorkspace[];
+  /** ID of the currently active workspace, or null */
+  activeWorkspaceId: string | null;
+  /** User settings */
+  settings: ConfigSettings;
+}
+
 // CLI Server Options
 export interface ServerOptions {
   /** Server port (default: 8000) */
