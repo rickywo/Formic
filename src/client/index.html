@@ -6371,8 +6371,8 @@
 
     // Initialize
     async function init() {
-      // Migrate from legacy storage on first load (imports workspace and theme)
-      await window.configStore.migrateFromLegacy();
+      // Initialize config store (fetches from server, migrates localStorage if needed)
+      await window.configStore.init();
 
       applyTheme(getStoredTheme());
       await loadBoard();
