@@ -107,10 +107,10 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
     supportsConversationContinue: true, // Copilot supports --continue
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
       // Copilot CLI: use --available-tools to restrict to read-only tools
-      // Use -s (silent) for cleaner output without stats
       const args = [
         '--prompt', prompt,
-        '--allow-all-tools', '--allow-all-paths', ASSISTANT_TOOLS.join(','),
+        '--available-tools', ...ASSISTANT_TOOLS,
+        '--allow-all-paths',
       ];
       if (options?.continue) {
         args.push('--continue');
@@ -249,7 +249,8 @@ export function buildMessagingAssistantArgs(prompt: string, options?: { continue
   if (agentType === 'copilot') {
     const args = [
       '--prompt', prompt,
-      '--allow-all-tools', '--allow-all-paths', MESSAGING_ASSISTANT_TOOLS.join(','),
+      '--available-tools', ...MESSAGING_ASSISTANT_TOOLS,
+      '--allow-all-paths',
     ];
     if (options?.continue) {
       args.push('--continue');
