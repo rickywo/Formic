@@ -547,8 +547,14 @@ function processMessage(content: string): void {
   // Handle stderr
   child.stderr?.on('data', (data: Buffer) => {
     const text = data.toString().trim();
-    // Filter out spinner characters
-    if (text && !text.includes('⠋') && !text.includes('⠙') && !text.includes('⠹')) {
+    // Filter out spinner characters and copilot verbose tool/status messages
+    if (text &&
+      !text.includes('⠋') && !text.includes('⠙') && !text.includes('⠹') &&
+      !text.includes('Disabled tools:') &&
+      !text.includes('Unknown tool name') &&
+      !text.includes('● Calling') &&
+      !text.includes('● Reading')
+    ) {
       console.log('[AssistantManager] stderr:', text);
     }
   });

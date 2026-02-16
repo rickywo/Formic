@@ -81,6 +81,7 @@ export function parseClaudeStreamJson(line: string): OutputParseResult {
 /**
  * Parse GitHub Copilot CLI output line
  * Copilot outputs plain text, so we treat each line as text content
+ * Preserves newlines by appending \n to each line for proper formatting
  */
 export function parseCopilotOutput(line: string): OutputParseResult {
   if (!line.trim()) {
@@ -88,10 +89,10 @@ export function parseCopilotOutput(line: string): OutputParseResult {
   }
 
   // Copilot typically outputs plain text responses
-  // We'll treat each non-empty line as text content
+  // Append newline to preserve formatting (line breaks between paragraphs, lists, etc.)
   return {
     type: 'text',
-    content: line,
+    content: line + '\n',
   };
 }
 
