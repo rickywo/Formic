@@ -44,7 +44,7 @@ const AGENTS: Record<AgentType, AgentConfig> = {
   },
   copilot: {
     command: 'copilot',
-    buildArgs: (prompt: string) => ['-p', prompt, '--allow-all-tools', '-s'],
+    buildArgs: (prompt: string) => ['--prompt', prompt, '--allow-all-tools', '--allow-all-paths'],
     skillsDir: '.claude/skills',
     envVars: {}, // Uses GitHub OAuth
   },
@@ -110,8 +110,7 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
       // Use -s (silent) for cleaner output without stats
       const args = [
         '-p', prompt,
-        '-s', // Silent mode - output only agent response
-        '--available-tools', ASSISTANT_TOOLS.join(','),
+        '--allow-all-tools', '--allow-all-paths', ASSISTANT_TOOLS.join(','),
       ];
       if (options?.continue) {
         args.push('--continue');
@@ -250,8 +249,7 @@ export function buildMessagingAssistantArgs(prompt: string, options?: { continue
   if (agentType === 'copilot') {
     const args = [
       '-p', prompt,
-      '-s',
-      '--available-tools', MESSAGING_ASSISTANT_TOOLS.join(','),
+      '--allow-all-tools', '--allow-all-paths', MESSAGING_ASSISTANT_TOOLS.join(','),
     ];
     if (options?.continue) {
       args.push('--continue');
@@ -273,3 +271,4 @@ export function buildMessagingAssistantArgs(prompt: string, options?: { continue
   args.push(prompt);
   return args;
 }
+
