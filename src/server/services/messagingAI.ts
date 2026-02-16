@@ -636,7 +636,13 @@ function spawnAgentAndGetResponse(
     // Handle stderr (log but don't fail)
     child.stderr?.on('data', (data: Buffer) => {
       const text = data.toString().trim();
-      if (text && !text.includes('⠋') && !text.includes('⠙') && !text.includes('⠹')) {
+      if (text &&
+        !text.includes('⠋') && !text.includes('⠙') && !text.includes('⠹') &&
+        !text.includes('Disabled tools:') &&
+        !text.includes('Unknown tool name') &&
+        !text.includes('● Calling') &&
+        !text.includes('● Reading')
+      ) {
         console.log('[MessagingAI] stderr:', text);
       }
     });
