@@ -15,6 +15,7 @@ import {
   supportsConversationContinue,
 } from './agentAdapter.js';
 import { parseAgentOutput, usesJsonOutput, cleanAgentOutput } from './outputParser.js';
+import { loadProjectGuidelines } from './skillReader.js';
 
 // Session state
 let session: AssistantSession = {
@@ -275,6 +276,9 @@ export async function generateContextFile(): Promise<string> {
     .map(([status, tasks]) => `### ${status.charAt(0).toUpperCase() + status.slice(1)}\n${tasks.join('\n')}`)
     .join('\n\n');
 
+  // Load project guidelines for codebase expertise
+  const guidelines = await loadProjectGuidelines();
+
   const contextContent = `# Formic Task Manager Assistant
 
 You are the **Formic Task Manager**, an AI assistant focused on helping users:
@@ -295,6 +299,24 @@ You are the **Formic Task Manager**, an AI assistant focused on helping users:
 - Write, edit, or delete files
 - Execute commands that modify the system
 - Directly implement features (that's what tasks are for)
+
+${guidelines ? `## Codebase Reference Knowledge
+
+When helping users brainstorm features or craft task prompts, use the following project knowledge to provide specific, accurate guidance about files to modify, patterns to follow, and standards to include in task descriptions.
+
+${guidelines}` : ''}
+## Task Creation API Reference
+
+The Formic server exposes a REST API for task management. When creating tasks via the \`task-create\` code block, the server calls this API internally:
+
+- **Endpoint:** \`POST /api/tasks\`
+- **Content-Type:** \`application/json\`
+- **Request Body:**
+  - \`title\` (string, **required**) - Short, action-oriented title starting with a verb
+  - \`context\` (string, **required**) - Detailed description with requirements, technical considerations, and acceptance criteria
+  - \`priority\` (string, optional) - \`"high"\` (urgent/blocking), \`"medium"\` (default), \`"low"\` (nice-to-have)
+  - \`type\` (string, optional) - \`"standard"\` (default, full workflow) or \`"quick"\` (single-step execution)
+- **Response:** \`201 Created\` with the full task object including generated \`id\`
 
 ## Creating Tasks
 

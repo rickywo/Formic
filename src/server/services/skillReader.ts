@@ -55,7 +55,7 @@ function substituteVariables(content: string, variables: Record<string, string>)
 /**
  * Load project development guidelines if they exist
  */
-async function loadProjectGuidelines(): Promise<string> {
+export async function loadProjectGuidelines(): Promise<string> {
   const guidelinePath = path.join(getWorkspacePath(), GUIDELINE_FILENAME);
 
   if (!existsSync(guidelinePath)) {
