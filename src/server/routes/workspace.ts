@@ -6,6 +6,7 @@ import { getWorkspacePath, setWorkspacePath, getFormicDir, getBoardPath } from '
 import { loadBoard } from '../services/store.js';
 import { broadcastWorkspaceChanged } from '../services/boardNotifier.js';
 import { loadConfig, addWorkspace, setActiveWorkspace } from '../services/configStore.js';
+import { getAssistantSession, restartAssistant } from '../services/assistantManager.js';
 import type { WorkspaceInfo, WorkspaceValidation, TaskCounts, TaskStatus } from '../../types/index.js';
 
 /**
@@ -194,6 +195,15 @@ export async function workspaceRoutes(fastify: FastifyInstance): Promise<void> {
 
     // Broadcast workspace change to all connected clients
     broadcastWorkspaceChanged(workspacePath);
+
+    // Restart assistant session if running so it picks up the new workspace context
+    const assistantSession = getAssistantSession();
+    if (assistantSession.status === 'running') {
+      console.log('[Workspace] Restarting assistant for new workspace:', workspacePath);
+      restartAssistant().catch(err => {
+        console.error('[Workspace] Failed to restart assistant:', err);
+      });
+    }
 
     // Load workspace info to return
     let taskCounts: TaskCounts = {
