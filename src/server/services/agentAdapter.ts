@@ -109,7 +109,7 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
       // Copilot CLI: use --available-tools to restrict to read-only tools
       // Use -s (silent) for cleaner output without stats
       const args = [
-        '-p', prompt,
+        '--prompt', prompt,
         '--allow-all-tools', '--allow-all-paths', ASSISTANT_TOOLS.join(','),
       ];
       if (options?.continue) {
@@ -248,7 +248,7 @@ export function buildMessagingAssistantArgs(prompt: string, options?: { continue
 
   if (agentType === 'copilot') {
     const args = [
-      '-p', prompt,
+      '--prompt', prompt,
       '--allow-all-tools', '--allow-all-paths', MESSAGING_ASSISTANT_TOOLS.join(','),
     ];
     if (options?.continue) {
