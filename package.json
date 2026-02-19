@@ -1,6 +1,6 @@
 {
   "name": "@rickywo/formic",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Local-first agent orchestration and execution environment for AI coding tasks",
   "type": "module",
   "main": "dist/server/index.js",
@@ -37,11 +37,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anthropics/formic.git"
+    "url": "git+https://github.com/rickywo/Formic.git"
   },
-  "homepage": "https://github.com/anthropics/formic#readme",
+  "homepage": "https://github.com/rickywo/Formic#readme",
   "bugs": {
-    "url": "https://github.com/anthropics/formic/issues"
+    "url": "https://github.com/rickywo/Formic/issues"
   },
   "dependencies": {
     "@fastify/static": "^7.0.0",
