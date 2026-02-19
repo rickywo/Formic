@@ -1,14 +1,17 @@
 /**
- * Formic Config Store - Client-side localStorage configuration management
+ * Formic Config Store - API-backed configuration management
  *
- * Manages workspaces and application settings using a centralized localStorage store.
- * Supports multiple workspaces with auto-assigned colors and migration from legacy storage.
+ * Manages workspaces and application settings via server-side ~/.formic/config.json.
+ * Uses an in-memory cache populated on init() for synchronous reads, with async
+ * mutations that update cache immediately and persist via API calls.
+ *
+ * Includes one-time migration from localStorage to server on first load.
  *
  * @module configStore
  */
 
-/** localStorage key for the config store */
-const CONFIG_KEY = 'formic-config';
+/** localStorage key for legacy config (used for migration detection) */
+const LEGACY_CONFIG_KEY = 'formic-config';
 
 /** Legacy localStorage key for theme (will be migrated) */
 const LEGACY_THEME_KEY = 'formic-theme';
@@ -31,133 +34,107 @@ const COLOR_PALETTE = [
  * @type {Config}
  */
 const DEFAULT_CONFIG = {
+  version: 1,
   workspaces: [],
   activeWorkspaceId: null,
   settings: {
     maxConcurrentSessions: 1,
     theme: 'dark',
     notificationsEnabled: true,
+    projectBriefCollapsed: false,
   },
 };
 
-/**
- * @typedef {Object} Workspace
- * @property {string} id - Unique workspace identifier (ws-{uuid})
- * @property {string} path - Absolute path to the workspace directory
- * @property {string} name - Display name for the workspace
- * @property {string} color - Hex color for visual differentiation
- * @property {string} lastAccessed - ISO-8601 timestamp of last access
- */
+/** In-memory cache of the config, populated by init() */
+let _cache = { ...DEFAULT_CONFIG, settings: { ...DEFAULT_CONFIG.settings } };
 
-/**
- * @typedef {Object} Settings
- * @property {number} maxConcurrentSessions - Maximum concurrent task sessions
- * @property {string} theme - Theme preference ('dark' | 'light' | 'auto')
- * @property {boolean} notificationsEnabled - Whether notifications are enabled
- */
-
-/**
- * @typedef {Object} Config
- * @property {Workspace[]} workspaces - Array of workspace configurations
- * @property {string|null} activeWorkspaceId - ID of the currently active workspace
- * @property {Settings} settings - Application settings
- */
-
-/**
- * Generates a unique workspace ID
- * @returns {string} Workspace ID in format 'ws-{uuid}'
- */
-function generateWorkspaceId() {
-  const uuid = crypto.randomUUID ? crypto.randomUUID() :
-    'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
-  return `ws-${uuid}`;
-}
+/** Whether init() has completed */
+let _initialized = false;
 
 /**
  * Extracts the folder name from a path
- * @param {string} path - Absolute file path
+ * @param {string} filePath - Absolute file path
  * @returns {string} The basename of the path
  */
-function getBasename(path) {
-  if (!path) return 'Unknown';
-  const normalized = path.replace(/\\/g, '/').replace(/\/$/, '');
+function getBasename(filePath) {
+  if (!filePath) return 'Unknown';
+  const normalized = filePath.replace(/\\/g, '/').replace(/\/$/, '');
   const parts = normalized.split('/');
   return parts[parts.length - 1] || 'Unknown';
 }
 
 /**
  * Determines the next available color from the palette
- * @param {Workspace[]} workspaces - Existing workspaces
+ * @param {Array} workspaces - Existing workspaces
  * @returns {string} Hex color code
  */
 function getNextColor(workspaces) {
   const usedColors = new Set(workspaces.map(ws => ws.color));
-
-  // Find first unused color
   for (const color of COLOR_PALETTE) {
     if (!usedColors.has(color)) {
       return color;
     }
   }
-
-  // All colors used, cycle through palette based on count
   return COLOR_PALETTE[workspaces.length % COLOR_PALETTE.length];
 }
 
 /**
- * Retrieves the full configuration from localStorage
- * @returns {Config} The configuration object (or default if none exists)
+ * Fetch the full config from the server API
+ * @returns {Promise<Config>} The server-side configuration
  */
-function getConfig() {
+async function fetchConfigFromServer() {
   try {
-    const stored = localStorage.getItem(CONFIG_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Merge with defaults to ensure all fields exist
+    const res = await fetch('/api/config');
+    if (res.ok) {
+      const config = await res.json();
       return {
         ...DEFAULT_CONFIG,
-        ...parsed,
+        ...config,
         settings: {
           ...DEFAULT_CONFIG.settings,
-          ...parsed.settings,
+          ...(config.settings || {}),
         },
       };
     }
   } catch (error) {
-    console.error('[ConfigStore] Failed to load config:', error);
+    console.error('[ConfigStore] Failed to fetch config from server:', error);
   }
   return { ...DEFAULT_CONFIG, settings: { ...DEFAULT_CONFIG.settings } };
 }
 
 /**
- * Persists the configuration to localStorage
- * @param {Config} config - The configuration object to save
- * @returns {boolean} True if save succeeded, false otherwise
+ * Retrieves the full configuration from cache
+ * @returns {Config} The configuration object
  */
-function saveConfig(config) {
-  try {
-    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-    return true;
-  } catch (error) {
-    console.error('[ConfigStore] Failed to save config:', error);
-    return false;
-  }
+function getConfig() {
+  return _cache;
 }
 
 /**
- * Retrieves all workspaces
+ * Persists the full configuration to the server.
+ * Updates the local cache immediately.
+ * @param {Config} config - The configuration object to save
+ * @returns {boolean} True (always succeeds for cache; server write is async)
+ */
+function saveConfig(config) {
+  _cache = config;
+  // Note: full config save is not exposed as a single server endpoint.
+  // Individual mutations (addWorkspace, setSetting, etc.) handle their own persistence.
+  // This function exists for backward compatibility with UI code that calls saveConfig directly.
+  return true;
+}
+
+/**
+ * Retrieves all workspaces from cache
  * @returns {Workspace[]} Array of workspace objects
  */
 function getWorkspaces() {
-  return getConfig().workspaces;
+  return _cache.workspaces;
 }
 
 /**
- * Adds a new workspace to the configuration
+ * Adds a new workspace to the configuration.
+ * Updates cache immediately and persists to server asynchronously.
  * @param {Object} options - Workspace options
  * @param {string} options.path - Absolute path to the workspace
  * @param {string} [options.name] - Display name (auto-derived from path if not provided)
@@ -165,180 +142,270 @@ function getWorkspaces() {
  * @returns {Workspace} The newly created workspace object
  */
 function addWorkspace({ path, name, color }) {
-  const config = getConfig();
-
-  // Check if workspace with same path already exists
-  const existing = config.workspaces.find(ws => ws.path === path);
+  // Check if workspace with same path already exists in cache
+  const existing = _cache.workspaces.find(ws => ws.path === path);
   if (existing) {
     return existing;
   }
 
   const workspace = {
-    id: generateWorkspaceId(),
+    id: `ws-${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`,
     path: path,
     name: name || getBasename(path),
-    color: color || getNextColor(config.workspaces),
+    color: color || getNextColor(_cache.workspaces),
     lastAccessed: new Date().toISOString(),
   };
 
-  config.workspaces.push(workspace);
+  _cache.workspaces.push(workspace);
 
-  // If this is the first workspace, make it active
-  if (config.workspaces.length === 1) {
-    config.activeWorkspaceId = workspace.id;
+  if (_cache.workspaces.length === 1) {
+    _cache.activeWorkspaceId = workspace.id;
   }
 
-  saveConfig(config);
+  // Persist to server asynchronously
+  fetch('/api/config/workspaces', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, name, color }),
+  }).then(res => {
+    if (res.ok) {
+      return res.json().then(serverWorkspace => {
+        // Update cache with server-assigned ID (server generates its own UUID)
+        const idx = _cache.workspaces.findIndex(ws => ws.path === path);
+        if (idx !== -1) {
+          _cache.workspaces[idx] = serverWorkspace;
+          if (_cache.activeWorkspaceId === workspace.id) {
+            _cache.activeWorkspaceId = serverWorkspace.id;
+          }
+        }
+      });
+    }
+  }).catch(err => {
+    console.error('[ConfigStore] Failed to persist addWorkspace:', err);
+  });
+
   return workspace;
 }
 
 /**
- * Removes a workspace by ID
+ * Removes a workspace by ID.
+ * Updates cache immediately and persists to server asynchronously.
  * @param {string} workspaceId - The workspace ID to remove
  * @returns {boolean} True if workspace was removed, false if not found
  */
 function removeWorkspace(workspaceId) {
-  const config = getConfig();
-  const index = config.workspaces.findIndex(ws => ws.id === workspaceId);
+  const index = _cache.workspaces.findIndex(ws => ws.id === workspaceId);
 
   if (index === -1) {
     return false;
   }
 
-  config.workspaces.splice(index, 1);
+  _cache.workspaces.splice(index, 1);
 
-  // Clear activeWorkspaceId if we removed the active workspace
-  if (config.activeWorkspaceId === workspaceId) {
-    config.activeWorkspaceId = config.workspaces.length > 0
-      ? config.workspaces[0].id
+  if (_cache.activeWorkspaceId === workspaceId) {
+    _cache.activeWorkspaceId = _cache.workspaces.length > 0
+      ? _cache.workspaces[0].id
       : null;
   }
 
-  saveConfig(config);
+  // Persist to server asynchronously
+  fetch(`/api/config/workspaces/${workspaceId}`, {
+    method: 'DELETE',
+  }).catch(err => {
+    console.error('[ConfigStore] Failed to persist removeWorkspace:', err);
+  });
+
   return true;
 }
 
 /**
- * Sets the active workspace and updates its lastAccessed timestamp
+ * Sets the active workspace and updates its lastAccessed timestamp.
+ * Updates cache immediately and persists to server asynchronously.
  * @param {string} workspaceId - The workspace ID to activate
  * @returns {boolean} True if workspace was found and activated
  */
 function setActiveWorkspace(workspaceId) {
-  const config = getConfig();
-  const workspace = config.workspaces.find(ws => ws.id === workspaceId);
+  const workspace = _cache.workspaces.find(ws => ws.id === workspaceId);
 
   if (!workspace) {
     return false;
   }
 
-  config.activeWorkspaceId = workspaceId;
+  _cache.activeWorkspaceId = workspaceId;
   workspace.lastAccessed = new Date().toISOString();
 
-  saveConfig(config);
+  // Persist to server asynchronously
+  fetch('/api/config/active-workspace', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workspaceId }),
+  }).catch(err => {
+    console.error('[ConfigStore] Failed to persist setActiveWorkspace:', err);
+  });
+
   return true;
 }
 
 /**
- * Retrieves the currently active workspace
+ * Retrieves the currently active workspace from cache
  * @returns {Workspace|null} The active workspace object, or null if none
  */
 function getActiveWorkspace() {
-  const config = getConfig();
-  if (!config.activeWorkspaceId) {
+  if (!_cache.activeWorkspaceId) {
     return null;
   }
-  return config.workspaces.find(ws => ws.id === config.activeWorkspaceId) || null;
+  return _cache.workspaces.find(ws => ws.id === _cache.activeWorkspaceId) || null;
 }
 
 /**
- * Retrieves a setting value by key
+ * Retrieves a setting value by key from cache
  * @param {string} key - The setting key
  * @returns {*} The setting value, or undefined if not found
  */
 function getSetting(key) {
-  const config = getConfig();
-  return config.settings[key];
+  return _cache.settings[key];
 }
 
 /**
- * Updates a setting value
+ * Updates a setting value.
+ * Updates cache immediately and persists to server asynchronously.
  * @param {string} key - The setting key
  * @param {*} value - The value to set
- * @returns {boolean} True if save succeeded
+ * @returns {boolean} True (always succeeds for cache)
  */
 function setSetting(key, value) {
-  const config = getConfig();
-  config.settings[key] = value;
-  return saveConfig(config);
-}
+  _cache.settings[key] = value;
 
-/**
- * Checks if the config store has been initialized (migration completed)
- * @returns {boolean} True if config exists in localStorage
- */
-function isInitialized() {
-  return localStorage.getItem(CONFIG_KEY) !== null;
-}
+  // Persist to server asynchronously
+  fetch(`/api/config/settings/${key}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value }),
+  }).catch(err => {
+    console.error('[ConfigStore] Failed to persist setSetting:', err);
+  });
 
-/**
- * Performs migration from legacy storage and imports current workspace from server
- * Should be called once on first load before initializing the UI
- * @returns {Promise<boolean>} True if migration was performed, false if already initialized
- */
-async function migrateFromLegacy() {
-  // Skip if already initialized
-  if (isInitialized()) {
-    return false;
-  }
-
-  console.log('[ConfigStore] Performing first-time migration...');
-
-  const config = { ...DEFAULT_CONFIG, settings: { ...DEFAULT_CONFIG.settings } };
-
-  // Migrate legacy theme setting
-  const legacyTheme = localStorage.getItem(LEGACY_THEME_KEY);
-  if (legacyTheme) {
-    config.settings.theme = legacyTheme;
-    console.log('[ConfigStore] Migrated theme setting:', legacyTheme);
-  }
-
-  // Import current workspace from server
-  try {
-    const res = await fetch('/api/board');
-    if (res.ok) {
-      const board = await res.json();
-      if (board.meta && board.meta.repoPath) {
-        const workspace = {
-          id: generateWorkspaceId(),
-          path: board.meta.repoPath,
-          name: board.meta.projectName || getBasename(board.meta.repoPath),
-          color: COLOR_PALETTE[0],
-          lastAccessed: new Date().toISOString(),
-        };
-        config.workspaces.push(workspace);
-        config.activeWorkspaceId = workspace.id;
-        console.log('[ConfigStore] Imported workspace:', workspace.name);
-      }
-    }
-  } catch (error) {
-    console.error('[ConfigStore] Failed to import workspace from server:', error);
-  }
-
-  // Save the new config
-  saveConfig(config);
-
-  // Remove legacy theme key after successful migration
-  if (legacyTheme) {
-    localStorage.removeItem(LEGACY_THEME_KEY);
-    console.log('[ConfigStore] Removed legacy theme key');
-  }
-
-  console.log('[ConfigStore] Migration complete');
   return true;
 }
 
-// Export all public functions
+/**
+ * Checks if the config store has been initialized
+ * @returns {boolean} True if init() has completed
+ */
+function isInitialized() {
+  return _initialized;
+}
+
+/**
+ * Initializes the config store by fetching config from the server.
+ * Performs one-time localStorage-to-server migration if needed.
+ * Must be called once before using any other configStore functions.
+ * @returns {Promise<void>}
+ */
+async function init() {
+  // Fetch current server config
+  const serverConfig = await fetchConfigFromServer();
+
+  // One-time migration: if server config has no workspaces but localStorage has data,
+  // migrate localStorage data to the server
+  const legacyData = localStorage.getItem(LEGACY_CONFIG_KEY);
+  const legacyTheme = localStorage.getItem(LEGACY_THEME_KEY);
+
+  if (serverConfig.workspaces.length === 0 && (legacyData || legacyTheme)) {
+    console.log('[ConfigStore] Detected legacy localStorage data, migrating to server...');
+
+    let migrateConfig = { ...DEFAULT_CONFIG, settings: { ...DEFAULT_CONFIG.settings } };
+
+    // Parse legacy localStorage config
+    if (legacyData) {
+      try {
+        const parsed = JSON.parse(legacyData);
+        migrateConfig = {
+          ...migrateConfig,
+          ...parsed,
+          version: 1,
+          settings: {
+            ...migrateConfig.settings,
+            ...(parsed.settings || {}),
+          },
+        };
+      } catch (err) {
+        console.error('[ConfigStore] Failed to parse legacy config:', err);
+      }
+    }
+
+    // Migrate legacy theme setting
+    if (legacyTheme) {
+      migrateConfig.settings.theme = legacyTheme;
+    }
+
+    // If no workspaces in legacy data, import current workspace from board
+    if (migrateConfig.workspaces.length === 0) {
+      try {
+        const res = await fetch('/api/board');
+        if (res.ok) {
+          const board = await res.json();
+          if (board.meta && board.meta.repoPath) {
+            const workspace = {
+              id: `ws-${crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)}`,
+              path: board.meta.repoPath,
+              name: board.meta.projectName || getBasename(board.meta.repoPath),
+              color: COLOR_PALETTE[0],
+              lastAccessed: new Date().toISOString(),
+            };
+            migrateConfig.workspaces.push(workspace);
+            migrateConfig.activeWorkspaceId = workspace.id;
+            console.log('[ConfigStore] Imported workspace from board:', workspace.name);
+          }
+        }
+      } catch (err) {
+        console.error('[ConfigStore] Failed to import workspace from board:', err);
+      }
+    }
+
+    // Send migration data to server
+    try {
+      const res = await fetch('/api/config/migrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(migrateConfig),
+      });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.migrated) {
+          _cache = result.config;
+          console.log('[ConfigStore] Migration to server complete');
+
+          // Clear legacy localStorage keys
+          localStorage.removeItem(LEGACY_CONFIG_KEY);
+          if (legacyTheme) {
+            localStorage.removeItem(LEGACY_THEME_KEY);
+          }
+          console.log('[ConfigStore] Cleared legacy localStorage data');
+        } else {
+          // Server already had data, use server config
+          _cache = serverConfig;
+        }
+      } else {
+        // Migration failed, use server config as-is
+        _cache = serverConfig;
+      }
+    } catch (err) {
+      console.error('[ConfigStore] Migration request failed:', err);
+      _cache = serverConfig;
+    }
+  } else {
+    _cache = serverConfig;
+  }
+
+  _initialized = true;
+  console.log('[ConfigStore] Initialized with', _cache.workspaces.length, 'workspaces');
+}
+
+// Export all public functions (preserving window.configStore.* API surface)
 window.configStore = {
+  init,
   getConfig,
   saveConfig,
   getWorkspaces,
@@ -349,6 +416,7 @@ window.configStore = {
   getSetting,
   setSetting,
   isInitialized,
-  migrateFromLegacy,
+  // Keep migrateFromLegacy as a no-op alias for backward compatibility
+  migrateFromLegacy: async function() { /* migration now handled by init() */ return false; },
   COLOR_PALETTE,
 };

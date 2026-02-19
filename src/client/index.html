@@ -328,6 +328,32 @@
       border: 1px solid rgba(147, 51, 234, 0.15);
     }
 
+    [data-theme="light"] .quick-badge {
+      background: rgba(37, 99, 235, 0.12);
+      color: #2563eb;
+      border: 1px solid rgba(37, 99, 235, 0.15);
+    }
+
+    [data-theme="light"] .quick-task-toggle .toggle-slider-inline {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .quick-task-toggle .toggle-slider-inline::before {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme="light"] .quick-task-toggle .toggle-label input:checked + .toggle-slider-inline {
+      background: rgba(37, 99, 235, 0.3);
+    }
+
+    [data-theme="light"] .quick-task-toggle .toggle-label input:checked + .toggle-slider-inline::before {
+      background: #2563eb;
+    }
+
+    [data-theme="light"] .quick-task-toggle .toggle-hint {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
     /* Light theme bootstrap banner */
     [data-theme="light"] .bootstrap-banner {
       background: linear-gradient(135deg, rgba(22, 163, 74, 0.1), rgba(22, 163, 74, 0.03));
@@ -1915,6 +1941,73 @@
       resize: vertical;
     }
 
+    /* Quick Task Toggle Styles */
+    .quick-task-toggle {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .quick-task-toggle .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      text-transform: none;
+      letter-spacing: normal;
+      color: var(--text-primary);
+    }
+
+    .quick-task-toggle .toggle-label input[type="checkbox"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .quick-task-toggle .toggle-slider-inline {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      transition: all 0.2s ease;
+    }
+
+    .quick-task-toggle .toggle-slider-inline::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 3px;
+      background: rgba(255, 255, 255, 0.5);
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .quick-task-toggle .toggle-label input:checked + .toggle-slider-inline {
+      background: rgba(59, 130, 246, 0.4);
+    }
+
+    .quick-task-toggle .toggle-label input:checked + .toggle-slider-inline::before {
+      transform: translateX(20px);
+      background: #3b82f6;
+    }
+
+    .quick-task-toggle .toggle-text {
+      color: var(--text-primary);
+    }
+
+    .quick-task-toggle .toggle-hint {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-left: 56px;
+    }
+
     .form-actions {
       display: flex;
       justify-content: flex-end;
@@ -1968,6 +2061,25 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-right: 8px;
+    }
+
+    /* Quick Task Badge */
+    .quick-badge {
+      font-size: 10px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(59, 130, 246, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(59, 130, 246, 0.1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 8px;
+    }
+
+    /* Quick Task Workflow Indicator */
+    .workflow-indicator--quick {
+      justify-content: center;
     }
 
     /* Bootstrap Banner - Glass Morphic */
@@ -5460,6 +5572,14 @@
             <option value="high">High</option>
           </select>
         </div>
+        <div class="form-group quick-task-toggle">
+          <label class="toggle-label">
+            <input type="checkbox" id="task-quick">
+            <span class="toggle-slider-inline"></span>
+            <span class="toggle-text">Quick Task</span>
+          </label>
+          <span class="toggle-hint">Skip planning stages (for simple tasks)</span>
+        </div>
         <div class="form-actions">
           <button type="button" class="btn" onclick="closeCreateModal()">Cancel</button>
           <button type="submit" class="btn btn-primary">Create Task</button>
@@ -6251,8 +6371,8 @@
 
     // Initialize
     async function init() {
-      // Migrate from legacy storage on first load (imports workspace and theme)
-      await window.configStore.migrateFromLegacy();
+      // Initialize config store (fetches from server, migrates localStorage if needed)
+      await window.configStore.init();
 
       applyTheme(getStoredTheme());
       await loadBoard();
@@ -6294,11 +6414,13 @@
       const title = document.getElementById('task-title').value;
       const context = document.getElementById('task-context').value;
       const priority = document.getElementById('task-priority').value;
+      const isQuick = document.getElementById('task-quick').checked;
+      const type = isQuick ? 'quick' : 'standard';
 
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, context, priority }),
+        body: JSON.stringify({ title, context, priority, type }),
       });
 
       if (res.ok) {
@@ -6306,6 +6428,7 @@
         document.getElementById('task-title').value = '';
         document.getElementById('task-context').value = '';
         document.getElementById('task-priority').value = 'medium';
+        document.getElementById('task-quick').checked = false;
         await loadBoard();
       }
     }
@@ -6441,6 +6564,7 @@
           const isBootstrap = task.id === BOOTSTRAP_TASK_ID;
           const cardClass = isBootstrap ? 'task-card task-card--bootstrap' : 'task-card';
           const bootstrapBadge = isBootstrap ? '<span class="bootstrap-badge">Setup</span>' : '';
+          const quickBadge = task.type === 'quick' ? '<span class="quick-badge">Quick</span>' : '';
           const contextText = isBootstrap
             ? 'Analyzes your codebase and generates AI development guidelines tailored to your project.'
             : escapeHtml(task.context);
@@ -6449,9 +6573,19 @@
           const workflowSteps = ['brief', 'plan', 'execute'];
           const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
           const workflowStep = task.workflowStep || 'pending';
+          const isQuickTask = task.type === 'quick';
 
           let workflowIndicator = '';
-          if (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete')) {
+          if (isQuickTask && (isWorkflowActive || workflowStep === 'execute')) {
+            // Quick tasks only show Execute step
+            const executeClass = workflowStep === 'execute' ? 'active' : (workflowStep === 'complete' ? 'completed' : '');
+            workflowIndicator = `
+              <div class="workflow-indicator workflow-indicator--quick">
+                <span class="workflow-step ${executeClass}">Execute</span>
+              </div>
+            `;
+          } else if (!isQuickTask && (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete'))) {
+            // Standard tasks show all 3 steps
             const stepClasses = workflowSteps.map(step => {
               if (workflowStep === step) return 'active';
               if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep)) return 'completed';
@@ -6515,7 +6649,7 @@
             <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
               ${queuePositionHtml}
               <div class="task-header">
-                <span class="task-title">${bootstrapBadge}${escapeHtml(task.title)}${statusBadge}</span>
+                <span class="task-title">${bootstrapBadge}${quickBadge}${escapeHtml(task.title)}${statusBadge}</span>
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
               </div>
               ${workflowIndicator}

@@ -7,12 +7,17 @@ import { boardRoutes } from './routes/board.js';
 import { taskRoutes } from './routes/tasks.js';
 import { assistantRoutes } from './routes/assistant.js';
 import { workspaceRoutes } from './routes/workspace.js';
+import { webhookRoutes } from './routes/webhooks.js';
+import { configRoutes } from './routes/config.js';
 import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
 import { startQueueProcessor, getQueueProcessorConfig } from './services/queueProcessor.js';
 import { setWorkspacePath } from './utils/paths.js';
-import { recoverStuckTasks } from './services/store.js';
+import { loadConfig, getActiveWorkspace as getActiveConfigWorkspace } from './services/configStore.js';
+import { recoverStuckTasks, loadBoard } from './services/store.js';
+import { getMessagingConfig } from './services/messagingAdapter.js';
+import { initializeStatusCache } from './services/messagingNotifier.js';
 import type { ServerOptions } from '../types/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -39,7 +44,36 @@ const DEFAULT_HOST = '0.0.0.0';
 export async function startServer(options: ServerOptions = {}): Promise<void> {
   const port = options.port ?? parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
   const host = options.host ?? process.env.HOST ?? DEFAULT_HOST;
-  const workspacePath = options.workspacePath ?? process.env.WORKSPACE_PATH ?? process.cwd();
+
+  // Resolve workspace path with priority:
+  // 1. Explicit option / WORKSPACE_PATH env var
+  // 2. Active workspace from ~/.formic/config.json
+  // 3. process.cwd() fallback
+  const explicitWorkspace = options.workspacePath ?? process.env.WORKSPACE_PATH;
+  let workspacePath: string;
+  let workspaceSource: string;
+
+  if (explicitWorkspace) {
+    workspacePath = explicitWorkspace;
+    workspaceSource = 'explicit (env/option)';
+  } else {
+    // Try to load active workspace from global config
+    try {
+      const activeWorkspace = await getActiveConfigWorkspace();
+      if (activeWorkspace) {
+        workspacePath = activeWorkspace.path;
+        workspaceSource = `config.json (${activeWorkspace.name})`;
+      } else {
+        workspacePath = process.cwd();
+        workspaceSource = 'cwd (fallback)';
+      }
+    } catch {
+      workspacePath = process.cwd();
+      workspaceSource = 'cwd (config load failed)';
+    }
+  }
+
+  console.log(`[Server] Workspace resolved from: ${workspaceSource}`);
 
   // Set the workspace path for all services
   setWorkspacePath(workspacePath);
@@ -64,6 +98,8 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   await fastify.register(taskRoutes);
   await fastify.register(assistantRoutes);
   await fastify.register(workspaceRoutes);
+  await fastify.register(webhookRoutes);
+  await fastify.register(configRoutes);
 
   // Register WebSocket routes
   await fastify.register(logsWebSocket);
@@ -73,6 +109,9 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   fastify.get('/health', async () => ({ status: 'ok' }));
 
   try {
+    // Ensure ~/.formic/config.json exists on first startup
+    await loadConfig();
+
     await fastify.listen({ port, host });
     console.log(`Formic server running at http://${host}:${port}`);
     console.log(`Workspace: ${workspacePath}`);
@@ -100,6 +139,23 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
       console.log(`Queue processor: enabled (poll: ${queueConfig.pollInterval}ms, max concurrent: ${queueConfig.maxConcurrent})`);
     } else {
       console.log('Queue processor: disabled');
+    }
+
+    // Initialize messaging notifications
+    const messagingConfig = getMessagingConfig();
+    const messagingEnabled = messagingConfig.telegram.enabled || messagingConfig.line.enabled;
+    if (messagingEnabled) {
+      // Initialize status cache to prevent false notifications on startup
+      const board = await loadBoard();
+      initializeStatusCache(board.tasks);
+
+      const platforms = [];
+      if (messagingConfig.telegram.enabled) platforms.push('Telegram');
+      if (messagingConfig.line.enabled) platforms.push('Line');
+      console.log(`Messaging integrations: ${platforms.join(', ')}`);
+      console.log(`Webhook endpoints: /api/webhooks/telegram, /api/webhooks/line`);
+    } else {
+      console.log('Messaging integrations: disabled (set TELEGRAM_BOT_TOKEN or LINE_CHANNEL_ACCESS_TOKEN to enable)');
     }
   } catch (err) {
     const error = err as NodeJS.ErrnoException;

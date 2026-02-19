@@ -44,7 +44,7 @@ const AGENTS: Record<AgentType, AgentConfig> = {
   },
   copilot: {
     command: 'copilot',
-    buildArgs: (prompt: string) => ['-p', prompt, '--allow-all-tools', '-s'],
+    buildArgs: (prompt: string) => ['--prompt', prompt, '--allow-all-tools', '--allow-all-paths'],
     skillsDir: '.claude/skills',
     envVars: {}, // Uses GitHub OAuth
   },
@@ -53,17 +53,37 @@ const AGENTS: Record<AgentType, AgentConfig> = {
 /**
  * Assistant-specific configurations for read-only Task Manager mode
  */
+/**
+ * Claude Code tool names (PascalCase)
+ */
+const CLAUDE_READONLY_TOOLS = ['Read', 'Glob', 'Grep', 'LS', 'WebSearch', 'WebFetch'];
+const CLAUDE_MCP_PLAYWRIGHT_TOOLS = [
+  'mcp__playwright__browser_navigate',
+  'mcp__playwright__browser_snapshot',
+  'mcp__playwright__browser_take_screenshot',
+  'mcp__playwright__browser_close',
+];
+const CLAUDE_ASSISTANT_TOOLS = [...CLAUDE_READONLY_TOOLS, ...CLAUDE_MCP_PLAYWRIGHT_TOOLS];
+const CLAUDE_MESSAGING_TOOLS = [...CLAUDE_READONLY_TOOLS];
+
+/**
+ * GitHub Copilot CLI tool names (snake_case)
+ */
+const COPILOT_READONLY_TOOLS = ['view', 'glob', 'grep', 'web_fetch'];
+const COPILOT_ASSISTANT_TOOLS = [...COPILOT_READONLY_TOOLS];
+const COPILOT_MESSAGING_TOOLS = [...COPILOT_READONLY_TOOLS];
+
 const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
   claude: {
     outputFormat: 'stream-json',
-    readOnlyTools: ['Read', 'Glob', 'Grep', 'LS', 'WebSearch', 'WebFetch'],
+    readOnlyTools: CLAUDE_ASSISTANT_TOOLS,
     supportsConversationContinue: true,
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
       const args = [
         '--print',
         '--output-format', 'stream-json',
         '--verbose',
-        '--allowedTools', 'Read,Glob,Grep,LS,WebSearch,WebFetch',
+        '--allowedTools', CLAUDE_ASSISTANT_TOOLS.join(','),
         '--dangerously-skip-permissions',
       ];
       if (options?.continue) {
@@ -75,15 +95,17 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
   },
   copilot: {
     outputFormat: null, // Copilot uses plain text output
-    readOnlyTools: ['Read', 'Glob', 'Grep', 'LS', 'WebSearch', 'WebFetch'],
+    readOnlyTools: COPILOT_ASSISTANT_TOOLS,
     supportsConversationContinue: true, // Copilot supports --continue
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
       // Copilot CLI: use --available-tools to restrict to read-only tools
-      // Use -s (silent) for cleaner output without stats
+      // --silent suppresses stats output, --no-color removes ANSI escape codes
       const args = [
-        '-p', prompt,
-        '-s', // Silent mode - output only agent response
-        '--available-tools', 'Read,Glob,Grep,LS,WebSearch,WebFetch',
+        '--prompt', prompt,
+        '--available-tools', ...COPILOT_ASSISTANT_TOOLS,
+        '--allow-all-paths',
+        '--silent',
+        '--no-color',
       ];
       if (options?.continue) {
         args.push('--continue');
@@ -210,3 +232,41 @@ export function supportsConversationContinue(): boolean {
 export function getAssistantReadOnlyTools(): string[] {
   return getAssistantConfig().readOnlyTools;
 }
+
+/**
+ * Build CLI arguments for messaging assistant mode (no MCP Playwright tools).
+ * The messaging subprocess cannot access MCP tools because no MCP server
+ * configuration is injected into the spawned process.
+ */
+export function buildMessagingAssistantArgs(prompt: string, options?: { continue?: boolean }): string[] {
+  const agentType = getAgentType();
+
+  if (agentType === 'copilot') {
+    const args = [
+      '--prompt', prompt,
+      '--available-tools', ...COPILOT_MESSAGING_TOOLS,
+      '--allow-all-paths',
+      '--silent',
+      '--no-color',
+    ];
+    if (options?.continue) {
+      args.push('--continue');
+    }
+    return args;
+  }
+
+  // Default: claude
+  const args = [
+    '--print',
+    '--output-format', 'stream-json',
+    '--verbose',
+    '--allowedTools', CLAUDE_MESSAGING_TOOLS.join(','),
+    '--dangerously-skip-permissions',
+  ];
+  if (options?.continue) {
+    args.push('--continue');
+  }
+  args.push(prompt);
+  return args;
+}
+
