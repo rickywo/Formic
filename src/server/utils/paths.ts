@@ -1,4 +1,5 @@
 import path from 'node:path';
+import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -28,6 +29,20 @@ export function getBundledSkillsPath(): string {
  */
 export function getBundledTemplatesPath(): string {
   return path.join(getPackageRoot(), 'templates');
+}
+
+/**
+ * Get the global ~/.formic/ directory path
+ */
+export function getGlobalFormicDir(): string {
+  return path.join(os.homedir(), '.formic');
+}
+
+/**
+ * Get the global config file path (~/.formic/config.json)
+ */
+export function getGlobalConfigPath(): string {
+  return path.join(getGlobalFormicDir(), 'config.json');
 }
 
 /**

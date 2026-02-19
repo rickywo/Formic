@@ -1,5 +1,5 @@
 import { getQueuedTasks, getRunningTasksCount } from './store.js';
-import { executeFullWorkflow, isWorkflowRunning } from './workflow.js';
+import { executeFullWorkflow, executeQuickTask, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
 import type { Task } from '../../types/index.js';
 
@@ -62,8 +62,15 @@ async function processQueue(): Promise<void> {
 
     console.log(`[QueueProcessor] Starting task ${nextTask.id}: ${nextTask.title}`);
 
-    // Execute the full workflow (brief → plan → execute)
-    await executeFullWorkflow(nextTask.id);
+    // Check task type and execute appropriate workflow
+    if (nextTask.type === 'quick') {
+      // Quick task: skip brief/plan, execute directly
+      console.log(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
+      await executeQuickTask(nextTask.id);
+    } else {
+      // Standard task: execute full workflow (brief → plan → execute)
+      await executeFullWorkflow(nextTask.id);
+    }
 
   } catch (error) {
     const err = error as Error;
