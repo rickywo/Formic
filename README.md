@@ -14,14 +14,14 @@
   <a href="https://www.npmjs.com/package/@rickywo/formic"><img src="https://img.shields.io/npm/v/@rickywo/formic?style=flat-square&logo=npm&color=CB3837" alt="npm"></a>
   <a href="#quickstart"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker" alt="Docker Ready"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/Version-0.5.0-blue?style=flat-square" alt="Version 0.5.0">
+  <img src="https://img.shields.io/badge/Version-0.6.0-blue?style=flat-square" alt="Version 0.6.0">
   <img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=flat-square&logo=pwa" alt="PWA Ready">
   <img src="https://img.shields.io/badge/Built%20with-Claude-blueviolet?style=flat-square" alt="Built with Claude">
 </p>
 
 <p align="center">
   <a href="#quickstart">Quickstart</a> •
-  <a href="#whats-new-in-v030">What's New</a> •
+  <a href="#-whats-new-in-v060">What's New</a> •
   <a href="#why-formic">Why?</a> •
   <a href="#features">Features</a> •
   <a href="#supported-agents">Agents</a> •
@@ -78,7 +78,36 @@
 
 ---
 
-## 🆕 What's New in v0.5.0
+## 🆕 What's New in v0.6.0
+
+### 🗄️ Global Config Store — Just `npm run dev`
+
+Configuration now persists at `~/.formic/config.json` instead of browser localStorage. The server auto-resolves your workspace from config, so you can simply run `npm run dev` — no `WORKSPACE_PATH` env var needed.
+
+- **Persistent config** — Workspaces, settings, and preferences survive browser clears
+- **Auto-resolve workspace** — Server reads active workspace from `~/.formic/config.json`
+- **Migration** — Existing localStorage data auto-migrates on first load
+
+### 💬 Telegram & LINE Messaging Integration
+
+Create and manage tasks directly from Telegram or LINE messaging apps. AI-powered conversations let you describe tasks in natural language from your phone.
+
+- **Task creation** — Send a message to create a task instantly
+- **Board commands** — `/board`, `/status`, `/run` for quick task management
+- **Real-time notifications** — Get notified when tasks complete, fail, or need review
+- **AI conversations** — Natural language task creation with codebase-aware context
+
+### ⚡ Quick Tasks
+
+New task type that skips the brief/plan steps and goes straight to execution — perfect for simple one-off tasks like "create a file" or "fix a typo".
+
+### 📸 MCP Screenshot Support
+
+Screenshot capture via Playwright MCP tools in messaging bot context. Take screenshots of any webpage and receive them directly in Telegram or LINE.
+
+---
+
+## What's New in v0.5.0
 
 ### 📦 npm Global Install — Run Formic Anywhere
 
@@ -255,6 +284,8 @@ That's it. No prompt engineering. No context management. No babysitting.
 | 📋 **Auto-Documentation** | Every task gets README.md, PLAN.md, and structured subtasks |
 | 🔄 **Iterative Execution** | Agent loops until all subtasks are complete (configurable iterations) |
 | 🎯 **Smart Bootstrap** | Auto-generates project-specific coding guidelines on first run |
+| 💬 **Messaging Integration** | Create and manage tasks from Telegram or LINE with AI-powered conversations and notifications |
+| ⚡ **Quick Tasks** | Skip brief/plan steps — go straight to execution for simple one-off tasks |
 | 🔌 **Multi-Agent** | Switch between Claude Code CLI and GitHub Copilot CLI |
 | 🌙 **Theme Support** | Dark, Light, and Auto theme modes |
 | 🔒 **Remote Access** | Use with Tailscale for secure remote development from anywhere |
@@ -343,6 +374,9 @@ your-project/
 | `MAX_CONCURRENT_TASKS` | Max simultaneous running tasks | `1` |
 | `MAX_EXECUTE_ITERATIONS` | Max execute loop iterations | `5` |
 | `STEP_TIMEOUT_MS` | Timeout per workflow step (ms) | `600000` (10 min) |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot API token (from @BotFather) | (disabled) |
+| `LINE_CHANNEL_ACCESS_TOKEN` | Line Messaging API channel access token | (disabled) |
+| `LINE_CHANNEL_SECRET` | Line Messaging API channel secret | (disabled) |
 
 ### API
 
@@ -374,6 +408,26 @@ your-project/
 | `GET /api/tasks/:id/subtasks` | Get all subtasks |
 | `PUT /api/tasks/:id/subtasks/:subtaskId` | Update subtask status |
 | `GET /api/tasks/:id/subtasks/completion` | Get completion stats |
+
+**Config**
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/config` | Get full config (workspaces, settings) |
+| `POST /api/config/workspaces` | Add a workspace |
+| `DELETE /api/config/workspaces/:id` | Remove a workspace |
+| `PUT /api/config/active-workspace` | Set active workspace |
+| `GET /api/config/settings/:key` | Get a single setting |
+| `PUT /api/config/settings/:key` | Update a single setting |
+| `POST /api/config/migrate` | Migrate config from localStorage |
+
+**Messaging & Webhooks**
+| Endpoint | Description |
+|----------|-------------|
+| `POST /api/webhooks/telegram` | Telegram bot webhook |
+| `POST /api/webhooks/line` | Line messaging webhook |
+| `GET /api/messaging/status` | Messaging integration status |
+| `GET /api/messaging/sessions` | List messaging sessions |
+| `POST /api/messaging/telegram/set-webhook` | Set Telegram webhook URL |
 
 **WebSocket**
 | Endpoint | Description |
@@ -409,8 +463,11 @@ cd formic
 # Install
 npm install
 
-# Run (development)
+# Run (development) — auto-resolves workspace from ~/.formic/config.json
 npm run dev
+
+# Or specify a workspace explicitly
+WORKSPACE_PATH=/path/to/project npm run dev
 
 # Build
 npm run build
@@ -423,7 +480,14 @@ npm start
 
 ## Roadmap
 
-### v0.5.0 (Current)
+### v0.6.0 (Current)
+- [x] **Global Config Store** — Config persists at `~/.formic/config.json`, no more localStorage
+- [x] **Telegram & LINE Integration** — Create and manage tasks from messaging apps
+- [x] **Quick Tasks** — Skip brief/plan for simple one-off execution
+- [x] **MCP Screenshot Support** — Capture screenshots via Playwright MCP in messaging context
+- [x] **Simplified DX** — `npm run dev` just works without `WORKSPACE_PATH`
+
+### v0.5.0
 - [x] **npm Global Install** — Install via `npm install -g @rickywo/formic`
 - [x] **CLI Commands** — `formic init` and `formic start` for easy setup
 - [x] **Portable Package** — Works in any project directory
