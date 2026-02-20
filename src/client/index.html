@@ -181,6 +181,7 @@
       border-top: 2px solid rgba(37, 99, 235, 0.4);
     }
     [data-theme="light"] .column[data-status="queued"] .column-title { color: rgba(37, 99, 235, 0.8); }
+    [data-theme="light"] .column-subtitle { color: rgba(0, 0, 0, 0.3); }
 
     [data-theme="light"] .column[data-status="running"] {
       border-top: 2px solid rgba(22, 163, 74, 0.4);
@@ -338,6 +339,12 @@
       background: rgba(37, 99, 235, 0.12);
       color: #2563eb;
       border: 1px solid rgba(37, 99, 235, 0.15);
+    }
+
+    [data-theme="light"] .manual-badge {
+      background: rgba(245, 158, 11, 0.12);
+      color: #d97706;
+      border: 1px solid rgba(245, 158, 11, 0.15);
     }
 
     [data-theme="light"] .quick-task-toggle .toggle-slider-inline {
@@ -1673,6 +1680,14 @@
       border-top: 1px solid rgba(96, 165, 250, 0.3);
     }
     .column[data-status="queued"] .column-title { color: rgba(147, 197, 253, 0.9); }
+    .column-subtitle {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.3);
+      margin-top: 4px;
+      font-weight: 500;
+    }
 
     .column[data-status="running"] {
       border-top: 1px solid rgba(74, 222, 128, 0.3);
@@ -2131,6 +2146,20 @@
       background: rgba(59, 130, 246, 0.2);
       color: #93c5fd;
       border: 1px solid rgba(59, 130, 246, 0.1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 8px;
+    }
+
+    /* Manual Subtask Badge */
+    .manual-badge {
+      font-size: 10px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.1);
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -4287,6 +4316,14 @@
     /* Column header colors by status */
     .mobile-column[data-status="todo"] .mobile-column-header { color: rgba(107, 114, 128, 0.8); }
     .mobile-column[data-status="queued"] .mobile-column-header { color: rgba(96, 165, 250, 0.8); }
+    .mobile-column-subtitle {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(96, 165, 250, 0.35);
+      margin-top: 2px;
+      font-weight: 500;
+    }
     .mobile-column[data-status="running"] .mobile-column-header { color: rgba(34, 197, 94, 0.8); }
     .mobile-column[data-status="review"] .mobile-column-header { color: rgba(251, 191, 36, 0.8); }
     .mobile-column[data-status="done"] .mobile-column-header { color: rgba(34, 197, 94, 0.7); }
@@ -5263,6 +5300,7 @@
     [data-theme="light"] .mobile-column-header {
       border-bottom-color: rgba(0, 0, 0, 0.08);
     }
+    [data-theme="light"] .mobile-column-subtitle { color: rgba(37, 99, 235, 0.3); }
 
     [data-theme="light"] .mobile-column-count {
       background: rgba(0, 0, 0, 0.05);
@@ -5531,9 +5569,10 @@
         <div class="mobile-column-tasks" id="mobile-todo-tasks"></div>
       </div>
       <div class="mobile-column" data-status="queued">
-        <div class="mobile-column-header">
+        <div class="mobile-column-header" style="flex-wrap: wrap;">
           <span>Queued</span>
           <span class="mobile-column-count" id="mobile-queued-count">0</span>
+          <div class="mobile-column-subtitle" style="width: 100%;">🤖 Auto-processed</div>
         </div>
         <div class="mobile-column-tasks" id="mobile-queued-tasks"></div>
       </div>
@@ -5759,9 +5798,10 @@
     </div>
 
     <div class="column" data-status="queued">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Queued</span>
         <span class="column-count" id="queued-count">0</span>
+        <div class="column-subtitle" style="width: 100%;">🤖 Auto-processed</div>
       </div>
       <div class="tasks" id="queued-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
@@ -6852,7 +6892,10 @@
         ` : '';
 
         if (tasks.length === 0) {
-          container.innerHTML = createTaskCardHtml || '<div class="empty-state">No tasks</div>';
+          const emptyMsg = column === 'queued'
+            ? '<div class="empty-state">Drag tasks here — agent picks up by priority</div>'
+            : '<div class="empty-state">No tasks</div>';
+          container.innerHTML = createTaskCardHtml || emptyMsg;
           return;
         }
 
@@ -6861,6 +6904,7 @@
           const cardClass = isBootstrap ? 'task-card task-card--bootstrap' : 'task-card';
           const bootstrapBadge = isBootstrap ? '<span class="bootstrap-badge">Setup</span>' : '';
           const quickBadge = task.type === 'quick' ? '<span class="quick-badge">Quick</span>' : '';
+          const manualBadge = task.hasManualSubtasks ? '<span class="manual-badge">⚠ Manual</span>' : '';
           const contextText = isBootstrap
             ? 'Analyzes your codebase and generates AI development guidelines tailored to your project.'
             : escapeHtml(task.context);
@@ -6874,7 +6918,8 @@
           let workflowIndicator = '';
           if (isQuickTask && (isWorkflowActive || workflowStep === 'execute')) {
             // Quick tasks only show Execute step
-            const executeClass = workflowStep === 'execute' ? 'active' : (workflowStep === 'complete' ? 'completed' : '');
+            // When task is in todo, show as completed (muted) rather than active
+            const executeClass = (workflowStep === 'execute' && !isWorkflowActive) ? 'completed' : (workflowStep === 'execute' ? 'active' : (workflowStep === 'complete' ? 'completed' : ''));
             workflowIndicator = `
               <div class="workflow-indicator workflow-indicator--quick">
                 <span class="workflow-step ${executeClass}">Execute</span>
@@ -6882,7 +6927,14 @@
             `;
           } else if (!isQuickTask && (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete'))) {
             // Standard tasks show all 3 steps
+            // When task is in todo (not actively running), show steps as completed (muted) instead of active
             const stepClasses = workflowSteps.map(step => {
+              if (!isWorkflowActive) {
+                // Task is not actively running (e.g., todo with preserved workflowStep)
+                // Show all steps up to and including the current workflowStep as completed (muted)
+                if (workflowSteps.indexOf(step) <= workflowSteps.indexOf(workflowStep)) return 'completed';
+                return '';
+              }
               if (workflowStep === step) return 'active';
               if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep)) return 'completed';
               if (workflowStep === 'complete') return 'completed';
@@ -6945,7 +6997,7 @@
             <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
               ${queuePositionHtml}
               <div class="task-header">
-                <span class="task-title">${bootstrapBadge}${quickBadge}${escapeHtml(task.title)}${statusBadge}</span>
+                <span class="task-title">${bootstrapBadge}${quickBadge}${manualBadge}${escapeHtml(task.title)}${statusBadge}</span>
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
               </div>
               ${workflowIndicator}
@@ -7193,11 +7245,17 @@
       const workflowEl = document.getElementById('detail-workflow');
       const workflowSteps = ['brief', 'plan', 'execute'];
       const workflowStep = task.workflowStep || 'pending';
+      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
       if (workflowStep !== 'pending') {
         workflowEl.innerHTML = workflowSteps.map(step => {
           let cls = 'workflow-step';
-          if (workflowStep === step) cls += ' active';
-          else if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
+          if (!isDetailWorkflowActive) {
+            // Task is not actively running — show steps as completed (muted), no active pulse
+            if (workflowSteps.indexOf(step) <= workflowSteps.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
+          } else {
+            if (workflowStep === step) cls += ' active';
+            else if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
+          }
           return `<span class="${cls}">${step.charAt(0).toUpperCase() + step.slice(1)}</span>`;
         }).join('');
       } else {
@@ -8184,7 +8242,10 @@
         countEl.textContent = tasks.length;
 
         if (tasks.length === 0) {
-          container.innerHTML = `<div class="mobile-column-empty">No tasks</div>`;
+          const emptyMsg = status === 'queued'
+            ? 'Drag tasks here — agent picks up by priority'
+            : 'No tasks';
+          container.innerHTML = `<div class="mobile-column-empty">${emptyMsg}</div>`;
           return;
         }
 

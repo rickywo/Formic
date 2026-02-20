@@ -11,7 +11,7 @@ import {
   BOOTSTRAP_TASK_SLUG,
 } from './bootstrap.js';
 import { copySkillsToWorkspace } from './skills.js';
-import { calculateTaskProgress } from './subtasks.js';
+import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
 
 /**
  * Get project name from workspace folder name
@@ -91,12 +91,25 @@ export async function getBoardWithBootstrap(): Promise<Board> {
     await saveBoard(board);
   }
 
-  // Step 3: Enrich tasks with calculated progress
+  // Step 3: Enrich tasks with calculated progress and manual subtask info
   const tasksWithProgress = await Promise.all(
-    board.tasks.map(async (task) => ({
-      ...task,
-      progress: await calculateTaskProgress(task),
-    }))
+    board.tasks.map(async (task) => {
+      const enriched: typeof task & { hasManualSubtasks?: boolean } = {
+        ...task,
+        progress: await calculateTaskProgress(task),
+      };
+
+      // Check if task has subtasks requiring manual action (pending or skipped)
+      const subtasks = await loadSubtasks(task.docsPath);
+      if (subtasks) {
+        const stats = getCompletionStats(subtasks);
+        if (stats.pending > 0 || stats.skipped > 0) {
+          enriched.hasManualSubtasks = true;
+        }
+      }
+
+      return enriched;
+    })
   );
 
   // Return board with bootstrap status and enriched tasks
