@@ -236,6 +236,12 @@
       border: 1px solid rgba(220, 38, 38, 0.15);
     }
 
+    [data-theme="light"] .task-duration {
+      background: rgba(99, 102, 241, 0.06);
+      color: rgba(79, 70, 229, 0.7);
+      border: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
     /* Light theme create task card */
     [data-theme="light"] .create-task-card {
       background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.03));
@@ -1819,6 +1825,26 @@
       background-color: rgba(239, 68, 68, 0.2);
       color: #f87171;
       border: 1px solid rgba(239, 68, 68, 0.1);
+    }
+
+    .task-duration {
+      font-size: 10px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      background: rgba(99, 102, 241, 0.08);
+      color: rgba(165, 180, 252, 0.8);
+      border: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .task-duration-active {
+      animation: duration-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes duration-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
 
     .task-context {
@@ -5554,6 +5580,7 @@
         <div class="mobile-bottom-sheet-status">
           <span class="mobile-bottom-sheet-badge" id="mobile-sheet-status">todo</span>
           <span class="mobile-bottom-sheet-priority" id="mobile-sheet-priority">medium</span>
+          <span class="task-duration" id="mobile-sheet-duration" style="display:none"></span>
         </div>
         <div class="mobile-bottom-sheet-context" id="mobile-sheet-context">Task context goes here...</div>
         <div class="mobile-bottom-sheet-actions" id="mobile-sheet-actions">
@@ -5786,6 +5813,7 @@
           <label>Status</label>
           <div class="detail-status">
             <span class="status-badge" id="detail-status-badge"></span>
+            <span class="task-duration" id="detail-duration" style="display:none"></span>
             <span class="workflow-indicator" id="detail-workflow"></span>
           </div>
         </div>
@@ -6922,6 +6950,10 @@
               </div>
               ${workflowIndicator}
               <div class="task-context">${contextText}</div>
+              ${task.startedAt ? (isRunning
+                ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}">⏱ ${formatDuration(task.startedAt, null)}</span>`
+                : (task.completedAt ? `<span class="task-duration">⏱ ${formatDuration(task.startedAt, task.completedAt)}</span>` : ''))
+              : ''}
               <div class="task-actions">
                 ${task.status === 'todo' ? `
                   <button class="btn" onclick="queueTask('${task.id}')">Queue</button>
@@ -6942,12 +6974,46 @@
           `;
         }).join('');
       });
+
+      // Start live duration timer if any active tasks exist
+      startDurationTimer();
     }
 
     function escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    /** Format duration between two ISO timestamps (or live elapsed if completedAt is null) */
+    function formatDuration(startedAt, completedAt) {
+      if (!startedAt) return '';
+      const start = new Date(startedAt).getTime();
+      const end = completedAt ? new Date(completedAt).getTime() : Date.now();
+      const totalSeconds = Math.max(0, Math.floor((end - start) / 1000));
+      if (totalSeconds < 60) return '< 1m';
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m ${seconds}s`;
+    }
+
+    let durationTimerInterval = null;
+
+    function startDurationTimer() {
+      if (durationTimerInterval) clearInterval(durationTimerInterval);
+      durationTimerInterval = setInterval(() => {
+        const els = document.querySelectorAll('.task-duration[data-started]');
+        if (els.length === 0) {
+          clearInterval(durationTimerInterval);
+          durationTimerInterval = null;
+          return;
+        }
+        els.forEach(el => {
+          el.textContent = '⏱ ' + formatDuration(el.dataset.started, null);
+        });
+      }, 1000);
     }
 
     // Drag and drop
@@ -7104,6 +7170,24 @@
       const priorityBadge = document.getElementById('detail-priority');
       priorityBadge.textContent = task.priority.toUpperCase();
       priorityBadge.className = `priority-badge priority-${task.priority}`;
+
+      // Duration display
+      const durationEl = document.getElementById('detail-duration');
+      const isActiveStatus = ['briefing', 'planning', 'running'].includes(task.status);
+      if (task.startedAt && isActiveStatus) {
+        durationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
+        durationEl.className = 'task-duration task-duration-active';
+        durationEl.dataset.started = task.startedAt;
+        durationEl.style.display = '';
+      } else if (task.startedAt && task.completedAt) {
+        durationEl.textContent = '⏱ ' + formatDuration(task.startedAt, task.completedAt);
+        durationEl.className = 'task-duration';
+        delete durationEl.dataset.started;
+        durationEl.style.display = '';
+      } else {
+        durationEl.style.display = 'none';
+        delete durationEl.dataset.started;
+      }
 
       // Workflow indicator
       const workflowEl = document.getElementById('detail-workflow');
@@ -8112,16 +8196,25 @@
             statusClass = 'queued';
           }
 
+          const isActive = task.status === 'running' || task.status === 'briefing' || task.status === 'planning';
+          const durationHtml = task.startedAt ? (isActive
+            ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, null)}</span>`
+            : (task.completedAt ? `<span class="task-duration" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, task.completedAt)}</span>` : ''))
+          : '';
+
           return `
             <div class="mobile-task-card ${statusClass}"
                  data-task-id="${task.id}"
                  data-priority="${task.priority}"
                  onclick="openMobileBottomSheet('${task.id}')">
-              ${escapeHtml(task.title)}
+              ${escapeHtml(task.title)}${durationHtml}
             </div>
           `;
         }).join('');
       });
+
+      // Start live duration timer if any active tasks exist
+      startDurationTimer();
     }
 
     // ==================== Mobile Bottom Sheet ====================
@@ -8146,6 +8239,24 @@
       const priorityBadge = document.getElementById('mobile-sheet-priority');
       priorityBadge.textContent = task.priority.toUpperCase();
       priorityBadge.className = `mobile-bottom-sheet-priority ${task.priority}`;
+
+      // Duration display
+      const mobileDurationEl = document.getElementById('mobile-sheet-duration');
+      const isActiveForDuration = ['briefing', 'planning', 'running'].includes(task.status);
+      if (task.startedAt && isActiveForDuration) {
+        mobileDurationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
+        mobileDurationEl.className = 'task-duration task-duration-active';
+        mobileDurationEl.dataset.started = task.startedAt;
+        mobileDurationEl.style.display = '';
+      } else if (task.startedAt && task.completedAt) {
+        mobileDurationEl.textContent = '⏱ ' + formatDuration(task.startedAt, task.completedAt);
+        mobileDurationEl.className = 'task-duration';
+        delete mobileDurationEl.dataset.started;
+        mobileDurationEl.style.display = '';
+      } else {
+        mobileDurationEl.style.display = 'none';
+        delete mobileDurationEl.dataset.started;
+      }
 
       document.getElementById('mobile-sheet-context').textContent = task.context || 'No description provided.';
 

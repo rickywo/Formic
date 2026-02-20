@@ -28,6 +28,9 @@ export interface Task {
   // Timestamps for queue ordering
   createdAt?: string;
   queuedAt?: string;
+  // Duration tracking timestamps
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export interface BoardMeta {
