@@ -3,6 +3,7 @@ import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks 
 import { runAgent, stopAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
 import {
   executeFullWorkflow,
+  executeQuickTask,
   executeSingleStep,
   stopWorkflow,
   isWorkflowRunning,
@@ -96,6 +97,16 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
 
     try {
       if (useWorkflow) {
+        if (task.type === 'quick') {
+          // Quick task: skip brief/plan, execute directly
+          const result = await executeQuickTask(id);
+          return reply.send({
+            status: 'running',
+            workflowStep: 'execute',
+            message: 'Quick task: skipping brief/plan, executing directly',
+            pid: result.pid,
+          });
+        }
         // Use full workflow: brief → plan → execute
         const result = await executeFullWorkflow(id);
         return reply.send({
