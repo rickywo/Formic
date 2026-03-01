@@ -181,6 +181,7 @@
       border-top: 2px solid rgba(37, 99, 235, 0.4);
     }
     [data-theme="light"] .column[data-status="queued"] .column-title { color: rgba(37, 99, 235, 0.8); }
+    [data-theme="light"] .column-subtitle { color: rgba(0, 0, 0, 0.3); }
 
     [data-theme="light"] .column[data-status="running"] {
       border-top: 2px solid rgba(22, 163, 74, 0.4);
@@ -234,6 +235,12 @@
       background-color: rgba(220, 38, 38, 0.12);
       color: #dc2626;
       border: 1px solid rgba(220, 38, 38, 0.15);
+    }
+
+    [data-theme="light"] .task-duration {
+      background: rgba(99, 102, 241, 0.06);
+      color: rgba(79, 70, 229, 0.7);
+      border: 1px solid rgba(99, 102, 241, 0.1);
     }
 
     /* Light theme create task card */
@@ -332,6 +339,12 @@
       background: rgba(37, 99, 235, 0.12);
       color: #2563eb;
       border: 1px solid rgba(37, 99, 235, 0.15);
+    }
+
+    [data-theme="light"] .manual-badge {
+      background: rgba(245, 158, 11, 0.12);
+      color: #d97706;
+      border: 1px solid rgba(245, 158, 11, 0.15);
     }
 
     [data-theme="light"] .quick-task-toggle .toggle-slider-inline {
@@ -807,6 +820,40 @@
 
     [data-theme="light"] .streaming-cursor {
       background: rgba(99, 102, 241, 0.7);
+    }
+
+    [data-theme="light"] .assistant-panel.expanded {
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.99), rgba(250, 250, 250, 0.98));
+      box-shadow:
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+        0 32px 80px -16px rgba(0, 0, 0, 0.18),
+        0 0 0 1px rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="light"] .assistant-copy-btn {
+      background: rgba(0, 0, 0, 0.04);
+      color: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .assistant-copy-btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .assistant-message h1,
+    [data-theme="light"] .assistant-message h2,
+    [data-theme="light"] .assistant-message h3 {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .assistant-message blockquote {
+      border-left-color: rgba(0, 0, 0, 0.15);
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .assistant-message hr {
+      border-color: rgba(0, 0, 0, 0.08);
     }
 
     [data-theme="light"] .assistant-input-area {
@@ -1633,6 +1680,14 @@
       border-top: 1px solid rgba(96, 165, 250, 0.3);
     }
     .column[data-status="queued"] .column-title { color: rgba(147, 197, 253, 0.9); }
+    .column-subtitle {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.3);
+      margin-top: 4px;
+      font-weight: 500;
+    }
 
     .column[data-status="running"] {
       border-top: 1px solid rgba(74, 222, 128, 0.3);
@@ -1785,6 +1840,26 @@
       background-color: rgba(239, 68, 68, 0.2);
       color: #f87171;
       border: 1px solid rgba(239, 68, 68, 0.1);
+    }
+
+    .task-duration {
+      font-size: 10px;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      background: rgba(99, 102, 241, 0.08);
+      color: rgba(165, 180, 252, 0.8);
+      border: 1px solid rgba(99, 102, 241, 0.1);
+    }
+
+    .task-duration-active {
+      animation: duration-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes duration-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
 
     .task-context {
@@ -2071,6 +2146,20 @@
       background: rgba(59, 130, 246, 0.2);
       color: #93c5fd;
       border: 1px solid rgba(59, 130, 246, 0.1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 8px;
+    }
+
+    /* Manual Subtask Badge */
+    .manual-badge {
+      font-size: 10px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.1);
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -2662,6 +2751,36 @@
       }
     }
 
+    /* Expanded Panel - Near Fullscreen Modal */
+    .assistant-panel.expanded {
+      bottom: auto;
+      right: auto;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80vw;
+      max-width: 1200px;
+      max-height: 85vh;
+      border-radius: 20px;
+      z-index: 100;
+      animation: panel-expand 0.25s ease-out;
+    }
+
+    .assistant-panel.expanded .assistant-messages {
+      max-height: calc(85vh - 150px);
+    }
+
+    @keyframes panel-expand {
+      from {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+
     /* Header */
     .assistant-header {
       display: flex;
@@ -2748,6 +2867,7 @@
       word-wrap: break-word;
       white-space: pre-wrap;
       position: relative;
+      user-select: text;
     }
 
     /* User Message - Accent Gradient */
@@ -2843,6 +2963,87 @@
 
     @keyframes cursor-blink {
       50% { opacity: 0; }
+    }
+
+    /* Per-Message Copy Button */
+    .assistant-copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 12px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s ease, background 0.15s ease;
+      z-index: 2;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .assistant-message:hover .assistant-copy-btn {
+      opacity: 1;
+    }
+
+    .assistant-copy-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Markdown Elements in Messages */
+    .assistant-message h1,
+    .assistant-message h2,
+    .assistant-message h3 {
+      white-space: normal;
+      margin: 12px 0 6px 0;
+      line-height: 1.3;
+      color: rgba(255, 255, 255, 0.95);
+    }
+
+    .assistant-message h1:first-child,
+    .assistant-message h2:first-child,
+    .assistant-message h3:first-child {
+      margin-top: 0;
+    }
+
+    .assistant-message h1 { font-size: 1.3em; font-weight: 700; }
+    .assistant-message h2 { font-size: 1.15em; font-weight: 600; }
+    .assistant-message h3 { font-size: 1.05em; font-weight: 600; }
+
+    .assistant-message ul,
+    .assistant-message ol {
+      white-space: normal;
+      margin: 8px 0;
+      padding-left: 24px;
+    }
+
+    .assistant-message ul { list-style: disc; }
+    .assistant-message ol { list-style: decimal; }
+
+    .assistant-message li {
+      margin: 3px 0;
+    }
+
+    .assistant-message blockquote {
+      white-space: normal;
+      border-left: 3px solid rgba(139, 92, 246, 0.4);
+      padding: 4px 12px;
+      margin: 8px 0;
+      color: rgba(255, 255, 255, 0.6);
+      font-style: italic;
+    }
+
+    .assistant-message hr {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      margin: 12px 0;
     }
 
     /* Input Area */
@@ -3469,6 +3670,14 @@
         bottom: 88px;
         width: auto;
         max-height: 60vh;
+      }
+
+      .assistant-panel.expanded {
+        left: 50%;
+        right: auto;
+        bottom: auto;
+        width: 90vw;
+        max-height: 85vh;
       }
 
       .assistant-fab {
@@ -4107,6 +4316,14 @@
     /* Column header colors by status */
     .mobile-column[data-status="todo"] .mobile-column-header { color: rgba(107, 114, 128, 0.8); }
     .mobile-column[data-status="queued"] .mobile-column-header { color: rgba(96, 165, 250, 0.8); }
+    .mobile-column-subtitle {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(96, 165, 250, 0.35);
+      margin-top: 2px;
+      font-weight: 500;
+    }
     .mobile-column[data-status="running"] .mobile-column-header { color: rgba(34, 197, 94, 0.8); }
     .mobile-column[data-status="review"] .mobile-column-header { color: rgba(251, 191, 36, 0.8); }
     .mobile-column[data-status="done"] .mobile-column-header { color: rgba(34, 197, 94, 0.7); }
@@ -4919,6 +5136,93 @@
       padding: 0;
     }
 
+    .mobile-chat-message {
+      position: relative;
+      user-select: text;
+    }
+
+    /* Mobile Chat Copy Button */
+    .mobile-chat-copy-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 12px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      z-index: 2;
+      padding: 0;
+      line-height: 1;
+    }
+
+    .mobile-chat-message:hover .mobile-chat-copy-btn,
+    .mobile-chat-message:active .mobile-chat-copy-btn {
+      opacity: 1;
+    }
+
+    .mobile-chat-copy-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    /* Mobile Chat Markdown Elements */
+    .mobile-chat-message h1,
+    .mobile-chat-message h2,
+    .mobile-chat-message h3 {
+      white-space: normal;
+      margin: 10px 0 4px 0;
+      line-height: 1.3;
+      color: rgba(255, 255, 255, 0.95);
+    }
+
+    .mobile-chat-message h1:first-child,
+    .mobile-chat-message h2:first-child,
+    .mobile-chat-message h3:first-child {
+      margin-top: 0;
+    }
+
+    .mobile-chat-message h1 { font-size: 1.25em; font-weight: 700; }
+    .mobile-chat-message h2 { font-size: 1.1em; font-weight: 600; }
+    .mobile-chat-message h3 { font-size: 1.0em; font-weight: 600; }
+
+    .mobile-chat-message ul,
+    .mobile-chat-message ol {
+      white-space: normal;
+      margin: 6px 0;
+      padding-left: 22px;
+    }
+
+    .mobile-chat-message ul { list-style: disc; }
+    .mobile-chat-message ol { list-style: decimal; }
+
+    .mobile-chat-message li {
+      margin: 2px 0;
+    }
+
+    .mobile-chat-message blockquote {
+      white-space: normal;
+      border-left: 3px solid rgba(34, 197, 94, 0.4);
+      padding: 4px 10px;
+      margin: 6px 0;
+      color: rgba(255, 255, 255, 0.6);
+      font-style: italic;
+    }
+
+    .mobile-chat-message hr {
+      border: none;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      margin: 10px 0;
+    }
+
     .mobile-chat-input-area {
       display: flex;
       gap: 10px;
@@ -4996,6 +5300,7 @@
     [data-theme="light"] .mobile-column-header {
       border-bottom-color: rgba(0, 0, 0, 0.08);
     }
+    [data-theme="light"] .mobile-column-subtitle { color: rgba(37, 99, 235, 0.3); }
 
     [data-theme="light"] .mobile-column-count {
       background: rgba(0, 0, 0, 0.05);
@@ -5170,6 +5475,32 @@
       color: rgba(0, 0, 0, 0.9);
     }
 
+    [data-theme="light"] .mobile-chat-copy-btn {
+      background: rgba(0, 0, 0, 0.04);
+      color: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .mobile-chat-copy-btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .mobile-chat-message h1,
+    [data-theme="light"] .mobile-chat-message h2,
+    [data-theme="light"] .mobile-chat-message h3 {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .mobile-chat-message blockquote {
+      border-left-color: rgba(22, 163, 74, 0.3);
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .mobile-chat-message hr {
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
     [data-theme="light"] .mobile-chat-input-area {
       background: rgba(255, 255, 255, 0.8);
       border-top-color: rgba(22, 163, 74, 0.15);
@@ -5238,9 +5569,10 @@
         <div class="mobile-column-tasks" id="mobile-todo-tasks"></div>
       </div>
       <div class="mobile-column" data-status="queued">
-        <div class="mobile-column-header">
+        <div class="mobile-column-header" style="flex-wrap: wrap;">
           <span>Queued</span>
           <span class="mobile-column-count" id="mobile-queued-count">0</span>
+          <div class="mobile-column-subtitle" style="width: 100%;">🤖 Auto-processed</div>
         </div>
         <div class="mobile-column-tasks" id="mobile-queued-tasks"></div>
       </div>
@@ -5287,6 +5619,7 @@
         <div class="mobile-bottom-sheet-status">
           <span class="mobile-bottom-sheet-badge" id="mobile-sheet-status">todo</span>
           <span class="mobile-bottom-sheet-priority" id="mobile-sheet-priority">medium</span>
+          <span class="task-duration" id="mobile-sheet-duration" style="display:none"></span>
         </div>
         <div class="mobile-bottom-sheet-context" id="mobile-sheet-context">Task context goes here...</div>
         <div class="mobile-bottom-sheet-actions" id="mobile-sheet-actions">
@@ -5465,9 +5798,10 @@
     </div>
 
     <div class="column" data-status="queued">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Queued</span>
         <span class="column-count" id="queued-count">0</span>
+        <div class="column-subtitle" style="width: 100%;">🤖 Auto-processed</div>
       </div>
       <div class="tasks" id="queued-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
@@ -5519,6 +5853,7 @@
           <label>Status</label>
           <div class="detail-status">
             <span class="status-badge" id="detail-status-badge"></span>
+            <span class="task-duration" id="detail-duration" style="display:none"></span>
             <span class="workflow-indicator" id="detail-workflow"></span>
           </div>
         </div>
@@ -5596,6 +5931,7 @@
         <span class="assistant-status idle" id="assistant-status">Idle</span>
       </div>
       <div class="assistant-header-actions">
+        <button class="btn" id="assistant-expand-btn" onclick="toggleAssistantExpand()" title="Expand panel">⤢</button>
         <button class="btn" id="assistant-restart-btn" onclick="restartAssistant()" title="Restart session">↻</button>
         <button class="btn" onclick="closeAssistant()">×</button>
       </div>
@@ -6556,7 +6892,10 @@
         ` : '';
 
         if (tasks.length === 0) {
-          container.innerHTML = createTaskCardHtml || '<div class="empty-state">No tasks</div>';
+          const emptyMsg = column === 'queued'
+            ? '<div class="empty-state">Drag tasks here — agent picks up by priority</div>'
+            : '<div class="empty-state">No tasks</div>';
+          container.innerHTML = createTaskCardHtml || emptyMsg;
           return;
         }
 
@@ -6565,6 +6904,7 @@
           const cardClass = isBootstrap ? 'task-card task-card--bootstrap' : 'task-card';
           const bootstrapBadge = isBootstrap ? '<span class="bootstrap-badge">Setup</span>' : '';
           const quickBadge = task.type === 'quick' ? '<span class="quick-badge">Quick</span>' : '';
+          const manualBadge = task.hasManualSubtasks ? '<span class="manual-badge">⚠ Manual</span>' : '';
           const contextText = isBootstrap
             ? 'Analyzes your codebase and generates AI development guidelines tailored to your project.'
             : escapeHtml(task.context);
@@ -6578,7 +6918,8 @@
           let workflowIndicator = '';
           if (isQuickTask && (isWorkflowActive || workflowStep === 'execute')) {
             // Quick tasks only show Execute step
-            const executeClass = workflowStep === 'execute' ? 'active' : (workflowStep === 'complete' ? 'completed' : '');
+            // When task is in todo, show as completed (muted) rather than active
+            const executeClass = (workflowStep === 'execute' && !isWorkflowActive) ? 'completed' : (workflowStep === 'execute' ? 'active' : (workflowStep === 'complete' ? 'completed' : ''));
             workflowIndicator = `
               <div class="workflow-indicator workflow-indicator--quick">
                 <span class="workflow-step ${executeClass}">Execute</span>
@@ -6586,7 +6927,14 @@
             `;
           } else if (!isQuickTask && (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete'))) {
             // Standard tasks show all 3 steps
+            // When task is in todo (not actively running), show steps as completed (muted) instead of active
             const stepClasses = workflowSteps.map(step => {
+              if (!isWorkflowActive) {
+                // Task is not actively running (e.g., todo with preserved workflowStep)
+                // Show all steps up to and including the current workflowStep as completed (muted)
+                if (workflowSteps.indexOf(step) <= workflowSteps.indexOf(workflowStep)) return 'completed';
+                return '';
+              }
               if (workflowStep === step) return 'active';
               if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep)) return 'completed';
               if (workflowStep === 'complete') return 'completed';
@@ -6649,11 +6997,15 @@
             <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
               ${queuePositionHtml}
               <div class="task-header">
-                <span class="task-title">${bootstrapBadge}${quickBadge}${escapeHtml(task.title)}${statusBadge}</span>
+                <span class="task-title">${bootstrapBadge}${quickBadge}${manualBadge}${escapeHtml(task.title)}${statusBadge}</span>
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
               </div>
               ${workflowIndicator}
               <div class="task-context">${contextText}</div>
+              ${task.startedAt ? (isRunning
+                ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}">⏱ ${formatDuration(task.startedAt, null)}</span>`
+                : (task.completedAt ? `<span class="task-duration">⏱ ${formatDuration(task.startedAt, task.completedAt)}</span>` : ''))
+              : ''}
               <div class="task-actions">
                 ${task.status === 'todo' ? `
                   <button class="btn" onclick="queueTask('${task.id}')">Queue</button>
@@ -6674,12 +7026,46 @@
           `;
         }).join('');
       });
+
+      // Start live duration timer if any active tasks exist
+      startDurationTimer();
     }
 
     function escapeHtml(text) {
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    /** Format duration between two ISO timestamps (or live elapsed if completedAt is null) */
+    function formatDuration(startedAt, completedAt) {
+      if (!startedAt) return '';
+      const start = new Date(startedAt).getTime();
+      const end = completedAt ? new Date(completedAt).getTime() : Date.now();
+      const totalSeconds = Math.max(0, Math.floor((end - start) / 1000));
+      if (totalSeconds < 60) return '< 1m';
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m ${seconds}s`;
+    }
+
+    let durationTimerInterval = null;
+
+    function startDurationTimer() {
+      if (durationTimerInterval) clearInterval(durationTimerInterval);
+      durationTimerInterval = setInterval(() => {
+        const els = document.querySelectorAll('.task-duration[data-started]');
+        if (els.length === 0) {
+          clearInterval(durationTimerInterval);
+          durationTimerInterval = null;
+          return;
+        }
+        els.forEach(el => {
+          el.textContent = '⏱ ' + formatDuration(el.dataset.started, null);
+        });
+      }, 1000);
     }
 
     // Drag and drop
@@ -6837,15 +7223,39 @@
       priorityBadge.textContent = task.priority.toUpperCase();
       priorityBadge.className = `priority-badge priority-${task.priority}`;
 
+      // Duration display
+      const durationEl = document.getElementById('detail-duration');
+      const isActiveStatus = ['briefing', 'planning', 'running'].includes(task.status);
+      if (task.startedAt && isActiveStatus) {
+        durationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
+        durationEl.className = 'task-duration task-duration-active';
+        durationEl.dataset.started = task.startedAt;
+        durationEl.style.display = '';
+      } else if (task.startedAt && task.completedAt) {
+        durationEl.textContent = '⏱ ' + formatDuration(task.startedAt, task.completedAt);
+        durationEl.className = 'task-duration';
+        delete durationEl.dataset.started;
+        durationEl.style.display = '';
+      } else {
+        durationEl.style.display = 'none';
+        delete durationEl.dataset.started;
+      }
+
       // Workflow indicator
       const workflowEl = document.getElementById('detail-workflow');
       const workflowSteps = ['brief', 'plan', 'execute'];
       const workflowStep = task.workflowStep || 'pending';
+      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
       if (workflowStep !== 'pending') {
         workflowEl.innerHTML = workflowSteps.map(step => {
           let cls = 'workflow-step';
-          if (workflowStep === step) cls += ' active';
-          else if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
+          if (!isDetailWorkflowActive) {
+            // Task is not actively running — show steps as completed (muted), no active pulse
+            if (workflowSteps.indexOf(step) <= workflowSteps.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
+          } else {
+            if (workflowStep === step) cls += ' active';
+            else if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
+          }
           return `<span class="${cls}">${step.charAt(0).toUpperCase() + step.slice(1)}</span>`;
         }).join('');
       } else {
@@ -6946,6 +7356,7 @@
     let assistantMessages = [];
     let streamingContent = '';  // Accumulates streaming content
     let isStreaming = false;    // Whether we're currently receiving a stream
+    let assistantExpanded = false; // Whether panel is in expanded mode
 
     function toggleAssistant() {
       const panel = document.getElementById('assistant-panel');
@@ -6965,7 +7376,47 @@
       const panel = document.getElementById('assistant-panel');
       const fab = document.getElementById('assistant-fab');
       panel.classList.remove('open');
+      panel.classList.remove('expanded');
       fab.classList.remove('active');
+      assistantExpanded = false;
+      document.getElementById('assistant-expand-btn').textContent = '⤢';
+    }
+
+    function toggleAssistantExpand() {
+      const panel = document.getElementById('assistant-panel');
+      const btn = document.getElementById('assistant-expand-btn');
+      assistantExpanded = !assistantExpanded;
+      if (assistantExpanded) {
+        panel.classList.add('expanded');
+        btn.textContent = '⤡';
+        btn.title = 'Collapse panel';
+      } else {
+        panel.classList.remove('expanded');
+        btn.textContent = '⤢';
+        btn.title = 'Expand panel';
+      }
+    }
+
+    function copyAssistantMessage(btn, idx) {
+      const text = idx === -1 ? streamingContent : assistantMessages[idx].content;
+      navigator.clipboard.writeText(text).then(() => {
+        const original = btn.innerHTML;
+        btn.textContent = '✓';
+        setTimeout(() => { btn.innerHTML = original; }, 1500);
+      }).catch(() => {
+        console.warn('[Assistant] Clipboard write failed');
+      });
+    }
+
+    function copyMobileChatMessage(btn, idx) {
+      const text = idx === -1 ? mobileChatStreamContent : mobileChatMessages[idx].content;
+      navigator.clipboard.writeText(text).then(() => {
+        const original = btn.innerHTML;
+        btn.textContent = '✓';
+        setTimeout(() => { btn.innerHTML = original; }, 1500);
+      }).catch(() => {
+        console.warn('[MobileChat] Clipboard write failed');
+      });
     }
 
     // ============================================
@@ -7299,15 +7750,16 @@
         return;
       }
 
-      let html = assistantMessages.map(msg => {
+      let html = assistantMessages.map((msg, idx) => {
         const content = formatMessageContent(msg.content);
-        return `<div class="assistant-message ${msg.type}">${content}</div>`;
+        const copyBtn = msg.type === 'assistant' ? `<button class="assistant-copy-btn" onclick="copyAssistantMessage(this, ${idx})" title="Copy to clipboard">⧉</button>` : '';
+        return `<div class="assistant-message ${msg.type}">${copyBtn}${content}</div>`;
       }).join('');
 
       // Add streaming message if active
       if (isStreaming && streamingContent) {
         const content = formatMessageContent(streamingContent);
-        html += `<div class="assistant-message assistant streaming">${content}<span class="streaming-cursor">▊</span></div>`;
+        html += `<div class="assistant-message assistant streaming"><button class="assistant-copy-btn" onclick="copyAssistantMessage(this, -1)" title="Copy to clipboard">⧉</button>${content}<span class="streaming-cursor">▊</span></div>`;
       }
 
       container.innerHTML = html;
@@ -7327,6 +7779,33 @@
 
       // Code blocks (```...```)
       formatted = formatted.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+
+      // Headings (### before ## before # to avoid greedy match)
+      formatted = formatted.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+      formatted = formatted.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+      formatted = formatted.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+      // Horizontal rules
+      formatted = formatted.replace(/^---\s*$/gm, '<hr>');
+
+      // Blockquotes (> is escaped to &gt; by escapeHtml)
+      formatted = formatted.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+
+      // Unordered lists (consecutive lines starting with - or *)
+      formatted = formatted.replace(/(?:^[-*] .+$\n?)+/gm, function(match) {
+        const items = match.trim().split('\n').map(function(line) {
+          return '<li>' + line.replace(/^[-*] /, '') + '</li>';
+        }).join('');
+        return '<ul>' + items + '</ul>';
+      });
+
+      // Ordered lists (consecutive lines starting with number.)
+      formatted = formatted.replace(/(?:^\d+\. .+$\n?)+/gm, function(match) {
+        const items = match.trim().split('\n').map(function(line) {
+          return '<li>' + line.replace(/^\d+\. /, '') + '</li>';
+        }).join('');
+        return '<ol>' + items + '</ol>';
+      });
 
       // Inline code (`...`)
       formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -7763,7 +8242,10 @@
         countEl.textContent = tasks.length;
 
         if (tasks.length === 0) {
-          container.innerHTML = `<div class="mobile-column-empty">No tasks</div>`;
+          const emptyMsg = status === 'queued'
+            ? 'Drag tasks here — agent picks up by priority'
+            : 'No tasks';
+          container.innerHTML = `<div class="mobile-column-empty">${emptyMsg}</div>`;
           return;
         }
 
@@ -7775,16 +8257,25 @@
             statusClass = 'queued';
           }
 
+          const isActive = task.status === 'running' || task.status === 'briefing' || task.status === 'planning';
+          const durationHtml = task.startedAt ? (isActive
+            ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, null)}</span>`
+            : (task.completedAt ? `<span class="task-duration" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, task.completedAt)}</span>` : ''))
+          : '';
+
           return `
             <div class="mobile-task-card ${statusClass}"
                  data-task-id="${task.id}"
                  data-priority="${task.priority}"
                  onclick="openMobileBottomSheet('${task.id}')">
-              ${escapeHtml(task.title)}
+              ${escapeHtml(task.title)}${durationHtml}
             </div>
           `;
         }).join('');
       });
+
+      // Start live duration timer if any active tasks exist
+      startDurationTimer();
     }
 
     // ==================== Mobile Bottom Sheet ====================
@@ -7809,6 +8300,24 @@
       const priorityBadge = document.getElementById('mobile-sheet-priority');
       priorityBadge.textContent = task.priority.toUpperCase();
       priorityBadge.className = `mobile-bottom-sheet-priority ${task.priority}`;
+
+      // Duration display
+      const mobileDurationEl = document.getElementById('mobile-sheet-duration');
+      const isActiveForDuration = ['briefing', 'planning', 'running'].includes(task.status);
+      if (task.startedAt && isActiveForDuration) {
+        mobileDurationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
+        mobileDurationEl.className = 'task-duration task-duration-active';
+        mobileDurationEl.dataset.started = task.startedAt;
+        mobileDurationEl.style.display = '';
+      } else if (task.startedAt && task.completedAt) {
+        mobileDurationEl.textContent = '⏱ ' + formatDuration(task.startedAt, task.completedAt);
+        mobileDurationEl.className = 'task-duration';
+        delete mobileDurationEl.dataset.started;
+        mobileDurationEl.style.display = '';
+      } else {
+        mobileDurationEl.style.display = 'none';
+        delete mobileDurationEl.dataset.started;
+      }
 
       document.getElementById('mobile-sheet-context').textContent = task.context || 'No description provided.';
 
@@ -8398,14 +8907,15 @@
         return;
       }
 
-      let html = mobileChatMessages.map(msg => {
+      let html = mobileChatMessages.map((msg, idx) => {
         const content = formatMobileChatContent(msg.content);
-        return `<div class="mobile-chat-message ${msg.type}">${content}</div>`;
+        const copyBtn = msg.type === 'assistant' ? `<button class="mobile-chat-copy-btn" onclick="copyMobileChatMessage(this, ${idx})" title="Copy to clipboard">⧉</button>` : '';
+        return `<div class="mobile-chat-message ${msg.type}">${copyBtn}${content}</div>`;
       }).join('');
 
       if (mobileChatStreaming && mobileChatStreamContent) {
         const content = formatMobileChatContent(mobileChatStreamContent);
-        html += `<div class="mobile-chat-message assistant streaming">${content}</div>`;
+        html += `<div class="mobile-chat-message assistant streaming"><button class="mobile-chat-copy-btn" onclick="copyMobileChatMessage(this, -1)" title="Copy to clipboard">⧉</button>${content}</div>`;
       }
 
       container.innerHTML = html;
@@ -8417,6 +8927,33 @@
 
       // Code blocks
       formatted = formatted.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+
+      // Headings
+      formatted = formatted.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+      formatted = formatted.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+      formatted = formatted.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+      // Horizontal rules
+      formatted = formatted.replace(/^---\s*$/gm, '<hr>');
+
+      // Blockquotes
+      formatted = formatted.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+
+      // Unordered lists
+      formatted = formatted.replace(/(?:^[-*] .+$\n?)+/gm, function(match) {
+        const items = match.trim().split('\n').map(function(line) {
+          return '<li>' + line.replace(/^[-*] /, '') + '</li>';
+        }).join('');
+        return '<ul>' + items + '</ul>';
+      });
+
+      // Ordered lists
+      formatted = formatted.replace(/(?:^\d+\. .+$\n?)+/gm, function(match) {
+        const items = match.trim().split('\n').map(function(line) {
+          return '<li>' + line.replace(/^\d+\. /, '') + '</li>';
+        }).join('');
+        return '<ol>' + items + '</ol>';
+      });
 
       // Inline code
       formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
