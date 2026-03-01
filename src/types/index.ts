@@ -28,6 +28,11 @@ export interface Task {
   // Timestamps for queue ordering
   createdAt?: string;
   queuedAt?: string;
+  // Duration tracking timestamps
+  startedAt?: string;
+  completedAt?: string;
+  // Whether this task has subtasks requiring manual user action (pending or skipped)
+  hasManualSubtasks?: boolean;
 }
 
 export interface BoardMeta {
