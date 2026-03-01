@@ -11,7 +11,7 @@ import {
   BOOTSTRAP_TASK_SLUG,
 } from './bootstrap.js';
 import { copySkillsToWorkspace } from './skills.js';
-import { calculateTaskProgress } from './subtasks.js';
+import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
 
 /**
  * Get project name from workspace folder name
@@ -91,12 +91,25 @@ export async function getBoardWithBootstrap(): Promise<Board> {
     await saveBoard(board);
   }
 
-  // Step 3: Enrich tasks with calculated progress
+  // Step 3: Enrich tasks with calculated progress and manual subtask info
   const tasksWithProgress = await Promise.all(
-    board.tasks.map(async (task) => ({
-      ...task,
-      progress: await calculateTaskProgress(task),
-    }))
+    board.tasks.map(async (task) => {
+      const enriched: typeof task & { hasManualSubtasks?: boolean } = {
+        ...task,
+        progress: await calculateTaskProgress(task),
+      };
+
+      // Check if task has subtasks requiring manual action (pending or skipped)
+      const subtasks = await loadSubtasks(task.docsPath);
+      if (subtasks) {
+        const stats = getCompletionStats(subtasks);
+        if (stats.pending > 0 || stats.skipped > 0) {
+          enriched.hasManualSubtasks = true;
+        }
+      }
+
+      return enriched;
+    })
   );
 
   // Return board with bootstrap status and enriched tasks
@@ -226,6 +239,23 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
     board.tasks[taskIndex].pid = pid;
   }
 
+  // Duration tracking: set startedAt on first active transition
+  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'running'];
+  if (activeStatuses.includes(status) && !board.tasks[taskIndex].startedAt) {
+    board.tasks[taskIndex].startedAt = new Date().toISOString();
+  }
+
+  // Duration tracking: set completedAt on completion
+  if (status === 'review' || status === 'done') {
+    board.tasks[taskIndex].completedAt = new Date().toISOString();
+  }
+
+  // Duration tracking: clear timestamps on reset to todo
+  if (status === 'todo') {
+    board.tasks[taskIndex].startedAt = undefined;
+    board.tasks[taskIndex].completedAt = undefined;
+  }
+
   await saveBoard(board);
   return board.tasks[taskIndex];
 }
@@ -326,6 +356,8 @@ export async function recoverStuckTasks(): Promise<number> {
       console.log(`[Recovery] Resetting stuck task ${task.id} from '${task.status}' to 'todo'`);
       task.status = 'todo';
       task.pid = null;
+      task.startedAt = undefined;
+      task.completedAt = undefined;
       // Keep workflowStep as is - this preserves the last completed step
       // so the user can see where the task was and manually restart from there
       recoveredCount++;
