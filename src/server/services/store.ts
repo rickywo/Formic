@@ -12,6 +12,7 @@ import {
 } from './bootstrap.js';
 import { copySkillsToWorkspace } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
+import { releaseLeases } from './leaseManager.js';
 
 /**
  * Get project name from workspace folder name
@@ -215,6 +216,13 @@ export async function deleteTask(taskId: string, preserveHistory: boolean = fals
 
   const task = board.tasks[taskIndex];
 
+  // Release any leases held by this task (defensive - task may be in declaring or queued-after-yield state)
+  try {
+    releaseLeases(taskId);
+  } catch (err) {
+    console.warn('[Store] Failed to release leases during task deletion:', err instanceof Error ? err.message : 'Unknown error');
+  }
+
   // Delete documentation folder if not preserving history
   await deleteTaskDocsFolder(task.docsPath, preserveHistory);
 
@@ -240,7 +248,7 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
   }
 
   // Duration tracking: set startedAt on first active transition
-  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'running'];
+  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting'];
   if (activeStatuses.includes(status) && !board.tasks[taskIndex].startedAt) {
     board.tasks[taskIndex].startedAt = new Date().toISOString();
   }
@@ -333,8 +341,16 @@ export async function getQueuedTasks(): Promise<Task[]> {
 export async function getRunningTasksCount(): Promise<number> {
   const board = await loadBoard();
   return board.tasks.filter(t =>
-    t.status === 'briefing' || t.status === 'planning' || t.status === 'running'
+    t.status === 'briefing' || t.status === 'planning' || t.status === 'declaring' || t.status === 'running' || t.status === 'architecting'
   ).length;
+}
+
+/**
+ * Get all child tasks for a given parent goal task
+ */
+export async function getChildTasks(parentGoalId: string): Promise<Task[]> {
+  const board = await loadBoard();
+  return board.tasks.filter(t => t.parentGoalId === parentGoalId);
 }
 
 /**
@@ -343,11 +359,15 @@ export async function getRunningTasksCount(): Promise<number> {
  * restarts while they are being processed. This function resets them to 'todo' so they can
  * be restarted.
  *
+ * Note: In-memory leases (leaseStore) are naturally cleared on server restart,
+ * so no explicit releaseLeases() call is needed here. This assumption holds
+ * because leases are stored in a Map that is re-initialized on process start.
+ *
  * @returns The number of tasks that were recovered
  */
 export async function recoverStuckTasks(): Promise<number> {
   const board = await loadBoard();
-  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'running', 'queued'];
+  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'queued'];
 
   let recoveredCount = 0;
 

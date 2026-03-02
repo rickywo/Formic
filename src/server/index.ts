@@ -13,6 +13,7 @@ import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
 import { startQueueProcessor, getQueueProcessorConfig } from './services/queueProcessor.js';
+import { startWatchdog, stopWatchdog } from './services/watchdog.js';
 import { setWorkspacePath } from './utils/paths.js';
 import { loadConfig, getActiveWorkspace as getActiveConfigWorkspace } from './services/configStore.js';
 import { recoverStuckTasks, loadBoard } from './services/store.js';
@@ -140,6 +141,9 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     } else {
       console.log('Queue processor: disabled');
     }
+
+    // Start the lease watchdog
+    startWatchdog();
 
     // Initialize messaging notifications
     const messagingConfig = getMessagingConfig();

@@ -2,10 +2,11 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
-import { updateTaskStatus, getTask, loadBoard, saveBoard } from './store.js';
+import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
+import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions } from './leaseManager.js';
 import {
   loadSubtasks,
   isAllComplete,
@@ -16,6 +17,7 @@ import {
 import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
+import { broadcastBoardUpdate } from './boardNotifier.js';
 
 const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
@@ -111,7 +113,7 @@ async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<v
 /**
  * Append logs to workflow logs for a specific step
  */
-async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute', logs: string[]): Promise<void> {
+async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute' | 'architect', logs: string[]): Promise<void> {
   const board = await loadBoard();
   const task = board.tasks.find(t => t.id === taskId);
   if (task) {
@@ -276,6 +278,115 @@ All code changes MUST comply with the project development guidelines provided ab
 }
 
 /**
+ * Load declared files from the task's declared-files.json
+ */
+async function loadDeclaredFiles(docsPath: string): Promise<{ exclusive: string[]; shared: string[] } | null> {
+  const filePath = path.join(getWorkspacePath(), docsPath, 'declared-files.json');
+  try {
+    if (!existsSync(filePath)) {
+      return null;
+    }
+    const content = await readFile(filePath, 'utf-8');
+    const parsed = JSON.parse(content) as { exclusive?: string[]; shared?: string[] };
+    return {
+      exclusive: parsed.exclusive || [],
+      shared: parsed.shared || [],
+    };
+  } catch (error) {
+    console.warn('[Workflow] Failed to load declared-files.json:', error);
+    return null;
+  }
+}
+
+/**
+ * Execute the declare step: run declare skill, parse output, acquire leases
+ * Returns true if leases were acquired successfully, false if task should yield
+ */
+async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promise<boolean> {
+  // Run the declare skill
+  await updateTaskStatus(taskId, 'declaring', null);
+  await updateWorkflowStep(taskId, 'declare');
+
+  broadcastToTask(taskId, {
+    type: 'stdout',
+    data: `\n========== Starting DECLARE step ==========\n`,
+    timestamp: new Date().toISOString(),
+  });
+
+  const declareSuccess = await new Promise<boolean>((resolve) => {
+    const skillResult = loadSkillPrompt('declare', task);
+    skillResult.then(result => {
+      if (!result.success) {
+        console.log('[Workflow] Declare skill not found, skipping declaration');
+        resolve(true); // Skip if no declare skill - backwards compatible
+        return;
+      }
+
+      const child = runWorkflowStep(taskId, 'execute', result.content, (success) => {
+        resolve(success);
+      });
+
+      if (child.pid) {
+        activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
+      }
+    }).catch(() => {
+      resolve(true); // Skip on error
+    });
+  });
+
+  activeWorkflows.delete(taskId);
+
+  if (!declareSuccess) {
+    console.log(`[Workflow] Declare step failed for task ${taskId}`);
+    return false;
+  }
+
+  // Parse declared-files.json
+  const declaredFiles = await loadDeclaredFiles(task.docsPath);
+  if (declaredFiles) {
+    // Store declared files on the task
+    const board = await loadBoard();
+    const boardTask = board.tasks.find(t => t.id === taskId);
+    if (boardTask) {
+      boardTask.declaredFiles = declaredFiles;
+      await saveBoard(board);
+    }
+
+    // Record file hashes for shared files (optimistic concurrency)
+    if (declaredFiles.shared.length > 0) {
+      await recordFileHashes(taskId, declaredFiles.shared, getWorkspacePath());
+    }
+
+    // Attempt to acquire leases
+    const leaseResult = acquireLeases({
+      taskId,
+      exclusiveFiles: declaredFiles.exclusive,
+      sharedFiles: declaredFiles.shared,
+    });
+
+    if (!leaseResult.granted) {
+      console.log(`[Workflow] Lease acquisition failed for task ${taskId}, yielding`);
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `\n[YIELD] Cannot acquire file leases - conflicts on: ${leaseResult.conflictingFiles.join(', ')}\n`,
+        timestamp: new Date().toISOString(),
+      });
+      return false;
+    }
+
+    broadcastToTask(taskId, {
+      type: 'stdout',
+      data: `\n[LEASES] Acquired ${leaseResult.leases.length} file lease(s)\n`,
+      timestamp: new Date().toISOString(),
+    });
+  } else {
+    console.log(`[Workflow] No declared-files.json found for task ${taskId}, proceeding without leases`);
+  }
+
+  return true;
+}
+
+/**
  * Run a single workflow step
  */
 function runWorkflowStep(
@@ -437,6 +548,9 @@ async function executeWithIterativeLoop(
 
   while (iteration <= MAX_EXECUTE_ITERATIONS && !allComplete) {
     console.log(`[Workflow] Execute iteration ${iteration}/${MAX_EXECUTE_ITERATIONS} for task ${taskId}`);
+
+    // Renew leases at the start of each iteration to prevent watchdog timeout
+    renewLeases(taskId);
 
     // Broadcast iteration start
     broadcastToTask(taskId, {
@@ -603,6 +717,9 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
 
     activeWorkflows.delete(taskId);
 
+    // Release any leases held by this task
+    releaseLeases(taskId);
+
     if (success) {
       await updateWorkflowStep(taskId, 'complete');
       await updateTaskStatus(taskId, 'review', null);
@@ -682,23 +799,29 @@ export async function executeSingleStep(
       await updateTaskStatus(taskId, 'running', null);
       await updateWorkflowStep(taskId, 'execute');
 
-      const result = await executeWithIterativeLoop(taskId, task);
-      console.log(`[Workflow] Execute step finished for task ${taskId}: success=${result.success}, allComplete=${result.allComplete}, iterations=${result.iterations}`);
+      let result: { success: boolean; allComplete: boolean; iterations: number };
+      try {
+        result = await executeWithIterativeLoop(taskId, task);
+        console.log(`[Workflow] Execute step finished for task ${taskId}: success=${result.success}, allComplete=${result.allComplete}, iterations=${result.iterations}`);
 
-      if (result.success && result.allComplete) {
-        // All subtasks complete - move to review
-        console.log(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
-        await updateWorkflowStep(taskId, 'complete');
-        await updateTaskStatus(taskId, 'review', null);
-      } else if (result.success && !result.allComplete) {
-        // Max iterations reached but not all complete - still move to review with warning
-        console.log(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
-        await updateWorkflowStep(taskId, 'complete');
-        await updateTaskStatus(taskId, 'review', null);
-      } else {
-        // Execution failed
-        console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
-        await updateTaskStatus(taskId, 'todo', null);
+        if (result.success && result.allComplete) {
+          // All subtasks complete - move to review
+          console.log(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
+          await updateWorkflowStep(taskId, 'complete');
+          await updateTaskStatus(taskId, 'review', null);
+        } else if (result.success && !result.allComplete) {
+          // Max iterations reached but not all complete - still move to review with warning
+          console.log(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
+          await updateWorkflowStep(taskId, 'complete');
+          await updateTaskStatus(taskId, 'review', null);
+        } else {
+          // Execution failed
+          console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
+          await updateTaskStatus(taskId, 'todo', null);
+        }
+      } finally {
+        releaseLeases(taskId);
+        console.log(`[Workflow] Released leases for task ${taskId} (executeSingleStep)`);
       }
 
       return { success: result.success, pid: process.pid };
@@ -833,25 +956,296 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       return;
     }
 
-    // Step 3: Execute (with iterative completion checking)
-    const currentTask = await getTask(taskId);
-    if (!currentTask) {
+    // Step 2.5: Declare + Acquire Leases
+    const currentTaskForDeclare = await getTask(taskId);
+    if (!currentTaskForDeclare) {
       activeWorkflows.delete(taskId);
       await updateTaskStatus(taskId, 'todo', null);
       return;
     }
 
-    await updateTaskStatus(taskId, 'running', null);
-    await updateWorkflowStep(taskId, 'execute');
+    const leasesAcquired = await executeDeclareAndAcquireLeases(taskId, currentTaskForDeclare);
+    if (!leasesAcquired) {
+      // Task needs to yield - return to queued for retry
+      activeWorkflows.delete(taskId);
+      const board = await loadBoard();
+      const yieldTask = board.tasks.find(t => t.id === taskId);
+      if (yieldTask) {
+        yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
+        await saveBoard(board);
+      }
+      await updateTaskStatus(taskId, 'queued', null);
+      return;
+    }
 
-    const executeResult = await executeWithIterativeLoop(taskId, currentTask);
+    // Step 3: Execute (with iterative completion checking)
+    const currentTask = await getTask(taskId);
+    if (!currentTask) {
+      activeWorkflows.delete(taskId);
+      releaseLeases(taskId);
+      await updateTaskStatus(taskId, 'todo', null);
+      return;
+    }
+
+    // Wrap post-lease-acquisition code in try/finally to guarantee lease release
+    // even if an unexpected exception occurs during execution or collision detection
+    try {
+      await updateTaskStatus(taskId, 'running', null);
+      await updateWorkflowStep(taskId, 'execute');
+
+      const executeResult = await executeWithIterativeLoop(taskId, currentTask);
+      activeWorkflows.delete(taskId);
+
+      // Detect collisions on shared files BEFORE releasing leases
+      // (releaseLeases deletes fileHashStore entries needed by detectCollisions)
+      if (currentTask.declaredFiles?.shared && currentTask.declaredFiles.shared.length > 0) {
+        const conflicts = await detectCollisions(taskId, getWorkspacePath());
+        if (conflicts.length > 0) {
+          const board = await loadBoard();
+          const conflictTask = board.tasks.find(t => t.id === taskId);
+          if (conflictTask) {
+            conflictTask.fileConflicts = conflicts;
+            await saveBoard(board);
+          }
+          console.log(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
+        }
+      }
+
+      if (executeResult.success) {
+        // Guard against stale status updates: check if watchdog has already re-queued the task
+        const latestTask = await getTask(taskId);
+        if (latestTask && latestTask.status === 'running') {
+          await updateWorkflowStep(taskId, 'complete');
+          await updateTaskStatus(taskId, 'review', null);
+        } else {
+          console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
+        }
+      } else {
+        const latestTask = await getTask(taskId);
+        if (latestTask && latestTask.status === 'running') {
+          await updateTaskStatus(taskId, 'todo', null);
+        } else {
+          console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
+        }
+      }
+    } finally {
+      // Ensure leases are always released, even on unexpected exceptions.
+      // Safe to call even if leases were already released (no-op in that case).
+      releaseLeases(taskId);
+    }
+  })();
+
+  return { pid: startPid };
+}
+
+/**
+ * Build the prompt for the architect step (FALLBACK)
+ * Used when skill file is not available or fails to load
+ */
+function buildArchitectPromptFallback(task: Task, guidelines: string): string {
+  const docsPath = path.join(getWorkspacePath(), task.docsPath);
+
+  return `${guidelines}
+You are a senior Software Architect. Your task is to analyze a high-level goal and decompose it into multiple independent, actionable child tasks.
+
+TASK_TITLE: ${task.title}
+TASK_CONTEXT: ${task.context}
+TASK_DOCS_PATH: ${docsPath}
+
+IMPORTANT: You must NOT write any implementation code. Your only job is to analyze and decompose.
+
+Instructions:
+1. Explore the project codebase to understand the structure, tech stack, and patterns.
+2. Decompose the goal into 3-8 independent tasks.
+3. Write a JSON file to ${docsPath}/architect-output.json with this format:
+
+[
+  {
+    "title": "Short verb-based title",
+    "context": "Detailed self-contained description with requirements and acceptance criteria",
+    "priority": "high|medium|low"
+  }
+]
+
+Each task must be self-contained and not reference other child tasks.
+Include a final task for integration testing/verification when appropriate.`;
+}
+
+/**
+ * Execute a goal task workflow (architect step → create child tasks)
+ */
+export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number }> {
+  const task = await getTask(taskId);
+  if (!task) {
+    throw new Error(`Task ${taskId} not found`);
+  }
+
+  if (activeWorkflows.has(taskId)) {
+    throw new Error('A workflow is already running for this task');
+  }
+
+  console.log(`[Workflow] Starting goal workflow for ${taskId}`);
+
+  // Update status to architecting
+  await updateTaskStatus(taskId, 'architecting', null);
+  await updateWorkflowStep(taskId, 'architect');
+
+  // Load skill prompt with fallback
+  let prompt: string;
+  const skillResult = await loadSkillPrompt('architect', task);
+  if (skillResult.success) {
+    prompt = skillResult.content;
+    console.log('[Workflow] Using skill file for architect step');
+  } else {
+    const guidelines = await loadProjectGuidelines();
+    prompt = buildArchitectPromptFallback(task, guidelines);
+    console.log('[Workflow] Using fallback prompt for architect step');
+  }
+
+  // Broadcast start
+  broadcastToTask(taskId, {
+    type: 'stdout',
+    data: `\n========== Starting ARCHITECT step (goal decomposition) ==========\n`,
+    timestamp: new Date().toISOString(),
+  });
+
+  const startPid = process.pid;
+
+  // Run the architect step asynchronously
+  (async () => {
+    const success = await new Promise<boolean>((resolve) => {
+      const child = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
+        resolve(stepSuccess);
+      });
+
+      if (child.pid) {
+        activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
+      }
+    });
+
     activeWorkflows.delete(taskId);
 
-    if (executeResult.success) {
+    if (!success) {
+      await updateTaskStatus(taskId, 'todo', null);
+      broadcastToTask(taskId, {
+        type: 'error',
+        data: `\n[FAILED] Architect step failed.\n`,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // Parse architect-output.json and create child tasks
+    const outputPath = path.join(getWorkspacePath(), task.docsPath, 'architect-output.json');
+
+    try {
+      if (!existsSync(outputPath)) {
+        console.warn(`[Workflow] architect-output.json not found at ${outputPath}`);
+        broadcastToTask(taskId, {
+          type: 'error',
+          data: `\n[WARNING] architect-output.json not found. Goal moved to review.\n`,
+          timestamp: new Date().toISOString(),
+        });
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null);
+        broadcastBoardUpdate();
+        return;
+      }
+
+      const outputContent = await readFile(outputPath, 'utf-8');
+      const childTaskDefs = JSON.parse(outputContent) as Array<{
+        title: string;
+        context: string;
+        priority?: 'high' | 'medium' | 'low';
+      }>;
+
+      if (!Array.isArray(childTaskDefs) || childTaskDefs.length === 0) {
+        throw new Error('architect-output.json must be a non-empty array');
+      }
+
+      console.log(`[Workflow] Parsed ${childTaskDefs.length} child tasks from architect output`);
+
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `\n[ARCHITECT] Creating ${childTaskDefs.length} child tasks...\n`,
+        timestamp: new Date().toISOString(),
+      });
+
+      const childTaskIds: string[] = [];
+
+      for (const def of childTaskDefs) {
+        if (!def.title || !def.context) {
+          console.warn('[Workflow] Skipping invalid child task definition (missing title or context)');
+          continue;
+        }
+
+        const childTask = await createTask({
+          title: def.title,
+          context: def.context,
+          priority: def.priority || 'medium',
+          type: 'standard',
+        });
+
+        // Set parentGoalId on the child task
+        const board = await loadBoard();
+        const childInBoard = board.tasks.find(t => t.id === childTask.id);
+        if (childInBoard) {
+          childInBoard.parentGoalId = taskId;
+          await saveBoard(board);
+        }
+
+        childTaskIds.push(childTask.id);
+
+        broadcastToTask(taskId, {
+          type: 'stdout',
+          data: `  → Created: ${childTask.id} - ${childTask.title}\n`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Update goal task with child task IDs
+      const goalBoard = await loadBoard();
+      const goalTask = goalBoard.tasks.find(t => t.id === taskId);
+      if (goalTask) {
+        goalTask.childTaskIds = childTaskIds;
+        await saveBoard(goalBoard);
+      }
+
+      // Auto-queue each child task
+      for (const childId of childTaskIds) {
+        await queueTask(childId);
+        broadcastToTask(taskId, {
+          type: 'stdout',
+          data: `  ✓ Queued: ${childId}\n`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Move goal to review
       await updateWorkflowStep(taskId, 'complete');
       await updateTaskStatus(taskId, 'review', null);
-    } else {
-      await updateTaskStatus(taskId, 'todo', null);
+
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks. Ready for review.\n`,
+        timestamp: new Date().toISOString(),
+      });
+
+      broadcastBoardUpdate();
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.warn('[Workflow] Failed to parse architect output:', message);
+
+      broadcastToTask(taskId, {
+        type: 'error',
+        data: `\n[WARNING] Failed to parse architect-output.json: ${message}\nGoal moved to review for manual inspection.\n`,
+        timestamp: new Date().toISOString(),
+      });
+
+      await updateWorkflowStep(taskId, 'complete');
+      await updateTaskStatus(taskId, 'review', null);
+      broadcastBoardUpdate();
     }
   })();
 
@@ -874,6 +1268,11 @@ export async function stopWorkflow(taskId: string): Promise<boolean> {
       workflow.process.kill('SIGKILL');
     }
   }, 5000);
+
+  // Immediately release any leases held by this task to unblock sibling tasks,
+  // rather than waiting for the async IIFE to complete after process exit.
+  activeWorkflows.delete(taskId);
+  releaseLeases(taskId);
 
   return true;
 }

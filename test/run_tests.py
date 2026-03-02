@@ -36,6 +36,7 @@ def main():
     # Define test suites
     test_suites = [
         ("API Tests", "test_api.py"),
+        ("Concurrency Tests", "test_concurrency.py"),
         ("UI Tests (Playwright)", "test_formic.py"),
     ]
 
