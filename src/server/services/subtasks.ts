@@ -211,7 +211,9 @@ export async function calculateTaskProgress(task: Task): Promise<number> {
     'queued': 0,
     'briefing': 5,
     'planning': 18,
+    'declaring': 20,
     'running': 25,
+    'architecting': 50,
     'review': 100,
     'done': 100,
   };

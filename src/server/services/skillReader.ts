@@ -143,6 +143,9 @@ export function getAvailableSkills(): string[] {
   if (skillExists('plan')) {
     skills.push('plan');
   }
+  if (skillExists('architect')) {
+    skills.push('architect');
+  }
 
   return skills;
 }

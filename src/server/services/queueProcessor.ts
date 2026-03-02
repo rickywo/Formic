@@ -1,23 +1,15 @@
 import { getQueuedTasks, getRunningTasksCount } from './store.js';
-import { executeFullWorkflow, executeQuickTask, isWorkflowRunning } from './workflow.js';
+import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
 import type { Task } from '../../types/index.js';
 
 const POLL_INTERVAL_MS = parseInt(process.env.QUEUE_POLL_INTERVAL || '5000', 10);
 const MAX_CONCURRENT_TASKS = parseInt(process.env.MAX_CONCURRENT_TASKS || '1', 10);
+const MAX_YIELD_COUNT = parseInt(process.env.MAX_YIELD_COUNT || '50', 10);
 const QUEUE_ENABLED = process.env.QUEUE_ENABLED !== 'false';
 
 let pollIntervalId: ReturnType<typeof setInterval> | null = null;
 let isProcessing = false;
-
-/**
- * Get the next task to process from the queue
- * Selection: priority (high > medium > low), then FIFO by queuedAt
- */
-async function getNextQueuedTask(): Promise<Task | null> {
-  const queuedTasks = await getQueuedTasks();
-  return queuedTasks[0] || null;
-}
 
 /**
  * Check if we can process another task (concurrency limit check)
@@ -28,7 +20,8 @@ async function canProcessTask(): Promise<boolean> {
 }
 
 /**
- * Process the queue - check for tasks and start execution if slots available
+ * Process the queue - check for tasks and start execution if slots available.
+ * Loops through queued tasks, skipping those that have exceeded MAX_YIELD_COUNT.
  */
 async function processQueue(): Promise<void> {
   // Prevent concurrent processing
@@ -44,32 +37,58 @@ async function processQueue(): Promise<void> {
       return;
     }
 
-    // Check if any agent is already running (legacy check)
-    if (isAgentRunning()) {
+    // Check if any agent is already running (legacy check for MAX_CONCURRENT_TASKS=1)
+    if (MAX_CONCURRENT_TASKS <= 1 && isAgentRunning()) {
       return;
     }
 
-    // Get next task from queue
-    const nextTask = await getNextQueuedTask();
-    if (!nextTask) {
+    // Get all queued tasks
+    const queuedTasks = await getQueuedTasks();
+    if (queuedTasks.length === 0) {
       return;
     }
 
-    // Check if workflow is already running for this task
-    if (isWorkflowRunning(nextTask.id)) {
-      return;
-    }
+    // Try each queued task until we find one we can start or run out of tasks
+    // Track in-flight starts to prevent over-admission in the same poll cycle
+    let inFlightCount = 0;
 
-    console.log(`[QueueProcessor] Starting task ${nextTask.id}: ${nextTask.title}`);
+    for (const nextTask of queuedTasks) {
+      // Re-check capacity before each task, including in-flight starts from this cycle
+      const runningCount = await getRunningTasksCount();
+      if (runningCount + inFlightCount >= MAX_CONCURRENT_TASKS) {
+        break;
+      }
 
-    // Check task type and execute appropriate workflow
-    if (nextTask.type === 'quick') {
-      // Quick task: skip brief/plan, execute directly
-      console.log(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
-      await executeQuickTask(nextTask.id);
-    } else {
-      // Standard task: execute full workflow (brief → plan → execute)
-      await executeFullWorkflow(nextTask.id);
+      // Skip if workflow already running
+      if (isWorkflowRunning(nextTask.id)) {
+        continue;
+      }
+
+      // Check yield count - skip tasks that have been yielded too many times
+      if (nextTask.yieldCount && nextTask.yieldCount >= MAX_YIELD_COUNT) {
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max yield count (${MAX_YIELD_COUNT}), skipping`);
+        continue;
+      }
+
+      console.log(`[QueueProcessor] Starting task ${nextTask.id}: ${nextTask.title}`);
+
+      // Check task type and execute appropriate workflow
+      if (nextTask.type === 'quick') {
+        console.log(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
+        await executeQuickTask(nextTask.id);
+      } else if (nextTask.type === 'goal') {
+        console.log(`[QueueProcessor] Task ${nextTask.id} is a goal task - running architect decomposition`);
+        await executeGoalWorkflow(nextTask.id);
+      } else {
+        await executeFullWorkflow(nextTask.id);
+      }
+
+      inFlightCount++;
+
+      // For single-task mode, only start one task per poll cycle
+      if (MAX_CONCURRENT_TASKS <= 1) {
+        break;
+      }
     }
 
   } catch (error) {

@@ -68,7 +68,9 @@ function calculateTaskCounts(tasks: Array<{ status: TaskStatus }>): TaskCounts {
     queued: 0,
     briefing: 0,
     planning: 0,
+    declaring: 0,
     running: 0,
+    architecting: 0,
     review: 0,
     done: 0,
   };
@@ -125,7 +127,9 @@ export async function workspaceRoutes(fastify: FastifyInstance): Promise<void> {
       queued: 0,
       briefing: 0,
       planning: 0,
+      declaring: 0,
       running: 0,
+      architecting: 0,
       review: 0,
       done: 0,
     };
@@ -211,7 +215,9 @@ export async function workspaceRoutes(fastify: FastifyInstance): Promise<void> {
       queued: 0,
       briefing: 0,
       planning: 0,
+      declaring: 0,
       running: 0,
+      architecting: 0,
       review: 0,
       done: 0,
     };

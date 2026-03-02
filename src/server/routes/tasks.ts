@@ -1,9 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks } from '../services/store.js';
+import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks } from '../services/store.js';
 import { runAgent, stopAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
 import {
   executeFullWorkflow,
   executeQuickTask,
+  executeGoalWorkflow,
   executeSingleStep,
   stopWorkflow,
   isWorkflowRunning,
@@ -16,6 +17,7 @@ import {
   subtasksExist,
 } from '../services/subtasks.js';
 import { getQueuePosition } from '../services/queueProcessor.js';
+import { getAllLeases, renewLeases, acquireLeases, releaseLeases } from '../services/leaseManager.js';
 import { broadcastBoardUpdate } from '../services/boardNotifier.js';
 import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../types/index.js';
 
@@ -29,8 +31,8 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     // Validate task type if provided
-    if (type && type !== 'standard' && type !== 'quick') {
-      return reply.status(400).send({ error: 'Invalid task type. Must be "standard" or "quick"' });
+    if (type && type !== 'standard' && type !== 'quick' && type !== 'goal') {
+      return reply.status(400).send({ error: 'Invalid task type. Must be "standard", "quick", or "goal"' });
     }
 
     const task = await createTask({ title, context, priority, type });
@@ -104,6 +106,16 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
             status: 'running',
             workflowStep: 'execute',
             message: 'Quick task: skipping brief/plan, executing directly',
+            pid: result.pid,
+          });
+        }
+        if (task.type === 'goal') {
+          // Goal task: run architect decomposition
+          const result = await executeGoalWorkflow(id);
+          return reply.send({
+            status: 'architecting',
+            workflowStep: 'architect',
+            message: 'Goal task: running architect decomposition',
             pid: result.pid,
           });
         }
@@ -270,6 +282,21 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     });
   });
 
+  // ==================== Child Tasks Endpoint (Goal Tasks) ====================
+
+  // GET /api/tasks/:id/children - Get child tasks for a goal task
+  fastify.get<{ Params: { id: string } }>('/api/tasks/:id/children', async (request, reply) => {
+    const { id } = request.params;
+
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    const children = await getChildTasks(id);
+    return reply.send(children);
+  });
+
   // ==================== Subtask Management Endpoints (Phase 9) ====================
 
   // GET /api/tasks/:id/subtasks - Get all subtasks for a task
@@ -347,5 +374,66 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       ...stats,
       allComplete: stats.completed === stats.total,
     });
+  });
+
+  // ==================== Lease Management Endpoints ====================
+
+  // GET /api/leases - Get all active leases
+  fastify.get('/api/leases', async (_request, reply) => {
+    const leases = getAllLeases();
+    return reply.send(leases);
+  });
+
+  // GET /api/tasks/:id/declared-files - Get task file declarations
+  fastify.get<{ Params: { id: string } }>('/api/tasks/:id/declared-files', async (request, reply) => {
+    const { id } = request.params;
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+    return reply.send(task.declaredFiles ?? { exclusive: [], shared: [] });
+  });
+
+  // POST /api/tasks/:id/lease/acquire - Acquire leases for a task
+  fastify.post<{ Params: { id: string } }>('/api/tasks/:id/lease/acquire', async (request, reply) => {
+    const { id } = request.params;
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+    if (!task.declaredFiles) {
+      return reply.status(400).send({ error: 'Task has no declared files' });
+    }
+    const result = acquireLeases({
+      taskId: id,
+      exclusiveFiles: task.declaredFiles.exclusive,
+      sharedFiles: task.declaredFiles.shared,
+    });
+    return reply.send(result);
+  });
+
+  // POST /api/tasks/:id/lease/release - Release leases for a task
+  fastify.post<{ Params: { id: string } }>('/api/tasks/:id/lease/release', async (request, reply) => {
+    const { id } = request.params;
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+    releaseLeases(id);
+    return reply.send({ released: true });
+  });
+
+  // POST /api/tasks/:id/lease/renew - Renew leases for a task
+  fastify.post<{ Params: { id: string } }>('/api/tasks/:id/lease/renew', async (request, reply) => {
+    const { id } = request.params;
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+    const renewed = renewLeases(id);
+    if (!renewed) {
+      return reply.status(400).send({ error: 'No active leases found for this task' });
+    }
+    return reply.send({ success: true, taskId: id });
   });
 }

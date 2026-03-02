@@ -261,7 +261,9 @@ export async function generateContextFile(): Promise<string> {
     queued: [],
     briefing: [],
     planning: [],
+    declaring: [],
     running: [],
+    architecting: [],
     review: [],
     done: [],
   };
@@ -315,7 +317,7 @@ The Formic server exposes a REST API for task management. When creating tasks vi
   - \`title\` (string, **required**) - Short, action-oriented title starting with a verb
   - \`context\` (string, **required**) - Detailed description with requirements, technical considerations, and acceptance criteria
   - \`priority\` (string, optional) - \`"high"\` (urgent/blocking), \`"medium"\` (default), \`"low"\` (nice-to-have)
-  - \`type\` (string, optional) - \`"standard"\` (default, full workflow) or \`"quick"\` (single-step execution)
+  - \`type\` (string, optional) - \`"standard"\` (default, full workflow), \`"quick"\` (single-step execution), or \`"goal"\` (architect decomposes into child tasks)
 - **Response:** \`201 Created\` with the full task object including generated \`id\`
 
 ## Creating Tasks
@@ -355,9 +357,30 @@ Tasks go through these stages:
 - **queued**: In priority queue for automated execution
 - **briefing**: AI is generating the feature specification (README.md)
 - **planning**: AI is creating the implementation plan (PLAN.md, subtasks.json)
+- **declaring**: Task declares which files it will modify for lease-based concurrency
 - **running**: AI is executing the implementation
+- **architecting**: Goal task is being decomposed into child tasks by the architect skill
 - **review**: Completed, awaiting human review
 - **done**: Completed and approved
+
+## Task Types
+
+Formic supports three task types:
+
+- **standard** (default): Full workflow — brief → plan → declare → execute. The task goes through briefing, planning, file declaration (for lease-based concurrency), and then execution. Suitable for most feature work.
+- **quick**: Single-step execution — skips briefing and planning. Goes directly from queued to running. Ideal for small fixes, typos, or simple changes.
+- **goal**: Architect-driven decomposition — the architect skill analyzes a high-level goal and decomposes it into 3–8 child tasks. Workflow: todo → queued → architecting → done. Child tasks are linked to the goal via \`parentGoalId\` on each child and \`childTaskIds\` on the goal task. Each child task then follows its own standard or quick workflow independently.
+
+## Lease-Based Concurrency
+
+Formic supports parallel task execution using a file lease system (managed by \`leaseManager.ts\`):
+
+- **File Declaration**: During the \`declaring\` stage, tasks declare upfront which files they will modify (exclusive leases) and which they will only read (shared leases).
+- **Exclusive Leases**: A file under an exclusive lease can only be held by one task at a time. This prevents write conflicts between concurrent tasks.
+- **Shared Leases**: Multiple tasks can hold shared (read-only) leases on the same file simultaneously. Shared files use optimistic concurrency — conflicts are detected via \`git hash-object\` collision detection at merge time.
+- **Task Yielding**: When a task requests a lease on a file already held exclusively by another task, it yields (pauses) until the conflicting lease is released.
+- **Lease Expiration**: Leases expire after a configurable duration (default 5 minutes). A watchdog process periodically cleans up expired leases to prevent deadlocks.
+- **Key Types**: \`FileLease\`, \`LeaseRequest\`, \`LeaseResult\`, \`FileConflict\`, \`DeclaredFiles\`
 
 ## How to Work with Users
 

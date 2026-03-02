@@ -5,6 +5,7 @@ import type { WebSocket } from 'ws';
 import { updateTaskStatus, appendTaskLogs } from './store.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
 import { getWorkspacePath } from '../utils/paths.js';
+import { releaseLeases } from './leaseManager.js';
 import type { LogMessage } from '../../types/index.js';
 import path from 'node:path';
 
@@ -84,9 +85,10 @@ function broadcastToTask(taskId: string, message: LogMessage): void {
 }
 
 export async function runAgent(taskId: string, title: string, context: string, docsPath: string): Promise<{ pid: number }> {
-  // Check concurrency
-  if (isAgentRunning()) {
-    throw new Error('An agent is already running. Please wait for it to complete.');
+  // Check concurrency - allow multiple agents based on MAX_CONCURRENT_TASKS
+  const MAX_CONCURRENT = parseInt(process.env.MAX_CONCURRENT_TASKS || '1', 10);
+  if (activeProcesses.size >= MAX_CONCURRENT) {
+    throw new Error(`Maximum concurrent agents reached (${MAX_CONCURRENT}). Please wait for one to complete.`);
   }
 
   // Load project guidelines (injected into prompt)
@@ -118,6 +120,8 @@ All code changes MUST comply with the project development guidelines provided ab
   // Set up error handler FIRST to catch spawn errors (e.g., command not found)
   child.on('error', async (err: NodeJS.ErrnoException) => {
     activeProcesses.delete(taskId);
+    releaseLeases(taskId);
+    console.log(`[Runner] Released leases for task ${taskId} (error handler)`);
 
     // Provide helpful error messages for common issues
     const agentName = getAgentDisplayName();
@@ -190,6 +194,8 @@ All code changes MUST comply with the project development guidelines provided ab
   // Handle process exit
   child.on('close', async (code) => {
     activeProcesses.delete(taskId);
+    releaseLeases(taskId);
+    console.log(`[Runner] Released leases for task ${taskId} (close handler)`);
 
     // Save logs to task
     await appendTaskLogs(taskId, logBuffer);
