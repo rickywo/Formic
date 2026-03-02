@@ -347,6 +347,42 @@
       border: 1px solid rgba(245, 158, 11, 0.15);
     }
 
+    [data-theme="light"] .goal-badge {
+      background: rgba(147, 51, 234, 0.12);
+      color: #7c3aed;
+      border: 1px solid rgba(147, 51, 234, 0.15);
+    }
+
+    [data-theme="light"] .child-badge {
+      background: rgba(99, 102, 241, 0.12);
+      color: #4f46e5;
+      border: 1px solid rgba(99, 102, 241, 0.15);
+    }
+
+    [data-theme="light"] .status-architecting {
+      background: rgba(147, 51, 234, 0.12);
+      color: #7c3aed;
+      border: 1px solid rgba(147, 51, 234, 0.15);
+    }
+
+    [data-theme="light"] .task-type-option label {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .task-type-option label:hover {
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .task-type-option input:checked + label {
+      background: rgba(37, 99, 235, 0.1);
+      border-color: rgba(37, 99, 235, 0.3);
+    }
+
+    [data-theme="light"] .task-type-option .type-hint {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
     [data-theme="light"] .quick-task-toggle .toggle-slider-inline {
       background: rgba(0, 0, 0, 0.1);
     }
@@ -2083,6 +2119,66 @@
       margin-left: 56px;
     }
 
+    /* Task Type Selector - Segmented Control */
+    .task-type-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-type-options {
+      display: flex;
+      gap: 8px;
+    }
+
+    .task-type-option {
+      flex: 1;
+      position: relative;
+    }
+
+    .task-type-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .task-type-option label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .task-type-option label:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .task-type-option input:checked + label {
+      background: rgba(96, 165, 250, 0.15);
+      border-color: rgba(96, 165, 250, 0.3);
+    }
+
+    .task-type-option .type-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .task-type-option .type-hint {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      line-height: 1.3;
+    }
+
     .form-actions {
       display: flex;
       justify-content: flex-end;
@@ -2169,6 +2265,39 @@
     /* Quick Task Workflow Indicator */
     .workflow-indicator--quick {
       justify-content: center;
+    }
+
+    /* Goal Task Workflow Indicator */
+    .workflow-indicator--goal {
+      justify-content: center;
+    }
+
+    /* Goal Task Badge */
+    .goal-badge {
+      font-size: 10px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(168, 85, 247, 0.2);
+      color: #c4b5fd;
+      border: 1px solid rgba(168, 85, 247, 0.1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 8px;
+    }
+
+    /* Child Task Badge */
+    .child-badge {
+      font-size: 10px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(129, 140, 248, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(129, 140, 248, 0.1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 8px;
     }
 
     /* Bootstrap Banner - Glass Morphic */
@@ -2485,6 +2614,12 @@
       background-color: rgba(96, 165, 250, 0.2);
       color: #93c5fd;
       border: 1px solid rgba(96, 165, 250, 0.1);
+    }
+
+    .status-architecting {
+      background-color: rgba(168, 85, 247, 0.2);
+      color: #c4b5fd;
+      border: 1px solid rgba(168, 85, 247, 0.1);
     }
 
     /* Queued task card styling */
@@ -5879,6 +6014,13 @@
           </div>
           <div class="subtasks-list" id="detail-subtasks-list"></div>
         </div>
+        <div class="detail-section" id="detail-children-section" style="display:none">
+          <label>Generated Tasks</label>
+          <div class="subtasks-progress">
+            <span class="progress-text" id="detail-children-stats"></span>
+          </div>
+          <div class="subtasks-list" id="detail-children-list"></div>
+        </div>
       </div>
       <div class="form-actions">
         <button class="btn" onclick="closeDetailModal()">Close</button>
@@ -5907,13 +6049,31 @@
             <option value="high">High</option>
           </select>
         </div>
-        <div class="form-group quick-task-toggle">
-          <label class="toggle-label">
-            <input type="checkbox" id="task-quick">
-            <span class="toggle-slider-inline"></span>
-            <span class="toggle-text">Quick Task</span>
-          </label>
-          <span class="toggle-hint">Skip planning stages (for simple tasks)</span>
+        <div class="form-group task-type-selector">
+          <label>Task Type</label>
+          <div class="task-type-options">
+            <div class="task-type-option">
+              <input type="radio" name="task-type" id="task-type-standard" value="standard" checked>
+              <label for="task-type-standard">
+                <span class="type-name">Standard</span>
+                <span class="type-hint">Brief → Plan → Execute</span>
+              </label>
+            </div>
+            <div class="task-type-option">
+              <input type="radio" name="task-type" id="task-type-quick" value="quick">
+              <label for="task-type-quick">
+                <span class="type-name">Quick</span>
+                <span class="type-hint">Execute directly</span>
+              </label>
+            </div>
+            <div class="task-type-option">
+              <input type="radio" name="task-type" id="task-type-goal" value="goal">
+              <label for="task-type-goal">
+                <span class="type-name">Goal</span>
+                <span class="type-hint">Decompose into tasks</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn" onclick="closeCreateModal()">Cancel</button>
@@ -6750,8 +6910,7 @@
       const title = document.getElementById('task-title').value;
       const context = document.getElementById('task-context').value;
       const priority = document.getElementById('task-priority').value;
-      const isQuick = document.getElementById('task-quick').checked;
-      const type = isQuick ? 'quick' : 'standard';
+      const type = document.querySelector('input[name="task-type"]:checked').value;
 
       const res = await fetch('/api/tasks', {
         method: 'POST',
@@ -6764,7 +6923,7 @@
         document.getElementById('task-title').value = '';
         document.getElementById('task-context').value = '';
         document.getElementById('task-priority').value = 'medium';
-        document.getElementById('task-quick').checked = false;
+        document.getElementById('task-type-standard').checked = true;
         await loadBoard();
       }
     }
@@ -6861,7 +7020,7 @@
       // Map workflow statuses to columns
       // briefing, planning, running all go to the 'running' column
       function getColumnForStatus(status) {
-        if (status === 'briefing' || status === 'planning' || status === 'running') {
+        if (status === 'briefing' || status === 'planning' || status === 'running' || status === 'architecting') {
           return 'running';
         }
         return status;
@@ -6904,6 +7063,8 @@
           const cardClass = isBootstrap ? 'task-card task-card--bootstrap' : 'task-card';
           const bootstrapBadge = isBootstrap ? '<span class="bootstrap-badge">Setup</span>' : '';
           const quickBadge = task.type === 'quick' ? '<span class="quick-badge">Quick</span>' : '';
+          const goalBadge = task.type === 'goal' ? '<span class="goal-badge">Goal</span>' : '';
+          const childBadge = task.parentGoalId ? '<span class="child-badge">Sub</span>' : '';
           const manualBadge = task.hasManualSubtasks ? '<span class="manual-badge">⚠ Manual</span>' : '';
           const contextText = isBootstrap
             ? 'Analyzes your codebase and generates AI development guidelines tailored to your project.'
@@ -6911,12 +7072,21 @@
 
           // Build workflow step indicator for active workflow tasks
           const workflowSteps = ['brief', 'plan', 'execute'];
-          const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
+          const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
           const workflowStep = task.workflowStep || 'pending';
           const isQuickTask = task.type === 'quick';
+          const isGoalTask = task.type === 'goal';
 
           let workflowIndicator = '';
-          if (isQuickTask && (isWorkflowActive || workflowStep === 'execute')) {
+          if (isGoalTask && (isWorkflowActive || workflowStep === 'architect' || workflowStep === 'complete')) {
+            // Goal tasks only show Architect step
+            const architectClass = (workflowStep === 'architect' && !isWorkflowActive) ? 'completed' : (workflowStep === 'architect' && isWorkflowActive ? 'active' : (workflowStep === 'complete' ? 'completed' : ''));
+            workflowIndicator = `
+              <div class="workflow-indicator workflow-indicator--goal">
+                <span class="workflow-step ${architectClass}">Architect</span>
+              </div>
+            `;
+          } else if (isQuickTask && (isWorkflowActive || workflowStep === 'execute')) {
             // Quick tasks only show Execute step
             // When task is in todo, show as completed (muted) rather than active
             const executeClass = (workflowStep === 'execute' && !isWorkflowActive) ? 'completed' : (workflowStep === 'execute' ? 'active' : (workflowStep === 'complete' ? 'completed' : ''));
@@ -6925,7 +7095,7 @@
                 <span class="workflow-step ${executeClass}">Execute</span>
               </div>
             `;
-          } else if (!isQuickTask && (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete'))) {
+          } else if (!isQuickTask && !isGoalTask && (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete'))) {
             // Standard tasks show all 3 steps
             // When task is in todo (not actively running), show steps as completed (muted) instead of active
             const stepClasses = workflowSteps.map(step => {
@@ -6957,10 +7127,12 @@
             statusBadge = '<span class="status-badge status-planning">Planning</span>';
           } else if (task.status === 'running') {
             statusBadge = '<span class="status-badge status-running">Executing</span>';
+          } else if (task.status === 'architecting') {
+            statusBadge = '<span class="status-badge status-architecting">Architecting</span>';
           }
 
           // Check if task is in any running state
-          const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
+          const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
 
           // Build progress bar HTML
           const progress = task.progress || 0;
@@ -6997,7 +7169,7 @@
             <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
               ${queuePositionHtml}
               <div class="task-header">
-                <span class="task-title">${bootstrapBadge}${quickBadge}${manualBadge}${escapeHtml(task.title)}${statusBadge}</span>
+                <span class="task-title">${bootstrapBadge}${goalBadge}${quickBadge}${childBadge}${manualBadge}${escapeHtml(task.title)}${statusBadge}</span>
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
               </div>
               ${workflowIndicator}
@@ -7214,6 +7386,7 @@
       if (task.status === 'briefing') statusBadge.classList.add('status-briefing');
       else if (task.status === 'planning') statusBadge.classList.add('status-planning');
       else if (task.status === 'running') statusBadge.classList.add('status-running');
+      else if (task.status === 'architecting') statusBadge.classList.add('status-architecting');
       else if (task.status === 'queued') statusBadge.classList.add('status-queued');
       else if (task.status === 'review') statusBadge.style.backgroundColor = 'var(--accent-yellow)';
       else if (task.status === 'done') statusBadge.style.backgroundColor = 'var(--accent-green)';
@@ -7225,7 +7398,7 @@
 
       // Duration display
       const durationEl = document.getElementById('detail-duration');
-      const isActiveStatus = ['briefing', 'planning', 'running'].includes(task.status);
+      const isActiveStatus = ['briefing', 'planning', 'running', 'architecting'].includes(task.status);
       if (task.startedAt && isActiveStatus) {
         durationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
         durationEl.className = 'task-duration task-duration-active';
@@ -7245,8 +7418,12 @@
       const workflowEl = document.getElementById('detail-workflow');
       const workflowSteps = ['brief', 'plan', 'execute'];
       const workflowStep = task.workflowStep || 'pending';
-      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
-      if (workflowStep !== 'pending') {
+      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
+      if (task.type === 'goal' && (workflowStep === 'architect' || workflowStep === 'complete')) {
+        // Goal tasks show only Architect step
+        const architectClass = (workflowStep === 'architect' && isDetailWorkflowActive) ? 'active' : 'completed';
+        workflowEl.innerHTML = `<span class="workflow-step ${architectClass}">Architect</span>`;
+      } else if (workflowStep !== 'pending') {
         workflowEl.innerHTML = workflowSteps.map(step => {
           let cls = 'workflow-step';
           if (!isDetailWorkflowActive) {
@@ -7264,12 +7441,15 @@
 
       // Run button visibility
       const runBtn = document.getElementById('detail-run-btn');
-      const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
+      const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
       runBtn.style.display = (task.status === 'todo' || task.status === 'queued') ? 'block' : 'none';
       runBtn.textContent = task.status === 'queued' ? 'Run Now' : 'Run Task';
 
       // Load subtasks
       await loadSubtasksForDetail(taskId);
+
+      // Load child tasks for goal tasks
+      await loadChildTasksForDetail(task);
 
       document.getElementById('detail-modal').classList.add('open');
     }
@@ -7309,6 +7489,45 @@
         }
       } catch (err) {
         subtasksSection.style.display = 'none';
+      }
+    }
+
+    async function loadChildTasksForDetail(task) {
+      const childrenSection = document.getElementById('detail-children-section');
+      const childrenList = document.getElementById('detail-children-list');
+      const childrenStats = document.getElementById('detail-children-stats');
+
+      if (task.type !== 'goal' || !task.childTaskIds || task.childTaskIds.length === 0) {
+        childrenSection.style.display = 'none';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/tasks/${task.id}/children`);
+        if (!res.ok) {
+          childrenSection.style.display = 'none';
+          return;
+        }
+
+        const children = await res.json();
+        childrenSection.style.display = 'block';
+
+        const doneCount = children.filter(c => c.status === 'done' || c.status === 'review').length;
+        childrenStats.textContent = `${doneCount}/${children.length} tasks complete`;
+
+        childrenList.innerHTML = children.map(child => {
+          const statusIcon = child.status === 'done' ? '✅' : child.status === 'review' ? '🔍' : child.status === 'running' || child.status === 'briefing' || child.status === 'planning' ? '🔄' : '⬜';
+          const completedClass = child.status === 'done' ? 'completed' : '';
+          return `
+            <div class="subtask-item ${completedClass}" onclick="openDetailModal('${child.id}', event)" style="cursor:pointer">
+              <span class="subtask-status">${statusIcon}</span>
+              <span class="subtask-content">${escapeHtml(child.title)}</span>
+              <span class="priority-badge priority-${child.priority}" style="margin-left:auto;font-size:9px">${child.priority}</span>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        childrenSection.style.display = 'none';
       }
     }
 

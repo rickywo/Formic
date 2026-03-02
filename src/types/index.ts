@@ -1,12 +1,59 @@
-export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'running' | 'review' | 'done';
+export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'declaring' | 'running' | 'architecting' | 'review' | 'done';
 export type TaskPriority = 'low' | 'medium' | 'high';
-export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'execute' | 'complete';
-export type TaskType = 'standard' | 'quick';
+export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' | 'architect' | 'complete';
+export type TaskType = 'standard' | 'quick' | 'goal';
 
 export interface WorkflowLogs {
   brief?: string[];
   plan?: string[];
   execute?: string[];
+  architect?: string[];
+}
+
+// ==================== Lease-Based Concurrency Types ====================
+
+/** Declared files manifest produced by the declare skill */
+export interface DeclaredFiles {
+  exclusive: string[];
+  shared: string[];
+}
+
+/** A file lease granting a task exclusive access to a file */
+export interface FileLease {
+  filePath: string;
+  taskId: string;
+  acquiredAt: string;
+  expiresAt: string;
+  leaseType: 'exclusive' | 'shared';
+}
+
+/** Request to acquire file leases for a task */
+export interface LeaseRequest {
+  taskId: string;
+  exclusiveFiles: string[];
+  sharedFiles: string[];
+  leaseDurationMs?: number;
+}
+
+/** Result of a lease acquisition attempt */
+export interface LeaseResult {
+  granted: boolean;
+  leases: FileLease[];
+  conflictingFiles: string[];
+}
+
+/** A detected file conflict for hotspot/shared files */
+export interface FileConflict {
+  filePath: string;
+  expectedHash: string;
+  actualHash: string;
+  conflictingTaskId?: string;
+}
+
+/** Result of a merge attempt on conflicting files */
+export interface MergeResult {
+  success: boolean;
+  conflicts: FileConflict[];
 }
 
 export interface Task {
@@ -33,6 +80,15 @@ export interface Task {
   completedAt?: string;
   // Whether this task has subtasks requiring manual user action (pending or skipped)
   hasManualSubtasks?: boolean;
+  // Goal task: ID of the parent goal that spawned this task
+  parentGoalId?: string;
+  // Goal task: IDs of child tasks created by the architect
+  childTaskIds?: string[];
+  // Lease-based concurrency fields
+  declaredFiles?: DeclaredFiles;
+  leaseExpiresAt?: string;
+  yieldCount?: number;
+  fileConflicts?: FileConflict[];
 }
 
 export interface BoardMeta {
@@ -126,7 +182,9 @@ export interface TaskCounts {
   queued: number;
   briefing: number;
   planning: number;
+  declaring: number;
   running: number;
+  architecting: number;
   review: number;
   done: number;
 }
