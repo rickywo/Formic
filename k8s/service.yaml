@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: formic
+  namespace: formic
+  labels:
+    app: formic
+spec:
+  # Change to NodePort or LoadBalancer for external access.
+  # WebSocket connections work through ClusterIP when accessed via an Ingress
+  # controller or kubectl port-forward.
+  type: ClusterIP
+  selector:
+    app: formic
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP

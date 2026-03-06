@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: formic
+
+commonLabels:
+  app: formic
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - pvc.yaml
+  - service.yaml
+  - deployment.yaml
+
+images:
+  - name: formic
+    newName: formic
+    newTag: latest

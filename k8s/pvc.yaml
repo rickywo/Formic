@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: formic-workspace
+  namespace: formic
+  labels:
+    app: formic
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # Adjust the storage size based on project needs.
+  resources:
+    requests:
+      storage: 5Gi
