@@ -78,12 +78,15 @@ export AGENT_TYPE=claude
 export ANTHROPIC_API_KEY=your_api_key
 
 npm run dev
+
+# Or one liner
+WORKSPACE_PATH={path_to_your_working_folder} AGENT_TYPE=copilot  PORT=8000 npm run dev
 ```
 
 ### 3. Your First Goal
 
 1. Open http://localhost:8000.
-2. Click the 🎯 **Objective** button.
+2. Click the 🎯 **Create New Task** button.
 3. Enter a goal: "Implement a dark mode toggle that persists to local storage."
 4. Watch Formic decompose the goal, queue tasks, and start executing in parallel.
 
