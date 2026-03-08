@@ -61,8 +61,6 @@ async function loadEnvFile(workspacePath: string): Promise<void> {
         process.env[key] = value;
       }
     }
-
-    console.log('Loaded environment from .env file');
   } catch (error) {
     console.warn('Warning: Could not load .env file:', (error as Error).message);
   }
