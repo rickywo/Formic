@@ -78,7 +78,8 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     }
   }
 
-  console.log(`[Server] Workspace resolved from: ${workspaceSource}`);
+  // workspaceSource is used in the banner; suppress the inline log
+  void workspaceSource;
 
   // Set the workspace path for all services
   setWorkspacePath(workspacePath);
