@@ -120,16 +120,13 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     await loadConfig();
 
     await fastify.listen({ port, host });
-    console.log(`Formic server running at http://${host}:${port}`);
-    console.log(`Workspace: ${workspacePath}`);
 
     // Log agent configuration
     const agentType = getAgentType();
     const agentCommand = getAgentCommand();
     const agentDisplayName = getAgentDisplayName();
-    console.log(`Agent: ${agentDisplayName} (type: ${agentType}, command: ${agentCommand})`);
 
-    // Warn about missing environment variables
+    // Warn about missing environment variables (still useful for CI/piped output)
     const missingEnvVars = validateAgentEnv();
     if (missingEnvVars.length > 0) {
       console.warn(`Warning: Missing environment variables for ${agentDisplayName}: ${missingEnvVars.join(', ')}`);
@@ -142,11 +139,6 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     // Start the queue processor
     startQueueProcessor();
     const queueConfig = getQueueProcessorConfig();
-    if (queueConfig.enabled) {
-      console.log(`Queue processor: enabled (poll: ${queueConfig.pollInterval}ms, max concurrent: ${queueConfig.maxConcurrent})`);
-    } else {
-      console.log('Queue processor: disabled');
-    }
 
     // Start the lease watchdog
     startWatchdog();
@@ -154,19 +146,40 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     // Initialize messaging notifications
     const messagingConfig = getMessagingConfig();
     const messagingEnabled = messagingConfig.telegram.enabled || messagingConfig.line.enabled;
+    const messagingPlatforms: string[] = [];
     if (messagingEnabled) {
       // Initialize status cache to prevent false notifications on startup
       const board = await loadBoard();
       initializeStatusCache(board.tasks);
 
-      const platforms = [];
-      if (messagingConfig.telegram.enabled) platforms.push('Telegram');
-      if (messagingConfig.line.enabled) platforms.push('Line');
-      console.log(`Messaging integrations: ${platforms.join(', ')}`);
-      console.log(`Webhook endpoints: /api/webhooks/telegram, /api/webhooks/line`);
-    } else {
-      console.log('Messaging integrations: disabled (set TELEGRAM_BOT_TOKEN or LINE_CHANNEL_ACCESS_TOKEN to enable)');
+      if (messagingConfig.telegram.enabled) messagingPlatforms.push('Telegram');
+      if (messagingConfig.line.enabled) messagingPlatforms.push('LINE');
     }
+
+    // Read version from package.json
+    let version = '0.0.0';
+    try {
+      const pkgPath = new URL('../../package.json', import.meta.url);
+      const pkg = JSON.parse(await readFile(pkgPath, 'utf-8')) as { version?: string };
+      version = pkg.version ?? '0.0.0';
+    } catch { /* ignore */ }
+
+    const bannerInfo: StartupInfo = {
+      port,
+      host,
+      workspacePath,
+      agentType,
+      agentDisplayName,
+      queueEnabled: queueConfig.enabled,
+      maxConcurrent: queueConfig.maxConcurrent,
+      version,
+      messagingPlatforms,
+    };
+
+    await printStartupBanner(bannerInfo);
+
+    // Suppress unused variable warning for agentCommand (retained for potential future use)
+    void agentCommand;
   } catch (err) {
     const error = err as NodeJS.ErrnoException;
 
