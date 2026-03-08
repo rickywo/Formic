@@ -13,7 +13,7 @@ import { toolRoutes } from './routes/tools.js';
 import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { readFile } from 'node:fs/promises';
-import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
+import { getAgentType, getAgentCommand, getAgentDisplayName } from './services/agentAdapter.js';
 import { startQueueProcessor, getQueueProcessorConfig } from './services/queueProcessor.js';
 import { printStartupBanner } from './utils/banner.js';
 import type { StartupInfo } from './utils/banner.js';
@@ -125,12 +125,6 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     const agentType = getAgentType();
     const agentCommand = getAgentCommand();
     const agentDisplayName = getAgentDisplayName();
-
-    // Warn about missing environment variables (still useful for CI/piped output)
-    const missingEnvVars = validateAgentEnv();
-    if (missingEnvVars.length > 0) {
-      console.warn(`Warning: Missing environment variables for ${agentDisplayName}: ${missingEnvVars.join(', ')}`);
-    }
 
     // Recover any stuck tasks from previous server session
     // This must run BEFORE the queue processor starts
