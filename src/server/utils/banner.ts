@@ -52,7 +52,8 @@ interface CheckResult {
 
 function tryExec(cmd: string): string | null {
   try {
-    return execSync(cmd, { stdio: 'pipe' }).toString().trim();
+    const output = execSync(cmd, { stdio: 'pipe' }).toString().trim();
+    return output.split('\n')[0]?.trim() ?? null;
   } catch {
     return null;
   }
