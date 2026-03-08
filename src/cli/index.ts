@@ -156,6 +156,11 @@ async function startCommand(port?: number): Promise<void> {
   // Load .env file from workspace
   await loadEnvFile(workspacePath);
 
+  // Print minimal version stamp immediately before server initializes
+  const { printBanner } = await import('../server/utils/banner.js');
+  const version = await getVersion();
+  printBanner(version);
+
   // Dynamically import the server to avoid loading it for help/version commands
   const { startServer } = await import('../server/index.js');
 
