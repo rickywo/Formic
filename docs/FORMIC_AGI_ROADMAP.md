@@ -6,7 +6,7 @@
 
 ---
 
-## Current Development Status (v0.6.2)
+## Current Development Status (v0.7.0)
 
 | Component | Status | Completion | Notes |
 |-----------|--------|------------|-------|
