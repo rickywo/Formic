@@ -36,8 +36,11 @@ import {
  * Spawns Claude CLI to process messages and parse responses for task creation.
  */
 
-// Pattern to detect task creation in AI responses (same as assistantManager.ts)
-const TASK_CREATE_PATTERN = /```task-create\s*([\s\S]*?)\s*```/g;
+// Pattern to detect task creation in AI responses (same as assistantManager.ts).
+// Closing ``` must be preceded by a real newline so triple-backticks
+// embedded inside a JSON string value (encoded as \n, not a real newline)
+// never accidentally terminate the match early.
+const TASK_CREATE_PATTERN = /```task-create\r?\n([\s\S]*?)\r?\n```/g;
 
 // Pattern to detect screenshot code blocks in AI responses
 // Expected format: ```screenshot\n{"url": "...", "path": "/path/to/screenshot.png"}\n```
@@ -162,6 +165,7 @@ export function parseTaskCreateBlocks(
     } catch (error) {
       const err = error as Error;
       console.error('[MessagingAI] Failed to parse task data:', err.message);
+      console.warn('[MessagingAI] Raw JSON (first 200 chars):', match[1].slice(0, 200));
     }
   }
 

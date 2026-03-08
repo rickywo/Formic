@@ -38,10 +38,11 @@ const MAX_HISTORY = 100;
 // Flag to track if this is the first message (don't use --continue)
 let isFirstMessage = true;
 
-// Pattern to detect task creation in assistant responses
-// Supports both formats: with newline after task-create or directly after
-// Global flag allows matching multiple task-create blocks
-const TASK_CREATE_PATTERN = /```task-create\s*([\s\S]*?)\s*```/g;
+// Pattern to detect task creation in assistant responses.
+// Closing ``` must be preceded by a real newline so triple-backticks
+// embedded inside a JSON string value (encoded as \n, not a real newline)
+// never accidentally terminate the match early.
+const TASK_CREATE_PATTERN = /```task-create\r?\n([\s\S]*?)\r?\n```/g;
 
 // Get the server port for API calls
 const getServerPort = () => parseInt(process.env.PORT || '8000', 10);
@@ -101,6 +102,7 @@ async function processTaskCreation(content: string): Promise<void> {
     } catch (error) {
       const err = error as Error;
       console.error('[AssistantManager] Failed to parse task data:', err.message);
+      console.warn('[AssistantManager] Raw JSON (first 200 chars):', match[1].slice(0, 200));
       results.push({
         success: false,
         title: 'Unknown',

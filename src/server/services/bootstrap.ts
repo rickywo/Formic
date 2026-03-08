@@ -188,6 +188,9 @@ export async function createBootstrapTask(): Promise<Task> {
     docsPath: `.formic/tasks/${BOOTSTRAP_TASK_ID}_${BOOTSTRAP_TASK_SLUG}`,
     agentLogs: [],
     pid: null,
+    safePointCommit: null,
+    retryCount: null,
+    fixForTaskId: null,
   };
 }
 

@@ -3,270 +3,89 @@
 </p>
 
 <p align="center">
-  <strong>The Local-First Agent Orchestration Environment</strong>
-</p>
-
-<p align="center">
-  <em>Vibe Coding with autonomous agents. Your repo, your rules, their labor.</em>
-</p>
-
-<p align="center">
   <a href="https://www.npmjs.com/package/@rickywo/formic"><img src="https://img.shields.io/npm/v/@rickywo/formic?style=flat-square&logo=npm&color=CB3837" alt="npm"></a>
-  <a href="#quickstart"><img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker" alt="Docker Ready"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
-  <img src="https://img.shields.io/badge/Version-0.6.0-blue?style=flat-square" alt="Version 0.6.0">
   <img src="https://img.shields.io/badge/PWA-Ready-5A0FC8?style=flat-square&logo=pwa" alt="PWA Ready">
   <img src="https://img.shields.io/badge/Built%20with-Claude-blueviolet?style=flat-square" alt="Built with Claude">
 </p>
 
-<p align="center">
-  <a href="#quickstart">Quickstart</a> •
-  <a href="#-whats-new-in-v060">What's New</a> •
-  <a href="#why-formic">Why?</a> •
-  <a href="#features">Features</a> •
-  <a href="#supported-agents">Agents</a> •
-  <a href="#documentation">Docs</a>
-</p>
+Get a fully automated, local-first AI coding agent in less than 30 seconds (seriously).
+
+Formic is a zero-config **Command Center** that sits natively on top of your codebase. It drives the official [`@anthropic-ai/claude-code`](https://docs.anthropic.com/en/docs/claude-code) or [GitHub Copilot CLI](https://githubnext.com/projects/copilot-cli/) directly on your local machine, giving you an automated task queue, a mobile UI, and Telegram/LINE integration.
+
+Stop copy-pasting code. Define the task, queue it up, and let the agent do the labor.
 
 ---
 
-<p align="center">
-  <img src="images/screenshot.png" alt="Formic Dashboard" width="800">
-  <br>
-  <em>Mission Control for your AI coding agents</em>
-</p>
+## Quick Start
+
+You don't need to clone this repository. Just open your terminal in any project folder and run:
+
+```bash
+npx formic@latest start
+```
+
+This automatically launches the Formic backend and opens the dashboard at `http://localhost:8000`.
+
+<!-- TODO: Add GIF showing npx start -->
+
+### Requirements
+
+- **Node.js 20+**
+- The official **Claude Code CLI** OR **GitHub Copilot CLI** authenticated on your machine
+
+No Docker or complex setup required. Formic uses your native environment.
+
+### Global Install (Optional)
+
+```bash
+npm install -g @rickywo/formic
+
+cd your-project
+formic start
+```
+
+| Command | Description |
+|---------|-------------|
+| `formic start` | Start the Formic server (default: port 8000) |
+| `formic start --port 3000` | Start on a custom port |
+| `formic --help` | Show help and available commands |
 
 ---
 
 ## Why Formic?
 
-**The Problem:** You have an AI coding agent. You have a codebase. But every task becomes a context dump, a prompt engineering session, and a prayer that the agent remembers what you told it five minutes ago.
+- **Native Local Execution** — Runs directly in your environment. No Docker containers or volume mounts. Instant access to your local git, linters, and compilers.
 
-**The Solution:** Formic sits between you and your AI agent like a competent project manager. You describe what you want. Formic breaks it into specs, plans, and subtasks. The agent executes. You review.
+- **Immune to API Bans** — Drives the official CLIs locally. Your code never leaves your machine, and your access won't get revoked.
+
+- **Automated Task Queue** — Stack 10 tasks in the board. The agent runs them sequentially without human intervention.
+
+- **Mobile Tactical View** — Connect via your phone (PWA). Add tasks and watch terminal logs stream live while away from your desk.
+
+- **Text Your Codebase** — Natively integrates with Telegram and LINE. Text your repo to queue up a refactor while at the gym.
+
+- **Multi-Workspace** — Manage your frontend, backend, and mobile repositories from a single dashboard.
+
+---
+
+## How It Works
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  You: "Add dark mode"                               │
-│           ↓                                         │
-│  Formic: Queue task (priority: high/medium/low)     │
-│           ↓                                         │
-│  Formic: Generates README.md (spec)                 │
-│           ↓                                         │
-│  Formic: Generates PLAN.md + subtasks.json          │
-│           ↓                                         │
-│  Agent: Implements all subtasks autonomously        │
-│           ↓                                         │
-│  You: Review, approve, ship                         │
-└─────────────────────────────────────────────────────┘
+You: "Add dark mode"
+      ↓
+Formic: Queue task → Generate spec (README.md) → Create plan (PLAN.md + subtasks.json)
+      ↓
+Agent: Implements all subtasks autonomously
+      ↓
+You: Review, approve, ship
 ```
-
-**Vibe Coding Philosophy:**
-- 🐜 **Agents do the labor** — You define intent, they write code
-- ⚡ **Local-first** — Your repo, your machine, zero cloud lock-in
-- 🎯 **Structured autonomy** — Every task gets specs, plans, and tracked subtasks
-
-### 🔄 Built With Itself
-
-**Formic is built using Formic.** We use this tool on mobile devices to develop the app itself — queuing tasks from anywhere, reviewing agent output on the go, and shipping features without touching a keyboard.
-
-<p align="center">
-  <!-- TODO: Add GIF showing mobile development workflow -->
-  <img src="images/formic-mobile-dev.gif" alt="Building Formic with Formic on mobile" width="300">
-  <br>
-  <em>Developing Formic from a mobile device using Formic itself</em>
-</p>
-
----
-
-## 🆕 What's New in v0.6.0
-
-### 🗄️ Global Config Store — Just `npm run dev`
-
-Configuration now persists at `~/.formic/config.json` instead of browser localStorage. The server auto-resolves your workspace from config, so you can simply run `npm run dev` — no `WORKSPACE_PATH` env var needed.
-
-- **Persistent config** — Workspaces, settings, and preferences survive browser clears
-- **Auto-resolve workspace** — Server reads active workspace from `~/.formic/config.json`
-- **Migration** — Existing localStorage data auto-migrates on first load
-
-### 💬 Telegram & LINE Messaging Integration
-
-Create and manage tasks directly from Telegram or LINE messaging apps. AI-powered conversations let you describe tasks in natural language from your phone.
-
-- **Task creation** — Send a message to create a task instantly
-- **Board commands** — `/board`, `/status`, `/run` for quick task management
-- **Real-time notifications** — Get notified when tasks complete, fail, or need review
-- **AI conversations** — Natural language task creation with codebase-aware context
-
-### ⚡ Quick Tasks
-
-New task type that skips the brief/plan steps and goes straight to execution — perfect for simple one-off tasks like "create a file" or "fix a typo".
-
-### 📸 MCP Screenshot Support
-
-Screenshot capture via Playwright MCP tools in messaging bot context. Take screenshots of any webpage and receive them directly in Telegram or LINE.
-
----
-
-## What's New in v0.5.0
-
-### 📦 npm Global Install — Run Formic Anywhere
-
-Formic is now available on npm. Install globally and run in any project directory with a single command.
-
-```bash
-# Install globally
-npm install -g @rickywo/formic
-
-# Initialize and start in any project
-cd your-project
-formic init
-formic start
-```
-
-**CLI Commands:**
-| Command | Description |
-|---------|-------------|
-| `formic init` | Initialize Formic in the current directory (creates `.formic/`) |
-| `formic start` | Start the Formic server (default: port 8000) |
-| `formic start --port 3000` | Start on a custom port |
-| `formic --help` | Show help and available commands |
-| `formic --version` | Show version number |
-
----
-
-## What's New in v0.4.0
-
-### 🗂️ Multi-Workspace Support — Switch Projects Seamlessly
-
-Formic now supports **multiple workspaces** in a single session. Switch between different project repositories without restarting the server. Each workspace maintains its own board state, tasks, and configuration.
-
-<p align="center">
-  <!-- TODO: Add screenshot of workspace switcher -->
-  <img src="images/formic-workspace-switcher.png" alt="Workspace Switcher" width="600">
-  <br>
-  <em>Switch between projects with a single click</em>
-</p>
-
-**Key Features:**
-- 🔄 **Live Workspace Switching** — Change projects without restarting
-- 📁 **Path Validation** — Validates directories before switching
-- 📊 **Workspace Info** — Shows task counts and last activity per workspace
-- 🔔 **Real-Time Sync** — WebSocket broadcasts workspace changes to all clients
-- ✨ **Auto-Initialize** — Creates `.formic` directory for new workspaces
-
-### 🤖 Improved AI Task Manager
-
-- **Multiple Task Creation** — Create multiple tasks in a single response
-- **GitHub Copilot CLI Support** — Full integration with Copilot for task creation
-- **Cleaner Output** — Filters XML tool calls from Copilot responses
-
-### 🔧 Bug Fixes & Improvements
-
-- **Stall Detection** — Tasks no longer hang on manual testing subtasks
-- **UI Fixes** — Project brief panel and workspace input field visibility improved
-
----
-
-## What's New in v0.3.0
-
-### 📱 Progressive Web App (PWA) — Work From Anywhere
-
-Formic is now a **full Progressive Web App**. Install it on your mobile device for a native-like experience. Combined with [Tailscale](https://tailscale.com), you can securely connect to your development machine and orchestrate Claude Code or GitHub Copilot from anywhere in the world.
-
-<p align="center">
-  <!-- TODO: Add screenshot of PWA on mobile with Tailscale connection -->
-  <img src="images/formic-pwa-mobile.png" alt="Formic PWA on mobile" width="300">
-  <br>
-  <em>Formic PWA connected via Tailscale — full mission control in your pocket</em>
-</p>
-
-**Key PWA Features:**
-- 📲 **Install on any device** — iOS, Android, desktop
-- 🔒 **Secure remote access** — Use Tailscale for encrypted connection to your home/office server
-- ⚡ **Instant load** — Cached assets for lightning-fast startup
-- 🔔 **Native feel** — Full-screen mode, app icon, no browser chrome
-
----
-
-### 🤖 AI Task Manager — Talk to Create Tasks
-
-The new **AI Task Manager** understands your repository deeply. Just describe what you want in natural language — from your phone, your tablet, anywhere — and it crafts optimized prompts automatically.
-
-<p align="center">
-  <!-- TODO: Add screenshot of AI Task Manager chat interface -->
-  <img src="images/formic-ai-task-manager.png" alt="AI Task Manager" width="300">
-  <br>
-  <em>Chat with the AI Task Manager to create perfectly-crafted tasks</em>
-</p>
-
-<p align="center">
-  <!-- TODO: Add screenshot of AI Task Manager chat interface -->
-  <img src="images/formic-ai-task-manager-outcome.png" alt="AI Task Manager" width="300">
-  <br>
-  <em>The Task created by Task Manager</em>
-</p>
-
-**How it works:**
-1. 💬 **Describe your intent** — "Add user profile editing" or "Fix the mobile menu bug"
-2. 🧠 **AI understands context** — Analyzes your codebase structure, patterns, and conventions
-3. ✨ **Optimized prompt** — Generates a task with the right context for maximum agent effectiveness
-4. 📋 **Auto-queued** — Task appears in your Kanban board, ready for the agent
-
----
-
-### 🚀 Autonomous Queue Processing — Set It and Forget It
-
-Queue tasks from anywhere and let the agents work while you sleep. No buttons to push. No manual triggers. Just prioritize and go.
-
-<p align="center">
-  <!-- TODO: Add GIF showing autonomous queue processing -->
-  <img src="images/formic-queue-auto.gif" alt="Autonomous Queue Processing" width="600">
-  <br>
-  <em>Tasks flow through the queue automatically — Brief → Plan → Execute → Review</em>
-</p>
-
-**The Autonomous Workflow:**
-- 📱 **Remote prioritization** — Drag and drop tasks on your phone to reorder the queue
-- ⏳ **Smart queuing** — High priority tasks run first, then medium, then low
-- 🔄 **Continuous processing** — Agent picks up the next task automatically when one finishes
-- 📊 **Real-time status** — Watch progress from anywhere via WebSocket streaming
-
----
-
-## Quickstart
-
-### 📦 npm (Recommended)
-
-```bash
-# Install globally
-npm install -g @rickywo/formic
-
-# In your project directory
-cd your-project
-formic init
-formic start
-```
-
-Open `http://localhost:8000` and start creating tasks.
-
-### 🐳 Docker
-
-```bash
-docker run -p 8000:8000 \
-  -v /path/to/your/project:/app/workspace \
-  -e ANTHROPIC_API_KEY=your-api-key \
-  ghcr.io/your-org/formic:latest
-```
-
-### Three Steps to Autonomous Development
 
 1. **Create a task** — Describe what you want in plain English
 2. **Run or Queue** — Click **Run** for immediate execution, or **Queue** to add to the priority queue
 3. **Review & ship** — Agent moves completed work to Review for your approval
 
-That's it. No prompt engineering. No context management. No babysitting.
-
-> **Tip:** Use the Queue system to batch multiple tasks. High-priority tasks automatically run before medium and low priority ones.
+No prompt engineering. No context management. No babysitting.
 
 ---
 
@@ -274,92 +93,55 @@ That's it. No prompt engineering. No context management. No babysitting.
 
 | Feature | Description |
 |---------|-------------|
-| 🗂️ **Multi-Workspace** | Switch between project repositories without restarting — each with its own board and tasks |
-| 📱 **PWA Ready** | Install on any device — mobile, tablet, desktop — for native-like experience |
-| 🤖 **AI Task Manager** | Chat with AI to create tasks — it understands your codebase and crafts optimal prompts |
-| 🚀 **Autonomous Queue** | Set priority and forget — agents process tasks automatically, no manual triggers |
-| 🐜 **Kanban Board** | Drag-and-drop task management across `todo`, `queued`, `running`, `review`, `done` |
-| 📊 **Priority Queue** | Smart queueing system with priority-based ordering (high → medium → low) |
-| ⚡ **Live Terminal** | Real-time agent output streaming via WebSocket |
-| 📋 **Auto-Documentation** | Every task gets README.md, PLAN.md, and structured subtasks |
-| 🔄 **Iterative Execution** | Agent loops until all subtasks are complete (configurable iterations) |
-| 🎯 **Smart Bootstrap** | Auto-generates project-specific coding guidelines on first run |
-| 💬 **Messaging Integration** | Create and manage tasks from Telegram or LINE with AI-powered conversations and notifications |
-| ⚡ **Quick Tasks** | Skip brief/plan steps — go straight to execution for simple one-off tasks |
-| 🔌 **Multi-Agent** | Switch between Claude Code CLI and GitHub Copilot CLI |
-| 🌙 **Theme Support** | Dark, Light, and Auto theme modes |
-| 🔒 **Remote Access** | Use with Tailscale for secure remote development from anywhere |
-
-### Workflow
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  TODO → Task created, ready to run or queue                 │
-│           ↓                                                 │
-│  QUEUED → Waiting in priority queue (high > medium > low)   │
-│           ↓                                                 │
-│  BRIEF → Generate README.md (what to build)                 │
-│           ↓                                                 │
-│  PLAN  → Generate PLAN.md + subtasks.json (how to build)    │
-│           ↓                                                 │
-│  EXECUTE → Iterative loop until all subtasks complete       │
-│           ↓                                                 │
-│  REVIEW → Ready for human review                            │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Priority Queue System
-
-Tasks can be queued for automated execution with priority-based ordering:
-
-- **High priority** tasks run first
-- **Medium priority** tasks run after high
-- **Low priority** tasks run last
-- Within the same priority, tasks run in FIFO order (first queued, first run)
-
-Queue position is displayed on each queued task card. Configure concurrency with `MAX_CONCURRENT_TASKS`.
+| **Kanban Board** | Drag-and-drop task management across todo, queued, running, review, done |
+| **Priority Queue** | High → medium → low ordering with configurable concurrency |
+| **AI Task Manager** | Chat with AI to create tasks — it understands your codebase |
+| **Live Terminal** | Real-time agent output streaming via WebSocket |
+| **Auto-Documentation** | Every task gets README.md, PLAN.md, and structured subtasks |
+| **Quick Tasks** | Skip brief/plan steps for simple one-off tasks |
+| **PWA Ready** | Install on any device — mobile, tablet, desktop |
+| **Multi-Agent** | Switch between Claude Code CLI and GitHub Copilot CLI |
+| **Messaging Integration** | Create and manage tasks from Telegram or LINE |
+| **Multi-Workspace** | Switch between projects without restarting |
+| **Theme Support** | Dark, light, and auto modes |
+| **Remote Access** | Use with Tailscale for secure remote development |
 
 ---
 
 ## Supported Agents
 
-| Agent | Command | Auth | Status |
-|-------|---------|------|--------|
-| **Claude Code CLI** | `claude` | `ANTHROPIC_API_KEY` | ✅ Default |
-| **GitHub Copilot CLI** | `copilot` | GitHub OAuth | ✅ Supported |
-
-Switch agents via environment variable:
+| Agent | Command | Auth |
+|-------|---------|------|
+| **Claude Code CLI** | `claude` | `ANTHROPIC_API_KEY` |
+| **GitHub Copilot CLI** | `copilot` | GitHub OAuth |
 
 ```bash
 # Claude (default)
 export AGENT_TYPE=claude
-export ANTHROPIC_API_KEY=your-key
 
 # GitHub Copilot
 export AGENT_TYPE=copilot
-# Uses your existing GitHub auth
 ```
 
 ---
 
-## Documentation
+## Texting Your Repo
 
-### Project Structure
+Want to dispatch agents from your phone using Telegram or LINE?
 
-```
-your-project/
-├── src/
-├── package.json
-└── .formic/                      # Auto-created
-    ├── board.json                # Kanban state
-    └── tasks/
-        └── t-1_add-dark-mode/
-            ├── README.md         # Feature spec
-            ├── PLAN.md           # Implementation plan
-            └── subtasks.json     # Tracked progress
-```
+1. Open the Formic Dashboard settings
+2. Paste your Telegram Bot Token (or LINE credentials)
+3. Formic automatically handles the local webhook tunneling
 
-### Environment Variables
+You can now text tasks directly to your codebase.
+
+> For secure mobile browser access without exposing ports, we recommend running Formic over [Tailscale](https://tailscale.com).
+
+See the full setup guide: [Messaging Integration Guide](docs/MESSAGING_INTEGRATION_GUIDE.md)
+
+---
+
+## Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -368,186 +150,67 @@ your-project/
 | `WORKSPACE_PATH` | Project directory | `./workspace` |
 | `AGENT_TYPE` | Agent to use (`claude` or `copilot`) | `claude` |
 | `AGENT_COMMAND` | Override agent CLI command | (derived from AGENT_TYPE) |
-| `ANTHROPIC_API_KEY` | Claude API key | Required for Claude |
-| `QUEUE_ENABLED` | Enable/disable queue processor | `true` |
 | `QUEUE_POLL_INTERVAL` | Queue polling interval (ms) | `5000` |
 | `MAX_CONCURRENT_TASKS` | Max simultaneous running tasks | `1` |
 | `MAX_EXECUTE_ITERATIONS` | Max execute loop iterations | `5` |
-| `STEP_TIMEOUT_MS` | Timeout per workflow step (ms) | `600000` (10 min) |
-| `TELEGRAM_BOT_TOKEN` | Telegram Bot API token (from @BotFather) | (disabled) |
-| `LINE_CHANNEL_ACCESS_TOKEN` | Line Messaging API channel access token | (disabled) |
-| `LINE_CHANNEL_SECRET` | Line Messaging API channel secret | (disabled) |
-
-### API
-
-**Board & Tasks**
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/board` | Fetch board state with all tasks |
-| `POST /api/tasks` | Create task (title, context, priority) |
-| `PUT /api/tasks/:id` | Update task properties |
-| `DELETE /api/tasks/:id` | Delete task |
-
-**Execution & Queue**
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/tasks/:id/run` | Execute full workflow (brief → plan → execute) |
-| `POST /api/tasks/:id/queue` | Add task to priority queue |
-| `POST /api/tasks/:id/stop` | Stop running workflow |
-
-**Workflow Steps** (granular control)
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/tasks/:id/workflow/brief` | Run only brief step |
-| `POST /api/tasks/:id/workflow/plan` | Run only plan step |
-| `POST /api/tasks/:id/workflow/execute` | Run only execute step |
-
-**Subtasks**
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/tasks/:id/subtasks` | Get all subtasks |
-| `PUT /api/tasks/:id/subtasks/:subtaskId` | Update subtask status |
-| `GET /api/tasks/:id/subtasks/completion` | Get completion stats |
-
-**Config**
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/config` | Get full config (workspaces, settings) |
-| `POST /api/config/workspaces` | Add a workspace |
-| `DELETE /api/config/workspaces/:id` | Remove a workspace |
-| `PUT /api/config/active-workspace` | Set active workspace |
-| `GET /api/config/settings/:key` | Get a single setting |
-| `PUT /api/config/settings/:key` | Update a single setting |
-| `POST /api/config/migrate` | Migrate config from localStorage |
-
-**Messaging & Webhooks**
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/webhooks/telegram` | Telegram bot webhook |
-| `POST /api/webhooks/line` | Line messaging webhook |
-| `GET /api/messaging/status` | Messaging integration status |
-| `GET /api/messaging/sessions` | List messaging sessions |
-| `POST /api/messaging/telegram/set-webhook` | Set Telegram webhook URL |
-
-**WebSocket**
-| Endpoint | Description |
-|----------|-------------|
-| `WS /ws/logs/:taskId` | Stream real-time agent output |
-
-Full API reference in [SPEC.md](SPEC.md).
+| `STEP_TIMEOUT_MS` | Timeout per workflow step (ms) | `600000` |
+| `TELEGRAM_BOT_TOKEN` | Telegram Bot API token | (disabled) |
+| `LINE_CHANNEL_ACCESS_TOKEN` | LINE channel access token | (disabled) |
+| `LINE_CHANNEL_SECRET` | LINE channel secret | (disabled) |
 
 ---
 
-## Tech Stack
+## Documentation
 
-| Component | Technology |
-|-----------|------------|
-| Runtime | Node.js 20 + TypeScript |
-| Server | Fastify |
-| WebSocket | @fastify/websocket |
-| Frontend | Vanilla JS + Tailwind CSS |
-| Terminal | xterm.js |
-| Font | Inter (Google Fonts) |
-| Agent | Claude Code / GitHub Copilot |
-| Deployment | Docker |
+| Document | Description |
+|----------|-------------|
+| [Messaging Integration Guide](docs/MESSAGING_INTEGRATION_GUIDE.md) | Set up Telegram and LINE bot integration |
+| [NPM Publish Guide](docs/NPM_PUBLISH_GUIDE.md) | Publishing Formic to npm |
+| [API Specification](SPEC.md) | Full REST API reference |
+| [Explanation](EXPLANATION.md) | In-depth architecture and design overview |
+| [Test Suite](test/README.md) | Running the E2E and API test suites |
 
----
+### Phase Documentation (Internal)
 
-## Development
-
-```bash
-# Clone
-git clone https://github.com/your-org/formic.git
-cd formic
-
-# Install
-npm install
-
-# Run (development) — auto-resolves workspace from ~/.formic/config.json
-npm run dev
-
-# Or specify a workspace explicitly
-WORKSPACE_PATH=/path/to/project npm run dev
-
-# Build
-npm run build
-
-# Run (production)
-npm start
-```
-
----
-
-## Roadmap
-
-### v0.6.0 (Current)
-- [x] **Global Config Store** — Config persists at `~/.formic/config.json`, no more localStorage
-- [x] **Telegram & LINE Integration** — Create and manage tasks from messaging apps
-- [x] **Quick Tasks** — Skip brief/plan for simple one-off execution
-- [x] **MCP Screenshot Support** — Capture screenshots via Playwright MCP in messaging context
-- [x] **Simplified DX** — `npm run dev` just works without `WORKSPACE_PATH`
-
-### v0.5.0
-- [x] **npm Global Install** — Install via `npm install -g @rickywo/formic`
-- [x] **CLI Commands** — `formic init` and `formic start` for easy setup
-- [x] **Portable Package** — Works in any project directory
-
-### v0.4.0
-- [x] **Multi-Workspace Support** — Switch between projects without restarting
-- [x] **Multiple Task Creation** — AI can create multiple tasks in a single response
-- [x] **GitHub Copilot Integration** — Full AI Task Manager support for Copilot CLI
-- [x] **Stall Detection** — Tasks auto-complete when stuck on manual testing subtasks
-- [x] **UI/UX Improvements** — Better workspace input visibility and panel layouts
-
-### v0.3.0
-- [x] **Progressive Web App (PWA)** — Install on mobile/tablet for native experience
-- [x] **AI Task Manager** — Chat interface to create tasks with codebase-aware prompts
-- [x] **Autonomous Queue Processing** — Agents run continuously, no manual triggers
-- [x] **Mobile-first UI** — Optimized for touch, responsive design
-- [x] **Remote Access via Tailscale** — Secure development from anywhere
-
-### v0.2.0
-- [x] Kanban board with drag-and-drop
-- [x] Live terminal output streaming
-- [x] Auto-bootstrap project guidelines
-- [x] 3-step workflow (brief → plan → execute)
-- [x] Iterative execution with subtask tracking
-- [x] Multi-agent support (Claude + Copilot)
-- [x] Priority-based task queue system
-- [x] Configurable concurrency limits
-- [x] Theme support (dark/light/auto)
-
-### Future
-- [ ] Task dependencies and workflows
-- [ ] Git auto-commit per task
-- [ ] Cloud deployment option
-- [ ] Team collaboration features
-- [ ] Custom agent configurations
+| Phase | Description |
+|-------|-------------|
+| [01 — Project Foundation](docs/01_project_foundation/README.md) | Initial project setup and structure |
+| [02 — Data Layer](docs/02_data_layer/README.md) | Board and task persistence |
+| [03 — Agent Runner](docs/03_agent_runner/README.md) | Agent execution and process management |
+| [04 — Frontend](docs/04_frontend/README.md) | Dashboard UI and client |
+| [05 — Docker Deployment](docs/05_docker_deployment/README.md) | Container deployment setup |
+| [07 — Project Bootstrap](docs/07_project_bootstrap/README.md) | Auto-generated project guidelines |
+| [08 — Skill Workflow](docs/08_skill_workflow/README.md) | Skill prompt system |
+| [09 — Subtask Management](docs/09_subtask_management/README.md) | Subtask tracking and completion |
+| [10 — Multi-Agent Support](docs/10_multi_agent_support/README.md) | Claude and Copilot CLI support |
+| [11 — Chat Agent Context](docs/11_chat_agent_context/README.md) | AI Task Manager chat context |
 
 ---
 
 ## Contributing
 
-Contributions welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting PRs.
+Formic is built with the "Vibe Coding" philosophy. In fact, v0.6 was built autonomously by the Formic v0.5 agent!
 
 ```bash
-# Run tests
-npm test
+# Clone
+git clone https://github.com/rickywo/formic.git
+cd formic
 
-# Lint
-npm run lint
+# Install
+npm install
+
+# Start dev server (auto-resolves workspace from ~/.formic/config.json)
+npm run dev
 ```
 
 ---
 
 ## License
 
-[MIT](LICENSE) — Use it, fork it, ship it.
+[MIT](LICENSE)
 
 ---
 
 <p align="center">
-  <strong>🐜 Formic</strong>
-  <br>
-  <em>Let the agents do the work.</em>
+  <strong>Formic</strong> — Let the agents do the work.
 </p>

@@ -9,6 +9,7 @@ import { assistantRoutes } from './routes/assistant.js';
 import { workspaceRoutes } from './routes/workspace.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { configRoutes } from './routes/config.js';
+import { toolRoutes } from './routes/tools.js';
 import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { getAgentType, getAgentCommand, getAgentDisplayName, validateAgentEnv } from './services/agentAdapter.js';
@@ -101,6 +102,7 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   await fastify.register(workspaceRoutes);
   await fastify.register(webhookRoutes);
   await fastify.register(configRoutes);
+  await fastify.register(toolRoutes);
 
   // Register WebSocket routes
   await fastify.register(logsWebSocket);

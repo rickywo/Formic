@@ -1,12 +1,15 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, execFile, type ChildProcess } from 'node:child_process';
+import { promisify } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+
+const execFileAsync = promisify(execFile);
 import type { WebSocket } from 'ws';
-import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask } from './store.js';
+import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
-import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions } from './leaseManager.js';
+import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease } from './leaseManager.js';
 import {
   loadSubtasks,
   isAllComplete,
@@ -15,14 +18,21 @@ import {
   subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
+import { createSafePoint } from '../utils/gitUtils.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
-import { broadcastBoardUpdate } from './boardNotifier.js';
+import { broadcastBoardUpdate, broadcastKillSwitch, broadcastTaskCompleted } from './boardNotifier.js';
+import { stopQueueProcessor } from './queueProcessor.js';
+import { broadcastToWorkspace } from './messagingNotifier.js';
+import { addMemory } from './memory.js';
+import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
 
 const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 const MAX_EXECUTE_ITERATIONS = parseInt(process.env.MAX_EXECUTE_ITERATIONS || '5', 10);
-const STEP_TIMEOUT_MS = parseInt(process.env.STEP_TIMEOUT_MS || '600000', 10); // 10 minutes default
+const STEP_TIMEOUT_MS = parseInt(process.env.STEP_TIMEOUT_MS || '6000000', 10); // 10 minutes default
+const VERIFY_COMMAND = process.env.VERIFY_COMMAND || '';
+const SKIP_VERIFY = process.env.SKIP_VERIFY === 'true';
 
 /**
  * Load the project development guidelines if they exist
@@ -113,7 +123,7 @@ async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<v
 /**
  * Append logs to workflow logs for a specific step
  */
-async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute' | 'architect', logs: string[]): Promise<void> {
+async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute' | 'architect' | 'verify', logs: string[]): Promise<void> {
   const board = await loadBoard();
   const task = board.tasks.find(t => t.id === taskId);
   if (task) {
@@ -371,9 +381,15 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
         data: `\n[YIELD] Cannot acquire file leases - conflicts on: ${leaseResult.conflictingFiles.join(', ')}\n`,
         timestamp: new Date().toISOString(),
       });
+      if (leaseResult.conflictingFiles.length > 0) {
+        const blockedOnFile = leaseResult.conflictingFiles[0];
+        recordWait(taskId, blockedOnFile);
+        await preemptLease(taskId, blockedOnFile);
+      }
       return false;
     }
 
+    clearWait(taskId);
     broadcastToTask(taskId, {
       type: 'stdout',
       data: `\n[LEASES] Acquired ${leaseResult.leases.length} file lease(s)\n`,
@@ -668,6 +684,268 @@ async function executeWithIterativeLoop(
 }
 
 /**
+ * Run the verification command against the workspace.
+ * Returns { success: true } immediately when SKIP_VERIFY or VERIFY_COMMAND is unset.
+ */
+async function executeVerifyStep(taskId: string): Promise<{ success: boolean; stderrLines: string[] }> {
+  if (SKIP_VERIFY || !VERIFY_COMMAND) {
+    console.log('[Verifier] Skipping verification (SKIP_VERIFY or no VERIFY_COMMAND)');
+    return { success: true, stderrLines: [] };
+  }
+
+  await updateTaskStatus(taskId, 'verifying', null);
+  await updateWorkflowStep(taskId, 'verify');
+
+  broadcastToTask(taskId, {
+    type: 'stdout',
+    data: '\n========== Starting VERIFY step ==========\n',
+    timestamp: new Date().toISOString(),
+  });
+
+  const parts = VERIFY_COMMAND.split(' ');
+  const cmd = parts[0];
+  const args = parts.slice(1);
+  const logBuffer: string[] = [];
+  const stderrLines: string[] = [];
+
+  return new Promise((resolve) => {
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(cmd, args, {
+        cwd: getWorkspacePath(),
+        env: { ...process.env },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.log(`[Verifier] Failed to spawn verification command: ${message}`);
+      resolve({ success: false, stderrLines: [message] });
+      return;
+    }
+
+    child.on('error', (err: NodeJS.ErrnoException) => {
+      const message = err.message;
+      console.log(`[Verifier] Failed to spawn verification command: ${message}`);
+      resolve({ success: false, stderrLines: [message] });
+    });
+
+    child.stdout?.on('data', (data: Buffer) => {
+      const text = data.toString();
+      logBuffer.push(...text.split('\n').filter(l => l.length > 0));
+      while (logBuffer.length > 100) logBuffer.shift();
+      broadcastToTask(taskId, { type: 'stdout', data: text, timestamp: new Date().toISOString() });
+    });
+
+    child.stderr?.on('data', (data: Buffer) => {
+      const text = data.toString();
+      const lines = text.split('\n').filter(l => l.length > 0);
+      logBuffer.push(...lines);
+      stderrLines.push(...lines);
+      while (logBuffer.length > 100) logBuffer.shift();
+      while (stderrLines.length > 100) stderrLines.shift();
+      broadcastToTask(taskId, { type: 'stderr', data: text, timestamp: new Date().toISOString() });
+    });
+
+    child.on('close', async (code) => {
+      await appendWorkflowLogs(taskId, 'verify', logBuffer);
+
+      broadcastToTask(taskId, {
+        type: 'exit',
+        data: `[VERIFY] Step completed with code ${code}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (code === 0) {
+        console.log('[Verifier] Verification PASSED');
+        resolve({ success: true, stderrLines: [] });
+      } else {
+        console.log(`[Verifier] Verification FAILED (exit code ${code})`);
+        resolve({ success: false, stderrLines });
+      }
+    });
+  });
+}
+
+/**
+ * On verify failure: increment retryCount; create a Fix task or engage kill switch after 3 failures.
+ */
+async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Promise<void> {
+  const board = await loadBoard();
+  const task = board.tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  const newRetryCount = (task.retryCount ?? 0) + 1;
+  task.retryCount = newRetryCount;
+  await saveBoard(board);
+  console.log(`[Critic] Task ${taskId} retry count: ${newRetryCount}`);
+
+  if (newRetryCount >= 3) {
+    console.log(`[Critic] Kill switch activated for task ${taskId} after ${newRetryCount} failed verifications`);
+
+    if (task.safePointCommit) {
+      try {
+        await execFileAsync('git', ['reset', '--hard', task.safePointCommit], { cwd: getWorkspacePath() });
+        console.log(`[Critic] Workspace reverted to safe point ${task.safePointCommit}`);
+      } catch (err) {
+        console.warn('[Critic] Failed to revert to safe point:', err instanceof Error ? err.message : 'Unknown error');
+      }
+    } else {
+      console.warn(`[Critic] No safePointCommit on task ${taskId}, skipping git reset`);
+    }
+
+    stopQueueProcessor();
+    console.log('[Critic] Queue processor stopped by kill switch');
+
+    broadcastKillSwitch(taskId);
+
+    try {
+      await broadcastToWorkspace(getWorkspacePath(), {
+        chatId: '',
+        text: `🚨 *Kill Switch Activated*\n\nTask \`${taskId}\` has failed verification 3 times.\nQueue paused. Workspace reverted to safe point.`,
+        parseMode: 'markdown',
+      });
+    } catch (err) {
+      console.warn('[Critic] Failed to send kill switch messaging notification:', err instanceof Error ? err.message : 'Unknown error');
+    }
+
+    await updateTaskStatus(taskId, 'todo', null);
+    return;
+  }
+
+  const errorSnippet = stderrLines.slice(-100).join('\n');
+  const fixContext = `Auto-fix for task ${taskId}: ${task.title}\n\nVerification failed with the following error:\n\`\`\`\n${errorSnippet}\n\`\`\`\n\nPlease fix the code so that the verification command passes.\n\nOriginal task context:\n${task.context}`;
+
+  const fixTask = await createTask({
+    title: `Fix: ${task.title}`,
+    context: fixContext,
+    priority: 'high',
+    type: 'quick',
+    fixForTaskId: taskId,
+  });
+  await queueTask(fixTask.id);
+  await updateTaskStatus(taskId, 'todo', null);
+  broadcastBoardUpdate();
+  console.log(`[Critic] Created fix task ${fixTask.id} for task ${taskId} (retry ${newRetryCount}/3)`);
+}
+
+// ==================== Reflection Step ====================
+
+interface ReflectionEntry {
+  type: 'pattern' | 'pitfall' | 'preference';
+  content: string;
+  relevance_tags: string[];
+}
+
+function isReflectionEntry(val: unknown): val is ReflectionEntry {
+  if (typeof val !== 'object' || val === null) return false;
+  const obj = val as Record<string, unknown>;
+  return (
+    (obj['type'] === 'pattern' || obj['type'] === 'pitfall' || obj['type'] === 'preference') &&
+    typeof obj['content'] === 'string' &&
+    Array.isArray(obj['relevance_tags']) &&
+    (obj['relevance_tags'] as unknown[]).every((t) => typeof t === 'string')
+  );
+}
+
+function parseReflectionOutput(output: string): ReflectionEntry[] {
+  const match = output.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[0]) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isReflectionEntry);
+  } catch {
+    return [];
+  }
+}
+
+/** Spawn the agent with a one-shot prompt and collect all output as a string. */
+function runAgentForOutput(prompt: string): Promise<string> {
+  return new Promise((resolve) => {
+    const agentCommand = getAgentCommand();
+    const agentArgs = buildAgentArgs(prompt);
+
+    const child = spawn(agentCommand, agentArgs, {
+      cwd: getWorkspacePath(),
+      env: { ...process.env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    const chunks: string[] = [];
+
+    child.stdout?.on('data', (data: Buffer) => {
+      chunks.push(data.toString());
+    });
+
+    child.stderr?.on('data', (data: Buffer) => {
+      chunks.push(data.toString());
+    });
+
+    const timeout = setTimeout(() => {
+      child.kill('SIGTERM');
+    }, 3 * 60 * 1000); // 3-minute timeout for reflection
+
+    child.on('error', () => {
+      clearTimeout(timeout);
+      resolve(chunks.join(''));
+    });
+
+    child.on('close', () => {
+      clearTimeout(timeout);
+      resolve(chunks.join(''));
+    });
+  });
+}
+
+/**
+ * Fire-and-forget reflection step: runs after a task transitions to 'review'.
+ * Prompts the agent to extract learnings and pitfalls, saves them as memory entries,
+ * and links the generated IDs back to the task via reflectionMemories.
+ * All errors are swallowed so this never blocks task completion.
+ */
+async function runReflectionStep(taskId: string): Promise<void> {
+  try {
+    const task = await getTask(taskId);
+    if (!task) return;
+
+    const prompt = `You have just completed task "${task.title}".
+
+Reflect on what was done and produce a JSON array of memory entries for future reference.
+Each entry must have: type ('pattern'|'pitfall'|'preference'), content (string), relevance_tags (string array of file paths or keywords).
+
+Output ONLY a valid JSON array, no markdown fences.
+Example:
+[
+  { "type": "pattern", "content": "Always use writeFile with { recursive: true } when creating nested dirs", "relevance_tags": ["node:fs", "file-system"] },
+  { "type": "pitfall", "content": "ESM imports require .js extension even for .ts source files", "relevance_tags": ["typescript", "esm", "imports"] }
+]`;
+
+    const output = await runAgentForOutput(prompt);
+    const entries = parseReflectionOutput(output);
+
+    const memoryIds: string[] = [];
+    for (const entry of entries) {
+      const memEntry = await addMemory({
+        type: entry.type,
+        content: entry.content,
+        source_task: taskId,
+        relevance_tags: entry.relevance_tags,
+      });
+      memoryIds.push(memEntry.id);
+    }
+
+    if (memoryIds.length > 0) {
+      await updateTask(taskId, { reflectionMemories: memoryIds });
+      broadcastBoardUpdate();
+      console.log(`[Workflow] Reflection step saved ${memoryIds.length} memory entries for task ${taskId}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.warn(`[Workflow] Reflection step failed for task ${taskId}:`, message);
+  }
+}
+
+/**
  * Execute a quick task (skips brief/plan stages, runs execute directly)
  * Quick tasks use task.context directly as the execution prompt
  */
@@ -683,6 +961,9 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
   }
 
   console.log(`[Workflow] Starting quick task execution for ${taskId}`);
+
+  // Create a git safe-point commit before execution for rollback support
+  await createSafePoint(taskId);
 
   // Load project guidelines
   const guidelines = await loadProjectGuidelines();
@@ -721,8 +1002,16 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
     releaseLeases(taskId);
 
     if (success) {
+      const verifyResult = await executeVerifyStep(taskId);
+      if (!verifyResult.success) {
+        await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+        return;
+      }
       await updateWorkflowStep(taskId, 'complete');
       await updateTaskStatus(taskId, 'review', null);
+      broadcastTaskCompleted(taskId);
+      internalEvents.emit(TASK_COMPLETED, taskId);
+      void runReflectionStep(taskId);
       broadcastToTask(taskId, {
         type: 'stdout',
         data: `\n[SUCCESS] Quick task completed. Ready for review.\n`,
@@ -809,11 +1098,17 @@ export async function executeSingleStep(
           console.log(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null);
+          broadcastTaskCompleted(taskId);
+          internalEvents.emit(TASK_COMPLETED, taskId);
+          void runReflectionStep(taskId);
         } else if (result.success && !result.allComplete) {
           // Max iterations reached but not all complete - still move to review with warning
           console.log(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null);
+          broadcastTaskCompleted(taskId);
+          internalEvents.emit(TASK_COMPLETED, taskId);
+          void runReflectionStep(taskId);
         } else {
           // Execution failed
           console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
@@ -940,6 +1235,9 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
 
   // Run steps sequentially
   (async () => {
+    // Create a git safe-point commit before execution for rollback support
+    await createSafePoint(taskId);
+
     // Step 1: Brief
     const briefSuccess = await runStep('brief');
     if (!briefSuccess) {
@@ -1015,8 +1313,16 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         // Guard against stale status updates: check if watchdog has already re-queued the task
         const latestTask = await getTask(taskId);
         if (latestTask && latestTask.status === 'running') {
-          await updateWorkflowStep(taskId, 'complete');
-          await updateTaskStatus(taskId, 'review', null);
+          const verifyResult = await executeVerifyStep(taskId);
+          if (!verifyResult.success) {
+            await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+          } else {
+            await updateWorkflowStep(taskId, 'complete');
+            await updateTaskStatus(taskId, 'review', null);
+            broadcastTaskCompleted(taskId);
+            internalEvents.emit(TASK_COMPLETED, taskId);
+            void runReflectionStep(taskId);
+          }
         } else {
           console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
         }
@@ -1071,6 +1377,63 @@ Each task must be self-contained and not reference other child tasks.
 Include a final task for integration testing/verification when appropriate.`;
 }
 
+/** Shape of a single task definition in architect-output.json */
+interface ArchitectTaskDef {
+  title: string;
+  context: string;
+  priority?: 'high' | 'medium' | 'low';
+  /** Architect-assigned symbolic ID for dependency references (optional, DAG mode only) */
+  task_id?: string;
+  /** Symbolic IDs of tasks this task depends on (optional, DAG mode only) */
+  depends_on?: string[];
+}
+
+/**
+ * Detect cycles in the architect-output DAG using Kahn's BFS topological sort.
+ * Returns true if a cycle is detected, false if the graph is acyclic.
+ */
+function detectDAGCycle(defs: ArchitectTaskDef[]): boolean {
+  const inDegree = new Map<string, number>();
+  const adjacency = new Map<string, string[]>();
+
+  for (const def of defs) {
+    if (typeof def.task_id !== 'string' || def.task_id.length === 0) continue;
+    if (!inDegree.has(def.task_id)) inDegree.set(def.task_id, 0);
+    if (!adjacency.has(def.task_id)) adjacency.set(def.task_id, []);
+  }
+
+  for (const def of defs) {
+    if (typeof def.task_id !== 'string' || def.task_id.length === 0) continue;
+    if (!Array.isArray(def.depends_on)) continue;
+
+    for (const dep of def.depends_on) {
+      if (!inDegree.has(dep)) continue; // unknown reference — skip
+      inDegree.set(def.task_id, (inDegree.get(def.task_id) ?? 0) + 1);
+      const neighbors = adjacency.get(dep) ?? [];
+      neighbors.push(def.task_id);
+      adjacency.set(dep, neighbors);
+    }
+  }
+
+  const queue: string[] = [];
+  for (const [id, degree] of inDegree) {
+    if (degree === 0) queue.push(id);
+  }
+
+  let processed = 0;
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    processed++;
+    for (const neighbor of (adjacency.get(node) ?? [])) {
+      const newDegree = (inDegree.get(neighbor) ?? 1) - 1;
+      inDegree.set(neighbor, newDegree);
+      if (newDegree === 0) queue.push(neighbor);
+    }
+  }
+
+  return processed < inDegree.size;
+}
+
 /**
  * Execute a goal task workflow (architect step → create child tasks)
  */
@@ -1085,6 +1448,9 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
   }
 
   console.log(`[Workflow] Starting goal workflow for ${taskId}`);
+
+  // Create a git safe-point commit before execution for rollback support
+  await createSafePoint(taskId);
 
   // Update status to architecting
   await updateTaskStatus(taskId, 'architecting', null);
@@ -1148,22 +1514,37 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
         });
         await updateWorkflowStep(taskId, 'complete');
         await updateTaskStatus(taskId, 'review', null);
+        broadcastTaskCompleted(taskId);
+        internalEvents.emit(TASK_COMPLETED, taskId);
+        void runReflectionStep(taskId);
         broadcastBoardUpdate();
         return;
       }
 
       const outputContent = await readFile(outputPath, 'utf-8');
-      const childTaskDefs = JSON.parse(outputContent) as Array<{
-        title: string;
-        context: string;
-        priority?: 'high' | 'medium' | 'low';
-      }>;
+      const childTaskDefs = JSON.parse(outputContent) as Array<ArchitectTaskDef>;
 
       if (!Array.isArray(childTaskDefs) || childTaskDefs.length === 0) {
         throw new Error('architect-output.json must be a non-empty array');
       }
 
       console.log(`[Workflow] Parsed ${childTaskDefs.length} child tasks from architect output`);
+
+      // Determine if DAG mode is active: at least one def has a task_id and no cycle exists
+      const hasDagFields = childTaskDefs.some(d => typeof d.task_id === 'string' && d.task_id.length > 0);
+      let dagMode = false;
+      if (hasDagFields) {
+        if (detectDAGCycle(childTaskDefs)) {
+          console.warn('[Workflow] Cycle detected in architect DAG — falling back to flat queue mode');
+          broadcastToTask(taskId, {
+            type: 'stdout',
+            data: `\n[WARNING] Cycle detected in dependency graph. Falling back to flat queue mode.\n`,
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          dagMode = true;
+        }
+      }
 
       broadcastToTask(taskId, {
         type: 'stdout',
@@ -1172,6 +1553,8 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       });
 
       const childTaskIds: string[] = [];
+      // Maps architect task_id → Formic task ID (populated in creation loop)
+      const symbolicToFormicId = new Map<string, string>();
 
       for (const def of childTaskDefs) {
         if (!def.title || !def.context) {
@@ -1194,6 +1577,10 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
           await saveBoard(board);
         }
 
+        if (dagMode && typeof def.task_id === 'string' && def.task_id.length > 0) {
+          symbolicToFormicId.set(def.task_id, childTask.id);
+        }
+
         childTaskIds.push(childTask.id);
 
         broadcastToTask(taskId, {
@@ -1211,25 +1598,88 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
         await saveBoard(goalBoard);
       }
 
-      // Auto-queue each child task
-      for (const childId of childTaskIds) {
-        await queueTask(childId);
+      // In DAG mode: persist dependsOn / dependsOnResolved, then queue or block each child
+      if (dagMode) {
+        const depBoard = await loadBoard();
+        for (let i = 0; i < childTaskDefs.length; i++) {
+          const def = childTaskDefs[i];
+          const childId = childTaskIds[i];
+          if (!childId) continue;
+
+          const childInBoard = depBoard.tasks.find(t => t.id === childId);
+          if (childInBoard && Array.isArray(def.depends_on) && def.depends_on.length > 0) {
+            childInBoard.dependsOn = def.depends_on;
+            childInBoard.dependsOnResolved = def.depends_on
+              .map(sym => symbolicToFormicId.get(sym))
+              .filter((id): id is string => typeof id === 'string');
+          }
+        }
+        await saveBoard(depBoard);
+
+        let queuedCount = 0;
+        let blockedCount = 0;
+
+        for (let i = 0; i < childTaskDefs.length; i++) {
+          const def = childTaskDefs[i];
+          const childId = childTaskIds[i];
+          if (!childId) continue;
+
+          const hasDeps = Array.isArray(def.depends_on) && def.depends_on.length > 0;
+          if (hasDeps) {
+            await updateTaskStatus(childId, 'blocked', null);
+            blockedCount++;
+            broadcastToTask(taskId, {
+              type: 'stdout',
+              data: `  ⏸ Blocked (awaiting dependencies): ${childId}\n`,
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            await queueTask(childId);
+            queuedCount++;
+            broadcastToTask(taskId, {
+              type: 'stdout',
+              data: `  ✓ Queued: ${childId}\n`,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+
+        // Move goal to review
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null);
+        broadcastTaskCompleted(taskId);
+        internalEvents.emit(TASK_COMPLETED, taskId);
+        void runReflectionStep(taskId);
+
         broadcastToTask(taskId, {
           type: 'stdout',
-          data: `  ✓ Queued: ${childId}\n`,
+          data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks (${queuedCount} queued, ${blockedCount} blocked). Ready for review.\n`,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        // Flat mode: queue all children unconditionally
+        for (const childId of childTaskIds) {
+          await queueTask(childId);
+          broadcastToTask(taskId, {
+            type: 'stdout',
+            data: `  ✓ Queued: ${childId}\n`,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Move goal to review
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null);
+        broadcastTaskCompleted(taskId);
+        internalEvents.emit(TASK_COMPLETED, taskId);
+        void runReflectionStep(taskId);
+
+        broadcastToTask(taskId, {
+          type: 'stdout',
+          data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks. Ready for review.\n`,
           timestamp: new Date().toISOString(),
         });
       }
-
-      // Move goal to review
-      await updateWorkflowStep(taskId, 'complete');
-      await updateTaskStatus(taskId, 'review', null);
-
-      broadcastToTask(taskId, {
-        type: 'stdout',
-        data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks. Ready for review.\n`,
-        timestamp: new Date().toISOString(),
-      });
 
       broadcastBoardUpdate();
 
@@ -1245,6 +1695,9 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
 
       await updateWorkflowStep(taskId, 'complete');
       await updateTaskStatus(taskId, 'review', null);
+      broadcastTaskCompleted(taskId);
+      internalEvents.emit(TASK_COMPLETED, taskId);
+      void runReflectionStep(taskId);
       broadcastBoardUpdate();
     }
   })();
