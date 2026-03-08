@@ -45,6 +45,74 @@ export function broadcastBoardUpdate(): void {
 }
 
 /**
+ * Broadcast a dependency-resolved event when a blocked task is automatically unblocked
+ */
+export function broadcastDependencyResolved(taskId: string, parentGoalId: string): void {
+  const message = JSON.stringify({ type: 'dependency-resolved', taskId, parentGoalId });
+
+  let sentCount = 0;
+  for (const ws of boardConnections) {
+    if (ws.readyState === 1) { // WebSocket.OPEN
+      ws.send(message);
+      sentCount++;
+    }
+  }
+
+  console.log(`[BoardNotifier] Broadcast dependency-resolved for task ${taskId} (goal ${parentGoalId}) to ${sentCount} clients`);
+}
+
+/**
+ * Broadcast a kill-switch event when the self-healing loop exhausts retries
+ */
+export function broadcastKillSwitch(taskId: string): void {
+  const message = JSON.stringify({ type: 'kill-switch', taskId });
+
+  let sentCount = 0;
+  for (const ws of boardConnections) {
+    if (ws.readyState === 1) { // WebSocket.OPEN
+      ws.send(message);
+      sentCount++;
+    }
+  }
+
+  console.log(`[BoardNotifier] Broadcast kill-switch for task ${taskId} to ${sentCount} clients`);
+}
+
+/**
+ * Broadcast that a task has completed (moved to review or done)
+ */
+export function broadcastTaskCompleted(taskId: string): void {
+  const message = JSON.stringify({ type: 'task-completed', taskId });
+
+  let sentCount = 0;
+  for (const ws of boardConnections) {
+    if (ws.readyState === 1) { // WebSocket.OPEN
+      ws.send(message);
+      sentCount++;
+    }
+  }
+
+  console.log(`[BoardNotifier] Broadcast task-completed for task ${taskId} to ${sentCount} clients`);
+}
+
+/**
+ * Broadcast that exclusive leases for a task have been released
+ */
+export function broadcastLeaseReleased(taskId: string, releasedFiles: string[]): void {
+  const message = JSON.stringify({ type: 'lease-released', taskId, releasedFiles });
+
+  let sentCount = 0;
+  for (const ws of boardConnections) {
+    if (ws.readyState === 1) { // WebSocket.OPEN
+      ws.send(message);
+      sentCount++;
+    }
+  }
+
+  console.log(`[BoardNotifier] Broadcast lease-released for task ${taskId} (${releasedFiles.length} file(s)) to ${sentCount} clients`);
+}
+
+/**
  * Broadcast a workspace-changed event to all connected clients
  * Call this after switching to a different workspace
  */

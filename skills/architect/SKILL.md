@@ -33,14 +33,18 @@ $TASK_CONTEXT
 ```json
 [
   {
+    "task_id": "setup-database-schema",
     "title": "Short verb-based title (e.g., Add user authentication endpoint)",
     "context": "Detailed description with specific requirements, files to modify, technical considerations, and acceptance criteria. Must be self-contained.",
-    "priority": "high"
+    "priority": "high",
+    "depends_on": []
   },
   {
+    "task_id": "run-initial-migrations",
     "title": "Another task title",
     "context": "Another detailed, self-contained description...",
-    "priority": "medium"
+    "priority": "medium",
+    "depends_on": ["setup-database-schema"]
   }
 ]
 ```
@@ -51,7 +55,10 @@ $TASK_CONTEXT
 
 - Produce **3 to 8 tasks** depending on the complexity of the goal
 - Each task title must start with a verb (Add, Implement, Fix, Update, Refactor, Create)
-- Each task context must be **self-contained** — do not reference other child tasks by name or assume ordering
+- Each `task_id` must be a **unique kebab-case slug** scoped to this decomposition (e.g., `setup-database-schema`). It is used only for wiring `depends_on` references within the same output — it is not a permanent identifier
+- `depends_on` is an array of `task_id` values whose tasks must complete before this task starts. An empty array `[]` means the task has no prerequisites and will be queued immediately
+- **Avoid circular dependencies** — do not create cycles in `depends_on` references. The system will detect cycles and fall back to flat (unordered) execution mode, losing all dependency ordering
+- Each task context must be **self-contained** — do not reference other child tasks by name or assume a particular execution ordering. Describe standalone requirements only
 - Each task context should include:
   - What needs to be done (clear requirements)
   - Which files or modules to modify (be specific based on your codebase analysis)

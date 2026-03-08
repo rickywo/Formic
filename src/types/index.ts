@@ -1,12 +1,13 @@
-export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'declaring' | 'running' | 'architecting' | 'review' | 'done';
+export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'declaring' | 'running' | 'architecting' | 'verifying' | 'review' | 'done' | 'blocked';
 export type TaskPriority = 'low' | 'medium' | 'high';
-export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' | 'architect' | 'complete';
+export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' | 'verify' | 'architect' | 'complete';
 export type TaskType = 'standard' | 'quick' | 'goal';
 
 export interface WorkflowLogs {
   brief?: string[];
   plan?: string[];
   execute?: string[];
+  verify?: string[];
   architect?: string[];
 }
 
@@ -25,6 +26,14 @@ export interface FileLease {
   acquiredAt: string;
   expiresAt: string;
   leaseType: 'exclusive' | 'shared';
+  yieldSignal?: boolean;
+}
+
+/** Persisted lease store snapshot written to .formic/leases.json */
+export interface LeaseStoreSnapshot {
+  version: string;
+  savedAt: string;
+  leases: Array<{ key: string; lease: FileLease }>;
 }
 
 /** Request to acquire file leases for a task */
@@ -56,6 +65,57 @@ export interface MergeResult {
   conflicts: FileConflict[];
 }
 
+// ==================== Long-Term Memory Types ====================
+
+/** Type of memory: learned pattern, known pitfall, or user preference */
+export type MemoryType = 'pattern' | 'pitfall' | 'preference';
+
+/** A single memory entry persisted by the reflection step */
+export interface MemoryEntry {
+  /** Unique ID (mem-{uuid}) */
+  id: string;
+  /** Category of memory */
+  type: MemoryType;
+  /** Human-readable description of the memory */
+  content: string;
+  /** Task ID that generated this memory */
+  source_task: string;
+  /** ISO-8601 creation timestamp */
+  created_at: string;
+  /** Tags for relevance matching (file paths, keywords) */
+  relevance_tags: string[];
+}
+
+/** Root schema for .formic/memory.json */
+export interface MemoryStore {
+  version: string;
+  entries: MemoryEntry[];
+}
+
+// ==================== Tool Forging Types ====================
+
+/** A single reusable tool created and registered by an agent */
+export interface Tool {
+  /** Unique tool name (slug, e.g. 'run-eslint-fix') */
+  name: string;
+  /** Human-readable description of what the tool does */
+  description: string;
+  /** Shell command to execute this tool (may contain {args} placeholder) */
+  command: string;
+  /** Task ID that originally created this tool */
+  created_by: string;
+  /** ISO-8601 creation timestamp */
+  created_at: string;
+  /** Number of times this tool has been invoked */
+  usage_count: number;
+}
+
+/** Root schema for .formic/tools/tools.json */
+export interface ToolStore {
+  version: string;
+  tools: Tool[];
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -84,11 +144,25 @@ export interface Task {
   parentGoalId?: string;
   // Goal task: IDs of child tasks created by the architect
   childTaskIds?: string[];
+  // DAG dependency fields: architect-assigned symbolic task IDs (for traceability)
+  dependsOn?: string[];
+  // DAG dependency fields: resolved Formic task IDs at child-task creation time
+  dependsOnResolved?: string[];
   // Lease-based concurrency fields
   declaredFiles?: DeclaredFiles;
   leaseExpiresAt?: string;
   yieldCount?: number;
+  /** Human-readable reason the task last yielded (e.g., 'lease-conflict:src/server/services/store.ts') */
+  yieldReason?: string;
   fileConflicts?: FileConflict[];
+  /** Commit SHA auto-saved before task execution (git rollback target) */
+  safePointCommit?: string | null;
+  /** Number of verification/retry attempts for this task */
+  retryCount?: number | null;
+  /** ID of the task that this task is a fix for (links auto-created fix tasks to originals) */
+  fixForTaskId?: string | null;
+  /** IDs of memory entries created by the reflection step for this task */
+  reflectionMemories?: string[];
 }
 
 export interface BoardMeta {
@@ -109,6 +183,8 @@ export interface CreateTaskInput {
   context: string;
   priority?: TaskPriority;
   type?: TaskType;
+  /** If this task was auto-created as a fix for another task, the original task ID */
+  fixForTaskId?: string | null;
 }
 
 export interface UpdateTaskInput {
@@ -118,6 +194,10 @@ export interface UpdateTaskInput {
   context?: string;
   workflowStep?: WorkflowStep;
   workflowLogs?: WorkflowLogs;
+  safePointCommit?: string | null;
+  yieldCount?: number;
+  yieldReason?: string;
+  reflectionMemories?: string[];
 }
 
 export interface LogMessage {
@@ -144,6 +224,20 @@ export interface SubtasksFile {
   createdAt: string;
   updatedAt: string;
   subtasks: Subtask[];
+}
+
+// ==================== Queue Analysis Types ====================
+
+/** Per-task scoring entry returned by getQueueAnalysis() for observability/debugging */
+export interface QueueAnalysisEntry {
+  /** ID of the queued task */
+  taskId: string;
+  /** Computed priority score (higher = picked first) */
+  score: number;
+  /** Number of transitively blocked tasks that would become runnable after this task completes */
+  unblockingPotential: number;
+  /** Human-readable breakdown of the score components */
+  reasoning: string;
 }
 
 // AI Assistant Types
@@ -185,8 +279,10 @@ export interface TaskCounts {
   declaring: number;
   running: number;
   architecting: number;
+  verifying: number;
   review: number;
   done: number;
+  blocked: number;
 }
 
 export interface WorkspaceInfo {

@@ -6,7 +6,7 @@
 
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { getExpiredLeases, releaseLeases } from './leaseManager.js';
+import { getExpiredLeases, releaseLeases, restoreLeases, detectDeadlock } from './leaseManager.js';
 import { stopAgent } from './runner.js';
 import { stopWorkflow } from './workflow.js';
 import { updateTaskStatus } from './store.js';
@@ -24,7 +24,14 @@ let watchdogInterval: ReturnType<typeof setInterval> | null = null;
  */
 async function scanExpiredLeases(): Promise<void> {
   const expired = getExpiredLeases();
-  if (expired.length === 0) return;
+  if (expired.length === 0) {
+    try {
+      await detectDeadlock();
+    } catch (error) {
+      console.warn('[Watchdog] deadlock detection error:', error);
+    }
+    return;
+  }
 
   // Group expired leases by taskId
   const taskFiles = new Map<string, string[]>();
@@ -70,6 +77,13 @@ async function scanExpiredLeases(): Promise<void> {
       console.warn(`[Watchdog] Error handling expired leases for task ${taskId}:`, error);
     }
   }
+
+  // Run deadlock detection after expired-lease cleanup
+  try {
+    await detectDeadlock();
+  } catch (error) {
+    console.warn('[Watchdog] deadlock detection error:', error);
+  }
 }
 
 /**
@@ -82,6 +96,7 @@ export function startWatchdog(): void {
   }
 
   console.log(`[Watchdog] Starting watchdog (interval: ${WATCHDOG_INTERVAL_MS}ms)`);
+  restoreLeases().catch(e => console.warn('[Watchdog] restore error:', e));
   watchdogInterval = setInterval(() => {
     scanExpiredLeases().catch(error => {
       console.warn('[Watchdog] Scan error:', error);
