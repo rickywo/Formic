@@ -1165,6 +1165,97 @@
       color: rgba(0, 0, 0, 0.35);
     }
 
+    /* Light theme - Help Panel */
+    [data-theme="light"] .help-panel {
+      background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.98), rgba(252, 252, 252, 0.98));
+      border-left: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow:
+        inset 1px 0 0 0 rgba(255, 255, 255, 0.9),
+        -20px 0 60px -10px rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="light"] .help-nav {
+      border-right: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .help-nav-item {
+      color: rgba(0, 0, 0, 0.45);
+    }
+
+    [data-theme="light"] .help-nav-item:hover {
+      color: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    [data-theme="light"] .help-nav-item.active {
+      color: #4f46e5;
+      border-left-color: rgba(99, 102, 241, 0.7);
+      background: rgba(99, 102, 241, 0.07);
+    }
+
+    [data-theme="light"] .help-section {
+      border-bottom-color: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .help-section h2 {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .help-section h3 {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .help-section p,
+    [data-theme="light"] .help-section li {
+      color: rgba(0, 0, 0, 0.65);
+    }
+
+    [data-theme="light"] .help-section code {
+      background: rgba(0, 0, 0, 0.05);
+      border-color: rgba(0, 0, 0, 0.08);
+      color: #4f46e5;
+    }
+
+    [data-theme="light"] .help-section kbd {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.7);
+      box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .help-code {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.07);
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .help-table th {
+      color: rgba(0, 0, 0, 0.4);
+      border-bottom-color: rgba(0, 0, 0, 0.07);
+    }
+
+    [data-theme="light"] .help-table td {
+      color: rgba(0, 0, 0, 0.65);
+      border-bottom-color: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .help-table tr:nth-child(even) td {
+      background: rgba(0, 0, 0, 0.015);
+    }
+
+    [data-theme="light"] .help-type-card {
+      background: rgba(0, 0, 0, 0.02);
+      border-color: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .help-flow-label {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .help-flow-stages {
+      color: rgba(0, 0, 0, 0.6);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -3465,6 +3556,21 @@
       margin: 0 2px;
     }
 
+    /* Help Button */
+    .help-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      padding: 8px 12px;
+    }
+
+    .help-icon {
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
     /* Settings Button */
     .settings-btn {
       display: flex;
@@ -3941,6 +4047,280 @@
       white-space: nowrap;
     }
 
+    /* ============================================
+       Help Panel
+       ============================================ */
+
+    /* Help Panel */
+    .help-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 680px;
+      max-width: 100vw;
+      background: linear-gradient(to bottom right, rgba(18, 18, 18, 0.98), rgba(8, 8, 8, 0.99));
+      border-left: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow:
+        inset 1px 0 0 0 rgba(255, 255, 255, 0.03),
+        -20px 0 60px -10px rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      z-index: 99;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
+    }
+
+    .help-panel.open {
+      transform: translateX(0);
+    }
+
+    /* Two-column body */
+    .help-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar navigation */
+    .help-nav {
+      width: 190px;
+      flex-shrink: 0;
+      border-right: 1px solid rgba(255, 255, 255, 0.05);
+      overflow-y: auto;
+      padding: 12px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .help-nav-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      border-left: 3px solid transparent;
+      padding: 9px 16px 9px 13px;
+      font-size: 12px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.45);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.01em;
+    }
+
+    .help-nav-item:hover {
+      color: rgba(255, 255, 255, 0.8);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .help-nav-item.active {
+      color: rgba(139, 92, 246, 0.95);
+      border-left-color: rgba(139, 92, 246, 0.7);
+      background: rgba(139, 92, 246, 0.08);
+    }
+
+    /* Scrollable content area */
+    .help-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 32px 48px;
+      scroll-behavior: smooth;
+    }
+
+    /* Individual sections */
+    .help-section {
+      margin-bottom: 48px;
+      padding-bottom: 48px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .help-section:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    .help-section h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.92);
+      margin: 0 0 16px;
+      letter-spacing: 0.01em;
+    }
+
+    .help-section h3 {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.35);
+      margin: 24px 0 10px;
+    }
+
+    .help-section p {
+      font-size: 13px;
+      line-height: 1.65;
+      color: rgba(255, 255, 255, 0.65);
+      margin: 0 0 12px;
+    }
+
+    .help-section ul,
+    .help-section ol {
+      margin: 0 0 12px;
+      padding-left: 20px;
+    }
+
+    .help-section li {
+      font-size: 13px;
+      line-height: 1.65;
+      color: rgba(255, 255, 255, 0.65);
+      margin-bottom: 6px;
+    }
+
+    .help-section code {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: rgba(196, 181, 253, 0.9);
+    }
+
+    .help-section kbd {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 4px;
+      padding: 2px 6px;
+      color: rgba(255, 255, 255, 0.75);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .help-code {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 11px;
+      line-height: 1.55;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: rgba(255, 255, 255, 0.6);
+      white-space: pre;
+      overflow-x: auto;
+      margin: 8px 0 12px;
+      display: block;
+    }
+
+    /* Stage reference table */
+    .help-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin: 8px 0 12px;
+    }
+
+    .help-table th {
+      text-align: left;
+      padding: 8px 12px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255, 255, 255, 0.35);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .help-table td {
+      padding: 9px 12px;
+      color: rgba(255, 255, 255, 0.65);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      vertical-align: top;
+    }
+
+    .help-table tr:nth-child(even) td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Task type cards */
+    .help-type-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin: 8px 0 16px;
+    }
+
+    .help-type-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .help-type-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-radius: 5px;
+      padding: 3px 8px;
+      margin-bottom: 8px;
+    }
+
+    .help-badge-standard {
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    .help-badge-quick {
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+      border: 1px solid rgba(16, 185, 129, 0.15);
+    }
+
+    .help-badge-goal {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fcd34d;
+      border: 1px solid rgba(245, 158, 11, 0.15);
+    }
+
+    /* Workflow flow diagram */
+    .help-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 8px 0 12px;
+      font-size: 12px;
+    }
+
+    .help-flow-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+
+    .help-flow-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: rgba(255, 255, 255, 0.4);
+      min-width: 60px;
+    }
+
+    .help-flow-stages {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
     /* Responsive Design */
     @media (max-width: 1400px) {
       .board {
@@ -4003,6 +4383,52 @@
 
       .settings-panel.open {
         box-shadow: none;
+      }
+
+      /* Help panel - full screen on mobile with stacked layout */
+      .help-panel {
+        width: 100%;
+        max-width: 100vw;
+        border-left: none;
+        border-radius: 0;
+      }
+
+      .help-panel.open {
+        box-shadow: none;
+      }
+
+      .help-body {
+        flex-direction: column;
+      }
+
+      .help-nav {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 8px;
+        gap: 4px;
+        max-height: 100px;
+        overflow-y: auto;
+      }
+
+      .help-nav-item {
+        border-left: none;
+        border-bottom: 2px solid transparent;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+        flex-shrink: 0;
+      }
+
+      .help-nav-item.active {
+        border-left-color: transparent;
+        border-bottom-color: rgba(139, 92, 246, 0.7);
+      }
+
+      .help-content {
+        padding: 20px 20px 40px;
       }
 
       .tasks {
@@ -6054,6 +6480,9 @@
         <span class="theme-icon" id="theme-icon"></span>
         <span class="theme-label" id="theme-label">Dark</span>
       </button>
+      <button class="btn help-btn" id="help-btn" onclick="openHelp()" title="Help &amp; User Guide">
+        <span class="help-icon">?</span>
+      </button>
       <button class="btn settings-btn" id="settings-btn" onclick="openSettings()" title="Settings">
         <span class="settings-icon">⚙</span>
       </button>
@@ -6321,6 +6750,282 @@
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
     </svg>
   </button>
+
+  <!-- Help Panel Backdrop -->
+  <div class="settings-backdrop" id="help-backdrop" onclick="closeHelp()"></div>
+
+  <!-- Help Panel -->
+  <div class="help-panel" id="help-panel">
+    <div class="settings-header">
+      <div class="settings-header-left">
+        <span class="settings-icon-header">📖</span>
+        <span class="settings-title">Formic User Guide</span>
+      </div>
+      <button class="settings-close-btn" onclick="closeHelp()">×</button>
+    </div>
+
+    <div class="help-body">
+      <!-- Sidebar Navigation -->
+      <nav class="help-nav" id="help-nav">
+        <button class="help-nav-item active" data-section="getting-started">Getting Started</button>
+        <button class="help-nav-item" data-section="task-types">Task Types</button>
+        <button class="help-nav-item" data-section="workflow-stages">Workflow Stages</button>
+        <button class="help-nav-item" data-section="ai-assistant">AI Assistant</button>
+        <button class="help-nav-item" data-section="concurrency">Concurrency</button>
+        <button class="help-nav-item" data-section="self-healing-qa">Self-Healing QA</button>
+        <button class="help-nav-item" data-section="goal-tasks-dag">Goal Tasks &amp; DAG</button>
+        <button class="help-nav-item" data-section="keyboard-shortcuts">Keyboard Shortcuts</button>
+        <button class="help-nav-item" data-section="settings-guide">Settings</button>
+      </nav>
+
+      <!-- Scrollable Content -->
+      <div class="help-content" id="help-content">
+
+        <section id="getting-started" class="help-section">
+          <h2>Getting Started</h2>
+          <p>Formic is an AI-powered task manager that autonomously executes coding tasks using AI agents. Each task is processed through a defined workflow — from brief, to plan, to execution — with full concurrency support and self-healing QA.</p>
+
+          <h3>Board Layout</h3>
+          <p>The kanban board shows tasks across all workflow stages as columns. Use the header buttons to manage settings, switch themes, and access this guide. The floating <strong>AI Assistant</strong> button (bottom-right) opens a chat panel for brainstorming and task creation.</p>
+
+          <h3>Adding Your First Task</h3>
+          <ul>
+            <li>Click the <strong>+ New Task</strong> button in any column header (or the board header).</li>
+            <li>Enter a short action-oriented title and a description with requirements and context.</li>
+            <li>Choose a task type: <strong>Standard</strong>, <strong>Quick</strong>, or <strong>Goal</strong>.</li>
+            <li>Set priority: <strong>High</strong>, <strong>Medium</strong>, or <strong>Low</strong>.</li>
+          </ul>
+
+          <h3>Running a Task</h3>
+          <ul>
+            <li>Tasks in <strong>Todo</strong> must be queued manually — open the task and click <strong>Queue</strong>.</li>
+            <li>Once queued, the system picks it up automatically based on priority and concurrency limits.</li>
+            <li>Monitor progress as the task moves through: Queued → Briefing → Planning → Running → Review.</li>
+            <li>When a task reaches <strong>Review</strong>, inspect the changes and move it to <strong>Done</strong> to approve.</li>
+          </ul>
+
+          <h3>Learn More</h3>
+          <p>Explore the other sections in this guide: <em>Task Types</em> for choosing the right type, <em>Workflow Stages</em> for understanding each column, and <em>Concurrency</em> for how parallel execution works.</p>
+        </section>
+
+        <section id="task-types" class="help-section">
+          <h2>Task Types</h2>
+          <p>Formic supports three task types, each with a different workflow suited to the complexity of the work.</p>
+
+          <div class="help-type-grid">
+            <div class="help-type-card">
+              <div class="help-type-badge help-badge-standard">Standard</div>
+              <p>Full workflow: Brief → Plan → Declare → Run. The AI generates a feature spec (README.md), creates an implementation plan (PLAN.md + subtasks.json), declares file leases for concurrency, then executes the implementation.</p>
+              <p><strong>Best for:</strong> new features, refactors, complex bug fixes — any work that benefits from up-front planning.</p>
+            </div>
+            <div class="help-type-card">
+              <div class="help-type-badge help-badge-quick">Quick</div>
+              <p>Single-step execution — skips briefing and planning, goes directly from Queued to Running. Faster but with no spec or plan document generated.</p>
+              <p><strong>Best for:</strong> typo fixes, small one-liner changes, documentation updates, or tasks where the description is already complete.</p>
+            </div>
+            <div class="help-type-card">
+              <div class="help-type-badge help-badge-goal">Goal</div>
+              <p>High-level objective — the Architect skill decomposes it into 3–8 child tasks with a dependency graph (DAG). Each child task then runs independently through its own standard or quick workflow.</p>
+              <p><strong>Best for:</strong> large epics, multi-file features, or any goal that is too broad for a single task to implement safely.</p>
+            </div>
+          </div>
+
+          <h3>Workflow Comparison</h3>
+          <div class="help-flow">
+            <div class="help-flow-row">
+              <span class="help-flow-label">Standard</span>
+              <span class="help-flow-stages">Queued → Briefing → Planning → Declaring → Running → Review</span>
+            </div>
+            <div class="help-flow-row">
+              <span class="help-flow-label">Quick</span>
+              <span class="help-flow-stages">Queued → Running → Review</span>
+            </div>
+            <div class="help-flow-row">
+              <span class="help-flow-label">Goal</span>
+              <span class="help-flow-stages">Queued → Architecting → Done (children run separately)</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="workflow-stages" class="help-section">
+          <h2>Workflow Stages</h2>
+          <p>Each kanban column represents a workflow stage. Tasks progress left-to-right as they are processed.</p>
+
+          <table class="help-table">
+            <thead>
+              <tr><th>Stage</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>Todo</code></td><td>Task created, not yet queued. Awaits manual queuing.</td></tr>
+              <tr><td><code>Queued</code></td><td>In the priority queue. Will be picked up when a worker slot is available.</td></tr>
+              <tr><td><code>Briefing</code></td><td>AI is generating the feature specification document (README.md).</td></tr>
+              <tr><td><code>Planning</code></td><td>AI is creating PLAN.md and a structured subtasks.json file.</td></tr>
+              <tr><td><code>Declaring</code></td><td>Task declares which files it will modify (exclusive leases) or read (shared leases) for concurrency control.</td></tr>
+              <tr><td><code>Running</code></td><td>AI agent is actively executing the implementation.</td></tr>
+              <tr><td><code>Architecting</code></td><td>Goal task is being decomposed into child tasks by the Architect skill.</td></tr>
+              <tr><td><code>Verifying</code></td><td>Self-healing QA loop is running checks on the completed implementation.</td></tr>
+              <tr><td><code>Review</code></td><td>Implementation complete. Awaiting human inspection and approval.</td></tr>
+              <tr><td><code>Done</code></td><td>Approved and complete.</td></tr>
+              <tr><td><code>Blocked</code></td><td>Task is waiting on one or more dependency tasks to complete first.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Progressing Tasks</h3>
+          <ul>
+            <li>Tasks in <strong>Todo</strong> must be queued manually via the task card menu or the task detail view.</li>
+            <li>Tasks in <strong>Review</strong> must be approved by a human — move them to <strong>Done</strong> after inspecting the changes.</li>
+            <li>All other transitions are handled automatically by the Formic server and AI agents.</li>
+          </ul>
+        </section>
+
+        <section id="ai-assistant" class="help-section">
+          <h2>AI Assistant</h2>
+          <p>The AI Assistant is a chat panel in the bottom-right corner of the board. It is context-aware — it knows your current codebase and board state — and can help with brainstorming, task creation, and answering questions.</p>
+
+          <h3>Opening and Closing</h3>
+          <ul>
+            <li>Click the floating chat icon (💬) in the bottom-right to open the assistant panel.</li>
+            <li>Click it again, or press <kbd>Escape</kbd>, to close the panel.</li>
+            <li>The panel can be expanded to a larger view for longer conversations.</li>
+          </ul>
+
+          <h3>What the Assistant Can Help With</h3>
+          <ul>
+            <li><strong>Brainstorm features:</strong> Describe a problem; the assistant will suggest approaches and trade-offs.</li>
+            <li><strong>Create tasks:</strong> Ask it to create a task — it will output a structured <code>task-create</code> block that the server automatically processes into a new task.</li>
+            <li><strong>Explore the codebase:</strong> Ask questions about architecture, find files, understand patterns.</li>
+            <li><strong>Refine requirements:</strong> Describe a rough idea and let the assistant turn it into a detailed task description.</li>
+          </ul>
+
+          <h3>Creating Tasks via Chat</h3>
+          <p>The assistant creates tasks by outputting a <code>task-create</code> code block in the chat:</p>
+          <pre class="help-code">```task-create
+{
+  "title": "Add login page",
+  "context": "...",
+  "priority": "medium",
+  "type": "standard"
+}
+```</pre>
+          <p>The Formic server detects this block and automatically calls <code>POST /api/tasks</code> to create the task on the board.</p>
+        </section>
+
+        <section id="concurrency" class="help-section">
+          <h2>Lease-Based Concurrency</h2>
+          <p>Formic can run multiple tasks in parallel. To prevent conflicting writes, it uses a <strong>file lease system</strong> managed by <code>leaseManager.ts</code>.</p>
+
+          <h3>File Declaration</h3>
+          <p>During the <strong>Declaring</strong> stage, a task explicitly declares which files it will touch:</p>
+          <ul>
+            <li><strong>Exclusive leases</strong> — files the task will write to. Only one task can hold an exclusive lease on a file at a time.</li>
+            <li><strong>Shared leases</strong> — files the task will only read. Multiple tasks can hold shared leases on the same file simultaneously.</li>
+          </ul>
+
+          <h3>Task Yielding</h3>
+          <p>When a task requests an exclusive lease on a file that is already held exclusively by another running task, it <strong>yields</strong> — it pauses and re-queues itself to wait. Once the conflicting lease is released, the yielded task is picked up again automatically.</p>
+
+          <h3>Optimistic Concurrency for Shared Files</h3>
+          <p>Shared-lease files use optimistic concurrency: conflicts are detected at merge time via <code>git hash-object</code> collision detection. If two tasks read the same file and both modify it, the second to merge will detect the collision and trigger a resolution step.</p>
+
+          <h3>Lease Expiration &amp; Watchdog</h3>
+          <p>Leases expire after a configurable duration (default: 5 minutes). A background watchdog process periodically cleans up expired leases to prevent deadlocks if a task crashes without releasing its leases.</p>
+        </section>
+
+        <section id="self-healing-qa" class="help-section">
+          <h2>Self-Healing QA Loop</h2>
+          <p>After a task finishes execution, Formic optionally runs a <strong>Verifier</strong> step that checks the implementation before it reaches Review. If verification fails, a <strong>Critic</strong> automatically creates a fix task.</p>
+
+          <h3>Verifier Step</h3>
+          <ul>
+            <li>Runs automatically after the Running stage when self-healing is enabled.</li>
+            <li>Checks that the implementation meets the acceptance criteria defined in the task's brief.</li>
+            <li>The task enters the <strong>Verifying</strong> stage during this check.</li>
+          </ul>
+
+          <h3>Critic &amp; Auto-Fix</h3>
+          <ul>
+            <li>If verification fails, the Critic skill generates a detailed fix task describing exactly what went wrong and what needs to be corrected.</li>
+            <li>The fix task is automatically created with a <strong>high priority override</strong> and is queued immediately.</li>
+            <li>The fix task runs through its own workflow (usually Quick type) and is linked back to the original task.</li>
+          </ul>
+
+          <h3>Result</h3>
+          <p>Tasks that pass verification move to <strong>Review</strong> as normal. Tasks that fail have their fix tasks run first; once the fix is complete and verified, the original task proceeds to Review.</p>
+        </section>
+
+        <section id="goal-tasks-dag" class="help-section">
+          <h2>Goal Tasks &amp; DAG Decomposition</h2>
+          <p>A <strong>Goal</strong> task represents a high-level objective. Instead of running code directly, a Goal task triggers the Architect skill, which breaks it into 3–8 concrete child tasks with a dependency graph (DAG).</p>
+
+          <h3>End-to-End Flow</h3>
+          <ol>
+            <li>Create a Goal task with a high-level objective (e.g., "Add user authentication").</li>
+            <li>Queue it — it enters the <strong>Architecting</strong> stage.</li>
+            <li>The Architect analyzes the codebase and decomposes the goal into child tasks, each with a <code>depends_on</code> list.</li>
+            <li>Child tasks appear on the board linked via <code>parentGoalId</code>. Tasks with no dependencies are queued immediately; dependent tasks are <strong>Blocked</strong>.</li>
+            <li>As child tasks complete, their dependents are automatically unblocked and queued.</li>
+            <li>The Goal task itself moves to <strong>Done</strong> once created — its progress is tracked through its children.</li>
+          </ol>
+
+          <h3>DAG Relationships</h3>
+          <ul>
+            <li>Each child task may declare <code>depends_on: ["sibling-task-id", ...]</code> in the architect output.</li>
+            <li>Blocked tasks display a dependency indicator on their card showing which tasks they are waiting for.</li>
+            <li>Automatic unblocking runs whenever a task completes — Formic checks all blocked tasks and unblocks those whose dependencies are now all done.</li>
+          </ul>
+
+          <h3>Viewing Child Tasks</h3>
+          <p>Child tasks appear as regular task cards on the board. Open any child task to see its <code>parentGoalId</code> link, which takes you back to the original Goal task.</p>
+        </section>
+
+        <section id="keyboard-shortcuts" class="help-section">
+          <h2>Keyboard Shortcuts</h2>
+
+          <table class="help-table">
+            <thead>
+              <tr><th>Shortcut</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><kbd>Escape</kbd></td><td>Close the active panel (Help, Settings, AI Assistant, modals)</td></tr>
+              <tr><td><kbd>Enter</kbd></td><td>Send message in the AI Assistant chat input</td></tr>
+              <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>Insert newline in the AI Assistant chat input</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Tips</h3>
+          <ul>
+            <li>Only one panel (Help or Settings or AI Assistant) is active at a time — <kbd>Escape</kbd> always closes the topmost one.</li>
+            <li>Dragging a task card to a different column manually overrides the automated workflow for manual triage.</li>
+          </ul>
+        </section>
+
+        <section id="settings-guide" class="help-section">
+          <h2>Settings</h2>
+          <p>Open Settings via the <strong>⚙</strong> button in the header. Changes take effect immediately and are persisted in the browser's local storage.</p>
+
+          <h3>General</h3>
+          <ul>
+            <li><strong>Theme</strong> — Choose <em>Dark</em>, <em>Light</em>, or <em>Auto</em> (follows the OS preference). The active theme is highlighted in the selector.</li>
+            <li><strong>Notifications</strong> — Toggle browser notifications for task state changes (e.g., a task entering Review). Requires browser permission on first enable.</li>
+          </ul>
+
+          <h3>Execution</h3>
+          <ul>
+            <li><strong>Max Concurrent Sessions</strong> — How many AI agent sessions can run in parallel. Increase this to process more tasks simultaneously. The default is 1 (sequential). Higher values require more system resources.</li>
+          </ul>
+
+          <h3>Workspaces</h3>
+          <ul>
+            <li>Formic can manage tasks across multiple code repositories. Add a workspace by pasting an absolute path to a local repository and clicking <strong>+ Add</strong>.</li>
+            <li>Each workspace has a color-coded label for quick identification on task cards.</li>
+            <li>Remove a workspace with the trash icon. This does not delete any files — it only removes the workspace from Formic's list.</li>
+            <li>The active workspace (shown in the board header) determines which repository tasks are executed against.</li>
+          </ul>
+        </section>
+
+      </div><!-- end help-content -->
+    </div><!-- end help-body -->
+  </div><!-- end help-panel -->
 
   <!-- Settings Panel Backdrop -->
   <div class="settings-backdrop" id="settings-backdrop" onclick="closeSettings()"></div>
@@ -7905,6 +8610,58 @@
       editingWorkspaceId = null;
     }
 
+    // ============================================
+    // Help Panel Functions
+    // ============================================
+
+    let helpObserver = null;
+
+    function openHelp() {
+      document.getElementById('help-panel').classList.add('open');
+      document.getElementById('help-backdrop').classList.add('open');
+      if (!helpObserver) {
+        initHelpObserver();
+      }
+    }
+
+    function closeHelp() {
+      document.getElementById('help-panel').classList.remove('open');
+      document.getElementById('help-backdrop').classList.remove('open');
+    }
+
+    function initHelpObserver() {
+      const content = document.getElementById('help-content');
+      const sections = content.querySelectorAll('.help-section');
+      const navItems = document.querySelectorAll('#help-nav .help-nav-item');
+
+      const setActive = (id) => {
+        navItems.forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.section === id);
+        });
+      };
+
+      // Nav item click: scroll to section
+      navItems.forEach(btn => {
+        btn.addEventListener('click', () => {
+          const target = document.getElementById(btn.dataset.section);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            setActive(btn.dataset.section);
+          }
+        });
+      });
+
+      helpObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            setActive(entry.target.id);
+          }
+        });
+      }, { root: content, threshold: 0.25 });
+
+      sections.forEach(section => helpObserver.observe(section));
+    }
+
     function initializeSettingsPanel() {
       // Initialize theme selector
       const currentTheme = window.configStore.getSetting('theme') || 'dark';
@@ -8099,11 +8856,14 @@
       renderWorkspaceList();
     }
 
-    // Close settings panel on Escape key
+    // Close settings or help panel on Escape key
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
+        const helpPanel = document.getElementById('help-panel');
         const settingsPanel = document.getElementById('settings-panel');
-        if (settingsPanel.classList.contains('open')) {
+        if (helpPanel.classList.contains('open')) {
+          closeHelp();
+        } else if (settingsPanel.classList.contains('open')) {
           closeSettings();
         }
       }
