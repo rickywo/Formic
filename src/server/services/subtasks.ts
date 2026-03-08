@@ -211,9 +211,13 @@ export async function calculateTaskProgress(task: Task): Promise<number> {
     'queued': 0,
     'briefing': 5,
     'planning': 18,
+    'declaring': 20,
     'running': 25,
+    'architecting': 50,
+    'verifying': 80,
     'review': 100,
     'done': 100,
+    'blocked': 0,
   };
 
   let progress = stageProgress[status] ?? 0;

@@ -2,11 +2,15 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
-import { updateTaskStatus, appendTaskLogs } from './store.js';
+import { updateTaskStatus, appendTaskLogs, getTask } from './store.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
 import { getWorkspacePath } from '../utils/paths.js';
-import type { LogMessage } from '../../types/index.js';
+import { releaseLeases } from './leaseManager.js';
+import { createSafePoint } from '../utils/gitUtils.js';
+import type { LogMessage, Task } from '../../types/index.js';
 import path from 'node:path';
+import { getRelevantMemories } from './memory.js';
+import { listTools } from './tools.js';
 
 const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
@@ -84,20 +88,48 @@ function broadcastToTask(taskId: string, message: LogMessage): void {
 }
 
 export async function runAgent(taskId: string, title: string, context: string, docsPath: string): Promise<{ pid: number }> {
-  // Check concurrency
-  if (isAgentRunning()) {
-    throw new Error('An agent is already running. Please wait for it to complete.');
+  // Check concurrency - allow multiple agents based on MAX_CONCURRENT_TASKS
+  const MAX_CONCURRENT = parseInt(process.env.MAX_CONCURRENT_TASKS || '1', 10);
+  if (activeProcesses.size >= MAX_CONCURRENT) {
+    throw new Error(`Maximum concurrent agents reached (${MAX_CONCURRENT}). Please wait for one to complete.`);
   }
 
   // Load project guidelines (injected into prompt)
   const guidelines = await loadProjectGuidelines();
+
+  // Retrieve relevant memories for this task
+  let pastExperienceSection = '';
+  try {
+    const task = await getTask(taskId);
+    if (task !== undefined) {
+      const memories = await getRelevantMemories(task);
+      if (memories.length > 0) {
+        console.log(`[Runner] Injecting ${memories.length} memories into agent context for task ${taskId}`);
+        pastExperienceSection = `\n## Past Experience (${memories.length} relevant memories)\n${memories.map((m, i) => `${i + 1}. [${m.type}] ${m.content}`).join('\n')}\n`;
+      }
+    }
+  } catch (error) {
+    console.warn('[Runner] Failed to load task for memory injection:', error);
+  }
+
+  // Retrieve registered tools for context injection
+  let availableToolsSection = '';
+  try {
+    const tools = await listTools();
+    if (tools.length > 0) {
+      console.log(`[Runner] ${tools.length} tools available in agent context for task ${taskId}`);
+      availableToolsSection = `\n## Available Tools (${tools.length} registered)\n${tools.map(t => `- **${t.name}**: ${t.description}\n  Command: \`${t.command}\``).join('\n')}\nUse these tools when they match the task requirements to avoid re-implementing existing functionality.\n`;
+    }
+  } catch (error) {
+    console.warn('[Runner] Failed to load tools for agent context:', error);
+  }
 
   // Build prompt - simple format for --print mode
   // Note: In --print mode, tools are limited. For complex tasks, the agent should read context from the prompt directly.
   const prompt = `${guidelines}Task: ${title}
 
 Context: ${context}
-
+${pastExperienceSection}${availableToolsSection}
 Task documentation is available at: ${docsPath}/
 
 All code changes MUST comply with the project development guidelines provided above.`;
@@ -106,6 +138,9 @@ All code changes MUST comply with the project development guidelines provided ab
   // stdin is set to 'ignore' since non-interactive mode doesn't need input
   const agentCommand = getAgentCommand();
   const agentArgs = buildAgentArgs(prompt);
+
+  // Create a git safe-point commit before spawning the agent for rollback support
+  await createSafePoint(taskId);
 
   const child = spawn(agentCommand, agentArgs, {
     cwd: getWorkspacePath(),
@@ -118,6 +153,8 @@ All code changes MUST comply with the project development guidelines provided ab
   // Set up error handler FIRST to catch spawn errors (e.g., command not found)
   child.on('error', async (err: NodeJS.ErrnoException) => {
     activeProcesses.delete(taskId);
+    releaseLeases(taskId);
+    console.log(`[Runner] Released leases for task ${taskId} (error handler)`);
 
     // Provide helpful error messages for common issues
     const agentName = getAgentDisplayName();
@@ -190,6 +227,8 @@ All code changes MUST comply with the project development guidelines provided ab
   // Handle process exit
   child.on('close', async (code) => {
     activeProcesses.delete(taskId);
+    releaseLeases(taskId);
+    console.log(`[Runner] Released leases for task ${taskId} (close handler)`);
 
     // Save logs to task
     await appendTaskLogs(taskId, logBuffer);
