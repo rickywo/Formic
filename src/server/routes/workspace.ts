@@ -68,9 +68,13 @@ function calculateTaskCounts(tasks: Array<{ status: TaskStatus }>): TaskCounts {
     queued: 0,
     briefing: 0,
     planning: 0,
+    declaring: 0,
     running: 0,
+    architecting: 0,
+    verifying: 0,
     review: 0,
     done: 0,
+    blocked: 0,
   };
 
   for (const task of tasks) {
@@ -125,9 +129,13 @@ export async function workspaceRoutes(fastify: FastifyInstance): Promise<void> {
       queued: 0,
       briefing: 0,
       planning: 0,
+      declaring: 0,
       running: 0,
+      architecting: 0,
+      verifying: 0,
       review: 0,
       done: 0,
+      blocked: 0,
     };
     let lastActivity: string | null = null;
 
@@ -211,9 +219,13 @@ export async function workspaceRoutes(fastify: FastifyInstance): Promise<void> {
       queued: 0,
       briefing: 0,
       planning: 0,
+      declaring: 0,
       running: 0,
+      architecting: 0,
+      verifying: 0,
       review: 0,
       done: 0,
+      blocked: 0,
     };
 
     // Load board if it exists (may be newly created empty workspace)

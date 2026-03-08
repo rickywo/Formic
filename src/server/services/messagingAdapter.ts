@@ -111,9 +111,13 @@ function getStatusEmoji(status: Task['status']): string {
     queued: '⏳',
     briefing: '📝',
     planning: '🗺️',
+    declaring: '📂',
     running: '🚀',
+    architecting: '🏗️',
+    verifying: '🔍',
     review: '👀',
     done: '✅',
+    blocked: '🚫',
   };
   return emojis[status] || '📋';
 }

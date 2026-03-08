@@ -188,6 +188,12 @@
     }
     [data-theme="light"] .column[data-status="running"] .column-title { color: rgba(22, 163, 74, 0.8); }
 
+    [data-theme="light"] .column[data-status="verifying"] {
+      border-top: 1px solid rgba(124, 58, 237, 0.2);
+      background: linear-gradient(180deg, rgba(124, 58, 237, 0.05) 0%, transparent 100%);
+    }
+    [data-theme="light"] .column[data-status="verifying"] .column-title { color: rgba(124, 58, 237, 0.8); }
+
     [data-theme="light"] .column[data-status="review"] {
       border-top: 2px solid rgba(202, 138, 4, 0.4);
     }
@@ -345,6 +351,85 @@
       background: rgba(245, 158, 11, 0.12);
       color: #d97706;
       border: 1px solid rgba(245, 158, 11, 0.15);
+    }
+
+    [data-theme="light"] .goal-badge {
+      background: rgba(147, 51, 234, 0.12);
+      color: #7c3aed;
+      border: 1px solid rgba(147, 51, 234, 0.15);
+    }
+
+    [data-theme="light"] .child-badge {
+      background: rgba(99, 102, 241, 0.12);
+      color: #4f46e5;
+      border: 1px solid rgba(99, 102, 241, 0.15);
+    }
+
+    [data-theme="light"] .blocked-badge {
+      background: rgba(217, 119, 6, 0.12);
+      color: #d97706;
+      border: 1px solid rgba(217, 119, 6, 0.15);
+    }
+
+    [data-theme="light"] .dep-pill {
+      background: rgba(217, 119, 6, 0.1);
+      color: #b45309;
+      border: 1px solid rgba(217, 119, 6, 0.15);
+    }
+
+    [data-theme="light"] .task-deps {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .mode-btn {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.1);
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .mode-btn:hover {
+      background: rgba(0, 0, 0, 0.07);
+      color: rgba(0, 0, 0, 0.8);
+    }
+
+    [data-theme="light"] .mode-btn.active {
+      background: rgba(79, 70, 229, 0.1);
+      border-color: rgba(79, 70, 229, 0.3);
+      color: #4f46e5;
+    }
+
+    [data-theme="light"] .architect-label {
+      color: rgba(180, 83, 9, 0.9);
+    }
+
+    [data-theme="light"] .status-architecting {
+      background: rgba(147, 51, 234, 0.12);
+      color: #7c3aed;
+      border: 1px solid rgba(147, 51, 234, 0.15);
+    }
+
+    [data-theme="light"] .status-verifying {
+      background: rgba(124, 58, 237, 0.1);
+      color: #6d28d9;
+      border: 1px solid rgba(124, 58, 237, 0.15);
+    }
+
+    [data-theme="light"] .task-type-option label {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .task-type-option label:hover {
+      background: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .task-type-option input:checked + label {
+      background: rgba(37, 99, 235, 0.1);
+      border-color: rgba(37, 99, 235, 0.3);
+    }
+
+    [data-theme="light"] .task-type-option .type-hint {
+      color: rgba(0, 0, 0, 0.4);
     }
 
     [data-theme="light"] .quick-task-toggle .toggle-slider-inline {
@@ -1618,7 +1703,7 @@
     /* Kanban Board - Floating on Void */
     .board {
       display: grid;
-      grid-template-columns: repeat(5, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 24px;
       padding: 32px;
       min-height: 100vh;
@@ -1694,7 +1779,11 @@
     }
     .column[data-status="running"] .column-title { color: rgba(134, 239, 172, 0.9); }
 
-    .column[data-status="review"] {
+    .column[data-status="verifying"] {
+      border-top: 1px solid rgba(167, 139, 250, 0.3);
+      background: linear-gradient(180deg, rgba(167, 139, 250, 0.04) 0%, transparent 100%);
+    }
+    .column[data-status="verifying"] .column-title { color: rgba(167, 139, 250, 0.9); }
       border-top: 1px solid rgba(251, 191, 36, 0.3);
     }
     .column[data-status="review"] .column-title { color: rgba(253, 224, 71, 0.9); }
@@ -2083,6 +2172,66 @@
       margin-left: 56px;
     }
 
+    /* Task Type Selector - Segmented Control */
+    .task-type-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .task-type-options {
+      display: flex;
+      gap: 8px;
+    }
+
+    .task-type-option {
+      flex: 1;
+      position: relative;
+    }
+
+    .task-type-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .task-type-option label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 10px 8px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .task-type-option label:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .task-type-option input:checked + label {
+      background: rgba(96, 165, 250, 0.15);
+      border-color: rgba(96, 165, 250, 0.3);
+    }
+
+    .task-type-option .type-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .task-type-option .type-hint {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      line-height: 1.3;
+    }
+
     .form-actions {
       display: flex;
       justify-content: flex-end;
@@ -2171,6 +2320,129 @@
       justify-content: center;
     }
 
+    /* Goal Task Workflow Indicator */
+    .workflow-indicator--goal {
+      justify-content: center;
+    }
+
+    /* Goal Task Badge */
+    .goal-badge {
+      font-size: 10px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(168, 85, 247, 0.2);
+      color: #c4b5fd;
+      border: 1px solid rgba(168, 85, 247, 0.1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 8px;
+    }
+
+    /* Child Task Badge */
+    .child-badge {
+      font-size: 10px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(129, 140, 248, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(129, 140, 248, 0.1);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 8px;
+    }
+
+    /* Blocked Status Badge */
+    .blocked-badge {
+      font-size: 10px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(245, 158, 11, 0.25);
+      color: #fcd34d;
+      border: 1px solid rgba(245, 158, 11, 0.2);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-right: 8px;
+    }
+
+    /* Dependency Pill List */
+    .task-deps {
+      margin-top: 6px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .deps-label {
+      margin-right: 4px;
+    }
+
+    .dep-pill {
+      display: inline-block;
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 9999px;
+      margin-right: 4px;
+    }
+
+    /* Mode Switcher for Create Modal */
+    .mode-switcher {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.8);
+    }
+
+    .mode-btn.active {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #a5b4fc;
+    }
+
+    /* Objective mode form group - hidden by default, shown when modal has .objective-mode */
+    .objective-form-group {
+      display: none;
+    }
+
+    #create-modal.objective-mode .objective-form-group {
+      display: block;
+    }
+
+    /* Standard form fields hidden in objective mode */
+    #create-modal.objective-mode .standard-form-group {
+      display: none;
+    }
+
+    .architect-label {
+      margin-top: 8px;
+      font-size: 12px;
+      color: rgba(245, 158, 11, 0.8);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     /* Bootstrap Banner - Glass Morphic */
     .bootstrap-banner {
       background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(74, 222, 128, 0.05));
@@ -2210,7 +2482,30 @@
       background: rgba(74, 222, 128, 0.3);
     }
 
-    /* Project Brief Panel - Glass Morphic Collapsible */
+    .emergency-stop-banner {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      color: rgb(252, 165, 165);
+    }
+    .emergency-stop-banner-content {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .emergency-stop-dismiss {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: rgb(252, 165, 165);
+      border-radius: 4px;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-left: auto;
+    }
     .project-brief-panel {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -2487,7 +2782,17 @@
       border: 1px solid rgba(96, 165, 250, 0.1);
     }
 
-    /* Queued task card styling */
+    .status-architecting {
+      background-color: rgba(168, 85, 247, 0.2);
+      color: #c4b5fd;
+      border: 1px solid rgba(168, 85, 247, 0.1);
+    }
+
+    .status-verifying {
+      background-color: rgba(167, 139, 250, 0.2);
+      color: #a78bfa;
+      border: 1px solid rgba(167, 139, 250, 0.1);
+    }
     .task-card[data-status="queued"] {
       border-color: rgba(96, 165, 250, 0.2);
       animation: queue-pulse 3s ease-in-out infinite;
@@ -4327,8 +4632,7 @@
     .mobile-column[data-status="running"] .mobile-column-header { color: rgba(34, 197, 94, 0.8); }
     .mobile-column[data-status="review"] .mobile-column-header { color: rgba(251, 191, 36, 0.8); }
     .mobile-column[data-status="done"] .mobile-column-header { color: rgba(34, 197, 94, 0.7); }
-
-    .mobile-column-tasks {
+    .mobile-column[data-status="verifying"] .mobile-column-header { color: rgba(167, 139, 250, 0.8); }
       flex: 1;
       overflow-y: auto;
       display: flex;
@@ -5583,6 +5887,13 @@
         </div>
         <div class="mobile-column-tasks" id="mobile-running-tasks"></div>
       </div>
+      <div class="mobile-column" data-status="verifying">
+        <div class="mobile-column-header">
+          <span>Verifying</span>
+          <span class="mobile-column-count" id="mobile-verifying-count">0</span>
+        </div>
+        <div class="mobile-column-tasks" id="mobile-verifying-tasks"></div>
+      </div>
       <div class="mobile-column" data-status="review">
         <div class="mobile-column-header">
           <span>Review</span>
@@ -5789,6 +6100,13 @@
   </div>
 
   <main class="board">
+    <div id="emergency-stop-alert" style="display:none;" class="emergency-stop-banner">
+      <div class="emergency-stop-banner-content">
+        <strong>&#9888; QUEUE PAUSED — Self-Healing Retry Limit Reached</strong>
+        <span id="emergency-stop-message"></span>
+        <button onclick="document.getElementById('emergency-stop-alert').style.display='none'" class="emergency-stop-dismiss">Dismiss</button>
+      </div>
+    </div>
     <div class="column" data-status="todo">
       <div class="column-header">
         <span class="column-title">Todo</span>
@@ -5812,6 +6130,14 @@
         <span class="column-count" id="running-count">0</span>
       </div>
       <div class="tasks" id="running-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+    </div>
+
+    <div class="column" data-status="verifying">
+      <div class="column-header">
+        <span class="column-title">Verifying</span>
+        <span class="column-count" id="verifying-count">0</span>
+      </div>
+      <div class="tasks" id="verifying-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
 
     <div class="column" data-status="review">
@@ -5879,6 +6205,13 @@
           </div>
           <div class="subtasks-list" id="detail-subtasks-list"></div>
         </div>
+        <div class="detail-section" id="detail-children-section" style="display:none">
+          <label>Generated Tasks</label>
+          <div class="subtasks-progress">
+            <span class="progress-text" id="detail-children-stats"></span>
+          </div>
+          <div class="subtasks-list" id="detail-children-list"></div>
+        </div>
       </div>
       <div class="form-actions">
         <button class="btn" onclick="closeDetailModal()">Close</button>
@@ -5890,14 +6223,29 @@
   <div class="modal-overlay" id="create-modal">
     <div class="modal">
       <h2>Create New Task</h2>
+      <div class="mode-switcher">
+        <button type="button" class="mode-btn active" id="mode-task-btn" onclick="setCreateMode('task')">Task</button>
+        <button type="button" class="mode-btn" id="mode-objective-btn" onclick="setCreateMode('objective')">🎯 Objective</button>
+      </div>
       <form onsubmit="createTask(event)">
-        <div class="form-group">
+        <div class="form-group standard-form-group">
           <label for="task-title">Title</label>
-          <input type="text" id="task-title" placeholder="Fix navbar responsive issue" required>
+          <input type="text" id="task-title" placeholder="Fix navbar responsive issue">
         </div>
-        <div class="form-group">
+        <div class="form-group standard-form-group">
           <label for="task-context">Context / Prompt</label>
-          <textarea id="task-context" placeholder="Describe the task for Claude..." required></textarea>
+          <textarea id="task-context" placeholder="Describe the task for Claude..."></textarea>
+        </div>
+        <div class="objective-form-group">
+          <div class="form-group">
+            <label for="task-objective-title">Title</label>
+            <input type="text" id="task-objective-title" placeholder="e.g. Build a user authentication system">
+          </div>
+          <div class="form-group">
+            <label for="task-objective">Objective</label>
+            <textarea id="task-objective" rows="5" placeholder="Describe a high-level objective to decompose into tasks…"></textarea>
+          </div>
+          <div class="architect-label">🎯 Architect will decompose this into a DAG of tasks</div>
         </div>
         <div class="form-group">
           <label for="task-priority">Priority</label>
@@ -5907,13 +6255,31 @@
             <option value="high">High</option>
           </select>
         </div>
-        <div class="form-group quick-task-toggle">
-          <label class="toggle-label">
-            <input type="checkbox" id="task-quick">
-            <span class="toggle-slider-inline"></span>
-            <span class="toggle-text">Quick Task</span>
-          </label>
-          <span class="toggle-hint">Skip planning stages (for simple tasks)</span>
+        <div class="form-group task-type-selector standard-form-group">
+          <label>Task Type</label>
+          <div class="task-type-options">
+            <div class="task-type-option">
+              <input type="radio" name="task-type" id="task-type-standard" value="standard" checked>
+              <label for="task-type-standard">
+                <span class="type-name">Standard</span>
+                <span class="type-hint">Brief → Plan → Execute</span>
+              </label>
+            </div>
+            <div class="task-type-option">
+              <input type="radio" name="task-type" id="task-type-quick" value="quick">
+              <label for="task-type-quick">
+                <span class="type-name">Quick</span>
+                <span class="type-hint">Execute directly</span>
+              </label>
+            </div>
+            <div class="task-type-option">
+              <input type="radio" name="task-type" id="task-type-goal" value="goal">
+              <label for="task-type-goal">
+                <span class="type-name">Goal</span>
+                <span class="type-hint">Decompose into tasks</span>
+              </label>
+            </div>
+          </div>
         </div>
         <div class="form-actions">
           <button type="button" class="btn" onclick="closeCreateModal()">Cancel</button>
@@ -6253,7 +6619,7 @@
           // If this is the active workspace, we already have the board loaded
           if (activeWorkspace && ws.id === activeWorkspace.id) {
             // Count from loaded board
-            const counts = { todo: 0, queued: 0, running: 0, review: 0, done: 0 };
+            const counts = { todo: 0, queued: 0, running: 0, verifying: 0, review: 0, done: 0 };
             if (window.board && window.board.tasks) {
               window.board.tasks.forEach(task => {
                 if (task.status in counts) counts[task.status]++;
@@ -6747,11 +7113,23 @@
 
     async function createTask(event) {
       event.preventDefault();
-      const title = document.getElementById('task-title').value;
-      const context = document.getElementById('task-context').value;
+      const modal = document.getElementById('create-modal');
+      const isObjectiveMode = modal.classList.contains('objective-mode');
+
+      let title, context, type;
+      if (isObjectiveMode) {
+        title = document.getElementById('task-objective-title').value;
+        context = document.getElementById('task-objective').value;
+        type = 'goal';
+      } else {
+        title = document.getElementById('task-title').value;
+        context = document.getElementById('task-context').value;
+        type = document.querySelector('input[name="task-type"]:checked').value;
+      }
+
+      if (!title || !context) return;
+
       const priority = document.getElementById('task-priority').value;
-      const isQuick = document.getElementById('task-quick').checked;
-      const type = isQuick ? 'quick' : 'standard';
 
       const res = await fetch('/api/tasks', {
         method: 'POST',
@@ -6763,8 +7141,10 @@
         closeCreateModal();
         document.getElementById('task-title').value = '';
         document.getElementById('task-context').value = '';
+        document.getElementById('task-objective-title').value = '';
+        document.getElementById('task-objective').value = '';
         document.getElementById('task-priority').value = 'medium';
-        document.getElementById('task-quick').checked = false;
+        document.getElementById('task-type-standard').checked = true;
         await loadBoard();
       }
     }
@@ -6856,12 +7236,12 @@
 
     // Render
     function renderBoard() {
-      const columns = ['todo', 'queued', 'running', 'review', 'done'];
+      const columns = ['todo', 'queued', 'running', 'verifying', 'review', 'done'];
 
       // Map workflow statuses to columns
       // briefing, planning, running all go to the 'running' column
       function getColumnForStatus(status) {
-        if (status === 'briefing' || status === 'planning' || status === 'running') {
+        if (status === 'briefing' || status === 'planning' || status === 'running' || status === 'architecting') {
           return 'running';
         }
         return status;
@@ -6904,19 +7284,34 @@
           const cardClass = isBootstrap ? 'task-card task-card--bootstrap' : 'task-card';
           const bootstrapBadge = isBootstrap ? '<span class="bootstrap-badge">Setup</span>' : '';
           const quickBadge = task.type === 'quick' ? '<span class="quick-badge">Quick</span>' : '';
+          const goalBadge = task.type === 'goal' ? '<span class="goal-badge">Goal</span>' : '';
+          const childBadge = task.parentGoalId ? '<span class="child-badge">Sub</span>' : '';
           const manualBadge = task.hasManualSubtasks ? '<span class="manual-badge">⚠ Manual</span>' : '';
+          const blockedBadge = task.status === 'blocked' ? '<span class="blocked-badge">Blocked</span>' : '';
+          const depsHtml = (task.dependsOnResolved && task.dependsOnResolved.length > 0)
+            ? `<div class="task-deps"><span class="deps-label">Waiting for:</span>${task.dependsOnResolved.map((id) => `<span class="dep-pill">${escapeHtml(id)}</span>`).join('')}</div>`
+            : '';
           const contextText = isBootstrap
             ? 'Analyzes your codebase and generates AI development guidelines tailored to your project.'
             : escapeHtml(task.context);
 
           // Build workflow step indicator for active workflow tasks
           const workflowSteps = ['brief', 'plan', 'execute'];
-          const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
+          const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
           const workflowStep = task.workflowStep || 'pending';
           const isQuickTask = task.type === 'quick';
+          const isGoalTask = task.type === 'goal';
 
           let workflowIndicator = '';
-          if (isQuickTask && (isWorkflowActive || workflowStep === 'execute')) {
+          if (isGoalTask && (isWorkflowActive || workflowStep === 'architect' || workflowStep === 'complete')) {
+            // Goal tasks only show Architect step
+            const architectClass = (workflowStep === 'architect' && !isWorkflowActive) ? 'completed' : (workflowStep === 'architect' && isWorkflowActive ? 'active' : (workflowStep === 'complete' ? 'completed' : ''));
+            workflowIndicator = `
+              <div class="workflow-indicator workflow-indicator--goal">
+                <span class="workflow-step ${architectClass}">Architect</span>
+              </div>
+            `;
+          } else if (isQuickTask && (isWorkflowActive || workflowStep === 'execute')) {
             // Quick tasks only show Execute step
             // When task is in todo, show as completed (muted) rather than active
             const executeClass = (workflowStep === 'execute' && !isWorkflowActive) ? 'completed' : (workflowStep === 'execute' ? 'active' : (workflowStep === 'complete' ? 'completed' : ''));
@@ -6925,7 +7320,7 @@
                 <span class="workflow-step ${executeClass}">Execute</span>
               </div>
             `;
-          } else if (!isQuickTask && (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete'))) {
+          } else if (!isQuickTask && !isGoalTask && (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete'))) {
             // Standard tasks show all 3 steps
             // When task is in todo (not actively running), show steps as completed (muted) instead of active
             const stepClasses = workflowSteps.map(step => {
@@ -6957,10 +7352,14 @@
             statusBadge = '<span class="status-badge status-planning">Planning</span>';
           } else if (task.status === 'running') {
             statusBadge = '<span class="status-badge status-running">Executing</span>';
+          } else if (task.status === 'architecting') {
+            statusBadge = '<span class="status-badge status-architecting">Architecting</span>';
+          } else if (task.status === 'verifying') {
+            statusBadge = '<span class="status-badge status-verifying">Verifying</span>';
           }
 
           // Check if task is in any running state
-          const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
+          const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying';
 
           // Build progress bar HTML
           const progress = task.progress || 0;
@@ -6997,9 +7396,10 @@
             <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
               ${queuePositionHtml}
               <div class="task-header">
-                <span class="task-title">${bootstrapBadge}${quickBadge}${manualBadge}${escapeHtml(task.title)}${statusBadge}</span>
+                <span class="task-title">${bootstrapBadge}${goalBadge}${quickBadge}${childBadge}${manualBadge}${blockedBadge}${escapeHtml(task.title)}${statusBadge}</span>
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
               </div>
+              ${depsHtml}
               ${workflowIndicator}
               <div class="task-context">${contextText}</div>
               ${task.startedAt ? (isRunning
@@ -7185,8 +7585,24 @@
       document.getElementById('create-modal').classList.add('open');
     }
 
+    function setCreateMode(mode) {
+      const modal = document.getElementById('create-modal');
+      const taskBtn = document.getElementById('mode-task-btn');
+      const objectiveBtn = document.getElementById('mode-objective-btn');
+      if (mode === 'objective') {
+        modal.classList.add('objective-mode');
+        taskBtn.classList.remove('active');
+        objectiveBtn.classList.add('active');
+      } else {
+        modal.classList.remove('objective-mode');
+        taskBtn.classList.add('active');
+        objectiveBtn.classList.remove('active');
+      }
+    }
+
     function closeCreateModal() {
       document.getElementById('create-modal').classList.remove('open');
+      setCreateMode('task');
     }
 
     // Task Detail Modal
@@ -7214,6 +7630,7 @@
       if (task.status === 'briefing') statusBadge.classList.add('status-briefing');
       else if (task.status === 'planning') statusBadge.classList.add('status-planning');
       else if (task.status === 'running') statusBadge.classList.add('status-running');
+      else if (task.status === 'architecting') statusBadge.classList.add('status-architecting');
       else if (task.status === 'queued') statusBadge.classList.add('status-queued');
       else if (task.status === 'review') statusBadge.style.backgroundColor = 'var(--accent-yellow)';
       else if (task.status === 'done') statusBadge.style.backgroundColor = 'var(--accent-green)';
@@ -7225,7 +7642,7 @@
 
       // Duration display
       const durationEl = document.getElementById('detail-duration');
-      const isActiveStatus = ['briefing', 'planning', 'running'].includes(task.status);
+      const isActiveStatus = ['briefing', 'planning', 'running', 'architecting'].includes(task.status);
       if (task.startedAt && isActiveStatus) {
         durationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
         durationEl.className = 'task-duration task-duration-active';
@@ -7245,8 +7662,12 @@
       const workflowEl = document.getElementById('detail-workflow');
       const workflowSteps = ['brief', 'plan', 'execute'];
       const workflowStep = task.workflowStep || 'pending';
-      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
-      if (workflowStep !== 'pending') {
+      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
+      if (task.type === 'goal' && (workflowStep === 'architect' || workflowStep === 'complete')) {
+        // Goal tasks show only Architect step
+        const architectClass = (workflowStep === 'architect' && isDetailWorkflowActive) ? 'active' : 'completed';
+        workflowEl.innerHTML = `<span class="workflow-step ${architectClass}">Architect</span>`;
+      } else if (workflowStep !== 'pending') {
         workflowEl.innerHTML = workflowSteps.map(step => {
           let cls = 'workflow-step';
           if (!isDetailWorkflowActive) {
@@ -7264,12 +7685,14 @@
 
       // Run button visibility
       const runBtn = document.getElementById('detail-run-btn');
-      const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running';
-      runBtn.style.display = (task.status === 'todo' || task.status === 'queued') ? 'block' : 'none';
+      const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying';
       runBtn.textContent = task.status === 'queued' ? 'Run Now' : 'Run Task';
 
       // Load subtasks
       await loadSubtasksForDetail(taskId);
+
+      // Load child tasks for goal tasks
+      await loadChildTasksForDetail(task);
 
       document.getElementById('detail-modal').classList.add('open');
     }
@@ -7309,6 +7732,45 @@
         }
       } catch (err) {
         subtasksSection.style.display = 'none';
+      }
+    }
+
+    async function loadChildTasksForDetail(task) {
+      const childrenSection = document.getElementById('detail-children-section');
+      const childrenList = document.getElementById('detail-children-list');
+      const childrenStats = document.getElementById('detail-children-stats');
+
+      if (task.type !== 'goal' || !task.childTaskIds || task.childTaskIds.length === 0) {
+        childrenSection.style.display = 'none';
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/tasks/${task.id}/children`);
+        if (!res.ok) {
+          childrenSection.style.display = 'none';
+          return;
+        }
+
+        const children = await res.json();
+        childrenSection.style.display = 'block';
+
+        const doneCount = children.filter(c => c.status === 'done' || c.status === 'review').length;
+        childrenStats.textContent = `${doneCount}/${children.length} tasks complete`;
+
+        childrenList.innerHTML = children.map(child => {
+          const statusIcon = child.status === 'done' ? '✅' : child.status === 'review' ? '🔍' : child.status === 'running' || child.status === 'briefing' || child.status === 'planning' ? '🔄' : '⬜';
+          const completedClass = child.status === 'done' ? 'completed' : '';
+          return `
+            <div class="subtask-item ${completedClass}" onclick="openDetailModal('${child.id}', event)" style="cursor:pointer">
+              <span class="subtask-status">${statusIcon}</span>
+              <span class="subtask-content">${escapeHtml(child.title)}</span>
+              <span class="priority-badge priority-${child.priority}" style="margin-left:auto;font-size:9px">${child.priority}</span>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        childrenSection.style.display = 'none';
       }
     }
 
@@ -7703,6 +8165,17 @@
           console.log('[Assistant] Board updated, refreshing...');
           loadBoard();
           refreshProjectBriefPanel();
+        } else if (data.type === 'dependency-resolved') {
+          console.log(`[Assistant] Dependency resolved for task ${data.taskId}, refreshing board...`);
+          loadBoard();
+        } else if (data.type === 'kill-switch') {
+          const alertEl = document.getElementById('emergency-stop-alert');
+          const msgEl = document.getElementById('emergency-stop-message');
+          if (alertEl && msgEl) {
+            msgEl.textContent = data.taskId ? ` Task: ${data.taskId}` : '';
+            alertEl.style.display = 'block';
+          }
+          loadBoard();
         }
       };
 
@@ -8115,6 +8588,7 @@
         case 'planning': return 'PLANNING';
         case 'running': return 'EXECUTING';
         case 'queued': return 'QUEUED';
+        case 'verifying': return 'VERIFYING';
         default: return status.toUpperCase();
       }
     }
@@ -8222,7 +8696,7 @@
     function renderMobileBoard() {
       if (!isMobileView() || mobileViewMode !== 'board') return;
 
-      const statuses = ['todo', 'queued', 'running', 'review', 'done'];
+      const statuses = ['todo', 'queued', 'running', 'verifying', 'review', 'done'];
 
       statuses.forEach(status => {
         const container = document.getElementById(`mobile-${status}-tasks`);
@@ -8233,7 +8707,7 @@
         let tasks;
         if (status === 'running') {
           tasks = board.tasks.filter(t =>
-            t.status === 'running' || t.status === 'briefing' || t.status === 'planning'
+            t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'architecting'
           );
         } else {
           tasks = board.tasks.filter(t => t.status === status);
@@ -8251,13 +8725,13 @@
 
         container.innerHTML = tasks.map(task => {
           let statusClass = '';
-          if (task.status === 'running' || task.status === 'briefing' || task.status === 'planning') {
+          if (task.status === 'running' || task.status === 'briefing' || task.status === 'planning' || task.status === 'architecting' || task.status === 'verifying') {
             statusClass = 'running';
           } else if (task.status === 'queued') {
             statusClass = 'queued';
           }
 
-          const isActive = task.status === 'running' || task.status === 'briefing' || task.status === 'planning';
+          const isActive = task.status === 'running' || task.status === 'briefing' || task.status === 'planning' || task.status === 'architecting' || task.status === 'verifying';
           const durationHtml = task.startedAt ? (isActive
             ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, null)}</span>`
             : (task.completedAt ? `<span class="task-duration" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, task.completedAt)}</span>` : ''))
@@ -8303,7 +8777,7 @@
 
       // Duration display
       const mobileDurationEl = document.getElementById('mobile-sheet-duration');
-      const isActiveForDuration = ['briefing', 'planning', 'running'].includes(task.status);
+      const isActiveForDuration = ['briefing', 'planning', 'running', 'architecting', 'verifying'].includes(task.status);
       if (task.startedAt && isActiveForDuration) {
         mobileDurationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
         mobileDurationEl.className = 'task-duration task-duration-active';
@@ -8325,7 +8799,7 @@
       const actionsContainer = document.getElementById('mobile-sheet-actions');
       let actionsHtml = '';
 
-      const isRunning = ['running', 'briefing', 'planning'].includes(task.status);
+      const isRunning = ['running', 'briefing', 'planning', 'architecting', 'verifying'].includes(task.status);
 
       if (task.status === 'todo') {
         actionsHtml = `
@@ -8870,6 +9344,9 @@
           console.log('[MobileChat] Board updated, refreshing...');
           loadBoard();
           refreshProjectBriefPanel();
+        } else if (data.type === 'dependency-resolved') {
+          console.log(`[MobileChat] Dependency resolved for task ${data.taskId}, refreshing board...`);
+          loadBoard();
         }
       };
 

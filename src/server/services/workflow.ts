@@ -1,11 +1,15 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { spawn, execFile, type ChildProcess } from 'node:child_process';
+import { promisify } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+
+const execFileAsync = promisify(execFile);
 import type { WebSocket } from 'ws';
-import { updateTaskStatus, getTask, loadBoard, saveBoard } from './store.js';
+import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
+import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease } from './leaseManager.js';
 import {
   loadSubtasks,
   isAllComplete,
@@ -14,13 +18,21 @@ import {
   subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
+import { createSafePoint } from '../utils/gitUtils.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
+import { broadcastBoardUpdate, broadcastKillSwitch, broadcastTaskCompleted } from './boardNotifier.js';
+import { stopQueueProcessor } from './queueProcessor.js';
+import { broadcastToWorkspace } from './messagingNotifier.js';
+import { addMemory } from './memory.js';
+import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
 
 const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 const MAX_EXECUTE_ITERATIONS = parseInt(process.env.MAX_EXECUTE_ITERATIONS || '5', 10);
-const STEP_TIMEOUT_MS = parseInt(process.env.STEP_TIMEOUT_MS || '600000', 10); // 10 minutes default
+const STEP_TIMEOUT_MS = parseInt(process.env.STEP_TIMEOUT_MS || '6000000', 10); // 10 minutes default
+const VERIFY_COMMAND = process.env.VERIFY_COMMAND || '';
+const SKIP_VERIFY = process.env.SKIP_VERIFY === 'true';
 
 /**
  * Load the project development guidelines if they exist
@@ -111,7 +123,7 @@ async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<v
 /**
  * Append logs to workflow logs for a specific step
  */
-async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute', logs: string[]): Promise<void> {
+async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute' | 'architect' | 'verify', logs: string[]): Promise<void> {
   const board = await loadBoard();
   const task = board.tasks.find(t => t.id === taskId);
   if (task) {
@@ -273,6 +285,121 @@ This is a QUICK TASK - execute directly without generating documentation files.
 Complete the task as specified in the context above.
 
 All code changes MUST comply with the project development guidelines provided above.`;
+}
+
+/**
+ * Load declared files from the task's declared-files.json
+ */
+async function loadDeclaredFiles(docsPath: string): Promise<{ exclusive: string[]; shared: string[] } | null> {
+  const filePath = path.join(getWorkspacePath(), docsPath, 'declared-files.json');
+  try {
+    if (!existsSync(filePath)) {
+      return null;
+    }
+    const content = await readFile(filePath, 'utf-8');
+    const parsed = JSON.parse(content) as { exclusive?: string[]; shared?: string[] };
+    return {
+      exclusive: parsed.exclusive || [],
+      shared: parsed.shared || [],
+    };
+  } catch (error) {
+    console.warn('[Workflow] Failed to load declared-files.json:', error);
+    return null;
+  }
+}
+
+/**
+ * Execute the declare step: run declare skill, parse output, acquire leases
+ * Returns true if leases were acquired successfully, false if task should yield
+ */
+async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promise<boolean> {
+  // Run the declare skill
+  await updateTaskStatus(taskId, 'declaring', null);
+  await updateWorkflowStep(taskId, 'declare');
+
+  broadcastToTask(taskId, {
+    type: 'stdout',
+    data: `\n========== Starting DECLARE step ==========\n`,
+    timestamp: new Date().toISOString(),
+  });
+
+  const declareSuccess = await new Promise<boolean>((resolve) => {
+    const skillResult = loadSkillPrompt('declare', task);
+    skillResult.then(result => {
+      if (!result.success) {
+        console.log('[Workflow] Declare skill not found, skipping declaration');
+        resolve(true); // Skip if no declare skill - backwards compatible
+        return;
+      }
+
+      const child = runWorkflowStep(taskId, 'execute', result.content, (success) => {
+        resolve(success);
+      });
+
+      if (child.pid) {
+        activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
+      }
+    }).catch(() => {
+      resolve(true); // Skip on error
+    });
+  });
+
+  activeWorkflows.delete(taskId);
+
+  if (!declareSuccess) {
+    console.log(`[Workflow] Declare step failed for task ${taskId}`);
+    return false;
+  }
+
+  // Parse declared-files.json
+  const declaredFiles = await loadDeclaredFiles(task.docsPath);
+  if (declaredFiles) {
+    // Store declared files on the task
+    const board = await loadBoard();
+    const boardTask = board.tasks.find(t => t.id === taskId);
+    if (boardTask) {
+      boardTask.declaredFiles = declaredFiles;
+      await saveBoard(board);
+    }
+
+    // Record file hashes for shared files (optimistic concurrency)
+    if (declaredFiles.shared.length > 0) {
+      await recordFileHashes(taskId, declaredFiles.shared, getWorkspacePath());
+    }
+
+    // Attempt to acquire leases
+    const leaseResult = acquireLeases({
+      taskId,
+      exclusiveFiles: declaredFiles.exclusive,
+      sharedFiles: declaredFiles.shared,
+    });
+
+    if (!leaseResult.granted) {
+      console.log(`[Workflow] Lease acquisition failed for task ${taskId}, yielding`);
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `\n[YIELD] Cannot acquire file leases - conflicts on: ${leaseResult.conflictingFiles.join(', ')}\n`,
+        timestamp: new Date().toISOString(),
+      });
+      if (leaseResult.conflictingFiles.length > 0) {
+        const blockedOnFile = leaseResult.conflictingFiles[0];
+        recordWait(taskId, blockedOnFile);
+        await preemptLease(taskId, blockedOnFile);
+      }
+      return false;
+    }
+
+    clearWait(taskId);
+    broadcastToTask(taskId, {
+      type: 'stdout',
+      data: `\n[LEASES] Acquired ${leaseResult.leases.length} file lease(s)\n`,
+      timestamp: new Date().toISOString(),
+    });
+  } else {
+    console.log(`[Workflow] No declared-files.json found for task ${taskId}, proceeding without leases`);
+  }
+
+  return true;
 }
 
 /**
@@ -438,6 +565,9 @@ async function executeWithIterativeLoop(
   while (iteration <= MAX_EXECUTE_ITERATIONS && !allComplete) {
     console.log(`[Workflow] Execute iteration ${iteration}/${MAX_EXECUTE_ITERATIONS} for task ${taskId}`);
 
+    // Renew leases at the start of each iteration to prevent watchdog timeout
+    renewLeases(taskId);
+
     // Broadcast iteration start
     broadcastToTask(taskId, {
       type: 'stdout',
@@ -554,6 +684,268 @@ async function executeWithIterativeLoop(
 }
 
 /**
+ * Run the verification command against the workspace.
+ * Returns { success: true } immediately when SKIP_VERIFY or VERIFY_COMMAND is unset.
+ */
+async function executeVerifyStep(taskId: string): Promise<{ success: boolean; stderrLines: string[] }> {
+  if (SKIP_VERIFY || !VERIFY_COMMAND) {
+    console.log('[Verifier] Skipping verification (SKIP_VERIFY or no VERIFY_COMMAND)');
+    return { success: true, stderrLines: [] };
+  }
+
+  await updateTaskStatus(taskId, 'verifying', null);
+  await updateWorkflowStep(taskId, 'verify');
+
+  broadcastToTask(taskId, {
+    type: 'stdout',
+    data: '\n========== Starting VERIFY step ==========\n',
+    timestamp: new Date().toISOString(),
+  });
+
+  const parts = VERIFY_COMMAND.split(' ');
+  const cmd = parts[0];
+  const args = parts.slice(1);
+  const logBuffer: string[] = [];
+  const stderrLines: string[] = [];
+
+  return new Promise((resolve) => {
+    let child: ReturnType<typeof spawn>;
+    try {
+      child = spawn(cmd, args, {
+        cwd: getWorkspacePath(),
+        env: { ...process.env },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.log(`[Verifier] Failed to spawn verification command: ${message}`);
+      resolve({ success: false, stderrLines: [message] });
+      return;
+    }
+
+    child.on('error', (err: NodeJS.ErrnoException) => {
+      const message = err.message;
+      console.log(`[Verifier] Failed to spawn verification command: ${message}`);
+      resolve({ success: false, stderrLines: [message] });
+    });
+
+    child.stdout?.on('data', (data: Buffer) => {
+      const text = data.toString();
+      logBuffer.push(...text.split('\n').filter(l => l.length > 0));
+      while (logBuffer.length > 100) logBuffer.shift();
+      broadcastToTask(taskId, { type: 'stdout', data: text, timestamp: new Date().toISOString() });
+    });
+
+    child.stderr?.on('data', (data: Buffer) => {
+      const text = data.toString();
+      const lines = text.split('\n').filter(l => l.length > 0);
+      logBuffer.push(...lines);
+      stderrLines.push(...lines);
+      while (logBuffer.length > 100) logBuffer.shift();
+      while (stderrLines.length > 100) stderrLines.shift();
+      broadcastToTask(taskId, { type: 'stderr', data: text, timestamp: new Date().toISOString() });
+    });
+
+    child.on('close', async (code) => {
+      await appendWorkflowLogs(taskId, 'verify', logBuffer);
+
+      broadcastToTask(taskId, {
+        type: 'exit',
+        data: `[VERIFY] Step completed with code ${code}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (code === 0) {
+        console.log('[Verifier] Verification PASSED');
+        resolve({ success: true, stderrLines: [] });
+      } else {
+        console.log(`[Verifier] Verification FAILED (exit code ${code})`);
+        resolve({ success: false, stderrLines });
+      }
+    });
+  });
+}
+
+/**
+ * On verify failure: increment retryCount; create a Fix task or engage kill switch after 3 failures.
+ */
+async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Promise<void> {
+  const board = await loadBoard();
+  const task = board.tasks.find(t => t.id === taskId);
+  if (!task) return;
+
+  const newRetryCount = (task.retryCount ?? 0) + 1;
+  task.retryCount = newRetryCount;
+  await saveBoard(board);
+  console.log(`[Critic] Task ${taskId} retry count: ${newRetryCount}`);
+
+  if (newRetryCount >= 3) {
+    console.log(`[Critic] Kill switch activated for task ${taskId} after ${newRetryCount} failed verifications`);
+
+    if (task.safePointCommit) {
+      try {
+        await execFileAsync('git', ['reset', '--hard', task.safePointCommit], { cwd: getWorkspacePath() });
+        console.log(`[Critic] Workspace reverted to safe point ${task.safePointCommit}`);
+      } catch (err) {
+        console.warn('[Critic] Failed to revert to safe point:', err instanceof Error ? err.message : 'Unknown error');
+      }
+    } else {
+      console.warn(`[Critic] No safePointCommit on task ${taskId}, skipping git reset`);
+    }
+
+    stopQueueProcessor();
+    console.log('[Critic] Queue processor stopped by kill switch');
+
+    broadcastKillSwitch(taskId);
+
+    try {
+      await broadcastToWorkspace(getWorkspacePath(), {
+        chatId: '',
+        text: `🚨 *Kill Switch Activated*\n\nTask \`${taskId}\` has failed verification 3 times.\nQueue paused. Workspace reverted to safe point.`,
+        parseMode: 'markdown',
+      });
+    } catch (err) {
+      console.warn('[Critic] Failed to send kill switch messaging notification:', err instanceof Error ? err.message : 'Unknown error');
+    }
+
+    await updateTaskStatus(taskId, 'todo', null);
+    return;
+  }
+
+  const errorSnippet = stderrLines.slice(-100).join('\n');
+  const fixContext = `Auto-fix for task ${taskId}: ${task.title}\n\nVerification failed with the following error:\n\`\`\`\n${errorSnippet}\n\`\`\`\n\nPlease fix the code so that the verification command passes.\n\nOriginal task context:\n${task.context}`;
+
+  const fixTask = await createTask({
+    title: `Fix: ${task.title}`,
+    context: fixContext,
+    priority: 'high',
+    type: 'quick',
+    fixForTaskId: taskId,
+  });
+  await queueTask(fixTask.id);
+  await updateTaskStatus(taskId, 'todo', null);
+  broadcastBoardUpdate();
+  console.log(`[Critic] Created fix task ${fixTask.id} for task ${taskId} (retry ${newRetryCount}/3)`);
+}
+
+// ==================== Reflection Step ====================
+
+interface ReflectionEntry {
+  type: 'pattern' | 'pitfall' | 'preference';
+  content: string;
+  relevance_tags: string[];
+}
+
+function isReflectionEntry(val: unknown): val is ReflectionEntry {
+  if (typeof val !== 'object' || val === null) return false;
+  const obj = val as Record<string, unknown>;
+  return (
+    (obj['type'] === 'pattern' || obj['type'] === 'pitfall' || obj['type'] === 'preference') &&
+    typeof obj['content'] === 'string' &&
+    Array.isArray(obj['relevance_tags']) &&
+    (obj['relevance_tags'] as unknown[]).every((t) => typeof t === 'string')
+  );
+}
+
+function parseReflectionOutput(output: string): ReflectionEntry[] {
+  const match = output.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[0]) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isReflectionEntry);
+  } catch {
+    return [];
+  }
+}
+
+/** Spawn the agent with a one-shot prompt and collect all output as a string. */
+function runAgentForOutput(prompt: string): Promise<string> {
+  return new Promise((resolve) => {
+    const agentCommand = getAgentCommand();
+    const agentArgs = buildAgentArgs(prompt);
+
+    const child = spawn(agentCommand, agentArgs, {
+      cwd: getWorkspacePath(),
+      env: { ...process.env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    const chunks: string[] = [];
+
+    child.stdout?.on('data', (data: Buffer) => {
+      chunks.push(data.toString());
+    });
+
+    child.stderr?.on('data', (data: Buffer) => {
+      chunks.push(data.toString());
+    });
+
+    const timeout = setTimeout(() => {
+      child.kill('SIGTERM');
+    }, 3 * 60 * 1000); // 3-minute timeout for reflection
+
+    child.on('error', () => {
+      clearTimeout(timeout);
+      resolve(chunks.join(''));
+    });
+
+    child.on('close', () => {
+      clearTimeout(timeout);
+      resolve(chunks.join(''));
+    });
+  });
+}
+
+/**
+ * Fire-and-forget reflection step: runs after a task transitions to 'review'.
+ * Prompts the agent to extract learnings and pitfalls, saves them as memory entries,
+ * and links the generated IDs back to the task via reflectionMemories.
+ * All errors are swallowed so this never blocks task completion.
+ */
+async function runReflectionStep(taskId: string): Promise<void> {
+  try {
+    const task = await getTask(taskId);
+    if (!task) return;
+
+    const prompt = `You have just completed task "${task.title}".
+
+Reflect on what was done and produce a JSON array of memory entries for future reference.
+Each entry must have: type ('pattern'|'pitfall'|'preference'), content (string), relevance_tags (string array of file paths or keywords).
+
+Output ONLY a valid JSON array, no markdown fences.
+Example:
+[
+  { "type": "pattern", "content": "Always use writeFile with { recursive: true } when creating nested dirs", "relevance_tags": ["node:fs", "file-system"] },
+  { "type": "pitfall", "content": "ESM imports require .js extension even for .ts source files", "relevance_tags": ["typescript", "esm", "imports"] }
+]`;
+
+    const output = await runAgentForOutput(prompt);
+    const entries = parseReflectionOutput(output);
+
+    const memoryIds: string[] = [];
+    for (const entry of entries) {
+      const memEntry = await addMemory({
+        type: entry.type,
+        content: entry.content,
+        source_task: taskId,
+        relevance_tags: entry.relevance_tags,
+      });
+      memoryIds.push(memEntry.id);
+    }
+
+    if (memoryIds.length > 0) {
+      await updateTask(taskId, { reflectionMemories: memoryIds });
+      broadcastBoardUpdate();
+      console.log(`[Workflow] Reflection step saved ${memoryIds.length} memory entries for task ${taskId}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.warn(`[Workflow] Reflection step failed for task ${taskId}:`, message);
+  }
+}
+
+/**
  * Execute a quick task (skips brief/plan stages, runs execute directly)
  * Quick tasks use task.context directly as the execution prompt
  */
@@ -569,6 +961,9 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
   }
 
   console.log(`[Workflow] Starting quick task execution for ${taskId}`);
+
+  // Create a git safe-point commit before execution for rollback support
+  await createSafePoint(taskId);
 
   // Load project guidelines
   const guidelines = await loadProjectGuidelines();
@@ -603,9 +998,20 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
 
     activeWorkflows.delete(taskId);
 
+    // Release any leases held by this task
+    releaseLeases(taskId);
+
     if (success) {
+      const verifyResult = await executeVerifyStep(taskId);
+      if (!verifyResult.success) {
+        await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+        return;
+      }
       await updateWorkflowStep(taskId, 'complete');
       await updateTaskStatus(taskId, 'review', null);
+      broadcastTaskCompleted(taskId);
+      internalEvents.emit(TASK_COMPLETED, taskId);
+      void runReflectionStep(taskId);
       broadcastToTask(taskId, {
         type: 'stdout',
         data: `\n[SUCCESS] Quick task completed. Ready for review.\n`,
@@ -682,23 +1088,35 @@ export async function executeSingleStep(
       await updateTaskStatus(taskId, 'running', null);
       await updateWorkflowStep(taskId, 'execute');
 
-      const result = await executeWithIterativeLoop(taskId, task);
-      console.log(`[Workflow] Execute step finished for task ${taskId}: success=${result.success}, allComplete=${result.allComplete}, iterations=${result.iterations}`);
+      let result: { success: boolean; allComplete: boolean; iterations: number };
+      try {
+        result = await executeWithIterativeLoop(taskId, task);
+        console.log(`[Workflow] Execute step finished for task ${taskId}: success=${result.success}, allComplete=${result.allComplete}, iterations=${result.iterations}`);
 
-      if (result.success && result.allComplete) {
-        // All subtasks complete - move to review
-        console.log(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
-        await updateWorkflowStep(taskId, 'complete');
-        await updateTaskStatus(taskId, 'review', null);
-      } else if (result.success && !result.allComplete) {
-        // Max iterations reached but not all complete - still move to review with warning
-        console.log(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
-        await updateWorkflowStep(taskId, 'complete');
-        await updateTaskStatus(taskId, 'review', null);
-      } else {
-        // Execution failed
-        console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
-        await updateTaskStatus(taskId, 'todo', null);
+        if (result.success && result.allComplete) {
+          // All subtasks complete - move to review
+          console.log(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
+          await updateWorkflowStep(taskId, 'complete');
+          await updateTaskStatus(taskId, 'review', null);
+          broadcastTaskCompleted(taskId);
+          internalEvents.emit(TASK_COMPLETED, taskId);
+          void runReflectionStep(taskId);
+        } else if (result.success && !result.allComplete) {
+          // Max iterations reached but not all complete - still move to review with warning
+          console.log(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
+          await updateWorkflowStep(taskId, 'complete');
+          await updateTaskStatus(taskId, 'review', null);
+          broadcastTaskCompleted(taskId);
+          internalEvents.emit(TASK_COMPLETED, taskId);
+          void runReflectionStep(taskId);
+        } else {
+          // Execution failed
+          console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
+          await updateTaskStatus(taskId, 'todo', null);
+        }
+      } finally {
+        releaseLeases(taskId);
+        console.log(`[Workflow] Released leases for task ${taskId} (executeSingleStep)`);
       }
 
       return { success: result.success, pid: process.pid };
@@ -817,6 +1235,9 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
 
   // Run steps sequentially
   (async () => {
+    // Create a git safe-point commit before execution for rollback support
+    await createSafePoint(taskId);
+
     // Step 1: Brief
     const briefSuccess = await runStep('brief');
     if (!briefSuccess) {
@@ -833,25 +1254,451 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       return;
     }
 
-    // Step 3: Execute (with iterative completion checking)
-    const currentTask = await getTask(taskId);
-    if (!currentTask) {
+    // Step 2.5: Declare + Acquire Leases
+    const currentTaskForDeclare = await getTask(taskId);
+    if (!currentTaskForDeclare) {
       activeWorkflows.delete(taskId);
       await updateTaskStatus(taskId, 'todo', null);
       return;
     }
 
-    await updateTaskStatus(taskId, 'running', null);
-    await updateWorkflowStep(taskId, 'execute');
+    const leasesAcquired = await executeDeclareAndAcquireLeases(taskId, currentTaskForDeclare);
+    if (!leasesAcquired) {
+      // Task needs to yield - return to queued for retry
+      activeWorkflows.delete(taskId);
+      const board = await loadBoard();
+      const yieldTask = board.tasks.find(t => t.id === taskId);
+      if (yieldTask) {
+        yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
+        await saveBoard(board);
+      }
+      await updateTaskStatus(taskId, 'queued', null);
+      return;
+    }
 
-    const executeResult = await executeWithIterativeLoop(taskId, currentTask);
+    // Step 3: Execute (with iterative completion checking)
+    const currentTask = await getTask(taskId);
+    if (!currentTask) {
+      activeWorkflows.delete(taskId);
+      releaseLeases(taskId);
+      await updateTaskStatus(taskId, 'todo', null);
+      return;
+    }
+
+    // Wrap post-lease-acquisition code in try/finally to guarantee lease release
+    // even if an unexpected exception occurs during execution or collision detection
+    try {
+      await updateTaskStatus(taskId, 'running', null);
+      await updateWorkflowStep(taskId, 'execute');
+
+      const executeResult = await executeWithIterativeLoop(taskId, currentTask);
+      activeWorkflows.delete(taskId);
+
+      // Detect collisions on shared files BEFORE releasing leases
+      // (releaseLeases deletes fileHashStore entries needed by detectCollisions)
+      if (currentTask.declaredFiles?.shared && currentTask.declaredFiles.shared.length > 0) {
+        const conflicts = await detectCollisions(taskId, getWorkspacePath());
+        if (conflicts.length > 0) {
+          const board = await loadBoard();
+          const conflictTask = board.tasks.find(t => t.id === taskId);
+          if (conflictTask) {
+            conflictTask.fileConflicts = conflicts;
+            await saveBoard(board);
+          }
+          console.log(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
+        }
+      }
+
+      if (executeResult.success) {
+        // Guard against stale status updates: check if watchdog has already re-queued the task
+        const latestTask = await getTask(taskId);
+        if (latestTask && latestTask.status === 'running') {
+          const verifyResult = await executeVerifyStep(taskId);
+          if (!verifyResult.success) {
+            await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+          } else {
+            await updateWorkflowStep(taskId, 'complete');
+            await updateTaskStatus(taskId, 'review', null);
+            broadcastTaskCompleted(taskId);
+            internalEvents.emit(TASK_COMPLETED, taskId);
+            void runReflectionStep(taskId);
+          }
+        } else {
+          console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
+        }
+      } else {
+        const latestTask = await getTask(taskId);
+        if (latestTask && latestTask.status === 'running') {
+          await updateTaskStatus(taskId, 'todo', null);
+        } else {
+          console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
+        }
+      }
+    } finally {
+      // Ensure leases are always released, even on unexpected exceptions.
+      // Safe to call even if leases were already released (no-op in that case).
+      releaseLeases(taskId);
+    }
+  })();
+
+  return { pid: startPid };
+}
+
+/**
+ * Build the prompt for the architect step (FALLBACK)
+ * Used when skill file is not available or fails to load
+ */
+function buildArchitectPromptFallback(task: Task, guidelines: string): string {
+  const docsPath = path.join(getWorkspacePath(), task.docsPath);
+
+  return `${guidelines}
+You are a senior Software Architect. Your task is to analyze a high-level goal and decompose it into multiple independent, actionable child tasks.
+
+TASK_TITLE: ${task.title}
+TASK_CONTEXT: ${task.context}
+TASK_DOCS_PATH: ${docsPath}
+
+IMPORTANT: You must NOT write any implementation code. Your only job is to analyze and decompose.
+
+Instructions:
+1. Explore the project codebase to understand the structure, tech stack, and patterns.
+2. Decompose the goal into 3-8 independent tasks.
+3. Write a JSON file to ${docsPath}/architect-output.json with this format:
+
+[
+  {
+    "title": "Short verb-based title",
+    "context": "Detailed self-contained description with requirements and acceptance criteria",
+    "priority": "high|medium|low"
+  }
+]
+
+Each task must be self-contained and not reference other child tasks.
+Include a final task for integration testing/verification when appropriate.`;
+}
+
+/** Shape of a single task definition in architect-output.json */
+interface ArchitectTaskDef {
+  title: string;
+  context: string;
+  priority?: 'high' | 'medium' | 'low';
+  /** Architect-assigned symbolic ID for dependency references (optional, DAG mode only) */
+  task_id?: string;
+  /** Symbolic IDs of tasks this task depends on (optional, DAG mode only) */
+  depends_on?: string[];
+}
+
+/**
+ * Detect cycles in the architect-output DAG using Kahn's BFS topological sort.
+ * Returns true if a cycle is detected, false if the graph is acyclic.
+ */
+function detectDAGCycle(defs: ArchitectTaskDef[]): boolean {
+  const inDegree = new Map<string, number>();
+  const adjacency = new Map<string, string[]>();
+
+  for (const def of defs) {
+    if (typeof def.task_id !== 'string' || def.task_id.length === 0) continue;
+    if (!inDegree.has(def.task_id)) inDegree.set(def.task_id, 0);
+    if (!adjacency.has(def.task_id)) adjacency.set(def.task_id, []);
+  }
+
+  for (const def of defs) {
+    if (typeof def.task_id !== 'string' || def.task_id.length === 0) continue;
+    if (!Array.isArray(def.depends_on)) continue;
+
+    for (const dep of def.depends_on) {
+      if (!inDegree.has(dep)) continue; // unknown reference — skip
+      inDegree.set(def.task_id, (inDegree.get(def.task_id) ?? 0) + 1);
+      const neighbors = adjacency.get(dep) ?? [];
+      neighbors.push(def.task_id);
+      adjacency.set(dep, neighbors);
+    }
+  }
+
+  const queue: string[] = [];
+  for (const [id, degree] of inDegree) {
+    if (degree === 0) queue.push(id);
+  }
+
+  let processed = 0;
+  while (queue.length > 0) {
+    const node = queue.shift()!;
+    processed++;
+    for (const neighbor of (adjacency.get(node) ?? [])) {
+      const newDegree = (inDegree.get(neighbor) ?? 1) - 1;
+      inDegree.set(neighbor, newDegree);
+      if (newDegree === 0) queue.push(neighbor);
+    }
+  }
+
+  return processed < inDegree.size;
+}
+
+/**
+ * Execute a goal task workflow (architect step → create child tasks)
+ */
+export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number }> {
+  const task = await getTask(taskId);
+  if (!task) {
+    throw new Error(`Task ${taskId} not found`);
+  }
+
+  if (activeWorkflows.has(taskId)) {
+    throw new Error('A workflow is already running for this task');
+  }
+
+  console.log(`[Workflow] Starting goal workflow for ${taskId}`);
+
+  // Create a git safe-point commit before execution for rollback support
+  await createSafePoint(taskId);
+
+  // Update status to architecting
+  await updateTaskStatus(taskId, 'architecting', null);
+  await updateWorkflowStep(taskId, 'architect');
+
+  // Load skill prompt with fallback
+  let prompt: string;
+  const skillResult = await loadSkillPrompt('architect', task);
+  if (skillResult.success) {
+    prompt = skillResult.content;
+    console.log('[Workflow] Using skill file for architect step');
+  } else {
+    const guidelines = await loadProjectGuidelines();
+    prompt = buildArchitectPromptFallback(task, guidelines);
+    console.log('[Workflow] Using fallback prompt for architect step');
+  }
+
+  // Broadcast start
+  broadcastToTask(taskId, {
+    type: 'stdout',
+    data: `\n========== Starting ARCHITECT step (goal decomposition) ==========\n`,
+    timestamp: new Date().toISOString(),
+  });
+
+  const startPid = process.pid;
+
+  // Run the architect step asynchronously
+  (async () => {
+    const success = await new Promise<boolean>((resolve) => {
+      const child = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
+        resolve(stepSuccess);
+      });
+
+      if (child.pid) {
+        activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
+      }
+    });
+
     activeWorkflows.delete(taskId);
 
-    if (executeResult.success) {
+    if (!success) {
+      await updateTaskStatus(taskId, 'todo', null);
+      broadcastToTask(taskId, {
+        type: 'error',
+        data: `\n[FAILED] Architect step failed.\n`,
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
+
+    // Parse architect-output.json and create child tasks
+    const outputPath = path.join(getWorkspacePath(), task.docsPath, 'architect-output.json');
+
+    try {
+      if (!existsSync(outputPath)) {
+        console.warn(`[Workflow] architect-output.json not found at ${outputPath}`);
+        broadcastToTask(taskId, {
+          type: 'error',
+          data: `\n[WARNING] architect-output.json not found. Goal moved to review.\n`,
+          timestamp: new Date().toISOString(),
+        });
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null);
+        broadcastTaskCompleted(taskId);
+        internalEvents.emit(TASK_COMPLETED, taskId);
+        void runReflectionStep(taskId);
+        broadcastBoardUpdate();
+        return;
+      }
+
+      const outputContent = await readFile(outputPath, 'utf-8');
+      const childTaskDefs = JSON.parse(outputContent) as Array<ArchitectTaskDef>;
+
+      if (!Array.isArray(childTaskDefs) || childTaskDefs.length === 0) {
+        throw new Error('architect-output.json must be a non-empty array');
+      }
+
+      console.log(`[Workflow] Parsed ${childTaskDefs.length} child tasks from architect output`);
+
+      // Determine if DAG mode is active: at least one def has a task_id and no cycle exists
+      const hasDagFields = childTaskDefs.some(d => typeof d.task_id === 'string' && d.task_id.length > 0);
+      let dagMode = false;
+      if (hasDagFields) {
+        if (detectDAGCycle(childTaskDefs)) {
+          console.warn('[Workflow] Cycle detected in architect DAG — falling back to flat queue mode');
+          broadcastToTask(taskId, {
+            type: 'stdout',
+            data: `\n[WARNING] Cycle detected in dependency graph. Falling back to flat queue mode.\n`,
+            timestamp: new Date().toISOString(),
+          });
+        } else {
+          dagMode = true;
+        }
+      }
+
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `\n[ARCHITECT] Creating ${childTaskDefs.length} child tasks...\n`,
+        timestamp: new Date().toISOString(),
+      });
+
+      const childTaskIds: string[] = [];
+      // Maps architect task_id → Formic task ID (populated in creation loop)
+      const symbolicToFormicId = new Map<string, string>();
+
+      for (const def of childTaskDefs) {
+        if (!def.title || !def.context) {
+          console.warn('[Workflow] Skipping invalid child task definition (missing title or context)');
+          continue;
+        }
+
+        const childTask = await createTask({
+          title: def.title,
+          context: def.context,
+          priority: def.priority || 'medium',
+          type: 'standard',
+        });
+
+        // Set parentGoalId on the child task
+        const board = await loadBoard();
+        const childInBoard = board.tasks.find(t => t.id === childTask.id);
+        if (childInBoard) {
+          childInBoard.parentGoalId = taskId;
+          await saveBoard(board);
+        }
+
+        if (dagMode && typeof def.task_id === 'string' && def.task_id.length > 0) {
+          symbolicToFormicId.set(def.task_id, childTask.id);
+        }
+
+        childTaskIds.push(childTask.id);
+
+        broadcastToTask(taskId, {
+          type: 'stdout',
+          data: `  → Created: ${childTask.id} - ${childTask.title}\n`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Update goal task with child task IDs
+      const goalBoard = await loadBoard();
+      const goalTask = goalBoard.tasks.find(t => t.id === taskId);
+      if (goalTask) {
+        goalTask.childTaskIds = childTaskIds;
+        await saveBoard(goalBoard);
+      }
+
+      // In DAG mode: persist dependsOn / dependsOnResolved, then queue or block each child
+      if (dagMode) {
+        const depBoard = await loadBoard();
+        for (let i = 0; i < childTaskDefs.length; i++) {
+          const def = childTaskDefs[i];
+          const childId = childTaskIds[i];
+          if (!childId) continue;
+
+          const childInBoard = depBoard.tasks.find(t => t.id === childId);
+          if (childInBoard && Array.isArray(def.depends_on) && def.depends_on.length > 0) {
+            childInBoard.dependsOn = def.depends_on;
+            childInBoard.dependsOnResolved = def.depends_on
+              .map(sym => symbolicToFormicId.get(sym))
+              .filter((id): id is string => typeof id === 'string');
+          }
+        }
+        await saveBoard(depBoard);
+
+        let queuedCount = 0;
+        let blockedCount = 0;
+
+        for (let i = 0; i < childTaskDefs.length; i++) {
+          const def = childTaskDefs[i];
+          const childId = childTaskIds[i];
+          if (!childId) continue;
+
+          const hasDeps = Array.isArray(def.depends_on) && def.depends_on.length > 0;
+          if (hasDeps) {
+            await updateTaskStatus(childId, 'blocked', null);
+            blockedCount++;
+            broadcastToTask(taskId, {
+              type: 'stdout',
+              data: `  ⏸ Blocked (awaiting dependencies): ${childId}\n`,
+              timestamp: new Date().toISOString(),
+            });
+          } else {
+            await queueTask(childId);
+            queuedCount++;
+            broadcastToTask(taskId, {
+              type: 'stdout',
+              data: `  ✓ Queued: ${childId}\n`,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+
+        // Move goal to review
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null);
+        broadcastTaskCompleted(taskId);
+        internalEvents.emit(TASK_COMPLETED, taskId);
+        void runReflectionStep(taskId);
+
+        broadcastToTask(taskId, {
+          type: 'stdout',
+          data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks (${queuedCount} queued, ${blockedCount} blocked). Ready for review.\n`,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        // Flat mode: queue all children unconditionally
+        for (const childId of childTaskIds) {
+          await queueTask(childId);
+          broadcastToTask(taskId, {
+            type: 'stdout',
+            data: `  ✓ Queued: ${childId}\n`,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Move goal to review
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null);
+        broadcastTaskCompleted(taskId);
+        internalEvents.emit(TASK_COMPLETED, taskId);
+        void runReflectionStep(taskId);
+
+        broadcastToTask(taskId, {
+          type: 'stdout',
+          data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks. Ready for review.\n`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      broadcastBoardUpdate();
+
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      console.warn('[Workflow] Failed to parse architect output:', message);
+
+      broadcastToTask(taskId, {
+        type: 'error',
+        data: `\n[WARNING] Failed to parse architect-output.json: ${message}\nGoal moved to review for manual inspection.\n`,
+        timestamp: new Date().toISOString(),
+      });
+
       await updateWorkflowStep(taskId, 'complete');
       await updateTaskStatus(taskId, 'review', null);
-    } else {
-      await updateTaskStatus(taskId, 'todo', null);
+      broadcastTaskCompleted(taskId);
+      internalEvents.emit(TASK_COMPLETED, taskId);
+      void runReflectionStep(taskId);
+      broadcastBoardUpdate();
     }
   })();
 
@@ -874,6 +1721,11 @@ export async function stopWorkflow(taskId: string): Promise<boolean> {
       workflow.process.kill('SIGKILL');
     }
   }, 5000);
+
+  // Immediately release any leases held by this task to unblock sibling tasks,
+  // rather than waiting for the async IIFE to complete after process exit.
+  activeWorkflows.delete(taskId);
+  releaseLeases(taskId);
 
   return true;
 }

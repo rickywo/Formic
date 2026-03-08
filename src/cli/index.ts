@@ -79,8 +79,8 @@ Usage:
   formic <command> [options]
 
 Commands:
-  init              Initialize Formic in the current directory
   start             Start the Formic server
+  init              Initialize .formic/ in the current directory (optional)
 
 Options:
   -p, --port <n>    Port to run the server on (default: 8000)
@@ -88,9 +88,9 @@ Options:
   -v, --version     Show version number
 
 Examples:
-  formic init                    Initialize Formic in current directory
   formic start                   Start server on default port (8000)
   formic start --port 3000       Start server on port 3000
+  formic init                    Pre-initialize .formic/ directory (optional)
 
 Environment Variables:
   PORT              Server port (default: 8000)
@@ -154,14 +154,6 @@ async function initCommand(): Promise<void> {
  */
 async function startCommand(port?: number): Promise<void> {
   const workspacePath = process.cwd();
-  const formicDir = path.join(workspacePath, '.formic');
-
-  // Check if Formic is initialized
-  if (!existsSync(formicDir)) {
-    console.error('Error: Formic is not initialized in this directory.');
-    console.error('\nRun "formic init" first to set up Formic.');
-    process.exit(1);
-  }
 
   // Load .env file from workspace
   await loadEnvFile(workspacePath);

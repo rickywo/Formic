@@ -12,6 +12,8 @@ import {
 } from './bootstrap.js';
 import { copySkillsToWorkspace } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
+import { releaseLeases } from './leaseManager.js';
+import { broadcastDependencyResolved } from './boardNotifier.js';
 
 /**
  * Get project name from workspace folder name
@@ -97,6 +99,10 @@ export async function getBoardWithBootstrap(): Promise<Board> {
       const enriched: typeof task & { hasManualSubtasks?: boolean } = {
         ...task,
         progress: await calculateTaskProgress(task),
+        // Normalize self-healing fields for backward compatibility with tasks stored before these fields existed
+        safePointCommit: task.safePointCommit ?? null,
+        retryCount: task.retryCount ?? null,
+        fixForTaskId: task.fixForTaskId ?? null,
       };
 
       // Check if task has subtasks requiring manual action (pending or skipped)
@@ -171,6 +177,10 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     workflowLogs: {},
     // Timestamp for queue ordering
     createdAt: new Date().toISOString(),
+    // Self-healing fields — always present, null when not set
+    safePointCommit: null,
+    retryCount: null,
+    fixForTaskId: input.fixForTaskId ?? null,
   };
 
   board.tasks.push(task);
@@ -190,6 +200,7 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
   }
 
   const task = board.tasks[taskIndex];
+  const previousStatus = task.status;
 
   // Merge input but preserve docsPath
   board.tasks[taskIndex] = {
@@ -199,6 +210,18 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
   };
 
   await saveBoard(board);
+
+  // Post-completion hook: unblock sibling tasks when status transitions to 'done' via user approval.
+  // This mirrors the same hook in updateTaskStatus and covers the user-approval path
+  // (PUT /api/tasks/:id with { status: 'done' }) which does not go through updateTaskStatus.
+  if (input.status === 'done' && previousStatus !== 'done' && task.parentGoalId) {
+    try {
+      await unblockSiblingTasks(taskId, task.parentGoalId);
+    } catch (err) {
+      console.warn('[Store] Failed to unblock sibling tasks:', err instanceof Error ? err.message : 'Unknown error');
+    }
+  }
+
   return board.tasks[taskIndex];
 }
 
@@ -215,12 +238,50 @@ export async function deleteTask(taskId: string, preserveHistory: boolean = fals
 
   const task = board.tasks[taskIndex];
 
+  // Release any leases held by this task (defensive - task may be in declaring or queued-after-yield state)
+  try {
+    releaseLeases(taskId);
+  } catch (err) {
+    console.warn('[Store] Failed to release leases during task deletion:', err instanceof Error ? err.message : 'Unknown error');
+  }
+
   // Delete documentation folder if not preserving history
   await deleteTaskDocsFolder(task.docsPath, preserveHistory);
 
   board.tasks.splice(taskIndex, 1);
   await saveBoard(board);
   return true;
+}
+
+/**
+ * Check all blocked siblings of a completed task and automatically queue those
+ * whose entire `dependsOnResolved` dependency list has reached `done`.
+ * This is an internal helper — not exported.
+ */
+async function unblockSiblingTasks(completedTaskId: string, parentGoalId: string): Promise<void> {
+  const siblings = await getChildTasks(parentGoalId);
+  const blockedSiblings = siblings.filter(
+    s => s.id !== completedTaskId && s.status === 'blocked' && s.dependsOnResolved && s.dependsOnResolved.length > 0
+  );
+
+  if (blockedSiblings.length === 0) return;
+
+  // Load current board once for dependency status checks
+  const board = await loadBoard();
+  const taskById = new Map(board.tasks.map(t => [t.id, t]));
+
+  for (const sibling of blockedSiblings) {
+    const allDepsResolved = sibling.dependsOnResolved!.every(depId => {
+      const dep = taskById.get(depId);
+      return dep !== undefined && dep.status === 'done';
+    });
+
+    if (allDepsResolved) {
+      await queueTask(sibling.id);
+      console.log(`[Store] Unblocked task ${sibling.id} — all dependencies resolved`);
+      broadcastDependencyResolved(sibling.id, parentGoalId);
+    }
+  }
 }
 
 /**
@@ -240,23 +301,35 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
   }
 
   // Duration tracking: set startedAt on first active transition
-  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'running'];
+  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
   if (activeStatuses.includes(status) && !board.tasks[taskIndex].startedAt) {
     board.tasks[taskIndex].startedAt = new Date().toISOString();
   }
 
   // Duration tracking: set completedAt on completion
+  // NOTE: 'blocked' is intentionally excluded here — blocked tasks are not yet complete.
   if (status === 'review' || status === 'done') {
     board.tasks[taskIndex].completedAt = new Date().toISOString();
   }
 
   // Duration tracking: clear timestamps on reset to todo
+  // NOTE: 'blocked' does not trigger this reset — queuedAt and startedAt are preserved.
   if (status === 'todo') {
     board.tasks[taskIndex].startedAt = undefined;
     board.tasks[taskIndex].completedAt = undefined;
   }
 
   await saveBoard(board);
+
+  // Post-completion hook: unblock sibling tasks whose dependencies are now all done
+  if (status === 'done' && board.tasks[taskIndex].parentGoalId) {
+    try {
+      await unblockSiblingTasks(taskId, board.tasks[taskIndex].parentGoalId!);
+    } catch (err) {
+      console.warn('[Store] Failed to unblock sibling tasks:', err instanceof Error ? err.message : 'Unknown error');
+    }
+  }
+
   return board.tasks[taskIndex];
 }
 
@@ -291,8 +364,8 @@ export async function queueTask(taskId: string): Promise<Task | null> {
 
   const task = board.tasks[taskIndex];
 
-  // Only allow queuing from 'todo' status
-  if (task.status !== 'todo') {
+  // Only allow queuing from 'todo' or 'blocked' status
+  if (task.status !== 'todo' && task.status !== 'blocked') {
     return null;
   }
 
@@ -307,20 +380,29 @@ export async function queueTask(taskId: string): Promise<Task | null> {
 }
 
 /**
- * Get all queued tasks sorted by priority (high > medium > low) then by queuedAt (FIFO)
+ * Get all queued tasks sorted by a 3-tier comparator:
+ * 1. Fix tasks (fixForTaskId set) always go first — enables fast self-healing retry loops
+ * 2. Priority (high > medium > low)
+ * 3. FIFO — queuedAt, falling back to createdAt
  */
 export async function getQueuedTasks(): Promise<Task[]> {
   const board = await loadBoard();
   const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
+  // NOTE: Only 'queued' tasks are returned — 'blocked' tasks are naturally excluded.
   return board.tasks
     .filter(t => t.status === 'queued')
     .sort((a, b) => {
-      // Sort by priority first
+      // Tier 1: fix tasks (fixForTaskId set) always go first
+      const aIsFix = a.fixForTaskId ? 0 : 1;
+      const bIsFix = b.fixForTaskId ? 0 : 1;
+      if (aIsFix !== bIsFix) return aIsFix - bIsFix;
+
+      // Tier 2: priority (high=0, medium=1, low=2)
       const priorityDiff = priorityOrder[a.priority] - priorityOrder[b.priority];
       if (priorityDiff !== 0) return priorityDiff;
 
-      // Then by queuedAt (FIFO) - fall back to createdAt if queuedAt is missing
+      // Tier 3: FIFO - fall back to createdAt if queuedAt is missing
       const aTime = a.queuedAt || a.createdAt || '';
       const bTime = b.queuedAt || b.createdAt || '';
       return new Date(aTime).getTime() - new Date(bTime).getTime();
@@ -332,29 +414,53 @@ export async function getQueuedTasks(): Promise<Task[]> {
  */
 export async function getRunningTasksCount(): Promise<number> {
   const board = await loadBoard();
+  // NOTE: 'blocked' is intentionally excluded from active statuses — blocked tasks consume no runner slot.
   return board.tasks.filter(t =>
-    t.status === 'briefing' || t.status === 'planning' || t.status === 'running'
+    t.status === 'briefing' || t.status === 'planning' || t.status === 'declaring' || t.status === 'running' || t.status === 'architecting' || t.status === 'verifying'
   ).length;
 }
 
 /**
- * Recover stuck tasks on server startup.
- * Tasks can get stuck in active states (briefing, planning, running, queued) when the server
- * restarts while they are being processed. This function resets them to 'todo' so they can
- * be restarted.
+ * Get all tasks regardless of status — used by the queue prioritizer for dependency graph analysis
+ */
+export async function getAllTasks(): Promise<Task[]> {
+  const board = await loadBoard();
+  return board.tasks;
+}
+
+/**
+ * Get all child tasks for a given parent goal task
+ */
+export async function getChildTasks(parentGoalId: string): Promise<Task[]> {
+  const board = await loadBoard();
+  return board.tasks.filter(t => t.parentGoalId === parentGoalId);
+}
+
+/**
+ * Recover interrupted tasks on server startup.
+ * Tasks can get stuck in active execution states (briefing, planning, declaring, running,
+ * architecting, verifying) when the server restarts mid-execution. This function re-queues
+ * them so the queue processor picks them up automatically on restart.
+ *
+ * Tasks already in 'queued' status are left untouched — they were simply waiting in line
+ * and do not need recovery.
+ *
+ * Note: In-memory leases (leaseStore) are naturally cleared on server restart,
+ * so no explicit releaseLeases() call is needed here. This assumption holds
+ * because leases are stored in a Map that is re-initialized on process start.
  *
  * @returns The number of tasks that were recovered
  */
 export async function recoverStuckTasks(): Promise<number> {
   const board = await loadBoard();
-  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'running', 'queued'];
+  const interruptedStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
 
   let recoveredCount = 0;
 
   for (const task of board.tasks) {
-    if (activeStatuses.includes(task.status)) {
-      console.log(`[Recovery] Resetting stuck task ${task.id} from '${task.status}' to 'todo'`);
-      task.status = 'todo';
+    if (interruptedStatuses.includes(task.status)) {
+      console.log(`[Recovery] Re-queuing interrupted task ${task.id} (was '${task.status}')`);
+      task.status = 'queued';
       task.pid = null;
       task.startedAt = undefined;
       task.completedAt = undefined;
@@ -366,7 +472,7 @@ export async function recoverStuckTasks(): Promise<number> {
 
   if (recoveredCount > 0) {
     await saveBoard(board);
-    console.log(`[Recovery] Reset ${recoveredCount} stuck task(s) to 'todo' status`);
+    console.log(`[Recovery] Re-queued ${recoveredCount} interrupted task(s)`);
   }
 
   return recoveredCount;
