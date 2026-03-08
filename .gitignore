@@ -54,3 +54,15 @@ _workspace/
 test-workspaces/
 test-results/
 playwright-report/
+
+# AI context files (generated locally, not for repo)
+AGENTS.md
+CLAUDE.md
+COPILOT_CONTEXT.md
+EXPLANATION.md
+example/CLAUDE.md
+
+# Local docs and notes
+docs/11_chat_agent_context/
+docs/NPM_PUBLISH_GUIDE.md
+kanban-development-guideline.md
