@@ -209,3 +209,7 @@ export async function printStartupBanner(info: StartupInfo): Promise<void> {
 
   process.stdout.write(lines.join('\n') + '\n');
 }
+
+export function printBanner(version: string): void {
+  process.stdout.write(`\n  ${brightGreen('🐜')}  ${bold('FORMIC')} ${dim(`v${version}`)}\n\n`);
+}
