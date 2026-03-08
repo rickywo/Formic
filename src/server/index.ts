@@ -87,7 +87,7 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   const clientPath = resolveClientPath();
 
   const fastify = Fastify({
-    logger: true,
+    logger: false,
   });
 
   // Register WebSocket support
