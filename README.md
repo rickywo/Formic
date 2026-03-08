@@ -121,7 +121,7 @@ All configuration is via environment variables. Set them in your shell or in a `
 | `MAX_YIELD_COUNT` | Max lease-conflict yields before skipping a task | `50` |
 | `QUEUE_POLL_INTERVAL` | Queue processor poll interval | `5000` (5s) |
 | `MAX_EXECUTE_ITERATIONS` | Max iterative execution loops per task | `5` |
-| `STEP_TIMEOUT_MS` | Timeout for individual workflow steps | `600000` (10 min) |
+| `STEP_TIMEOUT_MS` | Timeout for individual workflow steps | `6000000` (100 min) |
 
 ## Task Types
 
