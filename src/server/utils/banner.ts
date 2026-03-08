@@ -77,7 +77,8 @@ function runDependencyChecks(info: StartupInfo): CheckResult[] {
   // 2. GitHub Copilot CLI
   const copilotVersion = tryExec('gh copilot --version') ?? tryExec('copilot --version');
   if (copilotVersion !== null) {
-    results.push({ label: `GitHub Copilot CLI ${dim(copilotVersion)}`, ok: true });
+    const cleanVersion = copilotVersion.replace(/^GitHub Copilot CLI\s*/i, '');
+    results.push({ label: `GitHub Copilot CLI ${dim(cleanVersion)}`, ok: true });
   } else {
     results.push({
       label: 'GitHub Copilot CLI not found',
