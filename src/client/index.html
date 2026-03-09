@@ -156,6 +156,11 @@
       color: #b91c1c;
     }
 
+    [data-theme="light"] .welcome-banner {
+      background: rgba(255, 255, 255, 0.75);
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
     /* Light theme columns - Glass Morphic Swimlanes */
     [data-theme="light"] .column {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.5) 100%);
@@ -1786,6 +1791,59 @@
       background: rgba(248, 113, 113, 0.3);
       border-color: rgba(248, 113, 113, 0.3);
       color: #fecaca;
+    }
+
+    .btn-lg {
+      padding: 12px 28px;
+      font-size: 15px;
+    }
+
+    /* Welcome Banner */
+    .welcome-banner {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 40px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--bg-tertiary);
+      border-radius: 16px;
+      margin: 40px auto;
+      max-width: 560px;
+      backdrop-filter: blur(8px);
+    }
+
+    .welcome-banner h2 {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0 0 16px;
+      color: var(--text-primary);
+    }
+
+    .welcome-banner p {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin: 0 0 28px;
+      max-width: 420px;
+    }
+
+    .welcome-banner .btn-lg {
+      margin-bottom: 20px;
+    }
+
+    .welcome-banner .tour-link {
+      color: var(--accent-blue);
+      text-decoration: none;
+      font-size: 14px;
+      opacity: 0.85;
+      transition: opacity 0.15s;
+    }
+
+    .welcome-banner .tour-link:hover {
+      opacity: 1;
+      text-decoration: underline;
     }
 
     /* Header Actions */
@@ -6579,6 +6637,15 @@
     <button class="btn" onclick="runBootstrapTask()">Run Setup</button>
   </div>
 
+  <div id="welcome-banner" class="welcome-banner">
+    <div class="welcome-content">
+      <h2>👋 Welcome to Formic</h2>
+      <p>Formic is an AI-powered task automation board. Create a task, queue it, and an AI agent will plan and execute it automatically.</p>
+      <button class="btn btn-primary btn-lg" onclick="openCreateModal()">+ Create your first task</button>
+      <a href="#" class="tour-link" onclick="openHelp(); return false;">Take the tour →</a>
+    </div>
+  </div>
+
   <main class="board">
     <div id="emergency-stop-alert" style="display:none;" class="emergency-stop-banner">
       <div class="emergency-stop-banner-content">
@@ -8217,6 +8284,11 @@
 
       // Start live duration timer if any active tasks exist
       startDurationTimer();
+
+      // Show welcome banner only when board is empty
+      const totalTasks = board && board.tasks ? board.tasks.length : 0;
+      const welcomeBanner = document.getElementById('welcome-banner');
+      if (welcomeBanner) welcomeBanner.style.display = totalTasks === 0 ? 'flex' : 'none';
     }
 
     function escapeHtml(text) {
