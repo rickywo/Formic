@@ -667,10 +667,10 @@ async function executeWithIterativeLoop(
   if (!allComplete && stalledIterations >= STALL_THRESHOLD) {
     // Stalled - this is expected for manual testing subtasks
     console.log(`[Workflow] Execution stalled after ${iteration - 1} iterations, moving to review for manual verification`);
-  } else if (!allComplete && iteration > MAX_EXECUTE_ITERATIONS) {
+  } else if (!allComplete && iteration > engineConfig.maxExecuteIterations) {
     broadcastToTask(taskId, {
       type: 'stdout',
-      data: `\n[WARNING] Max iterations (${MAX_EXECUTE_ITERATIONS}) reached. Some subtasks may be incomplete.\n`,
+      data: `\n[WARNING] Max iterations (${engineConfig.maxExecuteIterations}) reached. Some subtasks may be incomplete.\n`,
       timestamp: new Date().toISOString(),
     });
     console.log(`[Workflow] Max iterations reached, some subtasks incomplete`);
@@ -682,11 +682,11 @@ async function executeWithIterativeLoop(
 
 /**
  * Run the verification command against the workspace.
- * Returns { success: true } immediately when SKIP_VERIFY or VERIFY_COMMAND is unset.
+ * Returns { success: true } immediately when engineConfig.skipVerify or engineConfig.verifyCommand is unset.
  */
 async function executeVerifyStep(taskId: string): Promise<{ success: boolean; stderrLines: string[] }> {
-  if (SKIP_VERIFY || !VERIFY_COMMAND) {
-    console.log('[Verifier] Skipping verification (SKIP_VERIFY or no VERIFY_COMMAND)');
+  if (engineConfig.skipVerify || !engineConfig.verifyCommand) {
+    console.log('[Verifier] Skipping verification (skipVerify or no verifyCommand)');
     return { success: true, stderrLines: [] };
   }
 
@@ -699,7 +699,7 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
     timestamp: new Date().toISOString(),
   });
 
-  const parts = VERIFY_COMMAND.split(' ');
+  const parts = engineConfig.verifyCommand.split(' ');
   const cmd = parts[0];
   const args = parts.slice(1);
   const logBuffer: string[] = [];
