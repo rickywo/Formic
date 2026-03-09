@@ -682,11 +682,19 @@ async function executeWithIterativeLoop(
 
 /**
  * Run the verification command against the workspace.
- * Returns { success: true } immediately when engineConfig.skipVerify or engineConfig.verifyCommand is unset.
+ * Always refreshes engineConfig first to pick up any changes made during execution.
+ * Returns { success: true } immediately when skipVerify is true or verifyCommand is unset.
  */
 async function executeVerifyStep(taskId: string): Promise<{ success: boolean; stderrLines: string[] }> {
-  if (engineConfig.skipVerify || !engineConfig.verifyCommand) {
-    console.log('[Verifier] Skipping verification (skipVerify or no verifyCommand)');
+  await refreshEngineConfig();
+
+  if (engineConfig.skipVerify) {
+    console.log('[Verifier] Skipping verification — toggle is OFF');
+    return { success: true, stderrLines: [] };
+  }
+
+  if (!engineConfig.verifyCommand) {
+    console.warn('[Verifier] Skipping verification — toggle is ON but verifyCommand is not configured. Set a verify command in Settings.');
     return { success: true, stderrLines: [] };
   }
 
