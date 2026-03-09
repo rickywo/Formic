@@ -17,7 +17,7 @@ import { internalEvents, LEASE_RELEASED } from './internalEvents.js';
 
 const execAsync = promisify(exec);
 
-const LEASE_DURATION_MS = parseInt(process.env.LEASE_DURATION_MS || '300000', 10); // 5 min default
+import { engineConfig } from './engineConfig.js';
 
 /** In-memory lease store: filePath → FileLease */
 const leaseStore = new Map<string, FileLease>();
@@ -38,7 +38,7 @@ const PRIORITY_RANK: Record<string, number> = { low: 0, medium: 1, high: 2 };
  */
 export function acquireLeases(request: LeaseRequest): LeaseResult {
   const { taskId, exclusiveFiles, sharedFiles } = request;
-  const durationMs = request.leaseDurationMs ?? LEASE_DURATION_MS;
+  const durationMs = request.leaseDurationMs ?? engineConfig.leaseDurationMs;
   const now = new Date();
   const expiresAt = new Date(now.getTime() + durationMs);
 
@@ -146,7 +146,7 @@ export function renewLeases(taskId: string, durationMs?: number): boolean {
   // Clean expired leases before renewing to avoid extending zombie leases
   cleanExpiredLeases();
 
-  const extension = durationMs ?? LEASE_DURATION_MS;
+  const extension = durationMs ?? engineConfig.leaseDurationMs;
   const newExpiresAt = new Date(Date.now() + extension).toISOString();
   let renewed = 0;
 
