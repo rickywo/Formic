@@ -952,6 +952,82 @@ Example:
 }
 
 /**
+ * Fire-and-forget tool forge step: runs after a task transitions to 'review'.
+ * Prompts the agent to identify reusable shell commands and registers them via addTool().
+ * All errors are swallowed so this never blocks task completion.
+ */
+async function triggerToolForge(taskId: string): Promise<void> {
+  try {
+    const task = await getTask(taskId);
+    if (!task) return;
+
+    const prompt = `You have just completed task "${task.title}".
+
+Review the work done and identify any shell commands that would be generically reusable across future tasks (e.g. test runners, linters, build scripts, deploy commands).
+
+Output ONLY a valid JSON array of tool objects, no markdown fences. Each object must have: name (lowercase alphanumeric + hyphens only), description (string), command (string), created_by (string — use the task title).
+
+If no reusable commands were identified, output an empty array: []
+
+Example:
+[
+  { "name": "run-tests", "description": "Run the full test suite", "command": "npm test", "created_by": "${task.title}" }
+]`;
+
+    const output = await runAgentForOutput(prompt);
+    const entries = parseToolForgeOutput(output);
+
+    let forged = 0;
+    for (const entry of entries) {
+      try {
+        await addTool(entry);
+        forged++;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        console.warn(`[Workflow] Skipping tool '${entry.name}' for task ${taskId}: ${msg}`);
+      }
+    }
+
+    if (forged > 0) {
+      console.log(`[Workflow] Tool forge step registered ${forged} tool(s) for task ${taskId}`);
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.warn(`[Workflow] Tool forge step failed for task ${taskId}:`, message);
+  }
+}
+
+interface ToolForgeEntry {
+  name: string;
+  description: string;
+  command: string;
+  created_by: string;
+}
+
+function isToolForgeEntry(obj: unknown): obj is ToolForgeEntry {
+  if (typeof obj !== 'object' || obj === null) return false;
+  const o = obj as Record<string, unknown>;
+  return (
+    typeof o['name'] === 'string' &&
+    typeof o['description'] === 'string' &&
+    typeof o['command'] === 'string' &&
+    typeof o['created_by'] === 'string'
+  );
+}
+
+function parseToolForgeOutput(output: string): ToolForgeEntry[] {
+  const match = output.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  try {
+    const parsed = JSON.parse(match[0]) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isToolForgeEntry);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Execute a quick task (skips brief/plan stages, runs execute directly)
  * Quick tasks use task.context directly as the execution prompt
  */
