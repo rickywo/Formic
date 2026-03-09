@@ -9185,8 +9185,10 @@
         Math.round((window.configStore.getSetting('stepTimeoutMs') ?? 6000000) / 60000);
       document.getElementById('verify-command').value =
         window.configStore.getSetting('verifyCommand') ?? '';
-      document.getElementById('skip-verify').checked =
-        !(window.configStore.getSetting('skipVerify') ?? false);
+      const skipVerifyToggle = document.getElementById('skip-verify');
+      const verifyCommandValue = window.configStore.getSetting('verifyCommand') ?? '';
+      skipVerifyToggle.checked = !(window.configStore.getSetting('skipVerify') ?? false);
+      skipVerifyToggle.disabled = !verifyCommandValue;
 
       // Initialize queue settings
       document.getElementById('queue-poll-interval-ms').value =
@@ -9247,9 +9249,22 @@
     function saveVerifyCommand() {
       const value = document.getElementById('verify-command').value.trim();
       window.configStore.setSetting('verifyCommand', value);
+      const toggle = document.getElementById('skip-verify');
+      if (!value) {
+        toggle.checked = false;
+        toggle.disabled = true;
+        window.configStore.setSetting('skipVerify', true);
+      } else {
+        toggle.disabled = false;
+      }
     }
 
     function toggleSkipVerify(checked) {
+      if (checked && !window.configStore.getSetting('verifyCommand')) {
+        showToast('Set a verify command before enabling the verifier', 'error');
+        document.getElementById('skip-verify').checked = false;
+        return;
+      }
       window.configStore.setSetting('skipVerify', !checked);
     }
 
