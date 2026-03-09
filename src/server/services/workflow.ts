@@ -29,10 +29,7 @@ import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
 
 const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
-const MAX_EXECUTE_ITERATIONS = parseInt(process.env.MAX_EXECUTE_ITERATIONS || '5', 10);
-const STEP_TIMEOUT_MS = parseInt(process.env.STEP_TIMEOUT_MS || '6000000', 10); // 100 minutes default
-const VERIFY_COMMAND = process.env.VERIFY_COMMAND || '';
-const SKIP_VERIFY = process.env.SKIP_VERIFY === 'true';
+import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 
 /**
  * Load the project development guidelines if they exist
