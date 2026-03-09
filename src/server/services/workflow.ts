@@ -25,6 +25,7 @@ import { broadcastBoardUpdate, broadcastKillSwitch, broadcastTaskCompleted } fro
 import { stopQueueProcessor } from './queueProcessor.js';
 import { broadcastToWorkspace } from './messagingNotifier.js';
 import { addMemory } from './memory.js';
+import { addTool } from './tools.js';
 import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
 
 const MAX_LOG_LINES = 50;
