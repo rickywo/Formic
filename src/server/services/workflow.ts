@@ -1441,6 +1441,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
   if (!task) {
     throw new Error(`Task ${taskId} not found`);
   }
+  await refreshEngineConfig();
 
   if (activeWorkflows.has(taskId)) {
     throw new Error('A workflow is already running for this task');
