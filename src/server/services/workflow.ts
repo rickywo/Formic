@@ -1095,6 +1095,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
       broadcastTaskCompleted(taskId);
       internalEvents.emit(TASK_COMPLETED, taskId);
       void runReflectionStep(taskId);
+      void triggerToolForge(taskId);
       broadcastToTask(taskId, {
         type: 'stdout',
         data: `\n[SUCCESS] Quick task completed. Ready for review.\n`,
@@ -1184,6 +1185,7 @@ export async function executeSingleStep(
           broadcastTaskCompleted(taskId);
           internalEvents.emit(TASK_COMPLETED, taskId);
           void runReflectionStep(taskId);
+          void triggerToolForge(taskId);
         } else if (result.success && !result.allComplete) {
           // Max iterations reached but not all complete - still move to review with warning
           console.log(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
@@ -1192,6 +1194,7 @@ export async function executeSingleStep(
           broadcastTaskCompleted(taskId);
           internalEvents.emit(TASK_COMPLETED, taskId);
           void runReflectionStep(taskId);
+          void triggerToolForge(taskId);
         } else {
           // Execution failed
           console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
@@ -1406,6 +1409,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
             broadcastTaskCompleted(taskId);
             internalEvents.emit(TASK_COMPLETED, taskId);
             void runReflectionStep(taskId);
+            void triggerToolForge(taskId);
           }
         } else {
           console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
@@ -1602,6 +1606,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
         broadcastTaskCompleted(taskId);
         internalEvents.emit(TASK_COMPLETED, taskId);
         void runReflectionStep(taskId);
+        void triggerToolForge(taskId);
         broadcastBoardUpdate();
         return;
       }
