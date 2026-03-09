@@ -29,10 +29,7 @@ import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
 
 const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
-const MAX_EXECUTE_ITERATIONS = parseInt(process.env.MAX_EXECUTE_ITERATIONS || '5', 10);
-const STEP_TIMEOUT_MS = parseInt(process.env.STEP_TIMEOUT_MS || '6000000', 10); // 100 minutes default
-const VERIFY_COMMAND = process.env.VERIFY_COMMAND || '';
-const SKIP_VERIFY = process.env.SKIP_VERIFY === 'true';
+import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 
 /**
  * Load the project development guidelines if they exist
@@ -429,10 +426,10 @@ function runWorkflowStep(
   // Set up timeout to kill hanging processes
   const timeout = setTimeout(() => {
     if (!hasCompleted) {
-      console.log(`[Workflow] ${step} step timed out after ${STEP_TIMEOUT_MS}ms, killing process`);
+      console.log(`[Workflow] ${step} step timed out after ${engineConfig.stepTimeoutMs}ms, killing process`);
       broadcastToTask(taskId, {
         type: 'error',
-        data: `[${step.toUpperCase()}] Step timed out after ${STEP_TIMEOUT_MS / 1000}s`,
+        data: `[${step.toUpperCase()}] Step timed out after ${engineConfig.stepTimeoutMs / 1000}s`,
         timestamp: new Date().toISOString(),
       });
       child.kill('SIGTERM');
@@ -442,7 +439,7 @@ function runWorkflowStep(
         }
       }, 5000);
     }
-  }, STEP_TIMEOUT_MS);
+  }, engineConfig.stepTimeoutMs);
 
   child.on('error', async (err: NodeJS.ErrnoException) => {
     hasCompleted = true;
@@ -558,12 +555,12 @@ async function executeWithIterativeLoop(
   // Broadcast start of iterative execution
   broadcastToTask(taskId, {
     type: 'stdout',
-    data: `\n========== Starting EXECUTE step (iterative mode, max ${MAX_EXECUTE_ITERATIONS} iterations) ==========\n`,
+    data: `\n========== Starting EXECUTE step (iterative mode, max ${engineConfig.maxExecuteIterations} iterations) ==========\n`,
     timestamp: new Date().toISOString(),
   });
 
-  while (iteration <= MAX_EXECUTE_ITERATIONS && !allComplete) {
-    console.log(`[Workflow] Execute iteration ${iteration}/${MAX_EXECUTE_ITERATIONS} for task ${taskId}`);
+  while (iteration <= engineConfig.maxExecuteIterations && !allComplete) {
+    console.log(`[Workflow] Execute iteration ${iteration}/${engineConfig.maxExecuteIterations} for task ${taskId}`);
 
     // Renew leases at the start of each iteration to prevent watchdog timeout
     renewLeases(taskId);
@@ -571,7 +568,7 @@ async function executeWithIterativeLoop(
     // Broadcast iteration start
     broadcastToTask(taskId, {
       type: 'stdout',
-      data: `\n----- Execute Iteration ${iteration}/${MAX_EXECUTE_ITERATIONS} -----\n`,
+      data: `\n----- Execute Iteration ${iteration}/${engineConfig.maxExecuteIterations} -----\n`,
       timestamp: new Date().toISOString(),
     });
 
@@ -670,10 +667,10 @@ async function executeWithIterativeLoop(
   if (!allComplete && stalledIterations >= STALL_THRESHOLD) {
     // Stalled - this is expected for manual testing subtasks
     console.log(`[Workflow] Execution stalled after ${iteration - 1} iterations, moving to review for manual verification`);
-  } else if (!allComplete && iteration > MAX_EXECUTE_ITERATIONS) {
+  } else if (!allComplete && iteration > engineConfig.maxExecuteIterations) {
     broadcastToTask(taskId, {
       type: 'stdout',
-      data: `\n[WARNING] Max iterations (${MAX_EXECUTE_ITERATIONS}) reached. Some subtasks may be incomplete.\n`,
+      data: `\n[WARNING] Max iterations (${engineConfig.maxExecuteIterations}) reached. Some subtasks may be incomplete.\n`,
       timestamp: new Date().toISOString(),
     });
     console.log(`[Workflow] Max iterations reached, some subtasks incomplete`);
@@ -685,11 +682,19 @@ async function executeWithIterativeLoop(
 
 /**
  * Run the verification command against the workspace.
- * Returns { success: true } immediately when SKIP_VERIFY or VERIFY_COMMAND is unset.
+ * Always refreshes engineConfig first to pick up any changes made during execution.
+ * Returns { success: true } immediately when skipVerify is true or verifyCommand is unset.
  */
 async function executeVerifyStep(taskId: string): Promise<{ success: boolean; stderrLines: string[] }> {
-  if (SKIP_VERIFY || !VERIFY_COMMAND) {
-    console.log('[Verifier] Skipping verification (SKIP_VERIFY or no VERIFY_COMMAND)');
+  await refreshEngineConfig();
+
+  if (engineConfig.skipVerify) {
+    console.log('[Verifier] Skipping verification — toggle is OFF');
+    return { success: true, stderrLines: [] };
+  }
+
+  if (!engineConfig.verifyCommand) {
+    console.warn('[Verifier] Skipping verification — toggle is ON but verifyCommand is not configured. Set a verify command in Settings.');
     return { success: true, stderrLines: [] };
   }
 
@@ -702,7 +707,7 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
     timestamp: new Date().toISOString(),
   });
 
-  const parts = VERIFY_COMMAND.split(' ');
+  const parts = engineConfig.verifyCommand.split(' ');
   const cmd = parts[0];
   const args = parts.slice(1);
   const logBuffer: string[] = [];
@@ -954,6 +959,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
   if (!task) {
     throw new Error(`Task ${taskId} not found`);
   }
+  await refreshEngineConfig();
 
   // Check if a workflow is already running
   if (activeWorkflows.has(taskId)) {
@@ -1160,6 +1166,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
   if (!task) {
     throw new Error(`Task ${taskId} not found`);
   }
+  await refreshEngineConfig();
 
   // Check if a workflow is already running
   if (activeWorkflows.has(taskId)) {
@@ -1442,6 +1449,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
   if (!task) {
     throw new Error(`Task ${taskId} not found`);
   }
+  await refreshEngineConfig();
 
   if (activeWorkflows.has(taskId)) {
     throw new Error('A workflow is already running for this task');

@@ -132,6 +132,18 @@
       color: #166534;
     }
 
+    [data-theme="light"] .btn-approve {
+      background: rgba(22, 163, 74, 0.15);
+      border-color: rgba(22, 163, 74, 0.2);
+      color: #15803d;
+    }
+
+    [data-theme="light"] .btn-approve:hover {
+      background: rgba(22, 163, 74, 0.25);
+      border-color: rgba(22, 163, 74, 0.3);
+      color: #166534;
+    }
+
     [data-theme="light"] .btn-danger {
       background: rgba(220, 38, 38, 0.15);
       border-color: rgba(220, 38, 38, 0.2);
@@ -142,6 +154,11 @@
       background: rgba(220, 38, 38, 0.25);
       border-color: rgba(220, 38, 38, 0.3);
       color: #b91c1c;
+    }
+
+    [data-theme="light"] .welcome-banner {
+      background: rgba(255, 255, 255, 0.75);
+      border-color: rgba(0, 0, 0, 0.08);
     }
 
     /* Light theme columns - Glass Morphic Swimlanes */
@@ -416,20 +433,44 @@
 
     [data-theme="light"] .task-type-option label {
       background: rgba(0, 0, 0, 0.03);
-      border-color: rgba(0, 0, 0, 0.1);
+      border-color: rgba(0, 0, 0, 0.08);
     }
 
     [data-theme="light"] .task-type-option label:hover {
       background: rgba(0, 0, 0, 0.06);
     }
 
-    [data-theme="light"] .task-type-option input:checked + label {
-      background: rgba(37, 99, 235, 0.1);
-      border-color: rgba(37, 99, 235, 0.3);
+    [data-theme="light"] #task-type-standard:checked + label {
+      background: rgba(99, 102, 241, 0.08);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    [data-theme="light"] #task-type-quick:checked + label {
+      background: rgba(16, 185, 129, 0.07);
+      border-color: rgba(16, 185, 129, 0.25);
+    }
+
+    [data-theme="light"] .task-type-option .type-flow-step {
+      background: rgba(0, 0, 0, 0.06);
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .task-type-option .type-flow-arrow {
+      color: rgba(0, 0, 0, 0.2);
+    }
+
+    [data-theme="light"] #task-type-standard:checked + label .type-flow-step {
+      background: rgba(99, 102, 241, 0.15);
+      color: #4f46e5;
+    }
+
+    [data-theme="light"] #task-type-quick:checked + label .type-flow-step {
+      background: rgba(16, 185, 129, 0.12);
+      color: #059669;
     }
 
     [data-theme="light"] .task-type-option .type-hint {
-      color: rgba(0, 0, 0, 0.4);
+      color: rgba(0, 0, 0, 0.45);
     }
 
     [data-theme="light"] .quick-task-toggle .toggle-slider-inline {
@@ -583,10 +624,6 @@
       box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
     }
 
-    /* Light theme empty state */
-    [data-theme="light"] .empty-state {
-      color: rgba(0, 0, 0, 0.25);
-    }
 
     /* Light theme terminal panel */
     [data-theme="light"] .terminal-panel {
@@ -1006,6 +1043,9 @@
     [data-theme="light"] .settings-panel {
       background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.98), rgba(252, 252, 252, 0.98));
       border-left: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .settings-panel.open {
       box-shadow:
         inset 1px 0 0 0 rgba(255, 255, 255, 0.9),
         -20px 0 60px -10px rgba(0, 0, 0, 0.15);
@@ -1097,6 +1137,40 @@
       color: rgba(0, 0, 0, 0.85);
     }
 
+    [data-theme="light"] .settings-text-input {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.9);
+    }
+    [data-theme="light"] .settings-text-input:focus {
+      border-color: rgba(139, 92, 246, 0.5);
+      background: rgba(0, 0, 0, 0.06);
+    }
+    [data-theme="light"] .settings-ms-input {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.9);
+    }
+    [data-theme="light"] .settings-hint {
+      color: rgba(0, 0, 0, 0.35);
+    }
+
+    [data-theme="light"] .settings-unit {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .settings-secondary-btn {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.55);
+    }
+
+    [data-theme="light"] .settings-secondary-btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+      border-color: rgba(0, 0, 0, 0.2);
+      color: rgba(0, 0, 0, 0.8);
+    }
+
     [data-theme="light"] .workspace-item {
       background: rgba(0, 0, 0, 0.02);
       border: 1px solid rgba(0, 0, 0, 0.05);
@@ -1169,6 +1243,9 @@
     [data-theme="light"] .help-panel {
       background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.98), rgba(252, 252, 252, 0.98));
       border-left: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .help-panel.open {
       box-shadow:
         inset 1px 0 0 0 rgba(255, 255, 255, 0.9),
         -20px 0 60px -10px rgba(0, 0, 0, 0.15);
@@ -1756,6 +1833,18 @@
       color: #bbf7d0;
     }
 
+    .btn-approve {
+      background: rgba(63, 185, 80, 0.2);
+      border-color: rgba(63, 185, 80, 0.2);
+      color: var(--accent-green);
+    }
+
+    .btn-approve:hover {
+      background: rgba(63, 185, 80, 0.3);
+      border-color: rgba(63, 185, 80, 0.3);
+      color: var(--accent-green);
+    }
+
     .btn-danger {
       background: rgba(248, 113, 113, 0.2);
       border-color: rgba(248, 113, 113, 0.2);
@@ -1766,6 +1855,59 @@
       background: rgba(248, 113, 113, 0.3);
       border-color: rgba(248, 113, 113, 0.3);
       color: #fecaca;
+    }
+
+    .btn-lg {
+      padding: 12px 28px;
+      font-size: 15px;
+    }
+
+    /* Welcome Banner */
+    .welcome-banner {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 80px 40px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--bg-tertiary);
+      border-radius: 16px;
+      margin: 40px auto;
+      max-width: 560px;
+      backdrop-filter: blur(8px);
+    }
+
+    .welcome-banner h2 {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 0 0 16px;
+      color: var(--text-primary);
+    }
+
+    .welcome-banner p {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      margin: 0 0 28px;
+      max-width: 420px;
+    }
+
+    .welcome-banner .btn-lg {
+      margin-bottom: 20px;
+    }
+
+    .welcome-banner .tour-link {
+      color: var(--accent-blue);
+      text-decoration: none;
+      font-size: 14px;
+      opacity: 0.85;
+      transition: opacity 0.15s;
+    }
+
+    .welcome-banner .tour-link:hover {
+      opacity: 1;
+      text-decoration: underline;
     }
 
     /* Header Actions */
@@ -1857,12 +1999,11 @@
     }
     .column[data-status="queued"] .column-title { color: rgba(147, 197, 253, 0.9); }
     .column-subtitle {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: rgba(255, 255, 255, 0.3);
+      font-size: 11px;
+      color: var(--text-secondary);
       margin-top: 4px;
-      font-weight: 500;
+      font-weight: 400;
+      width: 100%;
     }
 
     .column[data-status="running"] {
@@ -1920,6 +2061,16 @@
 
     .task-card.dragging {
       opacity: 0.5;
+    }
+
+    .drop-target-active {
+      outline: 2px dashed var(--accent-blue);
+      background: rgba(88, 166, 255, 0.05);
+      border-radius: 12px;
+    }
+
+    [data-theme="light"] .drop-target-active {
+      background: rgba(37, 99, 235, 0.05);
     }
 
     /* Create Task Card - Special styling */
@@ -2263,7 +2414,7 @@
       margin-left: 56px;
     }
 
-    /* Task Type Selector - Segmented Control */
+    /* Task Type Selector */
     .task-type-selector {
       display: flex;
       flex-direction: column;
@@ -2272,11 +2423,11 @@
 
     .task-type-options {
       display: flex;
-      gap: 8px;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .task-type-option {
-      flex: 1;
       position: relative;
     }
 
@@ -2289,26 +2440,50 @@
 
     .task-type-option label {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 4px;
-      padding: 10px 8px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.05);
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
       cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
+      transition: all 0.15s ease;
     }
 
     .task-type-option label:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.14);
     }
 
-    .task-type-option input:checked + label {
-      background: rgba(96, 165, 250, 0.15);
-      border-color: rgba(96, 165, 250, 0.3);
+    #task-type-standard:checked + label {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: rgba(99, 102, 241, 0.35);
+    }
+
+    #task-type-quick:checked + label {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .task-type-option .type-icon {
+      font-size: 20px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .task-type-option .type-body {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-type-option .type-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .task-type-option .type-name {
@@ -2317,10 +2492,65 @@
       color: var(--text-primary);
     }
 
+    .task-type-option .type-flow {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .task-type-option .type-flow-step {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.07);
+      color: rgba(255, 255, 255, 0.4);
+      transition: all 0.15s ease;
+    }
+
+    .task-type-option .type-flow-arrow {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.2);
+    }
+
+    #task-type-standard:checked + label .type-flow-step {
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+    }
+
+    #task-type-quick:checked + label .type-flow-step {
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+    }
+
     .task-type-option .type-hint {
       font-size: 11px;
       color: rgba(255, 255, 255, 0.4);
-      line-height: 1.3;
+      line-height: 1.4;
+    }
+
+
+    .form-hint {
+      font-size: 11px;
+      color: var(--text-secondary);
+      display: block;
+      margin-top: 4px;
+    }
+
+    .assistant-hint {
+      margin-top: 12px;
+      font-size: 11px;
+    }
+
+    .assistant-hint a {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+
+    .assistant-hint a:hover {
+      color: var(--accent);
+      text-decoration: underline;
     }
 
     .form-actions {
@@ -2334,11 +2564,10 @@
     .empty-state {
       text-align: center;
       padding: 40px 24px;
-      color: rgba(255, 255, 255, 0.2);
-      font-size: 12px;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 400;
+      line-height: 1.5;
     }
 
     /* Bootstrap Task - Luminous Purple Glow */
@@ -3615,9 +3844,6 @@
       max-width: 100vw;
       background: linear-gradient(to bottom right, rgba(18, 18, 18, 0.98), rgba(8, 8, 8, 0.99));
       border-left: 1px solid rgba(255, 255, 255, 0.06);
-      box-shadow:
-        inset 1px 0 0 0 rgba(255, 255, 255, 0.03),
-        -20px 0 60px -10px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(32px);
       -webkit-backdrop-filter: blur(32px);
       z-index: 99;
@@ -3630,6 +3856,9 @@
 
     .settings-panel.open {
       transform: translateX(0);
+      box-shadow:
+        inset 1px 0 0 0 rgba(255, 255, 255, 0.03),
+        -20px 0 60px -10px rgba(0, 0, 0, 0.5);
     }
 
     /* Settings Header */
@@ -3708,7 +3937,7 @@
 
     .settings-row {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       padding: 12px 0;
     }
@@ -3846,6 +4075,86 @@
       font-size: 14px;
       font-weight: 600;
       color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Text/number input for settings with large or string values */
+    .settings-text-input {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 13px;
+      width: 160px;
+      box-sizing: border-box;
+    }
+
+    .settings-text-input:focus {
+      outline: none;
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .settings-ms-input {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 13px;
+      width: 80px;
+      text-align: right;
+      box-sizing: border-box;
+    }
+
+    .settings-ms-input:focus {
+      outline: none;
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .settings-input-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .settings-unit {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.45);
+      white-space: nowrap;
+      min-width: 24px;
+    }
+
+    .settings-label-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .settings-hint {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+      line-height: 1.4;
+    }
+
+    .settings-secondary-btn {
+      padding: 7px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .settings-secondary-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.85);
     }
 
     /* Workspaces List */
@@ -4061,9 +4370,6 @@
       max-width: 100vw;
       background: linear-gradient(to bottom right, rgba(18, 18, 18, 0.98), rgba(8, 8, 8, 0.99));
       border-left: 1px solid rgba(255, 255, 255, 0.06);
-      box-shadow:
-        inset 1px 0 0 0 rgba(255, 255, 255, 0.03),
-        -20px 0 60px -10px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(32px);
       -webkit-backdrop-filter: blur(32px);
       z-index: 99;
@@ -4076,6 +4382,9 @@
 
     .help-panel.open {
       transform: translateX(0);
+      box-shadow:
+        inset 1px 0 0 0 rgba(255, 255, 255, 0.03),
+        -20px 0 60px -10px rgba(0, 0, 0, 0.5);
     }
 
     /* Two-column body */
@@ -6528,6 +6837,15 @@
     <button class="btn" onclick="runBootstrapTask()">Run Setup</button>
   </div>
 
+  <div id="welcome-banner" class="welcome-banner">
+    <div class="welcome-content">
+      <h2>👋 Welcome to Formic</h2>
+      <p>Formic is an AI-powered task automation board. Create a task, queue it, and an AI agent will plan and execute it automatically.</p>
+      <button class="btn btn-primary btn-lg" onclick="openCreateModal()">+ Create your first task</button>
+      <a href="#" class="tour-link" onclick="openHelp(); return false;">Take the tour →</a>
+    </div>
+  </div>
+
   <main class="board">
     <div id="emergency-stop-alert" style="display:none;" class="emergency-stop-banner">
       <div class="emergency-stop-banner-content">
@@ -6537,52 +6855,57 @@
       </div>
     </div>
     <div class="column" data-status="todo">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Todo</span>
         <span class="column-count" id="todo-count">0</span>
+        <div class="column-subtitle">Add tasks, then queue them for execution</div>
       </div>
-      <div class="tasks" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="queued">
       <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Queued</span>
         <span class="column-count" id="queued-count">0</span>
-        <div class="column-subtitle" style="width: 100%;">🤖 Auto-processed</div>
+        <div class="column-subtitle" style="width: 100%;">Picked up automatically by AI agents</div>
       </div>
-      <div class="tasks" id="queued-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="queued-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="running">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Running</span>
         <span class="column-count" id="running-count">0</span>
+        <div class="column-subtitle">AI agent is actively working</div>
       </div>
-      <div class="tasks" id="running-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="running-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="verifying">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Verifying</span>
         <span class="column-count" id="verifying-count">0</span>
+        <div class="column-subtitle">AI is reviewing its own output</div>
       </div>
-      <div class="tasks" id="verifying-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="verifying-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="review">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Review</span>
         <span class="column-count" id="review-count">0</span>
+        <div class="column-subtitle">Awaiting your approval</div>
       </div>
-      <div class="tasks" id="review-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="review-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="done">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Done</span>
         <span class="column-count" id="done-count">0</span>
+        <div class="column-subtitle">Completed and approved</div>
       </div>
-      <div class="tasks" id="done-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="done-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
   </main>
 
@@ -6662,8 +6985,9 @@
           <input type="text" id="task-title" placeholder="Fix navbar responsive issue">
         </div>
         <div class="form-group standard-form-group">
-          <label for="task-context">Context / Prompt</label>
-          <textarea id="task-context" placeholder="Describe the task for Claude..."></textarea>
+          <label for="task-context">What should the AI do?</label>
+          <textarea id="task-context" placeholder="e.g. Refactor the login form in src/client/index.html to use a dedicated LoginForm component. Extract the HTML, wire up the existing submit handler, and add basic validation."></textarea>
+          <small class="form-hint">Be specific. Include requirements, files to change, and expected outcome.</small>
         </div>
         <div class="objective-form-group">
           <div class="form-group">
@@ -6690,25 +7014,41 @@
             <div class="task-type-option">
               <input type="radio" name="task-type" id="task-type-standard" value="standard" checked>
               <label for="task-type-standard">
-                <span class="type-name">Standard</span>
-                <span class="type-hint">Brief → Plan → Execute</span>
+                <div class="type-icon">⚙️</div>
+                <div class="type-body">
+                  <div class="type-header">
+                    <span class="type-name">Standard</span>
+                    <div class="type-flow">
+                      <span class="type-flow-step">Brief</span>
+                      <span class="type-flow-arrow">→</span>
+                      <span class="type-flow-step">Plan</span>
+                      <span class="type-flow-arrow">→</span>
+                      <span class="type-flow-step">Execute</span>
+                    </div>
+                  </div>
+                  <span class="type-hint">Best for features and bug fixes — AI writes a spec, plans subtasks, then implements.</span>
+                </div>
               </label>
             </div>
             <div class="task-type-option">
               <input type="radio" name="task-type" id="task-type-quick" value="quick">
               <label for="task-type-quick">
-                <span class="type-name">Quick</span>
-                <span class="type-hint">Execute directly</span>
-              </label>
-            </div>
-            <div class="task-type-option">
-              <input type="radio" name="task-type" id="task-type-goal" value="goal">
-              <label for="task-type-goal">
-                <span class="type-name">Goal</span>
-                <span class="type-hint">Decompose into tasks</span>
+                <div class="type-icon">⚡</div>
+                <div class="type-body">
+                  <div class="type-header">
+                    <span class="type-name">Quick</span>
+                    <div class="type-flow">
+                      <span class="type-flow-step">Execute</span>
+                    </div>
+                  </div>
+                  <span class="type-hint">Best for simple fixes and one-liners — AI jumps straight to implementation.</span>
+                </div>
               </label>
             </div>
           </div>
+        </div>
+        <div class="assistant-hint">
+          <a href="#" onclick="toggleAssistant(); return false;">Need help writing a task? Ask the AI Assistant →</a>
         </div>
         <div class="form-actions">
           <button type="button" class="btn" onclick="closeCreateModal()">Cancel</button>
@@ -7077,12 +7417,130 @@
         <div class="settings-section-title">Execution</div>
 
         <div class="settings-row">
-          <label class="settings-label">Max Concurrent Sessions</label>
+          <label class="settings-label">Max Concurrent Tasks</label>
           <div class="settings-number-input">
             <button class="number-btn" onclick="adjustConcurrentSessions(-1)">−</button>
             <span class="number-value" id="concurrent-sessions-value">1</span>
             <button class="number-btn" onclick="adjustConcurrentSessions(1)">+</button>
           </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Max Execute Iterations</label>
+            <span class="settings-hint">Retry loops per task (1–20)</span>
+          </div>
+          <div class="settings-number-input">
+            <button class="number-btn" onclick="adjustMaxExecuteIterations(-1)">−</button>
+            <span class="number-value" id="max-execute-iterations-value">5</span>
+            <button class="number-btn" onclick="adjustMaxExecuteIterations(1)">+</button>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Step Timeout</label>
+            <span class="settings-hint">Maximum time allowed per execution step</span>
+          </div>
+          <div class="settings-input-group">
+            <input type="number" class="settings-ms-input" id="step-timeout-ms"
+              min="1" step="1"
+              onchange="saveStepTimeoutMs()" onblur="saveStepTimeoutMs()">
+            <span class="settings-unit">min</span>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Verify Command</label>
+            <span class="settings-hint">e.g. npm test (empty = disabled)</span>
+          </div>
+          <input type="text" class="settings-text-input" id="verify-command"
+            placeholder="npm test"
+            onchange="saveVerifyCommand()" onblur="saveVerifyCommand()">
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Run Verifier After Execution</label>
+            <span class="settings-hint">When ON, runs the verify command after each task. Requires a Verify Command to be set.</span>
+          </div>
+          <label class="settings-toggle">
+            <input type="checkbox" id="skip-verify" onchange="toggleSkipVerify(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Queue & Concurrency Section -->
+      <div class="settings-section">
+        <div class="settings-section-title">Queue &amp; Concurrency</div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Queue Poll Interval</label>
+            <span class="settings-hint">How often to check the task queue for new work</span>
+          </div>
+          <div class="settings-input-group">
+            <input type="number" class="settings-ms-input" id="queue-poll-interval-ms"
+              min="1" step="1"
+              onchange="saveQueuePollInterval()" onblur="saveQueuePollInterval()">
+            <span class="settings-unit">sec</span>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Max Yield Count</label>
+            <span class="settings-hint">Before skipping a lease-blocked task (1–500)</span>
+          </div>
+          <div class="settings-number-input">
+            <button class="number-btn" onclick="adjustMaxYieldCount(-5)">−</button>
+            <span class="number-value" id="max-yield-count-value">50</span>
+            <button class="number-btn" onclick="adjustMaxYieldCount(5)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lease Management Section -->
+      <div class="settings-section">
+        <div class="settings-section-title">Lease Management</div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Lease Duration</label>
+            <span class="settings-hint">How long a file lease stays active before expiring</span>
+          </div>
+          <div class="settings-input-group">
+            <input type="number" class="settings-ms-input" id="lease-duration-ms"
+              min="1" step="1"
+              onchange="saveLeaseDurationMs()" onblur="saveLeaseDurationMs()">
+            <span class="settings-unit">min</span>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Watchdog Interval</label>
+            <span class="settings-hint">How often expired leases are scanned and cleaned up</span>
+          </div>
+          <div class="settings-input-group">
+            <input type="number" class="settings-ms-input" id="watchdog-interval-ms"
+              min="5" step="5"
+              onchange="saveWatchdogIntervalMs()" onblur="saveWatchdogIntervalMs()">
+            <span class="settings-unit">sec</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Reset Engine Defaults -->
+      <div class="settings-section">
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Engine Configuration</label>
+            <span class="settings-hint">Restore Execution, Queue &amp; Concurrency, and Lease Management to defaults</span>
+          </div>
+          <button class="settings-secondary-btn" onclick="resetEngineDefaults()">Reset to Defaults</button>
         </div>
       </div>
 
@@ -7866,6 +8324,18 @@
       }
     }
 
+    async function markTaskDone(taskId) {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'done' }),
+      });
+
+      if (res.ok) {
+        await loadBoard();
+      }
+    }
+
     async function runTask(taskId) {
       const res = await fetch(`/api/tasks/${taskId}/run`, { method: 'POST' });
 
@@ -7977,10 +8447,16 @@
         ` : '';
 
         if (tasks.length === 0) {
-          const emptyMsg = column === 'queued'
-            ? '<div class="empty-state">Drag tasks here — agent picks up by priority</div>'
-            : '<div class="empty-state">No tasks</div>';
-          container.innerHTML = createTaskCardHtml || emptyMsg;
+          const COLUMN_EMPTY_MESSAGES = {
+            todo:      '<div class="empty-state">✏️ No tasks yet — create your first task above</div>',
+            queued:    '<div class="empty-state">⏳ Queue is empty — drag tasks here or queue from the Todo column</div>',
+            running:   '<div class="empty-state">🤖 No tasks in progress — queue a task to start the agent</div>',
+            verifying: '<div class="empty-state">🔍 Nothing to verify — completed tasks will appear here for QA</div>',
+            review:    '<div class="empty-state">👀 Nothing to review — tasks move here when the agent finishes</div>',
+            done:      '<div class="empty-state">✅ No completed tasks yet — finished work lands here</div>',
+          };
+          const emptyMsg = COLUMN_EMPTY_MESSAGES[column] || '<div class="empty-state">No tasks</div>';
+          container.innerHTML = createTaskCardHtml + emptyMsg;
           return;
         }
 
@@ -8098,7 +8574,7 @@
           const queuePositionHtml = queuePosition > 0 ? `<div class="queue-position">${queuePosition}</div>` : '';
 
           return `
-            <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
+            <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
               ${queuePositionHtml}
               <div class="task-header">
                 <span class="task-title">${bootstrapBadge}${goalBadge}${quickBadge}${childBadge}${manualBadge}${blockedBadge}${escapeHtml(task.title)}${statusBadge}</span>
@@ -8113,18 +8589,22 @@
               : ''}
               <div class="task-actions">
                 ${task.status === 'todo' ? `
-                  <button class="btn" onclick="queueTask('${task.id}')">Queue</button>
-                  <button class="btn btn-primary" onclick="runTask('${task.id}')">Run</button>
+                  <button class="btn" title="Add to auto-processing queue" onclick="event.stopPropagation(); queueTask('${task.id}')">Queue →</button>
+                  <button class="btn btn-primary" title="Skip the queue and run immediately" onclick="event.stopPropagation(); runTask('${task.id}')">Run Now ⚡</button>
                 ` : ''}
                 ${task.status === 'queued' ? `
-                  <button class="btn btn-primary" onclick="runTask('${task.id}')">Run Now</button>
-                  <button class="btn" onclick="unqueueTask('${task.id}')">Dequeue</button>
+                  <button class="btn btn-primary" title="Skip the queue and run immediately" onclick="event.stopPropagation(); runTask('${task.id}')">Run Now</button>
+                  <button class="btn" title="Remove from queue and return to Todo" onclick="event.stopPropagation(); unqueueTask('${task.id}')">Remove from Queue</button>
+                ` : ''}
+                ${task.status === 'review' && !isRunning ? `
+                  <button class="btn btn-approve" onclick="event.stopPropagation(); markTaskDone('${task.id}')">✅ Approve</button>
+                  <button class="btn" onclick="event.stopPropagation(); runTask('${task.id}')">↺ Re-run</button>
                 ` : ''}
                 ${isRunning ? `
                   <button class="btn" onclick="openTerminal('${task.id}')">Logs</button>
                   <button class="btn btn-danger" onclick="stopTask('${task.id}')">Stop</button>
                 ` : ''}
-                ${!isRunning && task.status !== 'queued' ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
+                ${!isRunning && task.status !== 'queued' && task.status !== 'review' ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
               </div>
               ${progressBarHtml}
             </div>
@@ -8134,6 +8614,11 @@
 
       // Start live duration timer if any active tasks exist
       startDurationTimer();
+
+      // Show welcome banner only when board is empty
+      const totalTasks = board && board.tasks ? board.tasks.length : 0;
+      const welcomeBanner = document.getElementById('welcome-banner');
+      if (welcomeBanner) welcomeBanner.style.display = totalTasks === 0 ? 'flex' : 'none';
     }
 
     function escapeHtml(text) {
@@ -8179,12 +8664,30 @@
       event.target.classList.add('dragging');
     }
 
+    function dragEnd(event) {
+      document.querySelectorAll('.column').forEach(col => col.classList.remove('drop-target-active'));
+    }
+
+    function dragEnter(event) {
+      event.preventDefault();
+      const column = event.target.closest('.column');
+      if (column) column.classList.add('drop-target-active');
+    }
+
+    function dragLeave(event) {
+      const column = event.target.closest('.column');
+      if (column && !column.contains(event.relatedTarget)) {
+        column.classList.remove('drop-target-active');
+      }
+    }
+
     function allowDrop(event) {
       event.preventDefault();
     }
 
     function drop(event) {
       event.preventDefault();
+      document.querySelectorAll('.column').forEach(col => col.classList.remove('drop-target-active'));
       const column = event.target.closest('.column');
       if (!column || !draggedTaskId) return;
 
@@ -8192,7 +8695,7 @@
 
       // Prevent dragging to 'running' status
       if (newStatus === 'running') {
-        alert('Use the Run button to start a task');
+        showToast('Use the Run Now ⚡ button on the card to start a task', 'error');
         return;
       }
 
@@ -8202,7 +8705,7 @@
         if (task && task.status === 'todo') {
           queueTask(draggedTaskId);
         } else if (task) {
-          alert('Only tasks in TODO can be queued');
+          showToast('Only tasks in TODO can be queued', 'error');
         }
         draggedTaskId = null;
         return;
@@ -8675,6 +9178,30 @@
       const maxSessions = window.configStore.getSetting('maxConcurrentSessions') || 1;
       document.getElementById('concurrent-sessions-value').textContent = maxSessions;
 
+      // Initialize execution settings
+      document.getElementById('max-execute-iterations-value').textContent =
+        window.configStore.getSetting('maxExecuteIterations') ?? 5;
+      document.getElementById('step-timeout-ms').value =
+        Math.round((window.configStore.getSetting('stepTimeoutMs') ?? 6000000) / 60000);
+      document.getElementById('verify-command').value =
+        window.configStore.getSetting('verifyCommand') ?? '';
+      const skipVerifyToggle = document.getElementById('skip-verify');
+      const verifyCommandValue = window.configStore.getSetting('verifyCommand') ?? '';
+      skipVerifyToggle.checked = !(window.configStore.getSetting('skipVerify') ?? false);
+      skipVerifyToggle.disabled = !verifyCommandValue;
+
+      // Initialize queue settings
+      document.getElementById('queue-poll-interval-ms').value =
+        Math.round((window.configStore.getSetting('queuePollIntervalMs') ?? 5000) / 1000);
+      document.getElementById('max-yield-count-value').textContent =
+        window.configStore.getSetting('maxYieldCount') ?? 50;
+
+      // Initialize lease settings
+      document.getElementById('lease-duration-ms').value =
+        Math.round((window.configStore.getSetting('leaseDurationMs') ?? 300000) / 60000);
+      document.getElementById('watchdog-interval-ms').value =
+        Math.round((window.configStore.getSetting('watchdogIntervalMs') ?? 30000) / 1000);
+
       // Render workspace list
       renderWorkspaceList();
     }
@@ -8702,6 +9229,96 @@
       value = Math.max(1, Math.min(5, value)); // Clamp between 1-5
       valueEl.textContent = value;
       window.configStore.setSetting('maxConcurrentSessions', value);
+    }
+
+    function adjustMaxExecuteIterations(delta) {
+      const valueEl = document.getElementById('max-execute-iterations-value');
+      let value = parseInt(valueEl.textContent) + delta;
+      value = Math.max(1, Math.min(20, value));
+      valueEl.textContent = value;
+      window.configStore.setSetting('maxExecuteIterations', value);
+    }
+
+    function saveStepTimeoutMs() {
+      const input = document.getElementById('step-timeout-ms');
+      const minutes = Math.max(1, parseInt(input.value) || 100);
+      input.value = minutes;
+      window.configStore.setSetting('stepTimeoutMs', minutes * 60000);
+    }
+
+    function saveVerifyCommand() {
+      const value = document.getElementById('verify-command').value.trim();
+      window.configStore.setSetting('verifyCommand', value);
+      const toggle = document.getElementById('skip-verify');
+      if (!value) {
+        toggle.checked = false;
+        toggle.disabled = true;
+        window.configStore.setSetting('skipVerify', true);
+      } else {
+        toggle.disabled = false;
+      }
+    }
+
+    function toggleSkipVerify(checked) {
+      if (checked && !window.configStore.getSetting('verifyCommand')) {
+        showToast('Set a verify command before enabling the verifier', 'error');
+        document.getElementById('skip-verify').checked = false;
+        return;
+      }
+      window.configStore.setSetting('skipVerify', !checked);
+    }
+
+    function saveQueuePollInterval() {
+      const input = document.getElementById('queue-poll-interval-ms');
+      const seconds = Math.max(1, parseInt(input.value) || 5);
+      input.value = seconds;
+      window.configStore.setSetting('queuePollIntervalMs', seconds * 1000);
+    }
+
+    function adjustMaxYieldCount(delta) {
+      const valueEl = document.getElementById('max-yield-count-value');
+      let value = parseInt(valueEl.textContent) + delta;
+      value = Math.max(1, Math.min(500, value));
+      valueEl.textContent = value;
+      window.configStore.setSetting('maxYieldCount', value);
+    }
+
+    function saveLeaseDurationMs() {
+      const input = document.getElementById('lease-duration-ms');
+      const minutes = Math.max(1, parseInt(input.value) || 5);
+      input.value = minutes;
+      window.configStore.setSetting('leaseDurationMs', minutes * 60000);
+    }
+
+    function saveWatchdogIntervalMs() {
+      const input = document.getElementById('watchdog-interval-ms');
+      const seconds = Math.max(5, parseInt(input.value) || 30);
+      input.value = seconds;
+      window.configStore.setSetting('watchdogIntervalMs', seconds * 1000);
+    }
+
+    function resetEngineDefaults() {
+      const defaults = {
+        maxExecuteIterations: 5,
+        stepTimeoutMs: 6000000,
+        verifyCommand: '',
+        skipVerify: false,
+        queuePollIntervalMs: 5000,
+        maxYieldCount: 50,
+        leaseDurationMs: 300000,
+        watchdogIntervalMs: 30000,
+      };
+      Object.entries(defaults).forEach(([key, value]) => {
+        window.configStore.setSetting(key, value);
+      });
+      document.getElementById('max-execute-iterations-value').textContent = defaults.maxExecuteIterations;
+      document.getElementById('step-timeout-ms').value = defaults.stepTimeoutMs / 60000;
+      document.getElementById('verify-command').value = defaults.verifyCommand;
+      document.getElementById('skip-verify').checked = !defaults.skipVerify;
+      document.getElementById('queue-poll-interval-ms').value = defaults.queuePollIntervalMs / 1000;
+      document.getElementById('max-yield-count-value').textContent = defaults.maxYieldCount;
+      document.getElementById('lease-duration-ms').value = defaults.leaseDurationMs / 60000;
+      document.getElementById('watchdog-interval-ms').value = defaults.watchdogIntervalMs / 1000;
     }
 
     function renderWorkspaceList() {
