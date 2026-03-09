@@ -49,7 +49,7 @@ Formic optimizes your compute. Agents perform a **declare** step to identify fil
 Formic prioritizes project integrity.
 
 - **Safety Net**: Creates a git safe-point commit before every execution.
-- **Verifier & Critic**: When `VERIFY_COMMAND` is set, Formic runs a closed-loop verification. If tests fail, it auto-creates a "Fix" task with high priority.
+- **Verifier & Critic**: When a verify command is configured, Formic runs a closed-loop verification. If tests fail, it auto-creates a "Fix" task with high priority.
 - **Emergency Stop**: After repeated failures, Formic resets the workspace to the safe-point and pauses the queue for human intervention.
 
 ### Long-Term Memory & Tool Forging
@@ -106,22 +106,34 @@ WORKSPACE_PATH=/path/to/your/project npm run dev
 
 ## Configuration
 
-All configuration is via environment variables. Set them in your shell or in a `.env` file in your workspace root.
+### Environment Variables
+
+These settings are configured via environment variables or a `.env` file in your workspace root. They control server startup behavior.
 
 | Variable | Description | Default |
 | --- | --- | --- |
 | `AGENT_TYPE` | Agent CLI to use: `claude` or `copilot` | `claude` |
 | `PORT` | Server port | `8000` |
 | `WORKSPACE_PATH` | Target workspace directory | `./workspace` |
-| `MAX_CONCURRENT_TASKS` | Maximum parallel agent executions | `1` |
-| `VERIFY_COMMAND` | Shell command for post-execution verification (e.g., `npm test`) | _(disabled)_ |
-| `SKIP_VERIFY` | Skip verification step entirely | `false` |
-| `LEASE_DURATION_MS` | File lease duration before expiration | `300000` (5 min) |
-| `WATCHDOG_INTERVAL_MS` | Lease watchdog scan interval | `30000` (30s) |
-| `MAX_YIELD_COUNT` | Max lease-conflict yields before skipping a task | `50` |
-| `QUEUE_POLL_INTERVAL` | Queue processor poll interval | `5000` (5s) |
-| `MAX_EXECUTE_ITERATIONS` | Max iterative execution loops per task | `5` |
-| `STEP_TIMEOUT_MS` | Timeout for individual workflow steps | `6000000` (100 min) |
+| `QUEUE_ENABLED` | Enable/disable the queue processor | `true` |
+
+### Settings Panel (UI)
+
+All execution engine settings are configurable at runtime from the **Settings** panel in the dashboard — no server restart required. Changes take effect on the next queue poll, workflow execution, or watchdog scan.
+
+| Setting | Description | Default |
+| --- | --- | --- |
+| Max Concurrent Sessions | Maximum parallel agent executions | `1` |
+| Verify Command | Shell command for post-execution verification (e.g., `npm test`) | _(empty)_ |
+| Skip Verify | Skip verification step entirely | `off` |
+| Max Execute Iterations | Max iterative execution loops per task | `5` |
+| Step Timeout | Timeout for individual workflow steps | `6000000` ms (100 min) |
+| Queue Poll Interval | How often the queue checks for new tasks | `5000` ms (5s) |
+| Max Yield Count | Max lease-conflict yields before skipping a task | `50` |
+| Lease Duration | File lease duration before expiration | `300000` ms (5 min) |
+| Watchdog Interval | Lease watchdog scan interval | `30000` ms (30s) |
+
+Settings are persisted to `~/.formic/config.json` and survive server restarts.
 
 ## Task Types
 
@@ -129,7 +141,7 @@ Formic supports three task types:
 
 - **Standard** (default): Full workflow — brief → plan → declare → execute → verify → review. Suitable for most feature work.
 - **Quick**: Single-step execution — skips briefing and planning. Ideal for small fixes, typos, or simple changes.
-- **Goal**: Architect-driven decomposition — analyzes a high-level goal and breaks it into 3–8 child tasks with dependency ordering. Child tasks follow their own standard or quick workflow.
+- **Goal**: Architect-driven decomposition — analyzes a high-level goal and breaks it into 3-8 child tasks with dependency ordering. Child tasks follow their own standard or quick workflow.
 
 ## Visualizing the AGI in Action
 
