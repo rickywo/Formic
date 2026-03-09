@@ -433,20 +433,44 @@
 
     [data-theme="light"] .task-type-option label {
       background: rgba(0, 0, 0, 0.03);
-      border-color: rgba(0, 0, 0, 0.1);
+      border-color: rgba(0, 0, 0, 0.08);
     }
 
     [data-theme="light"] .task-type-option label:hover {
       background: rgba(0, 0, 0, 0.06);
     }
 
-    [data-theme="light"] .task-type-option input:checked + label {
-      background: rgba(37, 99, 235, 0.1);
-      border-color: rgba(37, 99, 235, 0.3);
+    [data-theme="light"] #task-type-standard:checked + label {
+      background: rgba(99, 102, 241, 0.08);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    [data-theme="light"] #task-type-quick:checked + label {
+      background: rgba(16, 185, 129, 0.07);
+      border-color: rgba(16, 185, 129, 0.25);
+    }
+
+    [data-theme="light"] .task-type-option .type-flow-step {
+      background: rgba(0, 0, 0, 0.06);
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .task-type-option .type-flow-arrow {
+      color: rgba(0, 0, 0, 0.2);
+    }
+
+    [data-theme="light"] #task-type-standard:checked + label .type-flow-step {
+      background: rgba(99, 102, 241, 0.15);
+      color: #4f46e5;
+    }
+
+    [data-theme="light"] #task-type-quick:checked + label .type-flow-step {
+      background: rgba(16, 185, 129, 0.12);
+      color: #059669;
     }
 
     [data-theme="light"] .task-type-option .type-hint {
-      color: rgba(0, 0, 0, 0.4);
+      color: rgba(0, 0, 0, 0.45);
     }
 
     [data-theme="light"] .quick-task-toggle .toggle-slider-inline {
@@ -2350,7 +2374,7 @@
       margin-left: 56px;
     }
 
-    /* Task Type Selector - Segmented Control */
+    /* Task Type Selector */
     .task-type-selector {
       display: flex;
       flex-direction: column;
@@ -2359,11 +2383,11 @@
 
     .task-type-options {
       display: flex;
-      gap: 8px;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .task-type-option {
-      flex: 1;
       position: relative;
     }
 
@@ -2376,26 +2400,50 @@
 
     .task-type-option label {
       display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 4px;
-      padding: 10px 8px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.05);
+      gap: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
       cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
+      transition: all 0.15s ease;
     }
 
     .task-type-option label:hover {
-      background: rgba(255, 255, 255, 0.08);
-      border-color: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.07);
+      border-color: rgba(255, 255, 255, 0.14);
     }
 
-    .task-type-option input:checked + label {
-      background: rgba(96, 165, 250, 0.15);
-      border-color: rgba(96, 165, 250, 0.3);
+    #task-type-standard:checked + label {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: rgba(99, 102, 241, 0.35);
+    }
+
+    #task-type-quick:checked + label {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: rgba(16, 185, 129, 0.3);
+    }
+
+    .task-type-option .type-icon {
+      font-size: 20px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .task-type-option .type-body {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-type-option .type-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .task-type-option .type-name {
@@ -2404,10 +2452,42 @@
       color: var(--text-primary);
     }
 
+    .task-type-option .type-flow {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .task-type-option .type-flow-step {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.07);
+      color: rgba(255, 255, 255, 0.4);
+      transition: all 0.15s ease;
+    }
+
+    .task-type-option .type-flow-arrow {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.2);
+    }
+
+    #task-type-standard:checked + label .type-flow-step {
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+    }
+
+    #task-type-quick:checked + label .type-flow-step {
+      background: rgba(16, 185, 129, 0.15);
+      color: #6ee7b7;
+    }
+
     .task-type-option .type-hint {
       font-size: 11px;
       color: rgba(255, 255, 255, 0.4);
-      line-height: 1.3;
+      line-height: 1.4;
     }
 
 
@@ -6658,8 +6738,7 @@
       <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Todo</span>
         <span class="column-count" id="todo-count">0</span>
-        <button onclick="openCreateModal()" class="btn btn-primary btn-sm" style="margin-left: auto;">+ New Task</button>
-        <div class="column-subtitle" style="width: 100%;">Add tasks, then queue them for execution</div>
+        <div class="column-subtitle">Add tasks, then queue them for execution</div>
       </div>
       <div class="tasks" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
@@ -6815,18 +6894,37 @@
             <div class="task-type-option">
               <input type="radio" name="task-type" id="task-type-standard" value="standard" checked>
               <label for="task-type-standard">
-                <span class="type-name">Standard</span>
-                <span class="type-hint">Full workflow: AI writes a spec, plans subtasks, then implements. Best for most features and bug fixes.</span>
+                <div class="type-icon">⚙️</div>
+                <div class="type-body">
+                  <div class="type-header">
+                    <span class="type-name">Standard</span>
+                    <div class="type-flow">
+                      <span class="type-flow-step">Brief</span>
+                      <span class="type-flow-arrow">→</span>
+                      <span class="type-flow-step">Plan</span>
+                      <span class="type-flow-arrow">→</span>
+                      <span class="type-flow-step">Execute</span>
+                    </div>
+                  </div>
+                  <span class="type-hint">Best for features and bug fixes — AI writes a spec, plans subtasks, then implements.</span>
+                </div>
               </label>
             </div>
             <div class="task-type-option">
               <input type="radio" name="task-type" id="task-type-quick" value="quick">
               <label for="task-type-quick">
-                <span class="type-name">Quick</span>
-                <span class="type-hint">Skips planning — AI jumps straight to implementation. Best for simple fixes, typos, or one-line changes.</span>
+                <div class="type-icon">⚡</div>
+                <div class="type-body">
+                  <div class="type-header">
+                    <span class="type-name">Quick</span>
+                    <div class="type-flow">
+                      <span class="type-flow-step">Execute</span>
+                    </div>
+                  </div>
+                  <span class="type-hint">Best for simple fixes and one-liners — AI jumps straight to implementation.</span>
+                </div>
               </label>
             </div>
-
           </div>
         </div>
         <div class="assistant-hint">
