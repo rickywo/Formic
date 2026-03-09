@@ -1158,6 +1158,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
   if (!task) {
     throw new Error(`Task ${taskId} not found`);
   }
+  await refreshEngineConfig();
 
   // Check if a workflow is already running
   if (activeWorkflows.has(taskId)) {
