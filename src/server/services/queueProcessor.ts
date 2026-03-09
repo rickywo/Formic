@@ -4,11 +4,9 @@ import { isAgentRunning } from './runner.js';
 import { isFileLeased } from './leaseManager.js';
 import { internalEvents, TASK_COMPLETED, LEASE_RELEASED } from './internalEvents.js';
 import { prioritizeQueue } from './prioritizer.js';
+import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 import type { Task } from '../../types/index.js';
 
-const POLL_INTERVAL_MS = parseInt(process.env.QUEUE_POLL_INTERVAL || '5000', 10);
-const MAX_CONCURRENT_TASKS = parseInt(process.env.MAX_CONCURRENT_TASKS || '1', 10);
-const MAX_YIELD_COUNT = parseInt(process.env.MAX_YIELD_COUNT || '50', 10);
 const QUEUE_ENABLED = process.env.QUEUE_ENABLED !== 'false';
 
 const YIELD_BACKOFF_INITIAL_MS = 2000;
@@ -20,7 +18,7 @@ const yieldBackoffMs = new Map<string, number>();
 /** Per-task earliest timestamp (ms) at which the task may be retried */
 const yieldUntil = new Map<string, number>();
 
-let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let isProcessing = false;
 
 /**
@@ -28,12 +26,12 @@ let isProcessing = false;
  */
 async function canProcessTask(): Promise<boolean> {
   const runningCount = await getRunningTasksCount();
-  return runningCount < MAX_CONCURRENT_TASKS;
+  return runningCount < engineConfig.maxConcurrentTasks;
 }
 
 /**
  * Process the queue - check for tasks and start execution if slots available.
- * Loops through queued tasks, skipping those that have exceeded MAX_YIELD_COUNT.
+ * Loops through queued tasks, skipping those that have exceeded maxYieldCount.
  */
 async function processQueue(): Promise<void> {
   // Prevent concurrent processing
@@ -44,13 +42,15 @@ async function processQueue(): Promise<void> {
   isProcessing = true;
 
   try {
+    await refreshEngineConfig();
+
     // Check if we can process more tasks
     if (!(await canProcessTask())) {
       return;
     }
 
-    // Check if any agent is already running (legacy check for MAX_CONCURRENT_TASKS=1)
-    if (MAX_CONCURRENT_TASKS <= 1 && isAgentRunning()) {
+    // Check if any agent is already running (legacy check for maxConcurrentTasks=1)
+    if (engineConfig.maxConcurrentTasks <= 1 && isAgentRunning()) {
       return;
     }
 
@@ -71,7 +71,7 @@ async function processQueue(): Promise<void> {
     for (const nextTask of prioritizedTasks) {
       // Re-check capacity before each task, including in-flight starts from this cycle
       const runningCount = await getRunningTasksCount();
-      if (runningCount + inFlightCount >= MAX_CONCURRENT_TASKS) {
+      if (runningCount + inFlightCount >= engineConfig.maxConcurrentTasks) {
         break;
       }
 
@@ -86,8 +86,8 @@ async function processQueue(): Promise<void> {
       }
 
       // Check yield count - skip tasks that have been yielded too many times
-      if (nextTask.yieldCount && nextTask.yieldCount >= MAX_YIELD_COUNT) {
-        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max yield count (${MAX_YIELD_COUNT}), skipping`);
+      if (nextTask.yieldCount && nextTask.yieldCount >= engineConfig.maxYieldCount) {
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max yield count (${engineConfig.maxYieldCount}), skipping`);
         continue;
       }
 
@@ -139,7 +139,7 @@ async function processQueue(): Promise<void> {
       inFlightCount++;
 
       // For single-task mode, only start one task per poll cycle
-      if (MAX_CONCURRENT_TASKS <= 1) {
+      if (engineConfig.maxConcurrentTasks <= 1) {
         break;
       }
     }
@@ -155,7 +155,7 @@ async function processQueue(): Promise<void> {
 /**
  * Wake the queue processor immediately — bypasses the polling interval.
  * Called when a task completes or leases are released so queued tasks
- * can proceed without waiting for the next POLL_INTERVAL_MS tick.
+ * can proceed without waiting for the next poll tick.
  */
 export function wakeQueueProcessor(): void {
   if (!QUEUE_ENABLED || isProcessing) {
@@ -163,6 +163,15 @@ export function wakeQueueProcessor(): void {
   }
   console.log('[QueueProcessor] Woken by event');
   void processQueue();
+}
+
+function schedulePoll(): void {
+  pollTimeoutId = setTimeout(async () => {
+    await processQueue();
+    if (pollTimeoutId !== null) {
+      schedulePoll();
+    }
+  }, engineConfig.queuePollIntervalMs);
 }
 
 /**
@@ -174,12 +183,12 @@ export function startQueueProcessor(): void {
     return;
   }
 
-  if (pollIntervalId !== null) {
+  if (pollTimeoutId !== null) {
     console.log('[QueueProcessor] Queue processor already running');
     return;
   }
 
-  console.log(`[QueueProcessor] Starting queue processor (poll: ${POLL_INTERVAL_MS}ms, max concurrent: ${MAX_CONCURRENT_TASKS})`);
+  console.log(`[QueueProcessor] Starting queue processor (poll: ${engineConfig.queuePollIntervalMs}ms, max concurrent: ${engineConfig.maxConcurrentTasks})`);
 
   // Subscribe to internal wake events
   internalEvents.on(TASK_COMPLETED, wakeQueueProcessor);
@@ -188,17 +197,17 @@ export function startQueueProcessor(): void {
   // Run immediately on start
   processQueue();
 
-  // Set up polling interval
-  pollIntervalId = setInterval(processQueue, POLL_INTERVAL_MS);
+  // Set up recursive polling
+  schedulePoll();
 }
 
 /**
  * Stop the queue processor polling loop
  */
 export function stopQueueProcessor(): void {
-  if (pollIntervalId !== null) {
-    clearInterval(pollIntervalId);
-    pollIntervalId = null;
+  if (pollTimeoutId !== null) {
+    clearTimeout(pollTimeoutId);
+    pollTimeoutId = null;
 
     // Unsubscribe internal wake event listeners
     internalEvents.off(TASK_COMPLETED, wakeQueueProcessor);
@@ -220,7 +229,7 @@ export function pauseQueueProcessor(): void {
  * Check if queue processor is running
  */
 export function isQueueProcessorRunning(): boolean {
-  return pollIntervalId !== null;
+  return pollTimeoutId !== null;
 }
 
 /**
@@ -234,8 +243,8 @@ export function getQueueProcessorConfig(): {
 } {
   return {
     enabled: QUEUE_ENABLED,
-    pollInterval: POLL_INTERVAL_MS,
-    maxConcurrent: MAX_CONCURRENT_TASKS,
+    pollInterval: engineConfig.queuePollIntervalMs,
+    maxConcurrent: engineConfig.maxConcurrentTasks,
     isRunning: isQueueProcessorRunning(),
   };
 }

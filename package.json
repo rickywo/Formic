@@ -46,7 +46,8 @@
   "dependencies": {
     "@fastify/static": "^7.0.0",
     "@fastify/websocket": "^9.0.0",
-    "fastify": "^4.26.0"
+    "fastify": "^4.26.0",
+    "framer-motion": "^12.35.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",

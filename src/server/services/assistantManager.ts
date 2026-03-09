@@ -384,6 +384,53 @@ Formic supports parallel task execution using a file lease system (managed by \`
 - **Lease Expiration**: Leases expire after a configurable duration (default 5 minutes). A watchdog process periodically cleans up expired leases to prevent deadlocks.
 - **Key Types**: \`FileLease\`, \`LeaseRequest\`, \`LeaseResult\`, \`FileConflict\`, \`DeclaredFiles\`
 
+## User Guide
+
+### What is Formic?
+Formic is an AI-powered Kanban task manager where AI agents autonomously execute tasks. You describe what you want built or fixed, and AI agents handle the implementation — briefing, planning, coding, and committing — while you review the results.
+
+### The Kanban Board
+The board has these columns, each representing a stage in the task lifecycle:
+- **Todo**: Tasks created but not yet queued for execution
+- **Queued**: Tasks waiting to be picked up by an AI agent (priority-ordered)
+- **Briefing**: AI is generating a feature specification (README.md)
+- **Planning**: AI is creating an implementation plan (PLAN.md, subtasks.json)
+- **Declaring**: Task is declaring file leases for concurrency safety
+- **Running**: AI agent is actively executing the implementation
+- **Review**: Task is complete — awaiting human approval
+- **Done**: Approved and merged
+
+**Drag-to-queue**: Drag a card from the Todo column into Queued to schedule it for execution.
+
+### Creating Tasks
+Click the **New Task** button (or the + button in the Todo column header) to open the task creation modal.
+
+Fill in:
+- **Title** — a short, action-oriented description (e.g. "Add dark mode toggle")
+- **Context** — detailed requirements, motivation, and acceptance criteria. The more detail you provide, the better the AI can execute.
+- **Task Type** — choose how the task should be processed:
+  - **Standard**: Full workflow (brief → plan → declare → execute). Best for most features.
+  - **Quick**: Skips briefing and planning, goes straight to execution. Best for small fixes.
+  - **Goal**: The architect AI decomposes the goal into 3–8 child tasks automatically. Best for large, multi-part features.
+
+### Task Lifecycle (Standard)
+After a task is queued: Queued → Briefing → Planning → Declaring → Running → Review
+
+At **Review**, you inspect the completed work and either:
+- **Approve** — marks the task Done
+- **Re-run** — sends it back through the workflow for another attempt
+
+### Goal Tasks
+When you create a Goal task, the architect AI analyzes your objective and decomposes it into 3–8 smaller child tasks, each with its own context. The child tasks then execute independently using the standard or quick workflow. You can track them all on the board, linked to the parent goal.
+
+### What to Ask the AI Assistant
+The assistant (that's me!) can help you:
+- **Brainstorm** feature ideas, approaches, and trade-offs
+- **Analyze the codebase** to understand existing patterns before creating a task
+- **Create tasks** — describe what you want and I'll craft a well-structured task prompt
+- **Explain the board** — ask about any column, task type, or workflow stage
+- **Answer onboarding questions** — "How do I get started?", "What's the difference between Quick and Standard?"
+
 ## How to Work with Users
 
 1. **Listen and Understand**: Ask clarifying questions to understand requirements

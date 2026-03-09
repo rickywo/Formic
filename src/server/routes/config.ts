@@ -77,6 +77,14 @@ export async function configRoutes(fastify: FastifyInstance): Promise<void> {
         'theme',
         'notificationsEnabled',
         'projectBriefCollapsed',
+        'verifyCommand',
+        'skipVerify',
+        'maxExecuteIterations',
+        'stepTimeoutMs',
+        'queuePollIntervalMs',
+        'maxYieldCount',
+        'leaseDurationMs',
+        'watchdogIntervalMs',
       ];
 
       if (!validKeys.includes(key as keyof ConfigSettings)) {
@@ -99,6 +107,14 @@ export async function configRoutes(fastify: FastifyInstance): Promise<void> {
         'theme',
         'notificationsEnabled',
         'projectBriefCollapsed',
+        'verifyCommand',
+        'skipVerify',
+        'maxExecuteIterations',
+        'stepTimeoutMs',
+        'queuePollIntervalMs',
+        'maxYieldCount',
+        'leaseDurationMs',
+        'watchdogIntervalMs',
       ];
 
       if (!validKeys.includes(key as keyof ConfigSettings)) {
