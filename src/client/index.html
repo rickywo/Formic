@@ -4098,7 +4098,7 @@
       padding: 7px 10px;
       color: rgba(255, 255, 255, 0.9);
       font-size: 13px;
-      width: 110px;
+      width: 80px;
       text-align: right;
       box-sizing: border-box;
     }
@@ -4107,6 +4107,19 @@
       outline: none;
       border-color: rgba(139, 92, 246, 0.4);
       background: rgba(255, 255, 255, 0.06);
+    }
+
+    .settings-input-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .settings-unit {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.45);
+      white-space: nowrap;
+      min-width: 24px;
     }
 
     .settings-label-group {
@@ -7423,11 +7436,14 @@
         <div class="settings-row">
           <div class="settings-label-group">
             <label class="settings-label">Step Timeout</label>
-            <span class="settings-hint">Per-step timeout in ms (min 60000)</span>
+            <span class="settings-hint">Maximum time allowed per execution step</span>
           </div>
-          <input type="number" class="settings-ms-input" id="step-timeout-ms"
-            min="60000" step="60000"
-            onchange="saveStepTimeoutMs()" onblur="saveStepTimeoutMs()">
+          <div class="settings-input-group">
+            <input type="number" class="settings-ms-input" id="step-timeout-ms"
+              min="1" step="1"
+              onchange="saveStepTimeoutMs()" onblur="saveStepTimeoutMs()">
+            <span class="settings-unit">min</span>
+          </div>
         </div>
 
         <div class="settings-row">
@@ -7441,7 +7457,10 @@
         </div>
 
         <div class="settings-row">
-          <label class="settings-label">Skip Verification</label>
+          <div class="settings-label-group">
+            <label class="settings-label">Run Verifier After Execution</label>
+            <span class="settings-hint">When ON, runs the verify command after each task. Requires a Verify Command to be set.</span>
+          </div>
           <label class="settings-toggle">
             <input type="checkbox" id="skip-verify" onchange="toggleSkipVerify(this.checked)">
             <span class="toggle-slider"></span>
@@ -7456,11 +7475,14 @@
         <div class="settings-row">
           <div class="settings-label-group">
             <label class="settings-label">Queue Poll Interval</label>
-            <span class="settings-hint">Task queue check frequency in ms (min 1000)</span>
+            <span class="settings-hint">How often to check the task queue for new work</span>
           </div>
-          <input type="number" class="settings-ms-input" id="queue-poll-interval-ms"
-            min="1000" step="1000"
-            onchange="saveQueuePollInterval()" onblur="saveQueuePollInterval()">
+          <div class="settings-input-group">
+            <input type="number" class="settings-ms-input" id="queue-poll-interval-ms"
+              min="1" step="1"
+              onchange="saveQueuePollInterval()" onblur="saveQueuePollInterval()">
+            <span class="settings-unit">sec</span>
+          </div>
         </div>
 
         <div class="settings-row">
@@ -7483,21 +7505,27 @@
         <div class="settings-row">
           <div class="settings-label-group">
             <label class="settings-label">Lease Duration</label>
-            <span class="settings-hint">File lease TTL in ms (min 10000, default 300000 = 5 min)</span>
+            <span class="settings-hint">How long a file lease stays active before expiring</span>
           </div>
-          <input type="number" class="settings-ms-input" id="lease-duration-ms"
-            min="10000" step="10000"
-            onchange="saveLeaseDurationMs()" onblur="saveLeaseDurationMs()">
+          <div class="settings-input-group">
+            <input type="number" class="settings-ms-input" id="lease-duration-ms"
+              min="1" step="1"
+              onchange="saveLeaseDurationMs()" onblur="saveLeaseDurationMs()">
+            <span class="settings-unit">min</span>
+          </div>
         </div>
 
         <div class="settings-row">
           <div class="settings-label-group">
             <label class="settings-label">Watchdog Interval</label>
-            <span class="settings-hint">Lease scan frequency in ms (min 5000, default 30000)</span>
+            <span class="settings-hint">How often expired leases are scanned and cleaned up</span>
           </div>
-          <input type="number" class="settings-ms-input" id="watchdog-interval-ms"
-            min="5000" step="5000"
-            onchange="saveWatchdogIntervalMs()" onblur="saveWatchdogIntervalMs()">
+          <div class="settings-input-group">
+            <input type="number" class="settings-ms-input" id="watchdog-interval-ms"
+              min="5" step="5"
+              onchange="saveWatchdogIntervalMs()" onblur="saveWatchdogIntervalMs()">
+            <span class="settings-unit">sec</span>
+          </div>
         </div>
       </div>
 
@@ -9150,23 +9178,23 @@
       document.getElementById('max-execute-iterations-value').textContent =
         window.configStore.getSetting('maxExecuteIterations') ?? 5;
       document.getElementById('step-timeout-ms').value =
-        window.configStore.getSetting('stepTimeoutMs') ?? 6000000;
+        Math.round((window.configStore.getSetting('stepTimeoutMs') ?? 6000000) / 60000);
       document.getElementById('verify-command').value =
         window.configStore.getSetting('verifyCommand') ?? '';
       document.getElementById('skip-verify').checked =
-        window.configStore.getSetting('skipVerify') ?? false;
+        !(window.configStore.getSetting('skipVerify') ?? false);
 
       // Initialize queue settings
       document.getElementById('queue-poll-interval-ms').value =
-        window.configStore.getSetting('queuePollIntervalMs') ?? 5000;
+        Math.round((window.configStore.getSetting('queuePollIntervalMs') ?? 5000) / 1000);
       document.getElementById('max-yield-count-value').textContent =
         window.configStore.getSetting('maxYieldCount') ?? 50;
 
       // Initialize lease settings
       document.getElementById('lease-duration-ms').value =
-        window.configStore.getSetting('leaseDurationMs') ?? 300000;
+        Math.round((window.configStore.getSetting('leaseDurationMs') ?? 300000) / 60000);
       document.getElementById('watchdog-interval-ms').value =
-        window.configStore.getSetting('watchdogIntervalMs') ?? 30000;
+        Math.round((window.configStore.getSetting('watchdogIntervalMs') ?? 30000) / 1000);
 
       // Render workspace list
       renderWorkspaceList();
@@ -9207,9 +9235,9 @@
 
     function saveStepTimeoutMs() {
       const input = document.getElementById('step-timeout-ms');
-      const value = Math.max(60000, parseInt(input.value) || 6000000);
-      input.value = value;
-      window.configStore.setSetting('stepTimeoutMs', value);
+      const minutes = Math.max(1, parseInt(input.value) || 100);
+      input.value = minutes;
+      window.configStore.setSetting('stepTimeoutMs', minutes * 60000);
     }
 
     function saveVerifyCommand() {
@@ -9218,14 +9246,14 @@
     }
 
     function toggleSkipVerify(checked) {
-      window.configStore.setSetting('skipVerify', checked);
+      window.configStore.setSetting('skipVerify', !checked);
     }
 
     function saveQueuePollInterval() {
       const input = document.getElementById('queue-poll-interval-ms');
-      const value = Math.max(1000, parseInt(input.value) || 5000);
-      input.value = value;
-      window.configStore.setSetting('queuePollIntervalMs', value);
+      const seconds = Math.max(1, parseInt(input.value) || 5);
+      input.value = seconds;
+      window.configStore.setSetting('queuePollIntervalMs', seconds * 1000);
     }
 
     function adjustMaxYieldCount(delta) {
@@ -9238,16 +9266,16 @@
 
     function saveLeaseDurationMs() {
       const input = document.getElementById('lease-duration-ms');
-      const value = Math.max(10000, parseInt(input.value) || 300000);
-      input.value = value;
-      window.configStore.setSetting('leaseDurationMs', value);
+      const minutes = Math.max(1, parseInt(input.value) || 5);
+      input.value = minutes;
+      window.configStore.setSetting('leaseDurationMs', minutes * 60000);
     }
 
     function saveWatchdogIntervalMs() {
       const input = document.getElementById('watchdog-interval-ms');
-      const value = Math.max(5000, parseInt(input.value) || 30000);
-      input.value = value;
-      window.configStore.setSetting('watchdogIntervalMs', value);
+      const seconds = Math.max(5, parseInt(input.value) || 30);
+      input.value = seconds;
+      window.configStore.setSetting('watchdogIntervalMs', seconds * 1000);
     }
 
     function resetEngineDefaults() {
@@ -9265,13 +9293,13 @@
         window.configStore.setSetting(key, value);
       });
       document.getElementById('max-execute-iterations-value').textContent = defaults.maxExecuteIterations;
-      document.getElementById('step-timeout-ms').value = defaults.stepTimeoutMs;
+      document.getElementById('step-timeout-ms').value = defaults.stepTimeoutMs / 60000;
       document.getElementById('verify-command').value = defaults.verifyCommand;
-      document.getElementById('skip-verify').checked = defaults.skipVerify;
-      document.getElementById('queue-poll-interval-ms').value = defaults.queuePollIntervalMs;
+      document.getElementById('skip-verify').checked = !defaults.skipVerify;
+      document.getElementById('queue-poll-interval-ms').value = defaults.queuePollIntervalMs / 1000;
       document.getElementById('max-yield-count-value').textContent = defaults.maxYieldCount;
-      document.getElementById('lease-duration-ms').value = defaults.leaseDurationMs;
-      document.getElementById('watchdog-interval-ms').value = defaults.watchdogIntervalMs;
+      document.getElementById('lease-duration-ms').value = defaults.leaseDurationMs / 60000;
+      document.getElementById('watchdog-interval-ms').value = defaults.watchdogIntervalMs / 1000;
     }
 
     function renderWorkspaceList() {
