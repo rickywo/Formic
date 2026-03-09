@@ -1155,6 +1155,18 @@
       color: rgba(0, 0, 0, 0.35);
     }
 
+    [data-theme="light"] .settings-secondary-btn {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.55);
+    }
+
+    [data-theme="light"] .settings-secondary-btn:hover {
+      background: rgba(0, 0, 0, 0.08);
+      border-color: rgba(0, 0, 0, 0.2);
+      color: rgba(0, 0, 0, 0.8);
+    }
+
     [data-theme="light"] .workspace-item {
       background: rgba(0, 0, 0, 0.02);
       border: 1px solid rgba(0, 0, 0, 0.05);
@@ -4107,6 +4119,25 @@
       font-size: 11px;
       color: rgba(255, 255, 255, 0.3);
       line-height: 1.4;
+    }
+
+    .settings-secondary-btn {
+      padding: 7px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .settings-secondary-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.2);
+      color: rgba(255, 255, 255, 0.85);
     }
 
     /* Workspaces List */
@@ -7470,6 +7501,17 @@
         </div>
       </div>
 
+      <!-- Reset Engine Defaults -->
+      <div class="settings-section">
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Engine Configuration</label>
+            <span class="settings-hint">Restore Execution, Queue &amp; Concurrency, and Lease Management to defaults</span>
+          </div>
+          <button class="settings-secondary-btn" onclick="resetEngineDefaults()">Reset to Defaults</button>
+        </div>
+      </div>
+
       <!-- Workspaces Section -->
       <div class="settings-section">
         <div class="settings-section-title">Workspaces</div>
@@ -9206,6 +9248,30 @@
       const value = Math.max(5000, parseInt(input.value) || 30000);
       input.value = value;
       window.configStore.setSetting('watchdogIntervalMs', value);
+    }
+
+    function resetEngineDefaults() {
+      const defaults = {
+        maxExecuteIterations: 5,
+        stepTimeoutMs: 6000000,
+        verifyCommand: '',
+        skipVerify: false,
+        queuePollIntervalMs: 5000,
+        maxYieldCount: 50,
+        leaseDurationMs: 300000,
+        watchdogIntervalMs: 30000,
+      };
+      Object.entries(defaults).forEach(([key, value]) => {
+        window.configStore.setSetting(key, value);
+      });
+      document.getElementById('max-execute-iterations-value').textContent = defaults.maxExecuteIterations;
+      document.getElementById('step-timeout-ms').value = defaults.stepTimeoutMs;
+      document.getElementById('verify-command').value = defaults.verifyCommand;
+      document.getElementById('skip-verify').checked = defaults.skipVerify;
+      document.getElementById('queue-poll-interval-ms').value = defaults.queuePollIntervalMs;
+      document.getElementById('max-yield-count-value').textContent = defaults.maxYieldCount;
+      document.getElementById('lease-duration-ms').value = defaults.leaseDurationMs;
+      document.getElementById('watchdog-interval-ms').value = defaults.watchdogIntervalMs;
     }
 
     function renderWorkspaceList() {
