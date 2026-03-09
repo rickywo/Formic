@@ -132,6 +132,18 @@
       color: #166534;
     }
 
+    [data-theme="light"] .btn-approve {
+      background: rgba(22, 163, 74, 0.15);
+      border-color: rgba(22, 163, 74, 0.2);
+      color: #15803d;
+    }
+
+    [data-theme="light"] .btn-approve:hover {
+      background: rgba(22, 163, 74, 0.25);
+      border-color: rgba(22, 163, 74, 0.3);
+      color: #166534;
+    }
+
     [data-theme="light"] .btn-danger {
       background: rgba(220, 38, 38, 0.15);
       border-color: rgba(220, 38, 38, 0.2);
@@ -1754,6 +1766,18 @@
       background: rgba(74, 222, 128, 0.3);
       border-color: rgba(74, 222, 128, 0.3);
       color: #bbf7d0;
+    }
+
+    .btn-approve {
+      background: rgba(63, 185, 80, 0.2);
+      border-color: rgba(63, 185, 80, 0.2);
+      color: var(--accent-green);
+    }
+
+    .btn-approve:hover {
+      background: rgba(63, 185, 80, 0.3);
+      border-color: rgba(63, 185, 80, 0.3);
+      color: var(--accent-green);
     }
 
     .btn-danger {
@@ -7866,6 +7890,18 @@
       }
     }
 
+    async function markTaskDone(taskId) {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'done' }),
+      });
+
+      if (res.ok) {
+        await loadBoard();
+      }
+    }
+
     async function runTask(taskId) {
       const res = await fetch(`/api/tasks/${taskId}/run`, { method: 'POST' });
 
@@ -8120,11 +8156,15 @@
                   <button class="btn btn-primary" onclick="runTask('${task.id}')">Run Now</button>
                   <button class="btn" onclick="unqueueTask('${task.id}')">Dequeue</button>
                 ` : ''}
+                ${task.status === 'review' && !isRunning ? `
+                  <button class="btn btn-approve" onclick="event.stopPropagation(); markTaskDone('${task.id}')">✅ Approve</button>
+                  <button class="btn" onclick="event.stopPropagation(); runTask('${task.id}')">↺ Re-run</button>
+                ` : ''}
                 ${isRunning ? `
                   <button class="btn" onclick="openTerminal('${task.id}')">Logs</button>
                   <button class="btn btn-danger" onclick="stopTask('${task.id}')">Stop</button>
                 ` : ''}
-                ${!isRunning && task.status !== 'queued' ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
+                ${!isRunning && task.status !== 'queued' && task.status !== 'review' ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
               </div>
               ${progressBarHtml}
             </div>
