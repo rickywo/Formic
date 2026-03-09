@@ -42,6 +42,14 @@ const DEFAULT_CONFIG = {
     theme: 'dark',
     notificationsEnabled: true,
     projectBriefCollapsed: false,
+    verifyCommand: '',
+    skipVerify: false,
+    maxExecuteIterations: 5,
+    stepTimeoutMs: 6000000,
+    queuePollIntervalMs: 5000,
+    maxYieldCount: 50,
+    leaseDurationMs: 300000,
+    watchdogIntervalMs: 30000,
   },
 };
 
