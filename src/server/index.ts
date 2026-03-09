@@ -115,6 +115,11 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   // Health check endpoint
   fastify.get('/health', async () => ({ status: 'ok' }));
 
+  // Demo mode entry point — serves the static showcase HTML
+  fastify.get('/demo', async (_req, reply) => {
+    return reply.sendFile('demo.html');
+  });
+
   try {
     // Ensure ~/.formic/config.json exists on first startup
     await loadConfig();
