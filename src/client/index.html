@@ -1881,12 +1881,11 @@
     }
     .column[data-status="queued"] .column-title { color: rgba(147, 197, 253, 0.9); }
     .column-subtitle {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: rgba(255, 255, 255, 0.3);
+      font-size: 11px;
+      color: var(--text-secondary);
       margin-top: 4px;
-      font-weight: 500;
+      font-weight: 400;
+      width: 100%;
     }
 
     .column[data-status="running"] {
@@ -6561,9 +6560,11 @@
       </div>
     </div>
     <div class="column" data-status="todo">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Todo</span>
         <span class="column-count" id="todo-count">0</span>
+        <button onclick="openCreateModal()" class="btn btn-primary btn-sm" style="margin-left: auto;">+ New Task</button>
+        <div class="column-subtitle" style="width: 100%;">Add tasks, then queue them for execution</div>
       </div>
       <div class="tasks" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
@@ -6572,39 +6573,43 @@
       <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Queued</span>
         <span class="column-count" id="queued-count">0</span>
-        <div class="column-subtitle" style="width: 100%;">🤖 Auto-processed</div>
+        <div class="column-subtitle" style="width: 100%;">Picked up automatically by AI agents</div>
       </div>
       <div class="tasks" id="queued-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
 
     <div class="column" data-status="running">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Running</span>
         <span class="column-count" id="running-count">0</span>
+        <div class="column-subtitle">AI agent is actively working</div>
       </div>
       <div class="tasks" id="running-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
 
     <div class="column" data-status="verifying">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Verifying</span>
         <span class="column-count" id="verifying-count">0</span>
+        <div class="column-subtitle">AI is reviewing its own output</div>
       </div>
       <div class="tasks" id="verifying-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
 
     <div class="column" data-status="review">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Review</span>
         <span class="column-count" id="review-count">0</span>
+        <div class="column-subtitle">Awaiting your approval</div>
       </div>
       <div class="tasks" id="review-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
 
     <div class="column" data-status="done">
-      <div class="column-header">
+      <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Done</span>
         <span class="column-count" id="done-count">0</span>
+        <div class="column-subtitle">Completed and approved</div>
       </div>
       <div class="tasks" id="done-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
     </div>
