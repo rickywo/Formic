@@ -89,10 +89,10 @@ function broadcastToTask(taskId: string, message: LogMessage): void {
 }
 
 export async function runAgent(taskId: string, title: string, context: string, docsPath: string): Promise<{ pid: number }> {
-  // Check concurrency - allow multiple agents based on MAX_CONCURRENT_TASKS
-  const MAX_CONCURRENT = parseInt(process.env.MAX_CONCURRENT_TASKS || '1', 10);
-  if (activeProcesses.size >= MAX_CONCURRENT) {
-    throw new Error(`Maximum concurrent agents reached (${MAX_CONCURRENT}). Please wait for one to complete.`);
+  await refreshEngineConfig();
+  // Check concurrency - allow multiple agents based on maxConcurrentTasks
+  if (activeProcesses.size >= engineConfig.maxConcurrentTasks) {
+    throw new Error(`Maximum concurrent agents reached (${engineConfig.maxConcurrentTasks}). Please wait for one to complete.`);
   }
 
   // Load project guidelines (injected into prompt)
