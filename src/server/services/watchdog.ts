@@ -15,9 +15,9 @@ import { getWorkspacePath } from '../utils/paths.js';
 
 const execAsync = promisify(exec);
 
-const WATCHDOG_INTERVAL_MS = parseInt(process.env.WATCHDOG_INTERVAL_MS || '30000', 10);
+import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 
-let watchdogInterval: ReturnType<typeof setInterval> | null = null;
+let watchdogTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Scan for expired leases and handle cleanup
@@ -87,30 +87,43 @@ async function scanExpiredLeases(): Promise<void> {
 }
 
 /**
+ * Schedule the next watchdog scan using recursive setTimeout
+ */
+function scheduleWatchdog(): void {
+  watchdogTimeout = setTimeout(async () => {
+    await refreshEngineConfig();
+    await scanExpiredLeases().catch(error => {
+      console.warn('[Watchdog] Scan error:', error);
+    });
+    if (watchdogTimeout !== null) {
+      scheduleWatchdog();
+    }
+  }, engineConfig.watchdogIntervalMs);
+}
+
+/**
  * Start the watchdog timer
  */
 export function startWatchdog(): void {
-  if (watchdogInterval !== null) {
+  if (watchdogTimeout !== null) {
     console.log('[Watchdog] Already running');
     return;
   }
 
-  console.log(`[Watchdog] Starting watchdog (interval: ${WATCHDOG_INTERVAL_MS}ms)`);
-  restoreLeases().catch(e => console.warn('[Watchdog] restore error:', e));
-  watchdogInterval = setInterval(() => {
-    scanExpiredLeases().catch(error => {
-      console.warn('[Watchdog] Scan error:', error);
-    });
-  }, WATCHDOG_INTERVAL_MS);
+  void refreshEngineConfig().then(() => {
+    console.log(`[Watchdog] Starting watchdog (interval: ${engineConfig.watchdogIntervalMs}ms)`);
+    restoreLeases().catch(e => console.warn('[Watchdog] restore error:', e));
+    scheduleWatchdog();
+  });
 }
 
 /**
  * Stop the watchdog timer
  */
 export function stopWatchdog(): void {
-  if (watchdogInterval !== null) {
-    clearInterval(watchdogInterval);
-    watchdogInterval = null;
+  if (watchdogTimeout !== null) {
+    clearTimeout(watchdogTimeout);
+    watchdogTimeout = null;
     console.log('[Watchdog] Stopped');
   }
 }
