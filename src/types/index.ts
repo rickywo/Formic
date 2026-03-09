@@ -324,6 +324,17 @@ export interface ConfigSettings {
   theme: string;
   notificationsEnabled: boolean;
   projectBriefCollapsed: boolean;
+  // Execution settings
+  verifyCommand: string;
+  skipVerify: boolean;
+  maxExecuteIterations: number;
+  stepTimeoutMs: number;
+  // Queue & concurrency settings
+  queuePollIntervalMs: number;
+  maxYieldCount: number;
+  // Lease management settings
+  leaseDurationMs: number;
+  watchdogIntervalMs: number;
 }
 
 /** Root schema for ~/.formic/config.json */
