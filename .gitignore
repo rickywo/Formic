@@ -60,7 +60,12 @@ AGENTS.md
 CLAUDE.md
 COPILOT_CONTEXT.md
 EXPLANATION.md
+FORMIC_CODEBASE_SPEC.md
+QUICK_REFERENCE.md
 example/CLAUDE.md
+
+# Task-generated test artifacts
+hello*.txt
 
 # Local docs and notes
 docs/11_chat_agent_context/
