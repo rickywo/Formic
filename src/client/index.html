@@ -8155,12 +8155,12 @@
               : ''}
               <div class="task-actions">
                 ${task.status === 'todo' ? `
-                  <button class="btn" onclick="queueTask('${task.id}')">Queue</button>
-                  <button class="btn btn-primary" onclick="runTask('${task.id}')">Run</button>
+                  <button class="btn" title="Add to auto-processing queue" onclick="event.stopPropagation(); queueTask('${task.id}')">Queue →</button>
+                  <button class="btn btn-primary" title="Skip the queue and run immediately" onclick="event.stopPropagation(); runTask('${task.id}')">Run Now ⚡</button>
                 ` : ''}
                 ${task.status === 'queued' ? `
-                  <button class="btn btn-primary" onclick="runTask('${task.id}')">Run Now</button>
-                  <button class="btn" onclick="unqueueTask('${task.id}')">Dequeue</button>
+                  <button class="btn btn-primary" title="Skip the queue and run immediately" onclick="event.stopPropagation(); runTask('${task.id}')">Run Now</button>
+                  <button class="btn" title="Remove from queue and return to Todo" onclick="event.stopPropagation(); unqueueTask('${task.id}')">Remove from Queue</button>
                 ` : ''}
                 ${task.status === 'review' && !isRunning ? `
                   <button class="btn btn-approve" onclick="event.stopPropagation(); markTaskDone('${task.id}')">✅ Approve</button>
