@@ -59,6 +59,22 @@ Formic evolves with your project.
 - **The Hippocampus**: After every task, the agent reflects on the experience. Lessons are stored in `.formic/memory.json` and automatically injected into the context of relevant future tasks.
 - **Tool Building**: Agents can "forge" their own scripts in `.formic/tools/` to automate repetitive project-specific actions, which are then made available to the entire team.
 
+### Settings Panel
+
+All execution engine parameters — concurrency limits, timeouts, verification commands, lease durations — are configurable at runtime from the dashboard's Settings panel. Changes take effect immediately without a server restart.
+
+### Multi-Workspace Support
+
+Switch between project workspaces directly from the UI using the desktop dropdown or mobile bottom sheet. The active workspace is remembered across sessions and browser tabs.
+
+### Light Theme
+
+A full light theme with glass-morphic design is available alongside the default dark theme. Select Dark, Light, or Auto (follows system preference) from the Settings panel.
+
+### Portable Config Store
+
+Configuration is persisted to `~/.formic/config.json` instead of browser localStorage, making settings portable across browsers and machines. Settings survive server restarts and are shared across all connected clients.
+
 ## Quick Start
 
 ### 1. Requirements
