@@ -426,10 +426,10 @@ function runWorkflowStep(
   // Set up timeout to kill hanging processes
   const timeout = setTimeout(() => {
     if (!hasCompleted) {
-      console.log(`[Workflow] ${step} step timed out after ${STEP_TIMEOUT_MS}ms, killing process`);
+      console.log(`[Workflow] ${step} step timed out after ${engineConfig.stepTimeoutMs}ms, killing process`);
       broadcastToTask(taskId, {
         type: 'error',
-        data: `[${step.toUpperCase()}] Step timed out after ${STEP_TIMEOUT_MS / 1000}s`,
+        data: `[${step.toUpperCase()}] Step timed out after ${engineConfig.stepTimeoutMs / 1000}s`,
         timestamp: new Date().toISOString(),
       });
       child.kill('SIGTERM');
@@ -439,7 +439,7 @@ function runWorkflowStep(
         }
       }, 5000);
     }
-  }, STEP_TIMEOUT_MS);
+  }, engineConfig.stepTimeoutMs);
 
   child.on('error', async (err: NodeJS.ErrnoException) => {
     hasCompleted = true;
