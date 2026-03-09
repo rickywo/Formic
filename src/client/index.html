@@ -1941,6 +1941,16 @@
       opacity: 0.5;
     }
 
+    .drop-target-active {
+      outline: 2px dashed var(--accent-blue);
+      background: rgba(88, 166, 255, 0.05);
+      border-radius: 12px;
+    }
+
+    [data-theme="light"] .drop-target-active {
+      background: rgba(37, 99, 235, 0.05);
+    }
+
     /* Create Task Card - Special styling */
     .create-task-card {
       position: relative;
@@ -6584,7 +6594,7 @@
         <button onclick="openCreateModal()" class="btn btn-primary btn-sm" style="margin-left: auto;">+ New Task</button>
         <div class="column-subtitle" style="width: 100%;">Add tasks, then queue them for execution</div>
       </div>
-      <div class="tasks" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="todo-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="queued">
@@ -6593,7 +6603,7 @@
         <span class="column-count" id="queued-count">0</span>
         <div class="column-subtitle" style="width: 100%;">Picked up automatically by AI agents</div>
       </div>
-      <div class="tasks" id="queued-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="queued-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="running">
@@ -6602,7 +6612,7 @@
         <span class="column-count" id="running-count">0</span>
         <div class="column-subtitle">AI agent is actively working</div>
       </div>
-      <div class="tasks" id="running-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="running-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="verifying">
@@ -6611,7 +6621,7 @@
         <span class="column-count" id="verifying-count">0</span>
         <div class="column-subtitle">AI is reviewing its own output</div>
       </div>
-      <div class="tasks" id="verifying-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="verifying-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="review">
@@ -6620,7 +6630,7 @@
         <span class="column-count" id="review-count">0</span>
         <div class="column-subtitle">Awaiting your approval</div>
       </div>
-      <div class="tasks" id="review-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="review-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="done">
@@ -6629,7 +6639,7 @@
         <span class="column-count" id="done-count">0</span>
         <div class="column-subtitle">Completed and approved</div>
       </div>
-      <div class="tasks" id="done-tasks" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+      <div class="tasks" id="done-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
   </main>
 
@@ -8167,7 +8177,7 @@
           const queuePositionHtml = queuePosition > 0 ? `<div class="queue-position">${queuePosition}</div>` : '';
 
           return `
-            <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
+            <div class="${cardClass}" draggable="true" ondragstart="dragStart(event)" ondragend="dragEnd(event)" data-id="${task.id}" data-status="${task.status}" onclick="openDetailModal('${task.id}', event)">
               ${queuePositionHtml}
               <div class="task-header">
                 <span class="task-title">${bootstrapBadge}${goalBadge}${quickBadge}${childBadge}${manualBadge}${blockedBadge}${escapeHtml(task.title)}${statusBadge}</span>
@@ -8252,12 +8262,30 @@
       event.target.classList.add('dragging');
     }
 
+    function dragEnd(event) {
+      document.querySelectorAll('.column').forEach(col => col.classList.remove('drop-target-active'));
+    }
+
+    function dragEnter(event) {
+      event.preventDefault();
+      const column = event.target.closest('.column');
+      if (column) column.classList.add('drop-target-active');
+    }
+
+    function dragLeave(event) {
+      const column = event.target.closest('.column');
+      if (column && !column.contains(event.relatedTarget)) {
+        column.classList.remove('drop-target-active');
+      }
+    }
+
     function allowDrop(event) {
       event.preventDefault();
     }
 
     function drop(event) {
       event.preventDefault();
+      document.querySelectorAll('.column').forEach(col => col.classList.remove('drop-target-active'));
       const column = event.target.closest('.column');
       if (!column || !draggedTaskId) return;
 
@@ -8265,7 +8293,7 @@
 
       // Prevent dragging to 'running' status
       if (newStatus === 'running') {
-        alert('Use the Run button to start a task');
+        showToast('Use the Run Now ⚡ button on the card to start a task', 'error');
         return;
       }
 
@@ -8275,7 +8303,7 @@
         if (task && task.status === 'todo') {
           queueTask(draggedTaskId);
         } else if (task) {
-          alert('Only tasks in TODO can be queued');
+          showToast('Only tasks in TODO can be queued', 'error');
         }
         draggedTaskId = null;
         return;
