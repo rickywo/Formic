@@ -125,12 +125,26 @@ export async function runAgent(taskId: string, title: string, context: string, d
     console.warn('[Runner] Failed to load tools for agent context:', error);
   }
 
+  // Build tool forging instructions with the live server port
+  const port = process.env.PORT ?? '3000';
+  const toolForgingSection = `
+## Tool Forging
+If during this task you identify a shell command that would be reusable across future tasks (e.g. a test runner, linter, build script, or deploy command), register it as a tool by running:
+  curl -s -X POST http://localhost:${port}/api/tools \\
+    -H 'Content-Type: application/json' \\
+    -d '{"name":"slug-name","description":"What it does","command":"the shell command","created_by":"${title}"}'
+Rules:
+- Tool names must be lowercase alphanumeric with hyphens only (e.g. run-tests, lint-fix, build-dist).
+- Only forge a tool if the command is generic and reusable — not task-specific.
+- Skip forging if a similar tool already exists in the Available Tools section above.
+`;
+
   // Build prompt - simple format for --print mode
   // Note: In --print mode, tools are limited. For complex tasks, the agent should read context from the prompt directly.
   const prompt = `${guidelines}Task: ${title}
 
 Context: ${context}
-${pastExperienceSection}${availableToolsSection}
+${pastExperienceSection}${availableToolsSection}${toolForgingSection}
 Task documentation is available at: ${docsPath}/
 
 All code changes MUST comply with the project development guidelines provided above.`;
