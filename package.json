@@ -20,7 +20,8 @@
     "build": "tsc",
     "start": "node dist/server/index.js",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "build:demo": "node scripts/build-demo.js"
   },
   "keywords": [
     "ai",
