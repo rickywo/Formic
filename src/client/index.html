@@ -1137,6 +1137,24 @@
       color: rgba(0, 0, 0, 0.85);
     }
 
+    [data-theme="light"] .settings-text-input {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.9);
+    }
+    [data-theme="light"] .settings-text-input:focus {
+      border-color: rgba(139, 92, 246, 0.5);
+      background: rgba(0, 0, 0, 0.06);
+    }
+    [data-theme="light"] .settings-ms-input {
+      background: rgba(0, 0, 0, 0.04);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.9);
+    }
+    [data-theme="light"] .settings-hint {
+      color: rgba(0, 0, 0, 0.35);
+    }
+
     [data-theme="light"] .workspace-item {
       background: rgba(0, 0, 0, 0.02);
       border: 1px solid rgba(0, 0, 0, 0.05);
@@ -4041,6 +4059,54 @@
       font-size: 14px;
       font-weight: 600;
       color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* Text/number input for settings with large or string values */
+    .settings-text-input {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 13px;
+      width: 160px;
+      box-sizing: border-box;
+    }
+
+    .settings-text-input:focus {
+      outline: none;
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .settings-ms-input {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 7px 10px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 13px;
+      width: 110px;
+      text-align: right;
+      box-sizing: border-box;
+    }
+
+    .settings-ms-input:focus {
+      outline: none;
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .settings-label-group {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .settings-hint {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+      line-height: 1.4;
     }
 
     /* Workspaces List */
@@ -7303,12 +7369,104 @@
         <div class="settings-section-title">Execution</div>
 
         <div class="settings-row">
-          <label class="settings-label">Max Concurrent Sessions</label>
+          <label class="settings-label">Max Concurrent Tasks</label>
           <div class="settings-number-input">
             <button class="number-btn" onclick="adjustConcurrentSessions(-1)">−</button>
             <span class="number-value" id="concurrent-sessions-value">1</span>
             <button class="number-btn" onclick="adjustConcurrentSessions(1)">+</button>
           </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Max Execute Iterations</label>
+            <span class="settings-hint">Retry loops per task (1–20)</span>
+          </div>
+          <div class="settings-number-input">
+            <button class="number-btn" onclick="adjustMaxExecuteIterations(-1)">−</button>
+            <span class="number-value" id="max-execute-iterations-value">5</span>
+            <button class="number-btn" onclick="adjustMaxExecuteIterations(1)">+</button>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Step Timeout</label>
+            <span class="settings-hint">Per-step timeout in ms (min 60000)</span>
+          </div>
+          <input type="number" class="settings-ms-input" id="step-timeout-ms"
+            min="60000" step="60000"
+            onchange="saveStepTimeoutMs()" onblur="saveStepTimeoutMs()">
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Verify Command</label>
+            <span class="settings-hint">e.g. npm test (empty = disabled)</span>
+          </div>
+          <input type="text" class="settings-text-input" id="verify-command"
+            placeholder="npm test"
+            onchange="saveVerifyCommand()" onblur="saveVerifyCommand()">
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label">Skip Verification</label>
+          <label class="settings-toggle">
+            <input type="checkbox" id="skip-verify" onchange="toggleSkipVerify(this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Queue & Concurrency Section -->
+      <div class="settings-section">
+        <div class="settings-section-title">Queue &amp; Concurrency</div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Queue Poll Interval</label>
+            <span class="settings-hint">Task queue check frequency in ms (min 1000)</span>
+          </div>
+          <input type="number" class="settings-ms-input" id="queue-poll-interval-ms"
+            min="1000" step="1000"
+            onchange="saveQueuePollInterval()" onblur="saveQueuePollInterval()">
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Max Yield Count</label>
+            <span class="settings-hint">Before skipping a lease-blocked task (1–500)</span>
+          </div>
+          <div class="settings-number-input">
+            <button class="number-btn" onclick="adjustMaxYieldCount(-5)">−</button>
+            <span class="number-value" id="max-yield-count-value">50</span>
+            <button class="number-btn" onclick="adjustMaxYieldCount(5)">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lease Management Section -->
+      <div class="settings-section">
+        <div class="settings-section-title">Lease Management</div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Lease Duration</label>
+            <span class="settings-hint">File lease TTL in ms (min 10000, default 300000 = 5 min)</span>
+          </div>
+          <input type="number" class="settings-ms-input" id="lease-duration-ms"
+            min="10000" step="10000"
+            onchange="saveLeaseDurationMs()" onblur="saveLeaseDurationMs()">
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label-group">
+            <label class="settings-label">Watchdog Interval</label>
+            <span class="settings-hint">Lease scan frequency in ms (min 5000, default 30000)</span>
+          </div>
+          <input type="number" class="settings-ms-input" id="watchdog-interval-ms"
+            min="5000" step="5000"
+            onchange="saveWatchdogIntervalMs()" onblur="saveWatchdogIntervalMs()">
         </div>
       </div>
 
@@ -8946,6 +9104,28 @@
       const maxSessions = window.configStore.getSetting('maxConcurrentSessions') || 1;
       document.getElementById('concurrent-sessions-value').textContent = maxSessions;
 
+      // Initialize execution settings
+      document.getElementById('max-execute-iterations-value').textContent =
+        window.configStore.getSetting('maxExecuteIterations') ?? 5;
+      document.getElementById('step-timeout-ms').value =
+        window.configStore.getSetting('stepTimeoutMs') ?? 6000000;
+      document.getElementById('verify-command').value =
+        window.configStore.getSetting('verifyCommand') ?? '';
+      document.getElementById('skip-verify').checked =
+        window.configStore.getSetting('skipVerify') ?? false;
+
+      // Initialize queue settings
+      document.getElementById('queue-poll-interval-ms').value =
+        window.configStore.getSetting('queuePollIntervalMs') ?? 5000;
+      document.getElementById('max-yield-count-value').textContent =
+        window.configStore.getSetting('maxYieldCount') ?? 50;
+
+      // Initialize lease settings
+      document.getElementById('lease-duration-ms').value =
+        window.configStore.getSetting('leaseDurationMs') ?? 300000;
+      document.getElementById('watchdog-interval-ms').value =
+        window.configStore.getSetting('watchdogIntervalMs') ?? 30000;
+
       // Render workspace list
       renderWorkspaceList();
     }
@@ -8973,6 +9153,59 @@
       value = Math.max(1, Math.min(5, value)); // Clamp between 1-5
       valueEl.textContent = value;
       window.configStore.setSetting('maxConcurrentSessions', value);
+    }
+
+    function adjustMaxExecuteIterations(delta) {
+      const valueEl = document.getElementById('max-execute-iterations-value');
+      let value = parseInt(valueEl.textContent) + delta;
+      value = Math.max(1, Math.min(20, value));
+      valueEl.textContent = value;
+      window.configStore.setSetting('maxExecuteIterations', value);
+    }
+
+    function saveStepTimeoutMs() {
+      const input = document.getElementById('step-timeout-ms');
+      const value = Math.max(60000, parseInt(input.value) || 6000000);
+      input.value = value;
+      window.configStore.setSetting('stepTimeoutMs', value);
+    }
+
+    function saveVerifyCommand() {
+      const value = document.getElementById('verify-command').value.trim();
+      window.configStore.setSetting('verifyCommand', value);
+    }
+
+    function toggleSkipVerify(checked) {
+      window.configStore.setSetting('skipVerify', checked);
+    }
+
+    function saveQueuePollInterval() {
+      const input = document.getElementById('queue-poll-interval-ms');
+      const value = Math.max(1000, parseInt(input.value) || 5000);
+      input.value = value;
+      window.configStore.setSetting('queuePollIntervalMs', value);
+    }
+
+    function adjustMaxYieldCount(delta) {
+      const valueEl = document.getElementById('max-yield-count-value');
+      let value = parseInt(valueEl.textContent) + delta;
+      value = Math.max(1, Math.min(500, value));
+      valueEl.textContent = value;
+      window.configStore.setSetting('maxYieldCount', value);
+    }
+
+    function saveLeaseDurationMs() {
+      const input = document.getElementById('lease-duration-ms');
+      const value = Math.max(10000, parseInt(input.value) || 300000);
+      input.value = value;
+      window.configStore.setSetting('leaseDurationMs', value);
+    }
+
+    function saveWatchdogIntervalMs() {
+      const input = document.getElementById('watchdog-interval-ms');
+      const value = Math.max(5000, parseInt(input.value) || 30000);
+      input.value = value;
+      window.configStore.setSetting('watchdogIntervalMs', value);
     }
 
     function renderWorkspaceList() {
