@@ -11,6 +11,7 @@ import type { LogMessage, Task } from '../../types/index.js';
 import path from 'node:path';
 import { getRelevantMemories } from './memory.js';
 import { listTools } from './tools.js';
+import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 
 const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
