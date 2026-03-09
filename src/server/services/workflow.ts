@@ -555,12 +555,12 @@ async function executeWithIterativeLoop(
   // Broadcast start of iterative execution
   broadcastToTask(taskId, {
     type: 'stdout',
-    data: `\n========== Starting EXECUTE step (iterative mode, max ${MAX_EXECUTE_ITERATIONS} iterations) ==========\n`,
+    data: `\n========== Starting EXECUTE step (iterative mode, max ${engineConfig.maxExecuteIterations} iterations) ==========\n`,
     timestamp: new Date().toISOString(),
   });
 
-  while (iteration <= MAX_EXECUTE_ITERATIONS && !allComplete) {
-    console.log(`[Workflow] Execute iteration ${iteration}/${MAX_EXECUTE_ITERATIONS} for task ${taskId}`);
+  while (iteration <= engineConfig.maxExecuteIterations && !allComplete) {
+    console.log(`[Workflow] Execute iteration ${iteration}/${engineConfig.maxExecuteIterations} for task ${taskId}`);
 
     // Renew leases at the start of each iteration to prevent watchdog timeout
     renewLeases(taskId);
@@ -568,7 +568,7 @@ async function executeWithIterativeLoop(
     // Broadcast iteration start
     broadcastToTask(taskId, {
       type: 'stdout',
-      data: `\n----- Execute Iteration ${iteration}/${MAX_EXECUTE_ITERATIONS} -----\n`,
+      data: `\n----- Execute Iteration ${iteration}/${engineConfig.maxExecuteIterations} -----\n`,
       timestamp: new Date().toISOString(),
     });
 
