@@ -1740,6 +1740,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
         broadcastTaskCompleted(taskId);
         internalEvents.emit(TASK_COMPLETED, taskId);
         void runReflectionStep(taskId);
+        void triggerToolForge(taskId);
 
         broadcastToTask(taskId, {
           type: 'stdout',
@@ -1763,6 +1764,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
         broadcastTaskCompleted(taskId);
         internalEvents.emit(TASK_COMPLETED, taskId);
         void runReflectionStep(taskId);
+        void triggerToolForge(taskId);
 
         broadcastToTask(taskId, {
           type: 'stdout',
@@ -1788,6 +1790,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       broadcastTaskCompleted(taskId);
       internalEvents.emit(TASK_COMPLETED, taskId);
       void runReflectionStep(taskId);
+      void triggerToolForge(taskId);
       broadcastBoardUpdate();
     }
   })();
