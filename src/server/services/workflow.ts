@@ -1696,7 +1696,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
     activeWorkflows.delete(taskId);
 
     if (!success) {
-      await updateTaskStatus(taskId, 'todo', null);
+      await updateTaskStatus(taskId, 'todo', null, 'workflow.runArchitectStep.failed');
       broadcastToTask(taskId, {
         type: 'error',
         data: `\n[FAILED] Architect step failed.\n`,
@@ -1723,7 +1723,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
           timestamp: new Date().toISOString(),
         });
         await updateWorkflowStep(taskId, 'complete');
-        await updateTaskStatus(taskId, 'review', null);
+        await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.no_output');
         broadcastTaskCompleted(taskId);
         internalEvents.emit(TASK_COMPLETED, taskId);
         void runReflectionStep(taskId);
