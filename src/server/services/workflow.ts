@@ -315,7 +315,7 @@ async function loadDeclaredFiles(docsPath: string): Promise<{ exclusive: string[
  */
 async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promise<boolean> {
   // Run the declare skill
-  await updateTaskStatus(taskId, 'declaring', null);
+  await updateTaskStatus(taskId, 'declaring', null, 'workflow.executeDeclareAndAcquireLeases');
   await updateWorkflowStep(taskId, 'declare');
 
   broadcastToTask(taskId, {
