@@ -817,7 +817,7 @@ async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Pro
       console.warn('[Critic] Failed to send kill switch messaging notification:', err instanceof Error ? err.message : 'Unknown error');
     }
 
-    await updateTaskStatus(taskId, 'todo', null);
+    await updateTaskStatus(taskId, 'todo', null, 'workflow.executeCriticAndRetry.kill_switch');
     return;
   }
 
@@ -832,7 +832,7 @@ async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Pro
     fixForTaskId: taskId,
   });
   await queueTask(fixTask.id);
-  await updateTaskStatus(taskId, 'todo', null);
+  await updateTaskStatus(taskId, 'todo', null, 'workflow.executeCriticAndRetry.retry');
   broadcastBoardUpdate();
   console.log(`[Critic] Created fix task ${fixTask.id} for task ${taskId} (retry ${newRetryCount}/3)`);
 }
