@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { SocketStream } from '@fastify/websocket';
 import { registerConnection, unregisterConnection } from '../services/runner.js';
 import { registerWorkflowConnection, unregisterWorkflowConnection } from '../services/workflow.js';
+import { registerTaskConnection, unregisterTaskConnection } from '../services/boardNotifier.js';
 import { getTask } from '../services/store.js';
 
 export async function logsWebSocket(fastify: FastifyInstance): Promise<void> {
