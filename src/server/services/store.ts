@@ -13,7 +13,7 @@ import {
 import { copySkillsToWorkspace } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
 import { releaseLeases } from './leaseManager.js';
-import { broadcastDependencyResolved } from './boardNotifier.js';
+import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
 
 /**
  * Get project name from workspace folder name
