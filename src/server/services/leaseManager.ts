@@ -472,7 +472,7 @@ export async function detectDeadlock(): Promise<string[][] | null> {
 
     releaseLeases(victimId);
     clearWait(victimId);
-    await updateTaskStatus(victimId, 'queued', null);
+    await updateTaskStatus(victimId, 'queued', null, 'leaseManager.deadlock_resolution');
     console.warn(`[LeaseManager] Deadlock resolved: aborted task ${victimId}`);
   }
 
