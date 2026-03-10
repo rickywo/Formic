@@ -1863,22 +1863,28 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
  */
 export async function stopWorkflow(taskId: string): Promise<boolean> {
   const workflow = activeWorkflows.get(taskId);
-  if (!workflow) {
-    return false;
-  }
 
-  workflow.process.kill('SIGTERM');
+  // Mark as stopped so workflow IIFEs abort at the next step boundary
+  stoppedWorkflows.add(taskId);
 
-  setTimeout(() => {
-    if (activeWorkflows.has(taskId)) {
-      workflow.process.kill('SIGKILL');
-    }
-  }, 5000);
+  // Eagerly reset to todo so the UI updates immediately via WebSocket broadcast
+  await updateTaskStatus(taskId, 'todo', null);
 
-  // Immediately release any leases held by this task to unblock sibling tasks,
-  // rather than waiting for the async IIFE to complete after process exit.
-  activeWorkflows.delete(taskId);
+  // Immediately release any leases held by this task to unblock sibling tasks
   releaseLeases(taskId);
+  activeWorkflows.delete(taskId);
+
+  if (workflow) {
+    workflow.process.kill('SIGTERM');
+    setTimeout(() => {
+      if (!workflow.process.killed) workflow.process.kill('SIGKILL');
+      stoppedWorkflows.delete(taskId);
+    }, 3000);
+  } else {
+    // No active process — clean up the abort flag after a brief delay to allow
+    // any in-flight IIFE to observe it before it is removed
+    setTimeout(() => stoppedWorkflows.delete(taskId), 3000);
+  }
 
   return true;
 }
