@@ -242,6 +242,15 @@ export function isQueueProcessorRunning(): boolean {
 }
 
 /**
+ * Remove a task from the inFlightTasks set once its workflow has committed to a
+ * non-queued status. Called by workflow.ts on every status-transition exit path
+ * (including yield-back-to-queued, error, success, and stop) so no entries leak.
+ */
+export function removeInFlightTask(taskId: string): void {
+  inFlightTasks.delete(taskId);
+}
+
+/**
  * Get queue processor configuration
  */
 export function getQueueProcessorConfig(): {
