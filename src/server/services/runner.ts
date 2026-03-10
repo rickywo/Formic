@@ -204,7 +204,7 @@ All code changes MUST comply with the project development guidelines provided ab
     // Don't throw - let the error event handle it
     // Return a placeholder that will be updated when error fires
     activeProcesses.set(taskId, child);
-    await updateTaskStatus(taskId, 'running', 0);
+    await updateTaskStatus(taskId, 'running', 0, 'runner.process_spawned_placeholder');
     return { pid: 0 };
   }
 
