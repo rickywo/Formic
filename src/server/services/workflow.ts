@@ -1385,6 +1385,12 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     // Create a git safe-point commit before execution for rollback support
     await createSafePoint(taskId);
 
+    // Abort if stop was requested before brief starts
+    if (stoppedWorkflows.has(taskId)) {
+      stoppedWorkflows.delete(taskId);
+      return;
+    }
+
     // Step 1: Brief
     const briefSuccess = await runStep('brief');
     if (!briefSuccess) {
@@ -1393,11 +1399,23 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       return;
     }
 
+    // Abort if stop was requested between brief and plan
+    if (stoppedWorkflows.has(taskId)) {
+      stoppedWorkflows.delete(taskId);
+      return;
+    }
+
     // Step 2: Plan
     const planSuccess = await runStep('plan');
     if (!planSuccess) {
       activeWorkflows.delete(taskId);
       await updateTaskStatus(taskId, 'todo', null);
+      return;
+    }
+
+    // Abort if stop was requested between plan and declare
+    if (stoppedWorkflows.has(taskId)) {
+      stoppedWorkflows.delete(taskId);
       return;
     }
 
@@ -1420,6 +1438,13 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         await saveBoard(board);
       }
       await updateTaskStatus(taskId, 'queued', null);
+      return;
+    }
+
+    // Abort if stop was requested between declare and execute
+    if (stoppedWorkflows.has(taskId)) {
+      stoppedWorkflows.delete(taskId);
+      releaseLeases(taskId);
       return;
     }
 
