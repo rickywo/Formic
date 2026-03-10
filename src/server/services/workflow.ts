@@ -1115,7 +1115,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
   const prompt = buildQuickExecutePrompt(task, guidelines);
 
   // Update task status to running
-  await updateTaskStatus(taskId, 'running', null);
+  await updateTaskStatus(taskId, 'running', null, 'workflow.executeQuickTask.start');
   await updateWorkflowStep(taskId, 'execute');
 
   // Broadcast start
