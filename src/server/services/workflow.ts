@@ -1129,6 +1129,12 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
 
   // Run the execute step
   (async () => {
+    // Abort if stop was requested before execute begins
+    if (stoppedWorkflows.has(taskId)) {
+      stoppedWorkflows.delete(taskId);
+      return;
+    }
+
     const success = await new Promise<boolean>((resolve) => {
       const child = runWorkflowStep(taskId, 'execute', prompt, (success) => {
         resolve(success);
