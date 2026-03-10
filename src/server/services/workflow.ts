@@ -975,7 +975,12 @@ Example:
 ]`;
 
     const output = await runAgentForOutput(prompt);
-    const entries = parseToolForgeOutput(output);
+    const rawEntries = parseToolForgeOutput(output);
+    const entries = rawEntries.filter((item): item is ToolForgeEntry => {
+      if (isToolForgeEntry(item)) return true;
+      console.warn('[Workflow] Skipped tool forge entry:', JSON.stringify(item));
+      return false;
+    });
 
     let forged = 0;
     for (const entry of entries) {
