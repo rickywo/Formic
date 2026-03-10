@@ -127,6 +127,9 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
 
     await fastify.listen({ port, host });
 
+    // Register the live bound port so agent prompts always target the correct address
+    setBoundPort(port);
+
     // Log agent configuration
     const agentType = getAgentType();
     const agentCommand = getAgentCommand();
