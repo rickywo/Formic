@@ -65,6 +65,9 @@ const activeWorkflows = new Map<string, {
   currentStep: WorkflowStep;
 }>();
 
+// Tracks tasks that have been requested to stop, so workflow IIFEs can abort at step boundaries
+const stoppedWorkflows = new Set<string>();
+
 // Store WebSocket connections per task (shared with runner)
 const taskConnections = new Map<string, Set<WebSocket>>();
 
