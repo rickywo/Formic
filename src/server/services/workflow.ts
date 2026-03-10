@@ -1250,6 +1250,12 @@ export async function executeSingleStep(
       await updateTaskStatus(taskId, 'running', null);
       await updateWorkflowStep(taskId, 'execute');
 
+      // Abort if stop was requested before execute begins
+      if (stoppedWorkflows.has(taskId)) {
+        stoppedWorkflows.delete(taskId);
+        return { success: false, pid: 0 };
+      }
+
       let result: { success: boolean; allComplete: boolean; iterations: number };
       try {
         result = await executeWithIterativeLoop(taskId, task);
