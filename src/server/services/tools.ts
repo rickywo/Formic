@@ -10,6 +10,19 @@ import path from 'node:path';
 import { getFormicDir } from '../utils/paths.js';
 import type { Tool, ToolStore } from '../../types/index.js';
 
+// In-memory async mutex to serialize concurrent read-modify-write operations on tools.json.
+let writeLock: Promise<void> = Promise.resolve();
+
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const result = writeLock.then(fn);
+  // Swallow rejections on the lock chain so one failure doesn't permanently block the queue.
+  writeLock = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
 /** Returns the absolute path to the tools catalog JSON file. */
 export function getToolStorePath(): string {
   return path.join(getFormicDir(), 'tools', 'tools.json');
