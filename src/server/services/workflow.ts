@@ -1475,7 +1475,8 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
         yieldTask.resumeFromStep = 'declare';
         await saveBoard(board);
-        console.log(`[Workflow] Task ${taskId} yielded at declare — resumeFromStep persisted: ${yieldTask.resumeFromStep}`);
+        const verifyTask = await getTask(taskId);
+        console.log(`[Workflow] Task ${taskId} yielded at declare — resumeFromStep persisted: ${verifyTask?.resumeFromStep}`);
       }
       await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFullWorkflow.declare_yield');
       return;
@@ -1612,7 +1613,8 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
           }
 
           await saveBoard(board);
-          console.log(`[Workflow] Task ${taskId} re-queued from declare retry — resumeFromStep: ${yieldTask.resumeFromStep}, yieldCount: ${yieldTask.yieldCount}`);
+          const verifyRetryTask = await getTask(taskId);
+          console.log(`[Workflow] Task ${taskId} re-queued from declare retry — resumeFromStep persisted: ${verifyRetryTask?.resumeFromStep}, yieldCount: ${verifyRetryTask?.yieldCount}`);
         }
         await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFromDeclare.declare_yield');
         return;
