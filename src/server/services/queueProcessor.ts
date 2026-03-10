@@ -1,4 +1,4 @@
-import { getQueuedTasks, getAllTasks, getRunningTasksCount, updateTask } from './store.js';
+import { getQueuedTasks, getAllTasks, getTask, getRunningTasksCount, updateTask } from './store.js';
 import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, executeFromDeclare, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
 import { isFileLeased } from './leaseManager.js';
@@ -136,6 +136,11 @@ async function processQueue(): Promise<void> {
       // non-queued status transition.
       inFlightTasks.add(nextTask.id);
 
+      // Reload the task from the board immediately before routing so that
+      // resumeFromStep reflects the persisted state, not the snapshot loaded
+      // at the start of the poll cycle (which may be stale).
+      const freshTask = await getTask(nextTask.id);
+
       // Check task type and execute appropriate workflow
       if (nextTask.type === 'quick') {
         console.log(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
@@ -143,7 +148,7 @@ async function processQueue(): Promise<void> {
       } else if (nextTask.type === 'goal') {
         console.log(`[QueueProcessor] Task ${nextTask.id} is a goal task - running architect decomposition`);
         await executeGoalWorkflow(nextTask.id);
-      } else if (nextTask.resumeFromStep === 'declare') {
+      } else if (freshTask?.resumeFromStep === 'declare') {
         console.log(`[QueueProcessor] Task ${nextTask.id} resuming from declare step (skipping brief/plan)`);
         await executeFromDeclare(nextTask.id);
       } else {
