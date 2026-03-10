@@ -1457,12 +1457,13 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
 
     const leasesAcquired = await executeDeclareAndAcquireLeases(taskId, currentTaskForDeclare);
     if (!leasesAcquired) {
-      // Task needs to yield - return to queued for retry
+      // Task needs to yield - mark resumeFromStep so retry skips brief+plan
       activeWorkflows.delete(taskId);
       const board = await loadBoard();
       const yieldTask = board.tasks.find(t => t.id === taskId);
       if (yieldTask) {
         yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
+        yieldTask.resumeFromStep = 'declare';
         await saveBoard(board);
       }
       await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFullWorkflow.declare_yield');
