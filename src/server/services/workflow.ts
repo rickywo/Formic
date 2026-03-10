@@ -1203,6 +1203,12 @@ export async function executeSingleStep(
     throw new Error('A workflow step is already running for this task');
   }
 
+  // Abort if stop was requested before this step begins
+  if (stoppedWorkflows.has(taskId)) {
+    stoppedWorkflows.delete(taskId);
+    return { success: false, pid: 0 };
+  }
+
   // Build prompt based on step - try skill file first, fallback to hardcoded
   let prompt: string;
   let status: 'briefing' | 'planning' | 'running';
