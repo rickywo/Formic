@@ -1665,6 +1665,12 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
 
   // Run the architect step asynchronously
   (async () => {
+    // Abort if stop was requested before architect begins
+    if (stoppedWorkflows.has(taskId)) {
+      stoppedWorkflows.delete(taskId);
+      return;
+    }
+
     const success = await new Promise<boolean>((resolve) => {
       const child = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
         resolve(stepSuccess);
