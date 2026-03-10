@@ -154,6 +154,8 @@ export interface Task {
   yieldCount?: number;
   /** Human-readable reason the task last yielded (e.g., 'lease-conflict:src/server/services/store.ts') */
   yieldReason?: string;
+  /** When set, the queue processor resumes this task at the indicated step instead of running the full workflow */
+  resumeFromStep?: WorkflowStep;
   fileConflicts?: FileConflict[];
   /** Commit SHA auto-saved before task execution (git rollback target) */
   safePointCommit?: string | null;
@@ -197,6 +199,8 @@ export interface UpdateTaskInput {
   safePointCommit?: string | null;
   yieldCount?: number;
   yieldReason?: string;
+  /** When set, routes the task directly to this step instead of the full workflow on next dispatch */
+  resumeFromStep?: WorkflowStep;
   reflectionMemories?: string[];
 }
 
