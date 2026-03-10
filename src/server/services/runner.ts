@@ -211,7 +211,7 @@ All code changes MUST comply with the project development guidelines provided ab
   activeProcesses.set(taskId, child);
 
   // Update task status
-  await updateTaskStatus(taskId, 'running', child.pid);
+  await updateTaskStatus(taskId, 'running', child.pid, 'runner.process_spawned');
 
   // Handle stdout
   child.stdout?.on('data', (data: Buffer) => {
