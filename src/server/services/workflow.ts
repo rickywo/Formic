@@ -1907,7 +1907,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       });
 
       await updateWorkflowStep(taskId, 'complete');
-      await updateTaskStatus(taskId, 'review', null);
+      await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.parse_error');
       broadcastTaskCompleted(taskId);
       internalEvents.emit(TASK_COMPLETED, taskId);
       void runReflectionStep(taskId);
@@ -1929,7 +1929,7 @@ export async function stopWorkflow(taskId: string): Promise<boolean> {
   stoppedWorkflows.add(taskId);
 
   // Eagerly reset to todo so the UI updates immediately via WebSocket broadcast
-  await updateTaskStatus(taskId, 'todo', null);
+  await updateTaskStatus(taskId, 'todo', null, 'workflow.stopWorkflow');
 
   // Immediately release any leases held by this task to unblock sibling tasks
   releaseLeases(taskId);
