@@ -1247,7 +1247,7 @@ export async function executeSingleStep(
     case 'execute': {
       // Execute step uses iterative loop with subtask completion checking
       console.log(`[Workflow] Starting execute step for task ${taskId}`);
-      await updateTaskStatus(taskId, 'running', null);
+      await updateTaskStatus(taskId, 'running', null, 'workflow.executeSingleStep.execute_start');
       await updateWorkflowStep(taskId, 'execute');
 
       // Abort if stop was requested before execute begins
@@ -1265,7 +1265,7 @@ export async function executeSingleStep(
           // All subtasks complete - move to review
           console.log(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
           await updateWorkflowStep(taskId, 'complete');
-          await updateTaskStatus(taskId, 'review', null);
+          await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.all_complete');
           broadcastTaskCompleted(taskId);
           internalEvents.emit(TASK_COMPLETED, taskId);
           void runReflectionStep(taskId);
@@ -1274,7 +1274,7 @@ export async function executeSingleStep(
           // Max iterations reached but not all complete - still move to review with warning
           console.log(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
           await updateWorkflowStep(taskId, 'complete');
-          await updateTaskStatus(taskId, 'review', null);
+          await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.max_iterations');
           broadcastTaskCompleted(taskId);
           internalEvents.emit(TASK_COMPLETED, taskId);
           void runReflectionStep(taskId);
@@ -1282,7 +1282,7 @@ export async function executeSingleStep(
         } else {
           // Execution failed
           console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
-          await updateTaskStatus(taskId, 'todo', null);
+          await updateTaskStatus(taskId, 'todo', null, 'workflow.executeSingleStep.execute_failed');
         }
       } finally {
         releaseLeases(taskId);
