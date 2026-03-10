@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks } from '../services/store.js';
-import { runAgent, stopAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
+import { runAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
 import {
   executeFullWorkflow,
   executeQuickTask,
