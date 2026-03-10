@@ -1837,7 +1837,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
 
           const hasDeps = Array.isArray(def.depends_on) && def.depends_on.length > 0;
           if (hasDeps) {
-            await updateTaskStatus(childId, 'blocked', null);
+            await updateTaskStatus(childId, 'blocked', null, 'workflow.runArchitectStep.child_blocked');
             blockedCount++;
             broadcastToTask(taskId, {
               type: 'stdout',
