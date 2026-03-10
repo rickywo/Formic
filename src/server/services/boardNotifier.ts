@@ -1,4 +1,5 @@
 import type { WebSocket } from 'ws';
+import type { LogMessage } from '../../types/index.js';
 
 /**
  * Board Notifier Service
@@ -9,6 +10,38 @@ import type { WebSocket } from 'ws';
 
 // Track connections that want board update notifications
 const boardConnections = new Set<WebSocket>();
+
+// Track per-task WebSocket connections for terminal log streaming
+const taskConnections = new Map<string, Set<WebSocket>>();
+
+export function registerTaskConnection(taskId: string, ws: WebSocket): void {
+  if (!taskConnections.has(taskId)) {
+    taskConnections.set(taskId, new Set());
+  }
+  taskConnections.get(taskId)!.add(ws);
+}
+
+export function unregisterTaskConnection(taskId: string, ws: WebSocket): void {
+  const connections = taskConnections.get(taskId);
+  if (connections) {
+    connections.delete(ws);
+    if (connections.size === 0) {
+      taskConnections.delete(taskId);
+    }
+  }
+}
+
+export function broadcastToTask(taskId: string, message: LogMessage): void {
+  const connections = taskConnections.get(taskId);
+  if (!connections) return;
+
+  const data = JSON.stringify(message);
+  for (const ws of connections) {
+    if (ws.readyState === 1) { // WebSocket.OPEN
+      ws.send(data);
+    }
+  }
+}
 
 /**
  * Register a WebSocket connection for board update notifications
