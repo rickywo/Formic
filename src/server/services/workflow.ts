@@ -1547,6 +1547,112 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
 }
 
 /**
+ * Resume a task that previously yielded at the declare step due to a lease conflict.
+ * Skips brief and plan steps, jumping directly to declare + acquire leases and then execute.
+ */
+export async function executeFromDeclare(taskId: string): Promise<void> {
+  // Change status to 'declaring' immediately so the queue processor cannot re-dispatch this task
+  // before the async IIFE begins (mirrors the 'briefing' guard in executeFullWorkflow).
+  await updateTaskStatus(taskId, 'declaring', null, 'workflow.executeFromDeclare.init');
+
+  (async () => {
+    const currentTask = await getTask(taskId);
+    if (!currentTask) {
+      activeWorkflows.delete(taskId);
+      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFromDeclare.task_not_found');
+      return;
+    }
+
+    const leasesAcquired = await executeDeclareAndAcquireLeases(taskId, currentTask);
+    if (!leasesAcquired) {
+      // Still conflicted — re-queue with resumeFromStep preserved for the next retry
+      activeWorkflows.delete(taskId);
+      const board = await loadBoard();
+      const yieldTask = board.tasks.find(t => t.id === taskId);
+      if (yieldTask) {
+        yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
+        yieldTask.resumeFromStep = 'declare';
+        await saveBoard(board);
+      }
+      await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFromDeclare.declare_yield');
+      return;
+    }
+
+    // Leases acquired — clear the resume marker so future retries (if any) start fresh
+    const boardAfterLease = await loadBoard();
+    const boardTask = boardAfterLease.tasks.find(t => t.id === taskId);
+    if (boardTask) {
+      boardTask.resumeFromStep = undefined;
+      await saveBoard(boardAfterLease);
+    }
+
+    // Abort if stop was requested between declare and execute
+    if (stoppedWorkflows.has(taskId)) {
+      stoppedWorkflows.delete(taskId);
+      releaseLeases(taskId);
+      return;
+    }
+
+    const taskForExecution = await getTask(taskId);
+    if (!taskForExecution) {
+      activeWorkflows.delete(taskId);
+      releaseLeases(taskId);
+      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFromDeclare.task_not_found_post_declare');
+      return;
+    }
+
+    try {
+      await updateTaskStatus(taskId, 'running', null, 'workflow.executeFromDeclare.execute_start');
+      await updateWorkflowStep(taskId, 'execute');
+
+      const executeResult = await executeWithIterativeLoop(taskId, taskForExecution);
+      activeWorkflows.delete(taskId);
+
+      if (taskForExecution.declaredFiles?.shared && taskForExecution.declaredFiles.shared.length > 0) {
+        const conflicts = await detectCollisions(taskId, getWorkspacePath());
+        if (conflicts.length > 0) {
+          const board = await loadBoard();
+          const conflictTask = board.tasks.find(t => t.id === taskId);
+          if (conflictTask) {
+            conflictTask.fileConflicts = conflicts;
+            await saveBoard(board);
+          }
+          console.log(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
+        }
+      }
+
+      if (executeResult.success) {
+        const latestTask = await getTask(taskId);
+        if (latestTask && latestTask.status === 'running') {
+          const verifyResult = await executeVerifyStep(taskId);
+          if (!verifyResult.success) {
+            await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+          } else {
+            await updateWorkflowStep(taskId, 'complete');
+            await updateTaskStatus(taskId, 'review', null, 'workflow.executeFromDeclare.verified');
+            broadcastTaskCompleted(taskId);
+            internalEvents.emit(TASK_COMPLETED, taskId);
+            void runReflectionStep(taskId);
+            void triggerToolForge(taskId);
+          }
+        } else {
+          console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
+        }
+      } else {
+        const latestTask = await getTask(taskId);
+        if (latestTask && latestTask.status === 'running') {
+          await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFromDeclare.execute_failed');
+        } else {
+          console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
+        }
+      }
+    } finally {
+      releaseLeases(taskId);
+    }
+  })();
+}
+
+/**
  * Build the prompt for the architect step (FALLBACK)
  * Used when skill file is not available or fails to load
  */
