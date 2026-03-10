@@ -12,4 +12,6 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 });
 
+console.log('Bounce test completed.');
+
 export default app;
