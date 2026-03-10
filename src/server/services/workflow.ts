@@ -1381,7 +1381,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       }
     }
 
-    await updateTaskStatus(taskId, status, null);
+    await updateTaskStatus(taskId, status, null, 'workflow.executeFullWorkflow.step_start');
     await updateWorkflowStep(taskId, step);
 
     broadcastToTask(taskId, {
