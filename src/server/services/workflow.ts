@@ -2058,7 +2058,9 @@ export async function stopWorkflow(taskId: string): Promise<boolean> {
   // Eagerly reset to todo so the UI updates immediately via WebSocket broadcast
   await updateTaskStatus(taskId, 'todo', null, 'workflow.stopWorkflow');
 
-  // Remove from inFlightTasks so the task can be re-queued cleanly if needed
+  // Remove from inFlightTasks so the task can be re-queued cleanly if needed.
+  // Safe to call here even though the workflow IIFE's outer finally block also calls
+  // removeInFlightTask — Set.delete is idempotent so double-calls are harmless.
   removeInFlightTask(taskId);
 
   // Immediately release any leases held by this task to unblock sibling tasks
