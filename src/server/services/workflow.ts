@@ -22,7 +22,7 @@ import { createSafePoint } from '../utils/gitUtils.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
 import { broadcastBoardUpdate, broadcastKillSwitch, broadcastTaskCompleted } from './boardNotifier.js';
-import { stopQueueProcessor } from './queueProcessor.js';
+import { stopQueueProcessor, removeInFlightTask } from './queueProcessor.js';
 import { broadcastToWorkspace } from './messagingNotifier.js';
 import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
