@@ -1681,6 +1681,12 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       return;
     }
 
+    // Abort if stop was requested between architect and child task creation
+    if (stoppedWorkflows.has(taskId)) {
+      stoppedWorkflows.delete(taskId);
+      return;
+    }
+
     // Parse architect-output.json and create child tasks
     const outputPath = path.join(getWorkspacePath(), task.docsPath, 'architect-output.json');
 
