@@ -1144,6 +1144,12 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
     // Release any leases held by this task
     releaseLeases(taskId);
 
+    // Abort if stop was requested while the execute step was finishing
+    if (stoppedWorkflows.has(taskId)) {
+      stoppedWorkflows.delete(taskId);
+      return;
+    }
+
     if (success) {
       const verifyResult = await executeVerifyStep(taskId);
       if (!verifyResult.success) {
