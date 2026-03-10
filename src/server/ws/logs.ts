@@ -18,9 +18,10 @@ export async function logsWebSocket(fastify: FastifyInstance): Promise<void> {
       return;
     }
 
-    // Register this connection for both runner and workflow
+    // Register this connection for runner, workflow, and board notifier
     registerConnection(taskId, socket);
     registerWorkflowConnection(taskId, socket);
+    registerTaskConnection(taskId, socket);
 
     // Send existing logs if task has any
     if (task.agentLogs.length > 0) {
