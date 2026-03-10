@@ -126,7 +126,7 @@ export async function runAgent(taskId: string, title: string, context: string, d
   }
 
   // Build tool forging instructions with the live server port
-  const port = process.env.PORT ?? '3000';
+  const port = process.env.PORT ?? '8000';
   const toolForgingSection = `
 ## Tool Forging
 If during this task you identify a shell command that would be reusable across future tasks (e.g. a test runner, linter, build script, or deploy command), register it as a tool by running:
