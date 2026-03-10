@@ -67,7 +67,7 @@ async function scanExpiredLeases(): Promise<void> {
       releaseLeases(taskId);
 
       // 4. Re-queue the task
-      await updateTaskStatus(taskId, 'queued', null);
+      await updateTaskStatus(taskId, 'queued', null, 'watchdog.lease_expired');
       console.log(`[Watchdog] Re-queued task ${taskId} after lease expiration`);
 
       // 5. Broadcast board update
