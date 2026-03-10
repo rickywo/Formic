@@ -1800,33 +1800,34 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
 
   // Run the architect step asynchronously
   (async () => {
-    // Abort if stop was requested before architect begins
-    if (stoppedWorkflows.has(taskId)) {
-      stoppedWorkflows.delete(taskId);
-      return;
-    }
-
-    const success = await new Promise<boolean>((resolve) => {
-      const child = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
-        resolve(stepSuccess);
-      });
-
-      if (child.pid) {
-        activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
+    try {
+      // Abort if stop was requested before architect begins
+      if (stoppedWorkflows.has(taskId)) {
+        stoppedWorkflows.delete(taskId);
+        return;
       }
-    });
 
-    activeWorkflows.delete(taskId);
+      const success = await new Promise<boolean>((resolve) => {
+        const child = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
+          resolve(stepSuccess);
+        });
 
-    if (!success) {
-      await updateTaskStatus(taskId, 'todo', null, 'workflow.runArchitectStep.failed');
-      broadcastToTask(taskId, {
-        type: 'error',
-        data: `\n[FAILED] Architect step failed.\n`,
-        timestamp: new Date().toISOString(),
+        if (child.pid) {
+          activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
+        }
       });
-      return;
-    }
+
+      activeWorkflows.delete(taskId);
+
+      if (!success) {
+        await updateTaskStatus(taskId, 'todo', null, 'workflow.runArchitectStep.failed');
+        broadcastToTask(taskId, {
+          type: 'error',
+          data: `\n[FAILED] Architect step failed.\n`,
+          timestamp: new Date().toISOString(),
+        });
+        return;
+      }
 
     // Abort if stop was requested between architect and child task creation
     if (stoppedWorkflows.has(taskId)) {
@@ -2036,6 +2037,9 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       void runReflectionStep(taskId);
       void triggerToolForge(taskId);
       broadcastBoardUpdate();
+    }
+    } finally {
+      removeInFlightTask(taskId);
     }
   })();
 
