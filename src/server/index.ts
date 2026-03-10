@@ -24,6 +24,7 @@ import { recoverStuckTasks, loadBoard } from './services/store.js';
 import { getMessagingConfig } from './services/messagingAdapter.js';
 import { initializeStatusCache } from './services/messagingNotifier.js';
 import type { ServerOptions } from '../types/index.js';
+import { setBoundPort } from './services/runner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
