@@ -47,6 +47,17 @@ END OF GUIDELINES
 // Store active processes
 const activeProcesses = new Map<string, ChildProcess>();
 
+// The actual port the server is listening on, set once at startup via setBoundPort().
+let boundPort = 8000;
+
+/**
+ * Called by the server entry point after the HTTP server binds to register
+ * the live port so agents always POST tool registrations to the correct address.
+ */
+export function setBoundPort(port: number): void {
+  boundPort = port;
+}
+
 // Store WebSocket connections per task
 const taskConnections = new Map<string, Set<WebSocket>>();
 
