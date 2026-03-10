@@ -282,7 +282,7 @@ export async function stopAgent(taskId: string): Promise<boolean> {
   process.kill('SIGTERM');
 
   // Eagerly reset to todo so the UI updates immediately
-  await updateTaskStatus(taskId, 'todo', null);
+  await updateTaskStatus(taskId, 'todo', null, 'runner.stopAgent');
 
   // Give it a moment, then force kill if needed
   setTimeout(() => {
