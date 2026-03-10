@@ -180,19 +180,10 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'Task is not in an active state' });
     }
 
-    // Try stopping workflow first (handles both active processes and between-step gaps)
-    const workflowStopped = await stopWorkflow(id);
-    if (workflowStopped) {
-      return reply.send({ status: 'stopping', type: 'workflow' });
-    }
-
-    // Legacy: try stopping a bare agent process
-    const agentStopped = await stopAgent(id);
-    if (agentStopped) {
-      return reply.send({ status: 'stopping', type: 'agent' });
-    }
-
-    return reply.status(404).send({ error: 'No running agent found for this task' });
+    // stopWorkflow always returns true: it eagerly resets status and sets the abort flag
+    // so the workflow IIFE halts at the next step boundary even if no process is active.
+    await stopWorkflow(id);
+    return reply.send({ status: 'stopping' });
   });
 
   // POST /api/tasks/:id/workflow/brief - Run only the brief step
