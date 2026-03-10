@@ -1294,7 +1294,7 @@ export async function executeSingleStep(
   }
 
   // Update task status (for brief and plan steps)
-  await updateTaskStatus(taskId, status!, null);
+  await updateTaskStatus(taskId, status!, null, 'workflow.executeSingleStep.step_start');
   await updateWorkflowStep(taskId, step);
 
   return new Promise((resolve) => {
@@ -1307,10 +1307,10 @@ export async function executeSingleStep(
         await updateWorkflowStep(taskId, nextStep);
 
         // Return to todo for manual steps
-        await updateTaskStatus(taskId, 'todo', null);
+        await updateTaskStatus(taskId, 'todo', null, 'workflow.executeSingleStep.step_success');
       } else {
         // On failure, return to todo
-        await updateTaskStatus(taskId, 'todo', null);
+        await updateTaskStatus(taskId, 'todo', null, 'workflow.executeSingleStep.step_failed');
       }
 
       resolve({ success, pid: child.pid || 0 });
