@@ -702,7 +702,7 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
     return { success: true, stderrLines: [] };
   }
 
-  await updateTaskStatus(taskId, 'verifying', null);
+  await updateTaskStatus(taskId, 'verifying', null, 'workflow.executeVerifyStep');
   await updateWorkflowStep(taskId, 'verify');
 
   broadcastToTask(taskId, {
