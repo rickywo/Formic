@@ -149,14 +149,17 @@ export async function addTool(
 /**
  * Increment the usage_count of a named tool by 1 and persist.
  * No-ops silently if the tool is not found.
+ * Wrapped in withLock() to prevent concurrent increments losing updates.
  */
 export async function incrementUsage(name: string): Promise<void> {
-  const store = await loadToolStore();
-  const tool = store.tools.find(t => t.name === name);
-  if (!tool) {
-    return;
-  }
-  tool.usage_count += 1;
-  await saveToolStore(store);
-  console.log(`[Tools] Incremented usage for ${name}`);
+  return withLock(async () => {
+    const store = await loadToolStore();
+    const tool = store.tools.find(t => t.name === name);
+    if (!tool) {
+      return;
+    }
+    tool.usage_count += 1;
+    await saveToolStore(store);
+    console.log(`[Tools] Incremented usage for ${name}`);
+  });
 }
