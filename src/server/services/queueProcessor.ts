@@ -17,6 +17,10 @@ const YIELD_BACKOFF_MAX_MS = 60_000;
 const yieldBackoffMs = new Map<string, number>();
 /** Per-task earliest timestamp (ms) at which the task may be retried */
 const yieldUntil = new Map<string, number>();
+/** Persistent set of task IDs dispatched in any poll cycle whose workflow has not yet
+ * committed to a non-queued status. Prevents cross-cycle re-admission during the async
+ * setup window between dispatch and the first status transition. */
+const inFlightTasks = new Set<string>();
 
 let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let isProcessing = false;
