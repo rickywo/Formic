@@ -145,7 +145,7 @@ async function processQueue(): Promise<void> {
         await executeFullWorkflow(nextTask.id);
       }
 
-      inFlightCount++;
+      inFlightTasks.add(nextTask.id);
 
       // For single-task mode, only start one task per poll cycle
       if (engineConfig.maxConcurrentTasks <= 1) {
