@@ -140,7 +140,7 @@ export async function runAgent(taskId: string, title: string, context: string, d
   const toolForgingSection = `
 ## Tool Forging
 If during this task you identify a shell command that would be reusable across future tasks (e.g. a test runner, linter, build script, or deploy command), register it as a tool by running:
-  curl -s -X POST http://localhost:${port}/api/tools \\
+  curl -s -X POST http://localhost:${boundPort}/api/tools \\
     -H 'Content-Type: application/json' \\
     -d '{"name":"slug-name","description":"What it does","command":"the shell command","created_by":"${title}"}'
 Rules:
