@@ -1015,16 +1015,68 @@ function isToolForgeEntry(obj: unknown): obj is ToolForgeEntry {
   );
 }
 
-function parseToolForgeOutput(output: string): ToolForgeEntry[] {
-  const match = output.match(/\[[\s\S]*\]/);
-  if (!match) return [];
-  try {
-    const parsed = JSON.parse(match[0]) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isToolForgeEntry);
-  } catch {
-    return [];
+/**
+ * Scan `text` for all top-level JSON arrays, correctly handling nested arrays
+ * and string literals so bracket counting is not confused by their contents.
+ */
+function extractJsonArrays(text: string): string[] {
+  const arrays: string[] = [];
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === '[') {
+      let depth = 0;
+      let j = i;
+      let inString = false;
+      let escape = false;
+      while (j < text.length) {
+        const ch = text[j];
+        if (escape) {
+          escape = false;
+        } else if (inString) {
+          if (ch === '\\') escape = true;
+          else if (ch === '"') inString = false;
+        } else {
+          if (ch === '"') inString = true;
+          else if (ch === '[') depth++;
+          else if (ch === ']') {
+            depth--;
+            if (depth === 0) {
+              arrays.push(text.slice(i, j + 1));
+              i = j + 1;
+              break;
+            }
+          }
+        }
+        j++;
+      }
+      if (depth !== 0) {
+        // Unbalanced bracket — skip past this opening bracket
+        i++;
+      }
+    } else {
+      i++;
+    }
   }
+  return arrays;
+}
+
+function parseToolForgeOutput(output: string): unknown[] {
+  const candidates = extractJsonArrays(output);
+  const results: unknown[] = [];
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as unknown;
+      if (!Array.isArray(parsed)) {
+        console.warn('[Workflow] Failed to parse tool forge array: not an array');
+        continue;
+      }
+      results.push(...parsed);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[Workflow] Failed to parse tool forge array: ${msg}`);
+    }
+  }
+  return results;
 }
 
 /**
