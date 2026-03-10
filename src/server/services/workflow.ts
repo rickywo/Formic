@@ -1651,7 +1651,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
   await createSafePoint(taskId);
 
   // Update status to architecting
-  await updateTaskStatus(taskId, 'architecting', null);
+  await updateTaskStatus(taskId, 'architecting', null, 'workflow.runArchitectStep.start');
   await updateWorkflowStep(taskId, 'architect');
 
   // Load skill prompt with fallback
