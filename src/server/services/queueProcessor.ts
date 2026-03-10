@@ -69,18 +69,20 @@ async function processQueue(): Promise<void> {
     const prioritizedTasks = prioritizeQueue(queuedTasks, allTasks);
 
     // Try each queued task until we find one we can start or run out of tasks
-    // Track in-flight starts to prevent over-admission in the same poll cycle
-    let inFlightCount = 0;
-
     for (const nextTask of prioritizedTasks) {
-      // Re-check capacity before each task, including in-flight starts from this cycle
+      // Re-check capacity before each task, including in-flight starts from this and prior cycles
       const runningCount = await getRunningTasksCount();
-      if (runningCount + inFlightCount >= engineConfig.maxConcurrentTasks) {
+      if (runningCount + inFlightTasks.size >= engineConfig.maxConcurrentTasks) {
         break;
       }
 
       // Skip if workflow already running
       if (isWorkflowRunning(nextTask.id)) {
+        continue;
+      }
+
+      // Skip if already dispatched in a prior poll cycle (cross-cycle re-admission guard)
+      if (inFlightTasks.has(nextTask.id)) {
         continue;
       }
 
