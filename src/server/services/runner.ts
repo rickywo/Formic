@@ -190,8 +190,7 @@ All code changes MUST comply with the project development guidelines provided ab
       errorMessage = `Permission denied when trying to execute '${agentCommand}'.`;
     }
 
-    await updateTaskStatus(taskId, 'todo', null);
-    await appendTaskLogs(taskId, [`Error: ${errorMessage}`]);
+    await updateTaskStatus(taskId, 'todo', null, 'runner.spawn_error');
 
     broadcastToTask(taskId, {
       type: 'error',
