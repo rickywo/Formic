@@ -1,5 +1,5 @@
 import { getQueuedTasks, getAllTasks, getRunningTasksCount, updateTask } from './store.js';
-import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, isWorkflowRunning } from './workflow.js';
+import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, executeFromDeclare, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
 import { isFileLeased } from './leaseManager.js';
 import { internalEvents, TASK_COMPLETED, LEASE_RELEASED } from './internalEvents.js';
