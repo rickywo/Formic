@@ -197,6 +197,19 @@ export function isFileLeased(filePath: string, excludeTaskId?: string): boolean 
 }
 
 /**
+ * Get the task ID that holds an exclusive lease on a file, or null if none.
+ * Used to identify zombie lease holders.
+ */
+export function getExclusiveLeaseHolder(filePath: string): string | null {
+  cleanExpiredLeases();
+  const lease = leaseStore.get(filePath);
+  if (lease && lease.leaseType === 'exclusive') {
+    return lease.taskId;
+  }
+  return null;
+}
+
+/**
  * Clean up expired leases from the store
  */
 function cleanExpiredLeases(): void {
