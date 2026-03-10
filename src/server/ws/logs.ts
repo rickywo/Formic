@@ -41,11 +41,13 @@ export async function logsWebSocket(fastify: FastifyInstance): Promise<void> {
     socket.on('close', () => {
       unregisterConnection(taskId, socket);
       unregisterWorkflowConnection(taskId, socket);
+      unregisterTaskConnection(taskId, socket);
     });
 
     socket.on('error', () => {
       unregisterConnection(taskId, socket);
       unregisterWorkflowConnection(taskId, socket);
+      unregisterTaskConnection(taskId, socket);
     });
   });
 }
