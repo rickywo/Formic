@@ -1419,7 +1419,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     const briefSuccess = await runStep('brief');
     if (!briefSuccess) {
       activeWorkflows.delete(taskId);
-      await updateTaskStatus(taskId, 'todo', null);
+      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.brief_failed');
       return;
     }
 
@@ -1433,7 +1433,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     const planSuccess = await runStep('plan');
     if (!planSuccess) {
       activeWorkflows.delete(taskId);
-      await updateTaskStatus(taskId, 'todo', null);
+      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.plan_failed');
       return;
     }
 
@@ -1447,7 +1447,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     const currentTaskForDeclare = await getTask(taskId);
     if (!currentTaskForDeclare) {
       activeWorkflows.delete(taskId);
-      await updateTaskStatus(taskId, 'todo', null);
+      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.task_not_found');
       return;
     }
 
@@ -1461,7 +1461,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
         await saveBoard(board);
       }
-      await updateTaskStatus(taskId, 'queued', null);
+      await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFullWorkflow.declare_yield');
       return;
     }
 
@@ -1477,14 +1477,14 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     if (!currentTask) {
       activeWorkflows.delete(taskId);
       releaseLeases(taskId);
-      await updateTaskStatus(taskId, 'todo', null);
+      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.task_not_found_post_declare');
       return;
     }
 
     // Wrap post-lease-acquisition code in try/finally to guarantee lease release
     // even if an unexpected exception occurs during execution or collision detection
     try {
-      await updateTaskStatus(taskId, 'running', null);
+      await updateTaskStatus(taskId, 'running', null, 'workflow.executeFullWorkflow.execute_start');
       await updateWorkflowStep(taskId, 'execute');
 
       const executeResult = await executeWithIterativeLoop(taskId, currentTask);
@@ -1514,7 +1514,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
             await executeCriticAndRetry(taskId, verifyResult.stderrLines);
           } else {
             await updateWorkflowStep(taskId, 'complete');
-            await updateTaskStatus(taskId, 'review', null);
+            await updateTaskStatus(taskId, 'review', null, 'workflow.executeFullWorkflow.verified');
             broadcastTaskCompleted(taskId);
             internalEvents.emit(TASK_COMPLETED, taskId);
             void runReflectionStep(taskId);
@@ -1526,7 +1526,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       } else {
         const latestTask = await getTask(taskId);
         if (latestTask && latestTask.status === 'running') {
-          await updateTaskStatus(taskId, 'todo', null);
+          await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.execute_failed');
         } else {
           console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
         }
