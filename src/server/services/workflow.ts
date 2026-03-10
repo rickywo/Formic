@@ -1414,8 +1414,9 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
 
   // Run steps sequentially
   (async () => {
-    // Create a git safe-point commit before execution for rollback support
-    await createSafePoint(taskId);
+    try {
+      // Create a git safe-point commit before execution for rollback support
+      await createSafePoint(taskId);
 
     // Abort if stop was requested before brief starts
     if (stoppedWorkflows.has(taskId)) {
@@ -1544,6 +1545,9 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       // Ensure leases are always released, even on unexpected exceptions.
       // Safe to call even if leases were already released (no-op in that case).
       releaseLeases(taskId);
+    }
+    } finally {
+      removeInFlightTask(taskId);
     }
   })();
 
