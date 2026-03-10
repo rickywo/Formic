@@ -1,3 +1,4 @@
+// Hello, World!
 import express from 'express';
 import testObjectivesRouter from './routes/testObjectives';
 
