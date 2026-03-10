@@ -9,7 +9,7 @@ import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask,
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
-import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease } from './leaseManager.js';
+import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder } from './leaseManager.js';
 import {
   loadSubtasks,
   isAllComplete,
@@ -1415,8 +1415,13 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
   // Run steps sequentially
   (async () => {
     try {
-      // Create a git safe-point commit before execution for rollback support
-      await createSafePoint(taskId);
+      // Create a git safe-point commit before execution for rollback support.
+      // Guard against duplicate commits on re-entry (e.g. if resumeFromStep was
+      // not persisted and the task re-enters executeFullWorkflow on a retry).
+      const taskBeforeSafePoint = await getTask(taskId);
+      if (!taskBeforeSafePoint?.safePointCommit) {
+        await createSafePoint(taskId);
+      }
 
     // Abort if stop was requested before brief starts
     if (stoppedWorkflows.has(taskId)) {
@@ -1470,6 +1475,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
         yieldTask.resumeFromStep = 'declare';
         await saveBoard(board);
+        console.log(`[Workflow] Task ${taskId} yielded at declare — resumeFromStep persisted: ${yieldTask.resumeFromStep}`);
       }
       await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFullWorkflow.declare_yield');
       return;
@@ -1579,9 +1585,34 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
         const board = await loadBoard();
         const yieldTask = board.tasks.find(t => t.id === taskId);
         if (yieldTask) {
-          yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
+          const newYieldCount = (yieldTask.yieldCount || 0) + 1;
+          yieldTask.yieldCount = newYieldCount;
           yieldTask.resumeFromStep = 'declare';
+
+          // Zombie lease detection: if we've retried enough times, check whether
+          // the blocking task is still active. If not, force-release its leases.
+          const ZOMBIE_YIELD_THRESHOLD = Math.max(3, Math.floor(engineConfig.maxYieldCount / 2));
+          if (newYieldCount >= ZOMBIE_YIELD_THRESHOLD) {
+            const exclusiveFiles = currentTask.declaredFiles?.exclusive ?? [];
+            const zombieHolders = new Set<string>();
+            for (const filePath of exclusiveFiles) {
+              const holder = getExclusiveLeaseHolder(filePath);
+              if (holder && holder !== taskId) {
+                zombieHolders.add(holder);
+              }
+            }
+            for (const holderId of zombieHolders) {
+              const holderTask = await getTask(holderId);
+              const holderStatus = holderTask?.status ?? 'unknown';
+              if (holderStatus !== 'running' && holderStatus !== 'declaring') {
+                console.warn(`[Workflow] Force-releasing zombie leases held by task ${holderId} (status: ${holderStatus}) to unblock task ${taskId}`);
+                releaseLeases(holderId);
+              }
+            }
+          }
+
           await saveBoard(board);
+          console.log(`[Workflow] Task ${taskId} re-queued from declare retry — resumeFromStep: ${yieldTask.resumeFromStep}, yieldCount: ${yieldTask.yieldCount}`);
         }
         await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFromDeclare.declare_yield');
         return;
