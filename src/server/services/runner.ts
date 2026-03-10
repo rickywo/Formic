@@ -259,7 +259,8 @@ All code changes MUST comply with the project development guidelines provided ab
 
     // Update status based on exit code
     const newStatus = code === 0 ? 'review' : 'todo';
-    await updateTaskStatus(taskId, newStatus, null);
+    const closeCallerTag = code === 0 ? 'runner.close_event.success' : 'runner.close_event.failed';
+    await updateTaskStatus(taskId, newStatus, null, closeCallerTag);
 
     broadcastToTask(taskId, {
       type: 'exit',
