@@ -131,6 +131,11 @@ async function processQueue(): Promise<void> {
       yieldBackoffMs.delete(nextTask.id);
       yieldUntil.delete(nextTask.id);
 
+      // Mark as in-flight synchronously before any await so the cross-cycle guard
+      // is effective during the async setup window between dispatch and the first
+      // non-queued status transition.
+      inFlightTasks.add(nextTask.id);
+
       // Check task type and execute appropriate workflow
       if (nextTask.type === 'quick') {
         console.log(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
@@ -144,8 +149,6 @@ async function processQueue(): Promise<void> {
       } else {
         await executeFullWorkflow(nextTask.id);
       }
-
-      inFlightTasks.add(nextTask.id);
 
       // For single-task mode, only start one task per poll cycle
       if (engineConfig.maxConcurrentTasks <= 1) {
