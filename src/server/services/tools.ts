@@ -126,22 +126,24 @@ export async function addTool(
     throw new Error(`[Tools] Invalid tool: ${errors.join('; ')}`);
   }
 
-  const store = await loadToolStore();
-  const existing = store.tools.find(t => t.name === input.name);
-  if (existing) {
-    throw new Error(`[Tools] A tool named '${input.name}' already exists`);
-  }
+  return withLock(async () => {
+    const store = await loadToolStore();
+    const existing = store.tools.find(t => t.name === input.name);
+    if (existing) {
+      throw new Error(`[Tools] A tool named '${input.name}' already exists`);
+    }
 
-  const tool: Tool = {
-    ...input,
-    created_at: new Date().toISOString(),
-    usage_count: 0,
-  };
+    const tool: Tool = {
+      ...input,
+      created_at: new Date().toISOString(),
+      usage_count: 0,
+    };
 
-  store.tools.push(tool);
-  await saveToolStore(store);
-  console.log(`[Tools] Added tool ${tool.name}`);
-  return tool;
+    store.tools.push(tool);
+    await saveToolStore(store);
+    console.log(`[Tools] Added tool ${tool.name}`);
+    return tool;
+  });
 }
 
 /**
