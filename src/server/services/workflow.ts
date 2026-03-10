@@ -1865,6 +1865,30 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
 
         broadcastToTask(taskId, {
           type: 'stdout',
+          data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks (${queuedCount} queued, ${blockedCount} blocked). Ready for review.\n`,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        // Flat mode: queue all children unconditionally
+        for (const childId of childTaskIds) {
+          await queueTask(childId);
+          broadcastToTask(taskId, {
+            type: 'stdout',
+            data: `  ✓ Queued: ${childId}\n`,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        // Move goal to review
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.flat_complete');
+        broadcastTaskCompleted(taskId);
+        internalEvents.emit(TASK_COMPLETED, taskId);
+        void runReflectionStep(taskId);
+        void triggerToolForge(taskId);
+
+        broadcastToTask(taskId, {
+          type: 'stdout',
           data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks. Ready for review.\n`,
           timestamp: new Date().toISOString(),
         });
