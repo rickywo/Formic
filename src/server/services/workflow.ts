@@ -1404,6 +1404,10 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
   // Start the workflow
   const startPid = process.pid; // Return server PID as reference
 
+  // Set status to 'briefing' immediately to prevent queue processor re-dispatch
+  // during the async setup window (createSafePoint + skill loading).
+  await updateTaskStatus(taskId, 'briefing', null, 'workflow.executeFullWorkflow.init');
+
   // Run steps sequentially
   (async () => {
     // Create a git safe-point commit before execution for rollback support
