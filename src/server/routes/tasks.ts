@@ -168,12 +168,25 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Params: { id: string } }>('/api/tasks/:id/stop', async (request, reply) => {
     const { id } = request.params;
 
-    // Try stopping workflow first, then legacy agent
+    // Verify the task exists
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    // Only stop tasks that are in an active state
+    const activeStatuses = ['running', 'briefing', 'planning', 'declaring', 'architecting', 'verifying', 'queued'];
+    if (!activeStatuses.includes(task.status)) {
+      return reply.status(400).send({ error: 'Task is not in an active state' });
+    }
+
+    // Try stopping workflow first (handles both active processes and between-step gaps)
     const workflowStopped = await stopWorkflow(id);
     if (workflowStopped) {
       return reply.send({ status: 'stopping', type: 'workflow' });
     }
 
+    // Legacy: try stopping a bare agent process
     const agentStopped = await stopAgent(id);
     if (agentStopped) {
       return reply.send({ status: 'stopping', type: 'agent' });
