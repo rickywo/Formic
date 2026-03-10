@@ -1129,57 +1129,61 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
 
   // Run the execute step
   (async () => {
-    // Abort if stop was requested before execute begins
-    if (stoppedWorkflows.has(taskId)) {
-      stoppedWorkflows.delete(taskId);
-      return;
-    }
-
-    const success = await new Promise<boolean>((resolve) => {
-      const child = runWorkflowStep(taskId, 'execute', prompt, (success) => {
-        resolve(success);
-      });
-
-      if (child.pid) {
-        activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
-      }
-    });
-
-    activeWorkflows.delete(taskId);
-
-    // Release any leases held by this task
-    releaseLeases(taskId);
-
-    // Abort if stop was requested while the execute step was finishing
-    if (stoppedWorkflows.has(taskId)) {
-      stoppedWorkflows.delete(taskId);
-      return;
-    }
-
-    if (success) {
-      const verifyResult = await executeVerifyStep(taskId);
-      if (!verifyResult.success) {
-        await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+    try {
+      // Abort if stop was requested before execute begins
+      if (stoppedWorkflows.has(taskId)) {
+        stoppedWorkflows.delete(taskId);
         return;
       }
-      await updateWorkflowStep(taskId, 'complete');
-      await updateTaskStatus(taskId, 'review', null, 'workflow.executeQuickTask.success');
-      broadcastTaskCompleted(taskId);
-      internalEvents.emit(TASK_COMPLETED, taskId);
-      void runReflectionStep(taskId);
-      void triggerToolForge(taskId);
-      broadcastToTask(taskId, {
-        type: 'stdout',
-        data: `\n[SUCCESS] Quick task completed. Ready for review.\n`,
-        timestamp: new Date().toISOString(),
+
+      const success = await new Promise<boolean>((resolve) => {
+        const child = runWorkflowStep(taskId, 'execute', prompt, (success) => {
+          resolve(success);
+        });
+
+        if (child.pid) {
+          activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
+        }
       });
-    } else {
-      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeQuickTask.failed');
-      broadcastToTask(taskId, {
-        type: 'error',
-        data: `\n[FAILED] Quick task execution failed.\n`,
-        timestamp: new Date().toISOString(),
-      });
+
+      activeWorkflows.delete(taskId);
+
+      // Release any leases held by this task
+      releaseLeases(taskId);
+
+      // Abort if stop was requested while the execute step was finishing
+      if (stoppedWorkflows.has(taskId)) {
+        stoppedWorkflows.delete(taskId);
+        return;
+      }
+
+      if (success) {
+        const verifyResult = await executeVerifyStep(taskId);
+        if (!verifyResult.success) {
+          await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+          return;
+        }
+        await updateWorkflowStep(taskId, 'complete');
+        await updateTaskStatus(taskId, 'review', null, 'workflow.executeQuickTask.success');
+        broadcastTaskCompleted(taskId);
+        internalEvents.emit(TASK_COMPLETED, taskId);
+        void runReflectionStep(taskId);
+        void triggerToolForge(taskId);
+        broadcastToTask(taskId, {
+          type: 'stdout',
+          data: `\n[SUCCESS] Quick task completed. Ready for review.\n`,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        await updateTaskStatus(taskId, 'todo', null, 'workflow.executeQuickTask.failed');
+        broadcastToTask(taskId, {
+          type: 'error',
+          data: `\n[FAILED] Quick task execution failed.\n`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } finally {
+      removeInFlightTask(taskId);
     }
   })();
 
