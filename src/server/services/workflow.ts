@@ -1163,7 +1163,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
         return;
       }
       await updateWorkflowStep(taskId, 'complete');
-      await updateTaskStatus(taskId, 'review', null);
+      await updateTaskStatus(taskId, 'review', null, 'workflow.executeQuickTask.success');
       broadcastTaskCompleted(taskId);
       internalEvents.emit(TASK_COMPLETED, taskId);
       void runReflectionStep(taskId);
@@ -1174,7 +1174,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
         timestamp: new Date().toISOString(),
       });
     } else {
-      await updateTaskStatus(taskId, 'todo', null);
+      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeQuickTask.failed');
       broadcastToTask(taskId, {
         type: 'error',
         data: `\n[FAILED] Quick task execution failed.\n`,
