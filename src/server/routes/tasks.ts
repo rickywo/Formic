@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks } from '../services/store.js';
-import { runAgent, stopAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
+import { runAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
 import {
   executeFullWorkflow,
   executeQuickTask,
@@ -24,7 +24,7 @@ import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../type
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   // POST /api/tasks - Create a new task
   fastify.post<{ Body: CreateTaskInput }>('/api/tasks', async (request, reply) => {
-    const { title, context, priority, type } = request.body;
+    const { title, context, priority, type, fixForTaskId, parentGoalId } = request.body;
 
     if (!title || !context) {
       return reply.status(400).send({ error: 'Title and context are required' });
@@ -35,12 +35,24 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'Invalid task type. Must be "standard", "quick", or "goal"' });
     }
 
-    const task = await createTask({ title, context, priority, type });
+    const task = await createTask({ title, context, priority, type, fixForTaskId, parentGoalId });
 
     // Broadcast board update to all connected clients
     broadcastBoardUpdate();
 
     return reply.status(201).send(task);
+  });
+
+  // GET /api/tasks/:id - Get a single task by ID
+  fastify.get<{ Params: { id: string } }>('/api/tasks/:id', async (request, reply) => {
+    const { id } = request.params;
+    const task = await getTask(id);
+
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    return reply.send(task);
   });
 
   // PUT /api/tasks/:id - Update a task
@@ -93,8 +105,21 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(404).send({ error: 'Task not found' });
     }
 
-    if (task.status !== 'todo' && task.status !== 'queued') {
+    const rerunStatuses = ['review', 'done'];
+    const validRunStatuses = ['todo', 'queued', ...rerunStatuses];
+    if (!validRunStatuses.includes(task.status)) {
       return reply.status(400).send({ error: 'Task must be in todo or queued status to run' });
+    }
+
+    if (rerunStatuses.includes(task.status)) {
+      await updateTask(id, {
+        status: 'todo',
+        safePointCommit: null,
+        resumeFromStep: undefined,
+        yieldCount: 0,
+        startedAt: undefined,
+        completedAt: undefined,
+      });
     }
 
     try {
@@ -168,18 +193,22 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.post<{ Params: { id: string } }>('/api/tasks/:id/stop', async (request, reply) => {
     const { id } = request.params;
 
-    // Try stopping workflow first, then legacy agent
-    const workflowStopped = await stopWorkflow(id);
-    if (workflowStopped) {
-      return reply.send({ status: 'stopping', type: 'workflow' });
+    // Verify the task exists
+    const task = await getTask(id);
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
     }
 
-    const agentStopped = await stopAgent(id);
-    if (agentStopped) {
-      return reply.send({ status: 'stopping', type: 'agent' });
+    // Only stop tasks that are in an active state
+    const activeStatuses = ['running', 'briefing', 'planning', 'declaring', 'architecting', 'verifying', 'queued'];
+    if (!activeStatuses.includes(task.status)) {
+      return reply.status(400).send({ error: 'Task is not in an active state' });
     }
 
-    return reply.status(404).send({ error: 'No running agent found for this task' });
+    // stopWorkflow always returns true: it eagerly resets status and sets the abort flag
+    // so the workflow IIFE halts at the next step boundary even if no process is active.
+    await stopWorkflow(id);
+    return reply.send({ status: 'stopping' });
   });
 
   // POST /api/tasks/:id/workflow/brief - Run only the brief step

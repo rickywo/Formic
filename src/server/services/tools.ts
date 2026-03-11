@@ -10,6 +10,19 @@ import path from 'node:path';
 import { getFormicDir } from '../utils/paths.js';
 import type { Tool, ToolStore } from '../../types/index.js';
 
+// In-memory async mutex to serialize concurrent read-modify-write operations on tools.json.
+let writeLock: Promise<void> = Promise.resolve();
+
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const result = writeLock.then(fn);
+  // Swallow rejections on the lock chain so one failure doesn't permanently block the queue.
+  writeLock = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
 /** Returns the absolute path to the tools catalog JSON file. */
 export function getToolStorePath(): string {
   return path.join(getFormicDir(), 'tools', 'tools.json');
@@ -113,35 +126,40 @@ export async function addTool(
     throw new Error(`[Tools] Invalid tool: ${errors.join('; ')}`);
   }
 
-  const store = await loadToolStore();
-  const existing = store.tools.find(t => t.name === input.name);
-  if (existing) {
-    throw new Error(`[Tools] A tool named '${input.name}' already exists`);
-  }
+  return withLock(async () => {
+    const store = await loadToolStore();
+    const existing = store.tools.find(t => t.name === input.name);
+    if (existing) {
+      throw new Error(`[Tools] A tool named '${input.name}' already exists`);
+    }
 
-  const tool: Tool = {
-    ...input,
-    created_at: new Date().toISOString(),
-    usage_count: 0,
-  };
+    const tool: Tool = {
+      ...input,
+      created_at: new Date().toISOString(),
+      usage_count: 0,
+    };
 
-  store.tools.push(tool);
-  await saveToolStore(store);
-  console.log(`[Tools] Added tool ${tool.name}`);
-  return tool;
+    store.tools.push(tool);
+    await saveToolStore(store);
+    console.log(`[Tools] Added tool ${tool.name}`);
+    return tool;
+  });
 }
 
 /**
  * Increment the usage_count of a named tool by 1 and persist.
  * No-ops silently if the tool is not found.
+ * Wrapped in withLock() to prevent concurrent increments losing updates.
  */
 export async function incrementUsage(name: string): Promise<void> {
-  const store = await loadToolStore();
-  const tool = store.tools.find(t => t.name === name);
-  if (!tool) {
-    return;
-  }
-  tool.usage_count += 1;
-  await saveToolStore(store);
-  console.log(`[Tools] Incremented usage for ${name}`);
+  return withLock(async () => {
+    const store = await loadToolStore();
+    const tool = store.tools.find(t => t.name === name);
+    if (!tool) {
+      return;
+    }
+    tool.usage_count += 1;
+    await saveToolStore(store);
+    console.log(`[Tools] Incremented usage for ${name}`);
+  });
 }

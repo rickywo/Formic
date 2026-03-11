@@ -1,0 +1,14 @@
+{
+  "name": "formic-example",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/jest": "*",
+    "jest": "*",
+    "ts-jest": "*",
+    "typescript": "*"
+  }
+}

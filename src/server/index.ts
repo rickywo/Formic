@@ -24,6 +24,7 @@ import { recoverStuckTasks, loadBoard } from './services/store.js';
 import { getMessagingConfig } from './services/messagingAdapter.js';
 import { initializeStatusCache } from './services/messagingNotifier.js';
 import type { ServerOptions } from '../types/index.js';
+import { setBoundPort } from './services/runner.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -125,6 +126,9 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     await loadConfig();
 
     await fastify.listen({ port, host });
+
+    // Register the live bound port so agent prompts always target the correct address
+    setBoundPort(port);
 
     // Log agent configuration
     const agentType = getAgentType();
