@@ -102,11 +102,9 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     if (rerunStatuses.includes(task.status)) {
       await updateTask(id, {
         status: 'todo',
-        safePointCommit: undefined,
+        safePointCommit: null,
         resumeFromStep: undefined,
-        yieldCount: undefined,
-        startedAt: undefined,
-        completedAt: undefined,
+        yieldCount: 0,
       });
     }
 
