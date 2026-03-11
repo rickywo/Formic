@@ -47,6 +47,17 @@ END OF GUIDELINES
 // Store active processes
 const activeProcesses = new Map<string, ChildProcess>();
 
+// The actual port the server is listening on, set once at startup via setBoundPort().
+let boundPort = 8000;
+
+/**
+ * Called by the server entry point after the HTTP server binds to register
+ * the live port so agents always POST tool registrations to the correct address.
+ */
+export function setBoundPort(port: number): void {
+  boundPort = port;
+}
+
 // Store WebSocket connections per task
 const taskConnections = new Map<string, Set<WebSocket>>();
 
@@ -125,12 +136,25 @@ export async function runAgent(taskId: string, title: string, context: string, d
     console.warn('[Runner] Failed to load tools for agent context:', error);
   }
 
+  // Build tool forging instructions with the live server port
+  const toolForgingSection = `
+## Tool Forging
+If during this task you identify a shell command that would be reusable across future tasks (e.g. a test runner, linter, build script, or deploy command), register it as a tool by running:
+  curl -s -X POST http://localhost:${boundPort}/api/tools \\
+    -H 'Content-Type: application/json' \\
+    -d '{"name":"slug-name","description":"What it does","command":"the shell command","created_by":"${title}"}'
+Rules:
+- Tool names must be lowercase alphanumeric with hyphens only (e.g. run-tests, lint-fix, build-dist).
+- Only forge a tool if the command is generic and reusable — not task-specific.
+- Skip forging if a similar tool already exists in the Available Tools section above.
+`;
+
   // Build prompt - simple format for --print mode
   // Note: In --print mode, tools are limited. For complex tasks, the agent should read context from the prompt directly.
   const prompt = `${guidelines}Task: ${title}
 
 Context: ${context}
-${pastExperienceSection}${availableToolsSection}
+${pastExperienceSection}${availableToolsSection}${toolForgingSection}
 Task documentation is available at: ${docsPath}/
 
 All code changes MUST comply with the project development guidelines provided above.`;
@@ -166,8 +190,7 @@ All code changes MUST comply with the project development guidelines provided ab
       errorMessage = `Permission denied when trying to execute '${agentCommand}'.`;
     }
 
-    await updateTaskStatus(taskId, 'todo', null);
-    await appendTaskLogs(taskId, [`Error: ${errorMessage}`]);
+    await updateTaskStatus(taskId, 'todo', null, 'runner.spawn_error');
 
     broadcastToTask(taskId, {
       type: 'error',
@@ -181,14 +204,14 @@ All code changes MUST comply with the project development guidelines provided ab
     // Don't throw - let the error event handle it
     // Return a placeholder that will be updated when error fires
     activeProcesses.set(taskId, child);
-    await updateTaskStatus(taskId, 'running', 0);
+    await updateTaskStatus(taskId, 'running', 0, 'runner.process_spawned_placeholder');
     return { pid: 0 };
   }
 
   activeProcesses.set(taskId, child);
 
   // Update task status
-  await updateTaskStatus(taskId, 'running', child.pid);
+  await updateTaskStatus(taskId, 'running', child.pid, 'runner.process_spawned');
 
   // Handle stdout
   child.stdout?.on('data', (data: Buffer) => {
@@ -236,7 +259,8 @@ All code changes MUST comply with the project development guidelines provided ab
 
     // Update status based on exit code
     const newStatus = code === 0 ? 'review' : 'todo';
-    await updateTaskStatus(taskId, newStatus, null);
+    const closeCallerTag = code === 0 ? 'runner.close_event.success' : 'runner.close_event.failed';
+    await updateTaskStatus(taskId, newStatus, null, closeCallerTag);
 
     broadcastToTask(taskId, {
       type: 'exit',
@@ -257,12 +281,15 @@ export async function stopAgent(taskId: string): Promise<boolean> {
 
   process.kill('SIGTERM');
 
+  // Eagerly reset to todo so the UI updates immediately
+  await updateTaskStatus(taskId, 'todo', null, 'runner.stopAgent');
+
   // Give it a moment, then force kill if needed
   setTimeout(() => {
     if (activeProcesses.has(taskId)) {
       process.kill('SIGKILL');
     }
-  }, 5000);
+  }, 3000);
 
   return true;
 }

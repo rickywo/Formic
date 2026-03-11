@@ -1,5 +1,5 @@
-import { getQueuedTasks, getAllTasks, getRunningTasksCount, updateTask } from './store.js';
-import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, isWorkflowRunning } from './workflow.js';
+import { getQueuedTasks, getAllTasks, getTask, getRunningTasksCount, updateTask } from './store.js';
+import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, executeFromDeclare, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
 import { isFileLeased } from './leaseManager.js';
 import { internalEvents, TASK_COMPLETED, LEASE_RELEASED } from './internalEvents.js';
@@ -17,6 +17,10 @@ const YIELD_BACKOFF_MAX_MS = 60_000;
 const yieldBackoffMs = new Map<string, number>();
 /** Per-task earliest timestamp (ms) at which the task may be retried */
 const yieldUntil = new Map<string, number>();
+/** Persistent set of task IDs dispatched in any poll cycle whose workflow has not yet
+ * committed to a non-queued status. Prevents cross-cycle re-admission during the async
+ * setup window between dispatch and the first status transition. */
+const inFlightTasks = new Set<string>();
 
 let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let isProcessing = false;
@@ -65,18 +69,20 @@ async function processQueue(): Promise<void> {
     const prioritizedTasks = prioritizeQueue(queuedTasks, allTasks);
 
     // Try each queued task until we find one we can start or run out of tasks
-    // Track in-flight starts to prevent over-admission in the same poll cycle
-    let inFlightCount = 0;
-
     for (const nextTask of prioritizedTasks) {
-      // Re-check capacity before each task, including in-flight starts from this cycle
+      // Re-check capacity before each task, including in-flight starts from this and prior cycles
       const runningCount = await getRunningTasksCount();
-      if (runningCount + inFlightCount >= engineConfig.maxConcurrentTasks) {
+      if (runningCount + inFlightTasks.size >= engineConfig.maxConcurrentTasks) {
         break;
       }
 
       // Skip if workflow already running
       if (isWorkflowRunning(nextTask.id)) {
+        continue;
+      }
+
+      // Skip if already dispatched in a prior poll cycle (cross-cycle re-admission guard)
+      if (inFlightTasks.has(nextTask.id)) {
         continue;
       }
 
@@ -125,6 +131,16 @@ async function processQueue(): Promise<void> {
       yieldBackoffMs.delete(nextTask.id);
       yieldUntil.delete(nextTask.id);
 
+      // Mark as in-flight synchronously before any await so the cross-cycle guard
+      // is effective during the async setup window between dispatch and the first
+      // non-queued status transition.
+      inFlightTasks.add(nextTask.id);
+
+      // Reload the task from the board immediately before routing so that
+      // resumeFromStep reflects the persisted state, not the snapshot loaded
+      // at the start of the poll cycle (which may be stale).
+      const freshTask = await getTask(nextTask.id);
+
       // Check task type and execute appropriate workflow
       if (nextTask.type === 'quick') {
         console.log(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
@@ -132,11 +148,12 @@ async function processQueue(): Promise<void> {
       } else if (nextTask.type === 'goal') {
         console.log(`[QueueProcessor] Task ${nextTask.id} is a goal task - running architect decomposition`);
         await executeGoalWorkflow(nextTask.id);
+      } else if (freshTask?.resumeFromStep === 'declare') {
+        console.log(`[QueueProcessor] Task ${nextTask.id} resuming from declare step (skipping brief/plan)`);
+        await executeFromDeclare(nextTask.id);
       } else {
         await executeFullWorkflow(nextTask.id);
       }
-
-      inFlightCount++;
 
       // For single-task mode, only start one task per poll cycle
       if (engineConfig.maxConcurrentTasks <= 1) {
@@ -230,6 +247,15 @@ export function pauseQueueProcessor(): void {
  */
 export function isQueueProcessorRunning(): boolean {
   return pollTimeoutId !== null;
+}
+
+/**
+ * Remove a task from the inFlightTasks set once its workflow has committed to a
+ * non-queued status. Called by workflow.ts on every status-transition exit path
+ * (including yield-back-to-queued, error, success, and stop) so no entries leak.
+ */
+export function removeInFlightTask(taskId: string): void {
+  inFlightTasks.delete(taskId);
 }
 
 /**

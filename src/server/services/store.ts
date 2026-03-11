@@ -13,7 +13,7 @@ import {
 import { copySkillsToWorkspace } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
 import { releaseLeases } from './leaseManager.js';
-import { broadcastDependencyResolved } from './boardNotifier.js';
+import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
 
 /**
  * Get project name from workspace folder name
@@ -181,6 +181,8 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     safePointCommit: null,
     retryCount: null,
     fixForTaskId: input.fixForTaskId ?? null,
+    // Goal linkage — present when task is a child of a goal task
+    ...(input.parentGoalId ? { parentGoalId: input.parentGoalId } : {}),
   };
 
   board.tasks.push(task);
@@ -287,13 +289,15 @@ async function unblockSiblingTasks(completedTaskId: string, parentGoalId: string
 /**
  * Update task status and optionally PID
  */
-export async function updateTaskStatus(taskId: string, status: Task['status'], pid?: number | null): Promise<Task | null> {
+export async function updateTaskStatus(taskId: string, status: Task['status'], pid?: number | null, caller?: string): Promise<Task | null> {
   const board = await loadBoard();
   const taskIndex = board.tasks.findIndex(t => t.id === taskId);
 
   if (taskIndex === -1) {
     return null;
   }
+
+  const previousStatus = board.tasks[taskIndex].status;
 
   board.tasks[taskIndex].status = status;
   if (pid !== undefined) {
@@ -320,6 +324,24 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
   }
 
   await saveBoard(board);
+
+  // Structured status transition log
+  const timestamp = new Date().toISOString();
+  const resolvedCaller = caller ?? 'unknown';
+  const logLine = `[StatusTransition] taskId=${taskId} ${previousStatus} → ${status} | caller=${resolvedCaller} | ${timestamp}`;
+  console.log(logLine);
+
+  try {
+    await appendTaskLogs(taskId, [logLine]);
+  } catch (err) {
+    console.warn('[Store] Failed to append status transition log:', err instanceof Error ? err.message : 'Unknown error');
+  }
+
+  try {
+    broadcastToTask(taskId, { type: 'stdout', data: logLine, timestamp });
+  } catch (err) {
+    console.warn('[Store] Failed to broadcast status transition:', err instanceof Error ? err.message : 'Unknown error');
+  }
 
   // Post-completion hook: unblock sibling tasks whose dependencies are now all done
   if (status === 'done' && board.tasks[taskIndex].parentGoalId) {
