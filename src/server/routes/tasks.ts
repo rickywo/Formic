@@ -93,8 +93,21 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(404).send({ error: 'Task not found' });
     }
 
-    if (task.status !== 'todo' && task.status !== 'queued') {
+    const rerunStatuses = ['review', 'done'];
+    const validRunStatuses = ['todo', 'queued', ...rerunStatuses];
+    if (!validRunStatuses.includes(task.status)) {
       return reply.status(400).send({ error: 'Task must be in todo or queued status to run' });
+    }
+
+    if (rerunStatuses.includes(task.status)) {
+      await updateTask(id, {
+        status: 'todo',
+        safePointCommit: undefined,
+        resumeFromStep: undefined,
+        yieldCount: undefined,
+        startedAt: undefined,
+        completedAt: undefined,
+      });
     }
 
     try {
