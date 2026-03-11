@@ -171,6 +171,10 @@ export interface BoardMeta {
   projectName: string;
   repoPath: string;
   createdAt: string;
+  /** Whether the queue processor is currently running (for AGI kill switch monitoring) */
+  queueEnabled?: boolean;
+  /** Task counts per status (for AGI phase health metrics) */
+  counts?: TaskCounts;
 }
 
 export interface Board {
@@ -187,6 +191,8 @@ export interface CreateTaskInput {
   type?: TaskType;
   /** If this task was auto-created as a fix for another task, the original task ID */
   fixForTaskId?: string | null;
+  /** ID of the parent goal task that spawned this child task */
+  parentGoalId?: string | null;
 }
 
 export interface UpdateTaskInput {
@@ -197,6 +203,8 @@ export interface UpdateTaskInput {
   workflowStep?: WorkflowStep;
   workflowLogs?: WorkflowLogs;
   safePointCommit?: string | null;
+  /** Number of verification/retry attempts — patchable for critic kill-switch logic */
+  retryCount?: number | null;
   yieldCount?: number;
   yieldReason?: string;
   /** When set, routes the task directly to this step instead of the full workflow on next dispatch */

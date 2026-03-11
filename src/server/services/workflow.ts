@@ -556,12 +556,22 @@ async function executeWithIterativeLoop(
   let stalledIterations = 0;
   const STALL_THRESHOLD = 2; // Stop after 2 iterations with no progress
 
+  // Periodic lease renewal timer — renews every 2 minutes to prevent
+  // watchdog from expiring leases during long-running execute iterations
+  const LEASE_RENEWAL_INTERVAL_MS = 2 * 60 * 1000;
+  const leaseRenewalTimer = setInterval(() => {
+    renewLeases(taskId);
+    console.log(`[Workflow] Periodic lease renewal for task ${taskId}`);
+  }, LEASE_RENEWAL_INTERVAL_MS);
+
   // Broadcast start of iterative execution
   broadcastToTask(taskId, {
     type: 'stdout',
     data: `\n========== Starting EXECUTE step (iterative mode, max ${engineConfig.maxExecuteIterations} iterations) ==========\n`,
     timestamp: new Date().toISOString(),
   });
+
+  try {
 
   while (iteration <= engineConfig.maxExecuteIterations && !allComplete) {
     console.log(`[Workflow] Execute iteration ${iteration}/${engineConfig.maxExecuteIterations} for task ${taskId}`);
@@ -682,6 +692,10 @@ async function executeWithIterativeLoop(
 
   console.log(`[Workflow] Iterative execution completed for task ${taskId}: iterations=${iteration - 1}, allComplete=${allComplete}, stalled=${stalledIterations >= STALL_THRESHOLD}`);
   return { success: true, iterations: iteration - 1, allComplete };
+
+  } finally {
+    clearInterval(leaseRenewalTimer);
+  }
 }
 
 /**

@@ -24,7 +24,7 @@ import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../type
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   // POST /api/tasks - Create a new task
   fastify.post<{ Body: CreateTaskInput }>('/api/tasks', async (request, reply) => {
-    const { title, context, priority, type } = request.body;
+    const { title, context, priority, type, fixForTaskId, parentGoalId } = request.body;
 
     if (!title || !context) {
       return reply.status(400).send({ error: 'Title and context are required' });
@@ -35,12 +35,24 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(400).send({ error: 'Invalid task type. Must be "standard", "quick", or "goal"' });
     }
 
-    const task = await createTask({ title, context, priority, type });
+    const task = await createTask({ title, context, priority, type, fixForTaskId, parentGoalId });
 
     // Broadcast board update to all connected clients
     broadcastBoardUpdate();
 
     return reply.status(201).send(task);
+  });
+
+  // GET /api/tasks/:id - Get a single task by ID
+  fastify.get<{ Params: { id: string } }>('/api/tasks/:id', async (request, reply) => {
+    const { id } = request.params;
+    const task = await getTask(id);
+
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    return reply.send(task);
   });
 
   // PUT /api/tasks/:id - Update a task
