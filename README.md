@@ -7,6 +7,7 @@
 <img src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 20+">
 <img src="https://img.shields.io/badge/Agents-Claude%20Code%20CLI%20%7C%20GitHub%20Copilot%20CLI-6f42c1?style=flat-square" alt="Supported agents">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
+<a href="https://rickywo.github.io/Formic/"><img src="https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue?style=flat-square&logo=github" alt="Live Demo"></a>
 </p>
 
 # Formic - AGI-First Kanban for Autonomous Software Engineering
@@ -74,6 +75,12 @@ A full light theme with glass-morphic design is available alongside the default 
 ### Portable Config Store
 
 Configuration is persisted to `~/.formic/config.json` instead of browser localStorage, making settings portable across browsers and machines. Settings survive server restarts and are shared across all connected clients.
+
+## Live Demo
+
+Try the Formic dashboard without installing anything: **[Live Demo](https://rickywo.github.io/Formic/)**
+
+The demo runs entirely in the browser with mock data — no server or API keys required.
 
 ## Quick Start
 
