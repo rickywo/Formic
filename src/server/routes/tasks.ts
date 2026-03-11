@@ -105,6 +105,8 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
         safePointCommit: null,
         resumeFromStep: undefined,
         yieldCount: 0,
+        startedAt: undefined,
+        completedAt: undefined,
       });
     }
 
