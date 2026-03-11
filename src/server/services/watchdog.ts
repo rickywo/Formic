@@ -6,10 +6,10 @@
 
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { getExpiredLeases, releaseLeases, restoreLeases, detectDeadlock } from './leaseManager.js';
+import { getExpiredLeases, releaseLeases, restoreLeases, detectDeadlock, renewLeases } from './leaseManager.js';
 import { stopAgent } from './runner.js';
-import { stopWorkflow } from './workflow.js';
-import { updateTaskStatus } from './store.js';
+import { stopWorkflow, isWorkflowRunning } from './workflow.js';
+import { updateTaskStatus, getTask } from './store.js';
 import { broadcastBoardUpdate } from './boardNotifier.js';
 import { getWorkspacePath } from '../utils/paths.js';
 
@@ -45,6 +45,17 @@ async function scanExpiredLeases(): Promise<void> {
     console.log(`[Watchdog] Expired leases for task ${taskId}: ${files.join(', ')}`);
 
     try {
+      // Guard: if the task is still actively running (has a live workflow process),
+      // renew its leases instead of killing it. This prevents the watchdog from
+      // disrupting long-running execute iterations.
+      const task = await getTask(taskId);
+      const activeStates = new Set(['running', 'briefing', 'planning', 'declaring', 'architecting', 'verifying']);
+      if (task && activeStates.has(task.status) && isWorkflowRunning(taskId)) {
+        console.log(`[Watchdog] Task ${taskId} is actively ${task.status} with live process — renewing leases instead of killing`);
+        renewLeases(taskId);
+        continue;
+      }
+
       // 1. Stop the agent/workflow process
       const workflowStopped = await stopWorkflow(taskId);
       if (!workflowStopped) {

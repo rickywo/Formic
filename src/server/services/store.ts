@@ -181,6 +181,8 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     safePointCommit: null,
     retryCount: null,
     fixForTaskId: input.fixForTaskId ?? null,
+    // Goal linkage — present when task is a child of a goal task
+    ...(input.parentGoalId ? { parentGoalId: input.parentGoalId } : {}),
   };
 
   board.tasks.push(task);
