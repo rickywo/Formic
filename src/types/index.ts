@@ -202,6 +202,8 @@ export interface UpdateTaskInput {
   /** When set, routes the task directly to this step instead of the full workflow on next dispatch */
   resumeFromStep?: WorkflowStep;
   reflectionMemories?: string[];
+  startedAt?: string;
+  completedAt?: string;
 }
 
 export interface LogMessage {
