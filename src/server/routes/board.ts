@@ -44,15 +44,4 @@ export async function boardRoutes(fastify: FastifyInstance): Promise<void> {
     }
   });
 
-  // GET /api/queue/analysis - Return per-task scoring breakdown for the current queue
-  fastify.get('/api/queue/analysis', async (_request, reply) => {
-    try {
-      const [queuedTasks, allTasks] = await Promise.all([getQueuedTasks(), getAllTasks()]);
-      const analysis = getQueueAnalysis(queuedTasks, allTasks);
-      return reply.send(analysis);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      return reply.status(500).send({ error: message });
-    }
-  });
 }
