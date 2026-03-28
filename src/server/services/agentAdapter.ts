@@ -79,11 +79,11 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
     readOnlyTools: CLAUDE_ASSISTANT_TOOLS,
     supportsConversationContinue: true,
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
+      // No --allowedTools flag: inherits ALL tools from host MCP configuration
       const args = [
         '--print',
         '--output-format', 'stream-json',
         '--verbose',
-        '--allowedTools', CLAUDE_ASSISTANT_TOOLS.join(','),
         '--dangerously-skip-permissions',
       ];
       if (options?.continue) {
@@ -98,11 +98,11 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
     readOnlyTools: COPILOT_ASSISTANT_TOOLS,
     supportsConversationContinue: true, // Copilot supports --continue
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
-      // Copilot CLI: use --available-tools to restrict to read-only tools
+      // Full MCP tool passthrough: --allow-all-tools inherits all host MCP tools
       // --silent suppresses stats output, --no-color removes ANSI escape codes
       const args = [
         '--prompt', prompt,
-        '--available-tools', ...COPILOT_ASSISTANT_TOOLS,
+        '--allow-all-tools',
         '--allow-all-paths',
         '--silent',
         '--no-color',
