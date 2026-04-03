@@ -162,18 +162,51 @@ export function parseClaudeStreamJson(line: string): OutputParseResult {
   }
 }
 
+// Braille spinner characters emitted by Copilot CLI progress indicators
+const SPINNER_CHARS = /^[\s⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏⣾⣽⣻⢿⡿⣟⣯⣷⠁⠂⠄⡀⢀⠠⠐⠈|\\/-]+$/;
+
+// ANSI escape codes (colors, cursor movement, etc.)
+const ANSI_ESCAPE = /\x1B\[[0-9;]*[A-Za-z]/g;
+
 /**
  * Parse GitHub Copilot CLI output line
- * Copilot outputs plain text, so we treat each line as text content
- * Preserves newlines by appending \n to each line for proper formatting
+ * Detects status patterns (tool use, file reads, thinking) and returns
+ * appropriate event types. Plain text lines are returned as 'text'.
  */
 export function parseCopilotOutput(line: string): OutputParseResult {
-  if (!line.trim()) {
+  // Strip any residual ANSI escape codes
+  const cleaned = line.replace(ANSI_ESCAPE, '');
+  const trimmed = cleaned.trim();
+
+  if (!trimmed) {
     return { type: 'unknown' };
   }
 
-  // Copilot typically outputs plain text responses
-  // Append newline to preserve formatting (line breaks between paragraphs, lists, etc.)
+  // Filter out pure spinner / progress indicator lines
+  if (SPINNER_CHARS.test(trimmed)) {
+    return { type: 'unknown' };
+  }
+
+  // Detect "● Calling <tool>" status pattern
+  const callingMatch = trimmed.match(/●\s*Calling\s+(.+)/);
+  if (callingMatch) {
+    const toolName = callingMatch[1].replace(/\.{3}$/, '').trim();
+    return { type: 'status', content: `Using tool: ${toolName}…` };
+  }
+
+  // Detect "● Reading <file>" status pattern
+  if (/●\s*Reading/.test(trimmed)) {
+    return { type: 'status', content: 'Reading files…' };
+  }
+
+  // Detect other "● <action>" status patterns (e.g., ● Searching, ● Writing)
+  const genericStatusMatch = trimmed.match(/●\s+(\w[\w\s]*)/);
+  if (genericStatusMatch) {
+    const action = genericStatusMatch[1].trim();
+    return { type: 'status', content: `${action}…` };
+  }
+
+  // Plain text content — append newline to preserve formatting
   return {
     type: 'text',
     content: line + '\n',

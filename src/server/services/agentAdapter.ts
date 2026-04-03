@@ -99,12 +99,11 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
     supportsConversationContinue: true, // Copilot supports --continue
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
       // Full MCP tool passthrough: --allow-all-tools inherits all host MCP tools
-      // --silent suppresses stats output, --no-color removes ANSI escape codes
+      // --no-color removes ANSI escape codes; --silent removed to preserve stderr status output
       const args = [
         '--prompt', prompt,
         '--allow-all-tools',
         '--allow-all-paths',
-        '--silent',
         '--no-color',
       ];
       if (options?.continue) {
@@ -246,7 +245,6 @@ export function buildMessagingAssistantArgs(prompt: string, options?: { continue
       '--prompt', prompt,
       '--available-tools', ...COPILOT_MESSAGING_TOOLS,
       '--allow-all-paths',
-      '--silent',
       '--no-color',
     ];
     if (options?.continue) {

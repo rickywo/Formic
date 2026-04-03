@@ -575,6 +575,16 @@ function processMessage(content: string): void {
   // Track streaming content
   let streamingContent = '';
 
+  // Deduplication guard: track the last broadcast status to avoid duplicate
+  // broadcasts when the same status line appears on both stdout and stderr
+  let lastBroadcastStatus = '';
+
+  // Emit initial "Thinking…" status for Copilot (analogous to Claude's system/init event)
+  if (agentType === 'copilot') {
+    broadcastStreamStatus('Thinking…');
+    lastBroadcastStatus = 'Thinking…';
+  }
+
   // Handle spawn error
   child.on('error', (err: NodeJS.ErrnoException) => {
     console.error('[AssistantManager] Spawn error:', err.message);
@@ -613,7 +623,10 @@ function processMessage(content: string): void {
         streamingContent += result.content;
         broadcastStreamDelta(result.content);
       } else if (result.type === 'status' && result.content) {
-        broadcastStreamStatus(result.content);
+        if (result.content !== lastBroadcastStatus) {
+          lastBroadcastStatus = result.content;
+          broadcastStreamStatus(result.content);
+        }
       } else if (result.type === 'result') {
         // Final result
         const finalContent = streamingContent.trim() || result.content || '';
@@ -647,23 +660,44 @@ function processMessage(content: string): void {
     const text = data.toString().trim();
     if (!text) return;
 
-    // Capture Copilot status messages and broadcast as stream_status
+    // Capture Copilot status messages and broadcast as stream_status (with dedup)
     if (text.includes('● Calling')) {
       const match = text.match(/● Calling\s+(.+)/);
       const toolName = match ? match[1].replace(/\.{3}$/, '').trim() : 'tool';
-      broadcastStreamStatus(`Using tool: ${toolName}…`);
+      const status = `Using tool: ${toolName}…`;
+      if (status !== lastBroadcastStatus) {
+        lastBroadcastStatus = status;
+        broadcastStreamStatus(status);
+      }
       return;
     }
     if (text.includes('● Reading')) {
-      broadcastStreamStatus('Reading files…');
+      const status = 'Reading files…';
+      if (status !== lastBroadcastStatus) {
+        lastBroadcastStatus = status;
+        broadcastStreamStatus(status);
+      }
       return;
     }
 
-    // Filter out spinner characters and other noise
-    if (!text.includes('⠋') && !text.includes('⠙') && !text.includes('⠹') &&
-      !text.includes('Disabled tools:') &&
-      !text.includes('Unknown tool name')
-    ) {
+    // Detect other "● <action>" patterns from stderr
+    const genericMatch = text.match(/●\s+(\w[\w\s]*)/);
+    if (genericMatch) {
+      const action = genericMatch[1].trim();
+      const status = `${action}…`;
+      if (status !== lastBroadcastStatus) {
+        lastBroadcastStatus = status;
+        broadcastStreamStatus(status);
+      }
+      return;
+    }
+
+    // Filter out spinner characters (Braille patterns) and other noise
+    const isNoise = /[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏⣾⣽⣻⢿⡿⣟⣯⣷]/.test(text) ||
+      text.includes('Disabled tools:') ||
+      text.includes('Unknown tool name');
+
+    if (!isNoise) {
       console.log('[AssistantManager] stderr:', text);
     }
   });
