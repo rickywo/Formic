@@ -97,6 +97,12 @@ async function processQueue(): Promise<void> {
         continue;
       }
 
+      // Check retry count - skip tasks that have failed execution too many times
+      if ((nextTask.retryCount ?? 0) >= engineConfig.maxExecutionRetries) {
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max execution retries (${engineConfig.maxExecutionRetries}), skipping — set to todo to stop bouncing`);
+        continue;
+      }
+
       // Detect the first exclusive file currently held by another task
       const exclusiveFiles = nextTask.declaredFiles?.exclusive ?? [];
       let conflictingFile: string | null = null;
