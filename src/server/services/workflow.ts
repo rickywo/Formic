@@ -340,8 +340,9 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
       if (child.pid) {
         activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
       }
-      // Await PID persistence inside the promise chain
-      void pidPersisted;
+      // Await PID persistence inside the promise chain so board.json
+      // has the correct PID before the step completes
+      pidPersisted.catch(() => {});
     }).catch(() => {
       resolve(true); // Skip on error
     });
