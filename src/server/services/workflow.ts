@@ -1363,7 +1363,8 @@ export async function executeSingleStep(
   await updateTaskStatus(taskId, status!, undefined, 'workflow.executeSingleStep.step_start');
   await updateWorkflowStep(taskId, step);
 
-  return new Promise((resolve) => {
+  let pidPromise: Promise<void> | undefined;
+  const resultPromise = new Promise<{ success: boolean; pid: number }>((resolve) => {
     const { child, pidPersisted } = runWorkflowStep(taskId, step, prompt!, async (success) => {
       activeWorkflows.delete(taskId);
 
@@ -1381,12 +1382,17 @@ export async function executeSingleStep(
 
       resolve({ success, pid: child.pid || 0 });
     });
-    void pidPersisted;
+    pidPromise = pidPersisted;
 
     if (child.pid) {
       activeWorkflows.set(taskId, { process: child, currentStep: step });
     }
   });
+
+  // Await PID persistence so board.json has the correct PID before the process completes
+  if (pidPromise) await pidPromise;
+
+  return resultPromise;
 }
 
 /**
@@ -1457,17 +1463,22 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       timestamp: new Date().toISOString(),
     });
 
-    return new Promise((resolve) => {
+    let pidPromise: Promise<void> | undefined;
+    const resultPromise = new Promise<boolean>((resolve) => {
       const { child, pidPersisted } = runWorkflowStep(taskId, step, prompt, (success) => {
         resolve(success);
       });
+      pidPromise = pidPersisted;
 
       if (child.pid) {
         activeWorkflows.set(taskId, { process: child, currentStep: step });
       }
-      // PID is persisted inside runWorkflowStep via pidPersisted promise
-      void pidPersisted;
     });
+
+    // Await PID persistence so board.json has the correct PID before the process completes
+    if (pidPromise) await pidPromise;
+
+    return resultPromise;
   };
 
   // Start the workflow
@@ -1916,7 +1927,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
           activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
         }
       });
-      void pidPromise;
+      if (pidPromise) await pidPromise;
 
       activeWorkflows.delete(taskId);
 
