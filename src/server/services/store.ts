@@ -213,10 +213,10 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
 
   await saveBoard(board);
 
-  // Post-completion hook: unblock sibling tasks when status transitions to 'done' via user approval.
+  // Post-transition hook: unblock sibling tasks when status transitions to 'review' or 'done'.
   // This mirrors the same hook in updateTaskStatus and covers the user-approval path
-  // (PUT /api/tasks/:id with { status: 'done' }) which does not go through updateTaskStatus.
-  if (input.status === 'done' && previousStatus !== 'done' && task.parentGoalId) {
+  // (PUT /api/tasks/:id with { status: 'done' or 'review' }) which does not go through updateTaskStatus.
+  if ((input.status === 'done' || input.status === 'review') && input.status !== previousStatus && task.parentGoalId) {
     try {
       await unblockSiblingTasks(taskId, task.parentGoalId);
     } catch (err) {
@@ -275,7 +275,7 @@ async function unblockSiblingTasks(completedTaskId: string, parentGoalId: string
   for (const sibling of blockedSiblings) {
     const allDepsResolved = sibling.dependsOnResolved!.every(depId => {
       const dep = taskById.get(depId);
-      return dep !== undefined && dep.status === 'done';
+      return dep !== undefined && (dep.status === 'done' || dep.status === 'review');
     });
 
     if (allDepsResolved) {
@@ -343,8 +343,8 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
     console.warn('[Store] Failed to broadcast status transition:', err instanceof Error ? err.message : 'Unknown error');
   }
 
-  // Post-completion hook: unblock sibling tasks whose dependencies are now all done
-  if (status === 'done' && board.tasks[taskIndex].parentGoalId) {
+  // Post-transition hook: unblock sibling tasks whose dependencies are now all resolved (review or done)
+  if ((status === 'done' || status === 'review') && board.tasks[taskIndex].parentGoalId) {
     try {
       await unblockSiblingTasks(taskId, board.tasks[taskIndex].parentGoalId!);
     } catch (err) {

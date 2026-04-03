@@ -8419,6 +8419,9 @@
         if (status === 'briefing' || status === 'planning' || status === 'running' || status === 'architecting') {
           return 'running';
         }
+        if (status === 'blocked') {
+          return 'queued';
+        }
         return status;
       }
 
