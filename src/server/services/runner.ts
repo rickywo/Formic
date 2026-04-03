@@ -133,7 +133,7 @@ export async function runAgent(taskId: string, title: string, context: string, d
     const tools = await listTools();
     if (tools.length > 0) {
       console.log(`[Runner] ${tools.length} tools available in agent context for task ${taskId}`);
-      availableToolsSection = `\n## Available Tools (${tools.length} registered)\n${tools.map(t => `- **${t.name}**: ${t.description}\n  Command: \`${t.command}\``).join('\n')}\nUse these tools when they match the task requirements to avoid re-implementing existing functionality.\n`;
+      availableToolsSection = `\n## Available Tools (${tools.length} registered)\n${tools.map(t => `- **${t.manifest.name}**: ${t.manifest.description}\n  Command: \`${t.manifest.command}\``).join('\n')}\nUse these tools when they match the task requirements to avoid re-implementing existing functionality.\n`;
     }
   } catch (error) {
     console.warn('[Runner] Failed to load tools for agent context:', error);
