@@ -95,6 +95,11 @@ export function validateBoard(board: unknown): board is Board {
 
 /**
  * Load the board from workspace/.formic/board.json
+ *
+ * If board.json is corrupted or fails validation:
+ * 1. Archives the corrupted file to .formic/board.json.corrupted.{timestamp}
+ * 2. Attempts restoration from .formic/board.json.backup
+ * 3. Falls back to a fresh default board if no valid backup exists
  */
 export async function loadBoard(): Promise<Board> {
   await ensureFormicDir();
@@ -108,7 +113,54 @@ export async function loadBoard(): Promise<Board> {
   }
 
   const data = await readFile(boardPath, 'utf-8');
-  return JSON.parse(data) as Board;
+
+  try {
+    const parsed: unknown = JSON.parse(data);
+
+    if (!validateBoard(parsed)) {
+      throw new Error('Board validation failed — structural integrity check did not pass');
+    }
+
+    return parsed;
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : 'Unknown error';
+    const timestamp = new Date().toISOString().replace(/:/g, '-');
+    const archivePath = path.join(getFormicDir(), `board.json.corrupted.${timestamp}`);
+
+    // Archive the corrupted file for debugging
+    try {
+      await copyFile(boardPath, archivePath);
+    } catch (archiveErr) {
+      console.error(`[Store] Failed to archive corrupted board.json: ${archiveErr instanceof Error ? archiveErr.message : 'Unknown error'}`);
+    }
+
+    console.error(`[Store] board.json is corrupted (${errMsg}), archived to ${path.basename(archivePath)}`);
+
+    // Attempt backup restoration
+    const backupPath = path.join(getFormicDir(), 'board.json.backup');
+    if (existsSync(backupPath)) {
+      try {
+        const backupData = await readFile(backupPath, 'utf-8');
+        const backupParsed: unknown = JSON.parse(backupData);
+
+        if (validateBoard(backupParsed)) {
+          console.warn('[Store] board.json corrupted — restored from backup');
+          await saveBoard(backupParsed);
+          return backupParsed;
+        }
+
+        console.warn('[Store] board.json.backup exists but failed validation');
+      } catch (backupErr) {
+        console.warn(`[Store] board.json.backup is also corrupted: ${backupErr instanceof Error ? backupErr.message : 'Unknown error'}`);
+      }
+    }
+
+    // Last resort: create fresh default board
+    console.warn(`[Store] board.json corrupted — archived to board.json.corrupted.${timestamp}, created fresh board`);
+    const defaultBoard = createDefaultBoard();
+    await saveBoard(defaultBoard);
+    return defaultBoard;
+  }
 }
 
 /**
