@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import type { Board, Task, CreateTaskInput, UpdateTaskInput, WorkflowStep } from '../../types/index.js';
+import type { Board, Task, TaskStatus, TaskPriority, CreateTaskInput, UpdateTaskInput, WorkflowStep } from '../../types/index.js';
 import { getWorkspacePath, getFormicDir, getBoardPath } from '../utils/paths.js';
 import { createTaskDocsFolder, deleteTaskDocsFolder } from './taskDocs.js';
 import {
@@ -45,6 +45,49 @@ async function ensureFormicDir(): Promise<void> {
   if (!existsSync(formicDir)) {
     await mkdir(formicDir, { recursive: true });
   }
+}
+
+/** All valid TaskStatus values for runtime validation (mirrors the TaskStatus union type) */
+export const VALID_TASK_STATUSES: string[] = [
+  'todo', 'queued', 'briefing', 'planning', 'declaring', 'running',
+  'architecting', 'verifying', 'review', 'done', 'blocked',
+];
+
+/** All valid TaskPriority values for runtime validation (mirrors the TaskPriority union type) */
+export const VALID_TASK_PRIORITIES: string[] = ['low', 'medium', 'high'];
+
+/**
+ * Runtime type guard that validates the structural integrity of a parsed Board object.
+ * Follows the validateToolManifest() pattern from tools.ts.
+ */
+export function validateBoard(board: unknown): board is Board {
+  if (typeof board !== 'object' || board === null) return false;
+  const b = board as Record<string, unknown>;
+
+  // Validate meta
+  if (typeof b.meta !== 'object' || b.meta === null) return false;
+  const meta = b.meta as Record<string, unknown>;
+  if (typeof meta.projectName !== 'string') return false;
+  if (typeof meta.repoPath !== 'string') return false;
+  if (typeof meta.createdAt !== 'string') return false;
+
+  // Validate tasks array
+  if (!Array.isArray(b.tasks)) return false;
+
+  // Validate each task entry
+  for (const task of b.tasks) {
+    if (typeof task !== 'object' || task === null) return false;
+    const t = task as Record<string, unknown>;
+    if (typeof t.id !== 'string' || t.id.length === 0) return false;
+    if (typeof t.title !== 'string' || t.title.length === 0) return false;
+    if (typeof t.status !== 'string' || !VALID_TASK_STATUSES.includes(t.status)) return false;
+    if (typeof t.priority !== 'string' || !VALID_TASK_PRIORITIES.includes(t.priority)) return false;
+    if (typeof t.context !== 'string') return false;
+    if (typeof t.docsPath !== 'string') return false;
+    if (!Array.isArray(t.agentLogs)) return false;
+  }
+
+  return true;
 }
 
 /**
