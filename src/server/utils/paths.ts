@@ -102,6 +102,20 @@ export function getRelativeDocsPath(id: string, slug: string): string {
 }
 
 /**
+ * Get the .formic/logs directory path inside workspace
+ */
+export function getLogsDir(): string {
+  return path.join(getFormicDir(), 'logs');
+}
+
+/**
+ * Get the .formic/logs/{taskId} directory path inside workspace
+ */
+export function getTaskLogsDir(taskId: string): string {
+  return path.join(getLogsDir(), taskId);
+}
+
+/**
  * Get the .claude/skills directory path inside workspace
  * This is the standard location for project-level skills (compatible with both Claude and Copilot)
  */

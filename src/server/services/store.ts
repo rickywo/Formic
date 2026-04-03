@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import type { Board, Task, CreateTaskInput, UpdateTaskInput } from '../../types/index.js';
+import type { Board, Task, CreateTaskInput, UpdateTaskInput, WorkflowStep } from '../../types/index.js';
 import { getWorkspacePath, getFormicDir, getBoardPath } from '../utils/paths.js';
 import { createTaskDocsFolder, deleteTaskDocsFolder } from './taskDocs.js';
 import {
@@ -321,6 +321,15 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
   if (status === 'todo') {
     board.tasks[taskIndex].startedAt = undefined;
     board.tasks[taskIndex].completedAt = undefined;
+
+    // Workflow resumption: if brief+plan are already done (workflowStep is 'declare',
+    // 'execute', or 'verify'), mark the task to resume from declare on re-queue so it
+    // skips brief and plan instead of starting over from scratch.
+    const stepsPastPlan: WorkflowStep[] = ['declare', 'execute', 'verify'];
+    const currentStep = board.tasks[taskIndex].workflowStep;
+    if (currentStep && stepsPastPlan.includes(currentStep) && !board.tasks[taskIndex].resumeFromStep) {
+      board.tasks[taskIndex].resumeFromStep = 'declare';
+    }
   }
 
   await saveBoard(board);

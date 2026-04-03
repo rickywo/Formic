@@ -1,4 +1,6 @@
 import type { FastifyInstance } from 'fastify';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks } from '../services/store.js';
 import { runAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
 import {
@@ -19,6 +21,7 @@ import {
 import { getQueuePosition } from '../services/queueProcessor.js';
 import { getAllLeases, renewLeases, acquireLeases, releaseLeases } from '../services/leaseManager.js';
 import { broadcastBoardUpdate } from '../services/boardNotifier.js';
+import { getWorkspacePath } from '../utils/paths.js';
 import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../types/index.js';
 
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
@@ -301,11 +304,35 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(404).send({ error: 'Task not found' });
     }
 
+    // Resolve workflowLogs: file-path strings → string[] for backward compat
+    const rawLogs = task.workflowLogs || {};
+    const resolvedLogs: Record<string, string[]> = {};
+    const steps = ['brief', 'plan', 'execute', 'verify', 'architect'] as const;
+
+    for (const step of steps) {
+      const value = rawLogs[step];
+      if (typeof value === 'string') {
+        // New format: relative file path → read from disk
+        try {
+          const fullPath = path.join(getWorkspacePath(), value);
+          const content = await readFile(fullPath, 'utf-8');
+          resolvedLogs[step] = content.split('\n').filter(line => line.length > 0);
+        } catch {
+          // File doesn't exist yet or read error → empty array
+          resolvedLogs[step] = [];
+        }
+      } else if (Array.isArray(value)) {
+        // Legacy format: inline string array → pass through
+        resolvedLogs[step] = value;
+      }
+      // If undefined/missing, omit from response (same as before)
+    }
+
     return reply.send({
       taskId: id,
       status: task.status,
       workflowStep: task.workflowStep || 'pending',
-      workflowLogs: task.workflowLogs || {},
+      workflowLogs: resolvedLogs,
       isRunning: isWorkflowRunning(id),
       activeStep: getActiveWorkflowStep(id),
     });

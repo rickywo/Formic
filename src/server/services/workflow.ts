@@ -1,6 +1,6 @@
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir, appendFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
 const execFileAsync = promisify(execFile);
@@ -17,7 +17,7 @@ import {
   formatIncompleteSubtasksForPrompt,
   subtasksExist,
 } from './subtasks.js';
-import { getWorkspacePath, getFormicDir } from '../utils/paths.js';
+import { getWorkspacePath, getFormicDir, getTaskLogsDir } from '../utils/paths.js';
 import { createSafePoint } from '../utils/gitUtils.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
@@ -28,7 +28,6 @@ import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
 import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
 
-const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 
@@ -140,23 +139,30 @@ async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<v
 }
 
 /**
- * Append logs to workflow logs for a specific step
+ * Append logs to a per-task, per-step log file on disk.
+ * Stores only the file path reference in board.json (not the log content).
  */
 async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute' | 'architect' | 'verify', logs: string[]): Promise<void> {
+  if (logs.length === 0) return;
+
+  // Ensure the .formic/logs/{taskId}/ directory exists
+  const taskLogsDir = getTaskLogsDir(taskId);
+  await mkdir(taskLogsDir, { recursive: true });
+
+  // Append log lines to {step}.log file
+  const logFilePath = path.join(taskLogsDir, `${step}.log`);
+  const content = logs.join('\n') + '\n';
+  await appendFile(logFilePath, content, 'utf-8');
+
+  // Store the relative log file path in board.json (not the log content)
   const board = await loadBoard();
   const task = board.tasks.find(t => t.id === taskId);
   if (task) {
     if (!task.workflowLogs) {
       task.workflowLogs = {};
     }
-    if (!task.workflowLogs[step]) {
-      task.workflowLogs[step] = [];
-    }
-    task.workflowLogs[step]!.push(...logs);
-    // Keep only last 50 lines per step
-    if (task.workflowLogs[step]!.length > MAX_LOG_LINES) {
-      task.workflowLogs[step] = task.workflowLogs[step]!.slice(-MAX_LOG_LINES);
-    }
+    // Store relative path so it's portable across machines
+    task.workflowLogs[step] = `.formic/logs/${taskId}/${step}.log`;
     await saveBoard(board);
   }
 }
@@ -518,10 +524,6 @@ function runWorkflowStep(
     const lines = text.split('\n').filter(line => line.length > 0);
     logBuffer.push(...lines);
 
-    while (logBuffer.length > MAX_LOG_LINES) {
-      logBuffer.shift();
-    }
-
     // Send raw text without per-chunk prefix - the step context is shown in the UI header
     broadcastToTask(taskId, {
       type: 'stdout',
@@ -534,10 +536,6 @@ function runWorkflowStep(
     const text = data.toString();
     const lines = text.split('\n').filter(line => line.length > 0);
     logBuffer.push(...lines);
-
-    while (logBuffer.length > MAX_LOG_LINES) {
-      logBuffer.shift();
-    }
 
     // Send raw text without per-chunk prefix - the step context is shown in the UI header
     broadcastToTask(taskId, {
@@ -818,7 +816,6 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
     child.stdout?.on('data', (data: Buffer) => {
       const text = data.toString();
       logBuffer.push(...text.split('\n').filter(l => l.length > 0));
-      while (logBuffer.length > 100) logBuffer.shift();
       broadcastToTask(taskId, { type: 'stdout', data: text, timestamp: new Date().toISOString() });
     });
 
@@ -827,8 +824,6 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
       const lines = text.split('\n').filter(l => l.length > 0);
       logBuffer.push(...lines);
       stderrLines.push(...lines);
-      while (logBuffer.length > 100) logBuffer.shift();
-      while (stderrLines.length > 100) stderrLines.shift();
       broadcastToTask(taskId, { type: 'stderr', data: text, timestamp: new Date().toISOString() });
     });
 

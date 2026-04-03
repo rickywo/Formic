@@ -4,11 +4,11 @@ export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' 
 export type TaskType = 'standard' | 'quick' | 'goal';
 
 export interface WorkflowLogs {
-  brief?: string[];
-  plan?: string[];
-  execute?: string[];
-  verify?: string[];
-  architect?: string[];
+  brief?: string | string[];
+  plan?: string | string[];
+  execute?: string | string[];
+  verify?: string | string[];
+  architect?: string | string[];
 }
 
 // ==================== Lease-Based Concurrency Types ====================

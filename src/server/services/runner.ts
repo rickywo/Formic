@@ -13,7 +13,6 @@ import { getRelevantMemories } from './memory.js';
 import { listTools } from './tools.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 
-const MAX_LOG_LINES = 50;
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 
 /**
@@ -222,11 +221,6 @@ All code changes MUST comply with the project development guidelines provided ab
     const lines = text.split('\n').filter(line => line.length > 0);
     logBuffer.push(...lines);
 
-    // Keep buffer limited
-    while (logBuffer.length > MAX_LOG_LINES) {
-      logBuffer.shift();
-    }
-
     broadcastToTask(taskId, {
       type: 'stdout',
       data: text,
@@ -239,10 +233,6 @@ All code changes MUST comply with the project development guidelines provided ab
     const text = data.toString();
     const lines = text.split('\n').filter(line => line.length > 0);
     logBuffer.push(...lines);
-
-    while (logBuffer.length > MAX_LOG_LINES) {
-      logBuffer.shift();
-    }
 
     broadcastToTask(taskId, {
       type: 'stderr',
