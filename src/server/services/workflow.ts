@@ -1321,7 +1321,7 @@ export async function executeSingleStep(
   }
 
   // Update task status (for brief and plan steps)
-  await updateTaskStatus(taskId, status!, null, 'workflow.executeSingleStep.step_start');
+  await updateTaskStatus(taskId, status!, undefined, 'workflow.executeSingleStep.step_start');
   await updateWorkflowStep(taskId, step);
 
   return new Promise((resolve) => {
