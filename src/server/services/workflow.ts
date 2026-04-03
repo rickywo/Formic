@@ -333,16 +333,15 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
         return;
       }
 
-      const child = runWorkflowStep(taskId, 'execute', result.content, (success) => {
+      const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', result.content, (success) => {
         resolve(success);
       });
 
       if (child.pid) {
         activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
-        void updateTask(taskId, { pid: child.pid }).catch((err) => {
-          console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-        });
       }
+      // Await PID persistence inside the promise chain
+      void pidPersisted;
     }).catch(() => {
       resolve(true); // Skip on error
     });
