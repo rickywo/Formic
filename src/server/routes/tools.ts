@@ -1,6 +1,6 @@
 /**
  * Tool Forging API Routes
- * Exposes CRUD endpoints for the agent tool catalog stored in .formic/tools/tools.json
+ * Exposes endpoints for the agent tool catalog stored in .formic/tools/<name>/
  */
 import type { FastifyInstance } from 'fastify';
 import { listTools, addTool } from '../services/tools.js';
@@ -10,14 +10,14 @@ export async function toolRoutes(fastify: FastifyInstance): Promise<void> {
   fastify.get('/api/tools', async (_request, reply) => {
     try {
       const tools = await listTools();
-      return reply.send({ tools });
+      return reply.send(tools);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       return reply.status(500).send({ error: message });
     }
   });
 
-  /** POST /api/tools — register a new tool */
+  /** POST /api/tools — register a new tool (creates subdirectory with manifest.json) */
   fastify.post('/api/tools', async (request, reply) => {
     try {
       const body = request.body as Record<string, unknown>;
