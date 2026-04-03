@@ -424,14 +424,10 @@ function runWorkflowStep(
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  // Persist child.pid to board.json so the OS process is identifiable for running tasks.
-  // This is a fire-and-forget write — the task status was already set by the caller,
-  // so we only patch the pid field without changing status.
-  if (child.pid) {
-    void updateTask(taskId, { pid: child.pid }).catch((err) => {
-      console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-    });
-  }
+  // NOTE: PID persistence is handled by each caller after receiving the child process.
+  // Callers must `await updateTask(taskId, { pid: child.pid })` to avoid race conditions
+  // with concurrent loadBoard()/saveBoard() cycles. A fire-and-forget write here would
+  // race with the caller's own status updates and could be silently overwritten.
 
   const logBuffer: string[] = [];
   let hasCompleted = false;
