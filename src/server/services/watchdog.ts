@@ -6,12 +6,14 @@
 
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
+import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { getExpiredLeases, releaseLeases, restoreLeases, detectDeadlock, renewLeases } from './leaseManager.js';
 import { stopAgent } from './runner.js';
 import { stopWorkflow, isWorkflowRunning } from './workflow.js';
-import { updateTaskStatus, getTask } from './store.js';
+import { updateTaskStatus, getTask, validateBoard, loadBoard } from './store.js';
 import { broadcastBoardUpdate } from './boardNotifier.js';
-import { getWorkspacePath } from '../utils/paths.js';
+import { getWorkspacePath, getBoardPath } from '../utils/paths.js';
 
 const execAsync = promisify(exec);
 
@@ -98,11 +100,50 @@ async function scanExpiredLeases(): Promise<void> {
 }
 
 /**
+ * Validate board.json integrity and trigger recovery on corruption.
+ * Reads the file directly (bypassing loadBoard) to avoid recovery side effects on every tick.
+ */
+async function checkBoardHealth(): Promise<void> {
+  try {
+    const boardPath = getBoardPath();
+
+    if (!existsSync(boardPath)) {
+      console.warn('[BoardHealth] board.json does not exist — triggering recovery');
+      await loadBoard();
+      broadcastBoardUpdate();
+      return;
+    }
+
+    const raw = await readFile(boardPath, 'utf-8');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      console.warn('[BoardHealth] board.json failed to parse — triggering recovery');
+      await loadBoard();
+      broadcastBoardUpdate();
+      return;
+    }
+
+    if (!validateBoard(parsed)) {
+      console.warn('[BoardHealth] board.json failed validation — triggering recovery');
+      await loadBoard();
+      broadcastBoardUpdate();
+    }
+  } catch (error) {
+    console.error('[BoardHealth] Health check failed:', error instanceof Error ? error.message : 'Unknown error');
+  }
+}
+
+/**
  * Schedule the next watchdog scan using recursive setTimeout
  */
 function scheduleWatchdog(): void {
   watchdogTimeout = setTimeout(async () => {
     await refreshEngineConfig();
+    await checkBoardHealth().catch(error => {
+      console.warn('[BoardHealth] Health check error:', error);
+    });
     await scanExpiredLeases().catch(error => {
       console.warn('[Watchdog] Scan error:', error);
     });
