@@ -1544,6 +1544,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     const planSuccess = await runStep('plan');
     if (!planSuccess) {
       activeWorkflows.delete(taskId);
+      await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.plan_failed');
       await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.plan_failed');
       return;
     }
@@ -1640,6 +1641,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       } else {
         const latestTask = await getTask(taskId);
         if (latestTask && latestTask.status === 'running') {
+          await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.execute_failed');
           await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.execute_failed');
         } else {
           console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
@@ -1780,6 +1782,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
         } else {
           const latestTask = await getTask(taskId);
           if (latestTask && latestTask.status === 'running') {
+            await incrementRetryCount(taskId, 'workflow.executeFromDeclare.execute_failed');
             await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFromDeclare.execute_failed');
           } else {
             console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
@@ -1957,6 +1960,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       activeWorkflows.delete(taskId);
 
       if (!success) {
+        await incrementRetryCount(taskId, 'workflow.runArchitectStep.failed');
         await updateTaskStatus(taskId, 'todo', null, 'workflow.runArchitectStep.failed');
         broadcastToTask(taskId, {
           type: 'error',
