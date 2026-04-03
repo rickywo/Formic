@@ -207,6 +207,8 @@ export interface UpdateTaskInput {
   workflowStep?: WorkflowStep;
   workflowLogs?: WorkflowLogs;
   safePointCommit?: string | null;
+  /** OS process ID of the child process executing this task */
+  pid?: number | null;
   /** Number of verification/retry attempts — patchable for critic kill-switch logic */
   retryCount?: number | null;
   yieldCount?: number;

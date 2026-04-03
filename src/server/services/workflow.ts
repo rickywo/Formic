@@ -428,7 +428,7 @@ function runWorkflowStep(
   // This is a fire-and-forget write — the task status was already set by the caller,
   // so we only patch the pid field without changing status.
   if (child.pid) {
-    void updateTask(taskId, { pid: child.pid } as any).catch((err) => {
+    void updateTask(taskId, { pid: child.pid }).catch((err) => {
       console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
     });
   }
