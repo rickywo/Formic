@@ -355,6 +355,8 @@ export interface ConfigSettings {
   // Lease management settings
   leaseDurationMs: number;
   watchdogIntervalMs: number;
+  // Execution retry limit (prevents infinite re-queue on repeated failures)
+  maxExecutionRetries?: number;
 }
 
 /** Root schema for ~/.formic/config.json */

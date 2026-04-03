@@ -68,6 +68,24 @@ const activeWorkflows = new Map<string, {
 // Tracks tasks that have been requested to stop, so workflow IIFEs can abort at step boundaries
 const stoppedWorkflows = new Set<string>();
 
+/**
+ * Increment the retryCount on a task after an execution failure.
+ * Returns the new retryCount value so callers can decide whether to engage the kill switch.
+ */
+async function incrementRetryCount(taskId: string, caller: string): Promise<number> {
+  try {
+    const task = await getTask(taskId);
+    if (!task) return 0;
+    const newCount = (task.retryCount ?? 0) + 1;
+    await updateTask(taskId, { retryCount: newCount });
+    console.log(`[Workflow] Incremented retryCount for ${taskId} to ${newCount} (caller: ${caller})`);
+    return newCount;
+  } catch (err) {
+    console.warn(`[Workflow] Failed to increment retryCount for ${taskId}:`, err instanceof Error ? err.message : 'Unknown error');
+    return 0;
+  }
+}
+
 // Store WebSocket connections per task (shared with runner)
 const taskConnections = new Map<string, Set<WebSocket>>();
 
@@ -1236,6 +1254,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
           timestamp: new Date().toISOString(),
         });
       } else {
+        await incrementRetryCount(taskId, 'workflow.executeQuickTask.failed');
         await updateTaskStatus(taskId, 'todo', null, 'workflow.executeQuickTask.failed');
         broadcastToTask(taskId, {
           type: 'error',
@@ -1347,6 +1366,7 @@ export async function executeSingleStep(
         } else {
           // Execution failed
           console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
+          await incrementRetryCount(taskId, 'workflow.executeSingleStep.execute_failed');
           await updateTaskStatus(taskId, 'todo', null, 'workflow.executeSingleStep.execute_failed');
         }
       } finally {
@@ -1376,6 +1396,7 @@ export async function executeSingleStep(
         await updateTaskStatus(taskId, 'todo', null, 'workflow.executeSingleStep.step_success');
       } else {
         // On failure, return to todo
+        await incrementRetryCount(taskId, 'workflow.executeSingleStep.step_failed');
         await updateTaskStatus(taskId, 'todo', null, 'workflow.executeSingleStep.step_failed');
       }
 
@@ -1508,6 +1529,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     const briefSuccess = await runStep('brief');
     if (!briefSuccess) {
       activeWorkflows.delete(taskId);
+      await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.brief_failed');
       await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.brief_failed');
       return;
     }

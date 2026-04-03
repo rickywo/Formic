@@ -16,6 +16,7 @@ export interface EngineConfig {
   queuePollIntervalMs: number;
   maxExecuteIterations: number;
   stepTimeoutMs: number;
+  maxExecutionRetries: number;
 }
 
 export const engineConfig: EngineConfig = {
@@ -28,6 +29,7 @@ export const engineConfig: EngineConfig = {
   queuePollIntervalMs: 5000,
   maxExecuteIterations: 5,
   stepTimeoutMs: 6000000,
+  maxExecutionRetries: 3,
 };
 
 export async function refreshEngineConfig(): Promise<void> {
@@ -42,4 +44,5 @@ export async function refreshEngineConfig(): Promise<void> {
   engineConfig.queuePollIntervalMs = s.queuePollIntervalMs ?? 5000;
   engineConfig.maxExecuteIterations = s.maxExecuteIterations ?? 5;
   engineConfig.stepTimeoutMs = s.stepTimeoutMs ?? 6000000;
+  engineConfig.maxExecutionRetries = s.maxExecutionRetries ?? 3;
 }
