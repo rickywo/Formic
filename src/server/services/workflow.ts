@@ -425,12 +425,20 @@ function runWorkflowStep(
   });
 
   // Persist child.pid to board.json so the OS process is identifiable for running tasks.
-  // This is a fire-and-forget write — the task status was already set by the caller,
-  // so we only patch the pid field without changing status.
+  // We read the current task status and re-set it with the actual PID so that the
+  // updateTaskStatus write carries the real PID without racing against the caller's
+  // earlier status transition (which omits PID).
   if (child.pid) {
-    void updateTask(taskId, { pid: child.pid }).catch((err) => {
-      console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-    });
+    (async () => {
+      try {
+        const currentTask = await getTask(taskId);
+        if (currentTask) {
+          await updateTaskStatus(taskId, currentTask.status, child.pid, 'workflow.process_spawned');
+        }
+      } catch (err) {
+        console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+      }
+    })();
   }
 
   const logBuffer: string[] = [];
