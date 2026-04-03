@@ -7311,7 +7311,7 @@
           <ul>
             <li>Each child task may declare <code>depends_on: ["sibling-task-id", ...]</code> in the architect output.</li>
             <li>Blocked tasks display a dependency indicator on their card showing which tasks they are waiting for.</li>
-            <li>Automatic unblocking runs whenever a task completes — Formic checks all blocked tasks and unblocks those whose dependencies are now all done.</li>
+            <li>Automatic unblocking runs whenever a task reaches review or done — Formic checks all blocked tasks and unblocks those whose dependencies have all completed execution.</li>
           </ul>
 
           <h3>Viewing Child Tasks</h3>
@@ -8420,7 +8420,7 @@
           return 'running';
         }
         if (status === 'blocked') {
-          return 'queued';
+          return 'todo';
         }
         return status;
       }
