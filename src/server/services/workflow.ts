@@ -540,6 +540,9 @@ function runExecuteIteration(
 
     if (child.pid) {
       activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
+      void updateTask(taskId, { pid: child.pid }).catch((err) => {
+        console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+      });
     }
   });
 }
