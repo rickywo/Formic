@@ -15,6 +15,9 @@ import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subta
 import { releaseLeases } from './leaseManager.js';
 import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
 
+/** Async write mutex — serializes all saveBoard() calls to prevent concurrent write corruption */
+let saveLock: Promise<void> = Promise.resolve();
+
 /**
  * Get project name from workspace folder name
  */
@@ -172,11 +175,48 @@ export async function getBoardWithBootstrap(): Promise<Board> {
 
 /**
  * Save the board to workspace/.formic/board.json
+ * Uses atomic temp-file+rename, rolling backup, and async mutex.
  */
 export async function saveBoard(board: Board): Promise<void> {
+  // Validate before any disk I/O
+  if (!validateBoard(board)) {
+    console.error('[Store] Rejected invalid board write');
+    throw new Error('[Store] Rejected invalid board write');
+  }
+
+  // Chain onto the mutex to serialize concurrent calls
+  const resultPromise = saveLock.then(
+    () => saveBoardInternal(board),
+    () => saveBoardInternal(board)  // proceed even if previous save failed
+  );
+  // Keep chain alive regardless of success/failure so future saves aren't blocked
+  saveLock = resultPromise.catch(() => {});
+
+  return resultPromise;
+}
+
+async function saveBoardInternal(board: Board): Promise<void> {
   await ensureFormicDir();
   const boardPath = getBoardPath();
-  await writeFile(boardPath, JSON.stringify(board, null, 2), 'utf-8');
+  const tmpPath = boardPath + '.tmp';
+  const backupPath = boardPath + '.backup';
+
+  // Rolling backup: copy current board.json → board.json.backup
+  try {
+    await copyFile(boardPath, backupPath);
+  } catch (err) {
+    console.warn('[Store] Could not create backup (may not exist yet):', err instanceof Error ? err.message : 'Unknown error');
+  }
+
+  // Atomic write: write to .tmp then rename
+  try {
+    await writeFile(tmpPath, JSON.stringify(board, null, 2), 'utf-8');
+    await rename(tmpPath, boardPath);
+  } catch (error) {
+    const err = error as Error;
+    console.error('[Store] Failed to save board:', err.message);
+    throw new Error(`[Store] Failed to save board: ${err.message}`);
+  }
 }
 
 /**
