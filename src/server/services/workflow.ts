@@ -537,21 +537,25 @@ function runWorkflowStep(
 /**
  * Run a single iteration of the execute step and return success status
  */
-function runExecuteIteration(
+async function runExecuteIteration(
   taskId: string,
   prompt: string
 ): Promise<boolean> {
-  return new Promise((resolve) => {
-    const child = runWorkflowStep(taskId, 'execute', prompt, (success) => {
-      resolve(success);
-    });
+  const child = runWorkflowStep(taskId, 'execute', prompt, () => {});
 
-    if (child.pid) {
-      activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
-      void updateTask(taskId, { pid: child.pid }).catch((err) => {
-        console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-      });
-    }
+  if (child.pid) {
+    activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
+    await updateTask(taskId, { pid: child.pid });
+  }
+
+  // Wait for the child process to complete
+  return new Promise((resolve) => {
+    child.on('close', (code) => {
+      resolve(code === 0);
+    });
+    child.on('error', () => {
+      resolve(false);
+    });
   });
 }
 
