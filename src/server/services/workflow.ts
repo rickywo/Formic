@@ -332,7 +332,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
       declareSuccess = true;
     } else {
       let pidPromise: Promise<void> | undefined;
-      declareSuccess = await new Promise<boolean>((resolve) => {
+      const resultPromise = new Promise<boolean>((resolve) => {
         const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', skillResult.content, (success) => {
           resolve(success);
         });
@@ -342,8 +342,9 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
           activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
         }
       });
-      // Await PID persistence so board.json has the correct PID
+      // Await PID persistence so board.json has the correct PID while the process runs
       if (pidPromise) await pidPromise;
+      declareSuccess = await resultPromise;
     }
   } catch {
     declareSuccess = true; // Skip on error — backwards compatible
@@ -434,14 +435,17 @@ function runWorkflowStep(
   });
 
   // Persist child.pid to board.json so the OS process is identifiable for running tasks.
-  // We use updateTask to patch ONLY the pid field without touching the status, avoiding a
-  // race where the task status may have already advanced by the time this promise runs.
-  // Callers must `await pidPersisted` before proceeding to ensure the PID write completes
-  // before any competing board writes.
+  // We read the task's current status and re-write it together with the PID in a single
+  // updateTaskStatus call so the PID is set atomically with the status, and the structured
+  // status transition log records the PID assignment.  Callers must `await pidPersisted`
+  // before proceeding to ensure the PID write completes before any competing board writes.
   const pidPersisted: Promise<void> = (async () => {
     if (!child.pid) return;
     try {
-      await updateTask(taskId, { pid: child.pid });
+      const currentTask = await getTask(taskId);
+      if (currentTask) {
+        await updateTaskStatus(taskId, currentTask.status, child.pid, 'workflow.process_spawned');
+      }
     } catch (err) {
       console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
     }
@@ -763,28 +767,28 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
   const logBuffer: string[] = [];
   const stderrLines: string[] = [];
 
+  let child: ReturnType<typeof spawn>;
+  try {
+    child = spawn(cmd, args, {
+      cwd: getWorkspacePath(),
+      env: { ...process.env },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.log(`[Verifier] Failed to spawn verification command: ${message}`);
+    return { success: false, stderrLines: [message] };
+  }
+
+  // Persist verifier PID to board.json using updateTask to patch only the pid field,
+  // avoiding a race where the status may have changed between spawn and this write.
+  if (child.pid) {
+    await updateTask(taskId, { pid: child.pid }).catch((err) => {
+      console.warn(`[Verifier] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+    });
+  }
+
   return new Promise((resolve) => {
-    let child: ReturnType<typeof spawn>;
-    try {
-      child = spawn(cmd, args, {
-        cwd: getWorkspacePath(),
-        env: { ...process.env },
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      console.log(`[Verifier] Failed to spawn verification command: ${message}`);
-      resolve({ success: false, stderrLines: [message] });
-      return;
-    }
-
-    // Persist verifier PID to board.json
-    if (child.pid) {
-      void updateTaskStatus(taskId, 'verifying', child.pid, 'workflow.executeVerifyStep.process_spawned').catch((err) => {
-        console.warn(`[Verifier] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-      });
-    }
-
     child.on('error', (err: NodeJS.ErrnoException) => {
       const message = err.message;
       console.log(`[Verifier] Failed to spawn verification command: ${message}`);
