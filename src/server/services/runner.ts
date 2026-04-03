@@ -117,11 +117,14 @@ export async function runAgent(taskId: string, title: string, context: string, d
       const memories = await getRelevantMemories(task);
       if (memories.length > 0) {
         console.log(`[Runner] Injecting ${memories.length} memories into agent context for task ${taskId}`);
-        pastExperienceSection = `\n## Past Experience (${memories.length} relevant memories)\n${memories.map((m, i) => `${i + 1}. [${m.type}] ${m.content}`).join('\n')}\n`;
+        const entries = memories
+          .map((m, i) => `${i + 1}. [${m.type.toUpperCase()}] ${m.content}`)
+          .join('\n');
+        pastExperienceSection = `\n\n## Past Experience\nThe following memories from previous tasks may be relevant:\n${entries}`;
       }
     }
   } catch (error) {
-    console.warn('[Runner] Failed to load task for memory injection:', error);
+    console.warn('[Runner] Memory retrieval failed, proceeding without memories:', error);
   }
 
   // Retrieve registered tools for context injection

@@ -85,37 +85,42 @@ export async function getMemories(): Promise<MemoryEntry[]> {
 
 /**
  * Compute a relevance score for a single memory entry against a task.
- * - Tag overlap: +2 per relevance_tag that appears (case-insensitive) in task title or context
- * - File path boost: +3 extra per matching tag that looks like a file path (contains '/' or '.')
- * - Recency decay: subtract up to −5 (weeks elapsed since creation, capped at 5)
- * Returns a score of minimum 0.
+ * - Tag overlap: +1 per relevance_tag (case-insensitive) matching a declared file path or title keyword
+ * - Recency bonus: +2 if entry was created within the last 7 days
  */
 function scoreMemory(entry: MemoryEntry, task: Task): number {
-  const text = `${task.title} ${task.context}`.toLowerCase();
-  let score = 0;
+  const declaredPaths = [
+    ...(task.declaredFiles?.exclusive ?? []),
+    ...(task.declaredFiles?.shared ?? []),
+  ].map(p => p.toLowerCase());
 
+  const titleKeywords = task.title
+    .split(/[\s\-_]+/)
+    .map(w => w.toLowerCase())
+    .filter(w => w.length > 0);
+
+  let score = 0;
   for (const tag of entry.relevance_tags) {
-    if (text.includes(tag.toLowerCase())) {
-      score += 2;
-      if (tag.includes('/') || tag.includes('.')) {
-        score += 3;
-      }
+    const lowerTag = tag.toLowerCase();
+    if (declaredPaths.some(p => p === lowerTag) || titleKeywords.some(k => k === lowerTag)) {
+      score += 1;
     }
   }
 
-  const weeksElapsed = (Date.now() - Date.parse(entry.created_at)) / (7 * 24 * 60 * 60 * 1000);
-  score -= Math.min(5, Math.floor(weeksElapsed));
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+  if (Date.now() - new Date(entry.created_at).getTime() < SEVEN_DAYS_MS) {
+    score += 2;
+  }
 
-  return Math.max(0, score);
+  return score;
 }
 
 /**
  * Return memory entries most relevant to the given task, scored and ranked.
  *
  * Scoring strategy:
- * - Tag overlap: +2 per relevance_tag that appears (case-insensitive) in task title or context
- * - File path boost: +3 extra per matching tag that looks like a file path (contains '/' or '.')
- * - Recency decay: subtract up to −5 (weeks elapsed since creation, capped at 5)
+ * - Tag overlap: +1 per relevance_tag matching a declared file path or title keyword (case-insensitive)
+ * - Recency bonus: +2 if entry was created within the last 7 days
  *
  * Only entries with score > 0 are returned, sorted descending by score,
  * capped at MAX_RELEVANT_MEMORIES results.
