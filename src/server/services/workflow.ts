@@ -1189,21 +1189,20 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
         return;
       }
 
+      let pidPromise: Promise<void> | undefined;
       const resultPromise = new Promise<boolean>((resolve) => {
-        const child = runWorkflowStep(taskId, 'execute', prompt, (success) => {
+        const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (success) => {
           resolve(success);
         });
+        pidPromise = pidPersisted;
 
         if (child.pid) {
           activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
         }
       });
 
-      // Persist child PID to board.json before awaiting completion
-      const quickWorkflow = activeWorkflows.get(taskId);
-      if (quickWorkflow?.process.pid) {
-        await updateTask(taskId, { pid: quickWorkflow.process.pid });
-      }
+      // Await PID persistence before proceeding
+      if (pidPromise) await pidPromise;
 
       const success = await resultPromise;
 
@@ -1363,7 +1362,7 @@ export async function executeSingleStep(
   await updateWorkflowStep(taskId, step);
 
   return new Promise((resolve) => {
-    const child = runWorkflowStep(taskId, step, prompt!, async (success) => {
+    const { child, pidPersisted } = runWorkflowStep(taskId, step, prompt!, async (success) => {
       activeWorkflows.delete(taskId);
 
       if (success) {
@@ -1380,12 +1379,10 @@ export async function executeSingleStep(
 
       resolve({ success, pid: child.pid || 0 });
     });
+    void pidPersisted;
 
     if (child.pid) {
       activeWorkflows.set(taskId, { process: child, currentStep: step });
-      void updateTask(taskId, { pid: child.pid }).catch((err) => {
-        console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-      });
     }
   });
 }
@@ -1906,18 +1903,18 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
         return;
       }
 
+      let pidPromise: Promise<void> | undefined;
       const success = await new Promise<boolean>((resolve) => {
-        const child = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
+        const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
           resolve(stepSuccess);
         });
+        pidPromise = pidPersisted;
 
         if (child.pid) {
           activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
-          void updateTask(taskId, { pid: child.pid }).catch((err) => {
-            console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-          });
         }
       });
+      void pidPromise;
 
       activeWorkflows.delete(taskId);
 
