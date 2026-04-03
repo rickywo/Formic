@@ -407,14 +407,19 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
 }
 
 /**
- * Run a single workflow step
+ * Run a single workflow step.
+ *
+ * Returns the child process and a `pidPersisted` promise that resolves once the
+ * child's PID has been written to board.json via `updateTaskStatus`.  Callers
+ * should `await pidPersisted` before proceeding so the PID is visible in the
+ * API and cannot be lost to a concurrent board write.
  */
 function runWorkflowStep(
   taskId: string,
   step: 'brief' | 'plan' | 'execute',
   prompt: string,
   onComplete: (success: boolean) => void
-): ChildProcess {
+): { child: ChildProcess; pidPersisted: Promise<void> } {
   console.log(`[Workflow] Starting ${step} step for task ${taskId}`);
 
   // Use agent adapter for CLI invocation
@@ -428,14 +433,20 @@ function runWorkflowStep(
   });
 
   // Persist child.pid to board.json so the OS process is identifiable for running tasks.
-  // This is fire-and-forget: the caller has already set the task status, so we only patch
-  // the pid field. By the time the onComplete callback fires (which nulls the pid via
-  // updateTaskStatus), the child process will have exited and this write will have settled.
-  if (child.pid) {
-    void updateTask(taskId, { pid: child.pid }).catch((err) => {
+  // We read the task's current status and re-write it together with the PID in a single
+  // updateTaskStatus call so the PID is set atomically.  Callers await `pidPersisted`
+  // to eliminate the read-modify-write race that the old fire-and-forget had.
+  const pidPersisted: Promise<void> = (async () => {
+    if (!child.pid) return;
+    try {
+      const currentTask = await getTask(taskId);
+      if (currentTask) {
+        await updateTaskStatus(taskId, currentTask.status, child.pid, 'workflow.process_spawned');
+      }
+    } catch (err) {
       console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-    });
-  }
+    }
+  })();
 
   const logBuffer: string[] = [];
   let hasCompleted = false;
