@@ -202,6 +202,18 @@ function broadcastStreamDelta(delta: string): void {
 }
 
 /**
+ * Broadcast agent stream status (thinking, tool use) to all connected clients
+ */
+function broadcastStreamStatus(status: string): void {
+  const data = JSON.stringify({ type: 'stream_status', status });
+  for (const ws of assistantConnections) {
+    if (ws.readyState === 1) {
+      ws.send(data);
+    }
+  }
+}
+
+/**
  * Broadcast status update to all connected clients
  */
 function broadcastStatus(): void {
@@ -600,6 +612,8 @@ function processMessage(content: string): void {
       if (result.type === 'text' && result.content) {
         streamingContent += result.content;
         broadcastStreamDelta(result.content);
+      } else if (result.type === 'status' && result.content) {
+        broadcastStreamStatus(result.content);
       } else if (result.type === 'result') {
         // Final result
         const finalContent = streamingContent.trim() || result.content || '';
@@ -631,13 +645,24 @@ function processMessage(content: string): void {
   // Handle stderr
   child.stderr?.on('data', (data: Buffer) => {
     const text = data.toString().trim();
-    // Filter out spinner characters and copilot verbose tool/status messages
-    if (text &&
-      !text.includes('⠋') && !text.includes('⠙') && !text.includes('⠹') &&
+    if (!text) return;
+
+    // Capture Copilot status messages and broadcast as stream_status
+    if (text.includes('● Calling')) {
+      const match = text.match(/● Calling\s+(.+)/);
+      const toolName = match ? match[1].replace(/\.{3}$/, '').trim() : 'tool';
+      broadcastStreamStatus(`Using tool: ${toolName}…`);
+      return;
+    }
+    if (text.includes('● Reading')) {
+      broadcastStreamStatus('Reading files…');
+      return;
+    }
+
+    // Filter out spinner characters and other noise
+    if (!text.includes('⠋') && !text.includes('⠙') && !text.includes('⠹') &&
       !text.includes('Disabled tools:') &&
-      !text.includes('Unknown tool name') &&
-      !text.includes('● Calling') &&
-      !text.includes('● Reading')
+      !text.includes('Unknown tool name')
     ) {
       console.log('[AssistantManager] stderr:', text);
     }

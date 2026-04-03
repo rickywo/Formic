@@ -26,9 +26,42 @@ export function parseClaudeStreamJson(line: string): OutputParseResult {
         content?: Array<{ type: string; text?: string }>;
       };
       result?: string;
+      index?: number;
+      content_block?: { type?: string; name?: string };
+      delta?: { type?: string };
     };
 
     const eventType = event.type;
+
+    // Handle content_block_start events (thinking / tool_use indicators)
+    if (eventType === 'content_block_start') {
+      const blockType = event.content_block?.type;
+      if (blockType === 'thinking') {
+        return { type: 'status', content: 'Thinking…' };
+      }
+      if (blockType === 'tool_use') {
+        const toolName = event.content_block?.name || 'unknown';
+        return { type: 'status', content: `Using tool: ${toolName}…` };
+      }
+      return { type: 'unknown', raw: event };
+    }
+
+    // Handle content_block_delta events (maintain status state)
+    if (eventType === 'content_block_delta') {
+      const deltaType = event.delta?.type;
+      if (deltaType === 'thinking_delta') {
+        return { type: 'status', content: 'Thinking…' };
+      }
+      if (deltaType === 'input_json_delta') {
+        return { type: 'status', content: 'Using tool…' };
+      }
+      return { type: 'unknown', raw: event };
+    }
+
+    // Handle content_block_stop events (no visible output)
+    if (eventType === 'content_block_stop') {
+      return { type: 'unknown', raw: event };
+    }
 
     if (eventType === 'assistant') {
       // Extract text from assistant message content blocks

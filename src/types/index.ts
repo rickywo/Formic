@@ -277,7 +277,7 @@ export interface AssistantSession {
 }
 
 // Output Parser Types (for agent-agnostic CLI output parsing)
-export type OutputEventType = 'text' | 'result' | 'system' | 'error' | 'unknown';
+export type OutputEventType = 'text' | 'result' | 'system' | 'error' | 'status' | 'unknown';
 
 export interface OutputParseResult {
   /** Type of parsed event */
