@@ -324,29 +324,30 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
     timestamp: new Date().toISOString(),
   });
 
-  const declareSuccess = await new Promise<boolean>((resolve) => {
-    const skillResult = loadSkillPrompt('declare', task);
-    skillResult.then(result => {
-      if (!result.success) {
-        console.log('[Workflow] Declare skill not found, skipping declaration');
-        resolve(true); // Skip if no declare skill - backwards compatible
-        return;
-      }
+  let declareSuccess: boolean;
+  try {
+    const skillResult = await loadSkillPrompt('declare', task);
+    if (!skillResult.success) {
+      console.log('[Workflow] Declare skill not found, skipping declaration');
+      declareSuccess = true;
+    } else {
+      let pidPromise: Promise<void> | undefined;
+      declareSuccess = await new Promise<boolean>((resolve) => {
+        const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', skillResult.content, (success) => {
+          resolve(success);
+        });
+        pidPromise = pidPersisted;
 
-      const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', result.content, (success) => {
-        resolve(success);
+        if (child.pid) {
+          activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
+        }
       });
-
-      if (child.pid) {
-        activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
-      }
-      // Await PID persistence inside the promise chain so board.json
-      // has the correct PID before the step completes
-      pidPersisted.catch(() => {});
-    }).catch(() => {
-      resolve(true); // Skip on error
-    });
-  });
+      // Await PID persistence so board.json has the correct PID
+      if (pidPromise) await pidPromise;
+    }
+  } catch {
+    declareSuccess = true; // Skip on error — backwards compatible
+  }
 
   activeWorkflows.delete(taskId);
 
