@@ -542,7 +542,7 @@ function runWorkflowStep(
     onComplete(code === 0);
   });
 
-  return child;
+  return { child, pidPersisted };
 }
 
 /**
