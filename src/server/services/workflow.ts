@@ -755,6 +755,13 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
       return;
     }
 
+    // Persist verifier PID to board.json
+    if (child.pid) {
+      void updateTaskStatus(taskId, 'verifying', child.pid, 'workflow.executeVerifyStep.process_spawned').catch((err) => {
+        console.warn(`[Verifier] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+      });
+    }
+
     child.on('error', (err: NodeJS.ErrnoException) => {
       const message = err.message;
       console.log(`[Verifier] Failed to spawn verification command: ${message}`);
