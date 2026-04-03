@@ -541,22 +541,24 @@ async function runExecuteIteration(
   taskId: string,
   prompt: string
 ): Promise<boolean> {
-  const child = runWorkflowStep(taskId, 'execute', prompt, () => {});
+  const resultPromise = new Promise<boolean>((resolve) => {
+    const child = runWorkflowStep(taskId, 'execute', prompt, (success) => {
+      resolve(success);
+    });
 
-  if (child.pid) {
-    activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
-    await updateTask(taskId, { pid: child.pid });
+    if (child.pid) {
+      activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
+    }
+  });
+
+  // Persist child PID to board.json. The activeWorkflows Map is set synchronously
+  // above, so we can read the PID from it before the process completes.
+  const workflow = activeWorkflows.get(taskId);
+  if (workflow?.process.pid) {
+    await updateTask(taskId, { pid: workflow.process.pid });
   }
 
-  // Wait for the child process to complete
-  return new Promise((resolve) => {
-    child.on('close', (code) => {
-      resolve(code === 0);
-    });
-    child.on('error', () => {
-      resolve(false);
-    });
-  });
+  return resultPromise;
 }
 
 /**
