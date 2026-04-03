@@ -897,6 +897,18 @@
       color: #dc2626;
     }
 
+    [data-theme="light"] .assistant-status.thinking {
+      background: rgba(139, 92, 246, 0.1);
+      border-color: rgba(139, 92, 246, 0.08);
+      color: #7c3aed;
+      animation: status-thinking-pulse-light 2s ease-in-out infinite;
+    }
+
+    @keyframes status-thinking-pulse-light {
+      0%, 100% { background: rgba(139, 92, 246, 0.1); }
+      50% { background: rgba(139, 92, 246, 0.22); }
+    }
+
     [data-theme="light"] .assistant-message.user {
       background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
       border: 1px solid rgba(99, 102, 241, 0.12);
@@ -3470,6 +3482,18 @@
       color: #fca5a5;
     }
 
+    .assistant-status.thinking {
+      background: rgba(139, 92, 246, 0.15);
+      border-color: rgba(139, 92, 246, 0.1);
+      color: #c4b5fd;
+      animation: status-thinking-pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes status-thinking-pulse {
+      0%, 100% { background: rgba(139, 92, 246, 0.15); }
+      50% { background: rgba(139, 92, 246, 0.3); }
+    }
+
     .assistant-header-actions {
       display: flex;
       gap: 6px;
@@ -3565,6 +3589,15 @@
     @keyframes thinking-fade-in {
       from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes thinking-fade-out {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(-4px); }
+    }
+
+    .assistant-message.thinking.removing {
+      animation: thinking-fade-out 0.15s ease-in forwards;
     }
 
     /* System Message - Minimal Indicator */
@@ -3787,7 +3820,13 @@
     .assistant-send-btn:disabled {
       opacity: 0.4;
       cursor: not-allowed;
+      pointer-events: none;
       transform: none;
+    }
+
+    .assistant-input[readonly] {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     /* Empty State */
@@ -9582,6 +9621,10 @@
           if (isThinking) {
             isThinking = false;
             removeThinkingBubble();
+            // Transition status badge from thinking to running
+            const statusEl = document.getElementById('assistant-status');
+            statusEl.className = 'assistant-status running';
+            statusEl.textContent = 'Running';
           }
           if (!isStreaming) {
             isStreaming = true;
@@ -9602,6 +9645,10 @@
             streamingContent = '';
             document.getElementById('assistant-fab').classList.remove('responding');
           }
+          // Reset status badge to idle
+          const statusEl = document.getElementById('assistant-status');
+          statusEl.className = 'assistant-status idle';
+          statusEl.textContent = 'Idle';
           setInputDisabled(false);
           assistantMessages.push(data.message);
           renderAssistantMessages();
@@ -9611,6 +9658,10 @@
           isThinking = false;
           streamingContent = '';
           removeThinkingBubble();
+          // Set status badge to error
+          const statusEl = document.getElementById('assistant-status');
+          statusEl.className = 'assistant-status error';
+          statusEl.textContent = 'Error';
           setInputDisabled(false);
         } else if (data.type === 'board-updated') {
           // Board state changed (e.g., task created) - refresh the board
@@ -9633,6 +9684,12 @@
 
       assistantWs.onclose = () => {
         console.log('[Assistant] WebSocket disconnected');
+        // Clean up thinking/streaming state on disconnect
+        if (isThinking) {
+          isThinking = false;
+          removeThinkingBubble();
+        }
+        setInputDisabled(false);
         // Try to reconnect after a delay
         setTimeout(() => {
           if (document.getElementById('assistant-panel').classList.contains('open')) {
@@ -9719,7 +9776,16 @@
       const container = document.getElementById('assistant-messages');
       const bubble = container.querySelector('.assistant-message.thinking');
       if (bubble) {
-        bubble.remove();
+        bubble.classList.add('removing');
+        bubble.addEventListener('animationend', () => bubble.remove(), { once: true });
+        // Safety fallback if animationend doesn't fire
+        setTimeout(() => { if (bubble.parentNode) bubble.remove(); }, 200);
+      }
+    }
+
+    function _blockEnterKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
       }
     }
 
@@ -9728,12 +9794,14 @@
       const sendBtn = document.getElementById('assistant-send-btn');
       if (input) {
         input.readOnly = disabled;
-        input.style.opacity = disabled ? '0.5' : '1';
+        if (disabled) {
+          input.addEventListener('keydown', _blockEnterKey);
+        } else {
+          input.removeEventListener('keydown', _blockEnterKey);
+        }
       }
       if (sendBtn) {
         sendBtn.disabled = disabled;
-        sendBtn.style.opacity = disabled ? '0.4' : '1';
-        sendBtn.style.cursor = disabled ? 'not-allowed' : 'pointer';
       }
     }
 
@@ -9802,7 +9870,11 @@
       // Show immediate "Connecting…" placeholder
       isThinking = true;
       document.getElementById('assistant-fab').classList.add('responding');
-      showThinkingBubble('Connecting…');
+      // Set status badge to thinking state
+      const statusEl = document.getElementById('assistant-status');
+      statusEl.className = 'assistant-status thinking';
+      statusEl.textContent = 'Thinking';
+      showThinkingBubble('Thinking…');
 
       // Start session if not running
       if (assistantSession.status !== 'running') {
