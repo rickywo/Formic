@@ -1189,18 +1189,23 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
         return;
       }
 
-      const success = await new Promise<boolean>((resolve) => {
+      const resultPromise = new Promise<boolean>((resolve) => {
         const child = runWorkflowStep(taskId, 'execute', prompt, (success) => {
           resolve(success);
         });
 
         if (child.pid) {
           activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
-          void updateTask(taskId, { pid: child.pid }).catch((err) => {
-            console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-          });
         }
       });
+
+      // Persist child PID to board.json before awaiting completion
+      const quickWorkflow = activeWorkflows.get(taskId);
+      if (quickWorkflow?.process.pid) {
+        await updateTask(taskId, { pid: quickWorkflow.process.pid });
+      }
+
+      const success = await resultPromise;
 
       activeWorkflows.delete(taskId);
 
