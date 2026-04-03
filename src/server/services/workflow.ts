@@ -1274,7 +1274,7 @@ export async function executeSingleStep(
     case 'execute': {
       // Execute step uses iterative loop with subtask completion checking
       console.log(`[Workflow] Starting execute step for task ${taskId}`);
-      await updateTaskStatus(taskId, 'running', null, 'workflow.executeSingleStep.execute_start');
+      await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeSingleStep.execute_start');
       await updateWorkflowStep(taskId, 'execute');
 
       // Abort if stop was requested before execute begins
@@ -1408,7 +1408,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       }
     }
 
-    await updateTaskStatus(taskId, status, null, 'workflow.executeFullWorkflow.step_start');
+    await updateTaskStatus(taskId, status, undefined, 'workflow.executeFullWorkflow.step_start');
     await updateWorkflowStep(taskId, step);
 
     broadcastToTask(taskId, {
@@ -1433,7 +1433,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
 
   // Set status to 'briefing' immediately to prevent queue processor re-dispatch
   // during the async setup window (createSafePoint + skill loading).
-  await updateTaskStatus(taskId, 'briefing', null, 'workflow.executeFullWorkflow.init');
+  await updateTaskStatus(taskId, 'briefing', undefined, 'workflow.executeFullWorkflow.init');
 
   // Run steps sequentially
   (async () => {
@@ -1524,7 +1524,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     // Wrap post-lease-acquisition code in try/finally to guarantee lease release
     // even if an unexpected exception occurs during execution or collision detection
     try {
-      await updateTaskStatus(taskId, 'running', null, 'workflow.executeFullWorkflow.execute_start');
+      await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeFullWorkflow.execute_start');
       await updateWorkflowStep(taskId, 'execute');
 
       const executeResult = await executeWithIterativeLoop(taskId, currentTask);
@@ -1591,7 +1591,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
 export async function executeFromDeclare(taskId: string): Promise<void> {
   // Change status to 'declaring' immediately so the queue processor cannot re-dispatch this task
   // before the async IIFE begins (mirrors the 'briefing' guard in executeFullWorkflow).
-  await updateTaskStatus(taskId, 'declaring', null, 'workflow.executeFromDeclare.init');
+  await updateTaskStatus(taskId, 'declaring', undefined, 'workflow.executeFromDeclare.init');
 
   (async () => {
     try {
@@ -1667,7 +1667,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
       }
 
       try {
-        await updateTaskStatus(taskId, 'running', null, 'workflow.executeFromDeclare.execute_start');
+        await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeFromDeclare.execute_start');
         await updateWorkflowStep(taskId, 'execute');
 
         const executeResult = await executeWithIterativeLoop(taskId, taskForExecution);
@@ -1830,7 +1830,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
   await createSafePoint(taskId);
 
   // Update status to architecting
-  await updateTaskStatus(taskId, 'architecting', null, 'workflow.runArchitectStep.start');
+  await updateTaskStatus(taskId, 'architecting', undefined, 'workflow.runArchitectStep.start');
   await updateWorkflowStep(taskId, 'architect');
 
   // Load skill prompt with fallback
