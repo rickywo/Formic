@@ -125,6 +125,18 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     // Ensure ~/.formic/config.json exists on first startup
     await loadConfig();
 
+    // Explicitly load and validate the board before accepting traffic.
+    // This triggers corruption archival, backup restoration, or fresh board
+    // creation so that problems are caught before any client connects.
+    try {
+      const board = await loadBoard();
+      console.warn(`[Server] Board loaded successfully (${board.tasks.length} tasks)`);
+    } catch (boardErr) {
+      console.error('[Server] FATAL: Cannot load or recover board — exiting',
+        boardErr instanceof Error ? boardErr.message : 'Unknown error');
+      process.exit(1);
+    }
+
     await fastify.listen({ port, host });
 
     // Register the live bound port so agent prompts always target the correct address
