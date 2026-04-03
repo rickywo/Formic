@@ -1,165 +1,173 @@
 /**
  * Tool Catalog Service
- * Persists a catalog of reusable agent-created tools to .formic/tools/tools.json.
- * Tools are shell commands registered by agents during task execution and can be
- * looked up and invoked (with usage tracking) across future tasks.
+ * Manages reusable agent-created tools stored as individual directories
+ * in .formic/tools/<tool-name>/ with a manifest.json and script files.
  */
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { getFormicDir } from '../utils/paths.js';
-import type { Tool, ToolStore } from '../../types/index.js';
+import type { Tool, ToolManifest } from '../../types/index.js';
 
-// In-memory async mutex to serialize concurrent read-modify-write operations on tools.json.
-let writeLock: Promise<void> = Promise.resolve();
-
-function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  const result = writeLock.then(fn);
-  // Swallow rejections on the lock chain so one failure doesn't permanently block the queue.
-  writeLock = result.then(
-    () => undefined,
-    () => undefined,
-  );
-  return result;
-}
-
-/** Returns the absolute path to the tools catalog JSON file. */
-export function getToolStorePath(): string {
-  return path.join(getFormicDir(), 'tools', 'tools.json');
+/** Returns the absolute path to the .formic/tools/ directory. */
+export function getToolsDir(): string {
+  return path.join(getFormicDir(), 'tools');
 }
 
 /** Creates the .formic/tools/ directory if it does not exist. */
 async function ensureToolsDir(): Promise<void> {
-  await mkdir(path.join(getFormicDir(), 'tools'), { recursive: true });
+  await mkdir(getToolsDir(), { recursive: true });
 }
 
 /**
- * Load the tool store from disk.
- * Returns a default empty store if the file does not exist or is malformed.
+ * Type guard that validates an unknown value is a valid ToolManifest.
+ * Checks that all required fields exist with correct types.
  */
-export async function loadToolStore(): Promise<ToolStore> {
-  const storePath = getToolStorePath();
-
-  if (!existsSync(storePath)) {
-    return { version: '1.0', tools: [] };
-  }
-
-  try {
-    const content = await readFile(storePath, 'utf-8');
-    const parsed = JSON.parse(content) as unknown;
-    if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      'version' in parsed &&
-      'tools' in parsed &&
-      Array.isArray((parsed as { tools: unknown }).tools)
-    ) {
-      return parsed as ToolStore;
-    }
-    console.warn('[Tools] tools.json has unexpected structure, returning empty store');
-    return { version: '1.0', tools: [] };
-  } catch (error) {
-    console.warn('[Tools] Failed to load tool store:', error);
-    return { version: '1.0', tools: [] };
-  }
+export function validateToolManifest(manifest: unknown): manifest is ToolManifest {
+  if (typeof manifest !== 'object' || manifest === null) return false;
+  const m = manifest as Record<string, unknown>;
+  return (
+    typeof m.name === 'string' && m.name.length > 0 &&
+    typeof m.description === 'string' &&
+    typeof m.command === 'string' &&
+    typeof m.created_by === 'string' &&
+    typeof m.usage_count === 'number'
+  );
 }
 
 /**
- * Persist the tool store to disk.
- * Creates the .formic/tools/ directory lazily before writing.
- */
-export async function saveToolStore(store: ToolStore): Promise<void> {
-  await ensureToolsDir();
-  await writeFile(getToolStorePath(), JSON.stringify(store, null, 2), 'utf-8');
-}
-
-/**
- * Return all tools in the catalog.
+ * List all tools in .formic/tools/.
+ * Reads each subdirectory's manifest.json, validates it, and returns resolved Tool objects.
+ * Skips subdirectories with missing or malformed manifests.
  */
 export async function listTools(): Promise<Tool[]> {
-  const store = await loadToolStore();
-  return store.tools;
-}
+  const toolsDir = getToolsDir();
+  if (!existsSync(toolsDir)) return [];
 
-/**
- * Look up a single tool by name.
- * Returns undefined if no tool with that name is registered.
- */
-export async function getTool(name: string): Promise<Tool | undefined> {
-  const store = await loadToolStore();
-  return store.tools.find(t => t.name === name);
-}
-
-/**
- * Validate a tool input before registration.
- * Enforces that name is a non-empty alphanumeric-plus-hyphens slug,
- * and that description and command are non-empty strings.
- */
-export function validateTool(
-  tool: Omit<Tool, 'created_at' | 'usage_count'>
-): { valid: boolean; errors: string[] } {
-  const errors: string[] = [];
-
-  if (!tool.name || !/^[a-z0-9-]+$/.test(tool.name)) {
-    errors.push('name must be a non-empty slug containing only lowercase letters, digits, and hyphens');
-  }
-  if (!tool.description || tool.description.trim().length === 0) {
-    errors.push('description must be a non-empty string');
-  }
-  if (!tool.command || tool.command.trim().length === 0) {
-    errors.push('command must be a non-empty string');
+  const tools: Tool[] = [];
+  let entries: string[];
+  try {
+    entries = await readdir(toolsDir);
+  } catch {
+    return [];
   }
 
-  return { valid: errors.length === 0, errors };
-}
+  for (const entry of entries) {
+    const manifestPath = path.join(toolsDir, entry, 'manifest.json');
+    if (!existsSync(manifestPath)) continue;
 
-/**
- * Register a new tool in the catalog.
- * Validates the input, guards against duplicate names, auto-generates
- * created_at and usage_count, persists, and returns the saved Tool.
- */
-export async function addTool(
-  input: Omit<Tool, 'created_at' | 'usage_count'>
-): Promise<Tool> {
-  const { valid, errors } = validateTool(input);
-  if (!valid) {
-    throw new Error(`[Tools] Invalid tool: ${errors.join('; ')}`);
-  }
-
-  return withLock(async () => {
-    const store = await loadToolStore();
-    const existing = store.tools.find(t => t.name === input.name);
-    if (existing) {
-      throw new Error(`[Tools] A tool named '${input.name}' already exists`);
+    try {
+      const content = await readFile(manifestPath, 'utf-8');
+      const parsed: unknown = JSON.parse(content);
+      if (!validateToolManifest(parsed)) {
+        console.warn(`[Tools] Skipping tool '${entry}': malformed manifest`);
+        continue;
+      }
+      tools.push({
+        name: parsed.name,
+        scriptPath: path.join(toolsDir, entry),
+        manifestPath,
+        manifest: parsed,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[Tools] Skipping tool '${entry}': ${msg}`);
     }
+  }
 
-    const tool: Tool = {
-      ...input,
-      created_at: new Date().toISOString(),
-      usage_count: 0,
+  return tools;
+}
+
+/**
+ * Get a single tool by name.
+ * Returns null if the tool directory or manifest does not exist.
+ */
+export async function getTool(name: string): Promise<Tool | null> {
+  const toolsDir = getToolsDir();
+  const manifestPath = path.join(toolsDir, name, 'manifest.json');
+  if (!existsSync(manifestPath)) return null;
+
+  try {
+    const content = await readFile(manifestPath, 'utf-8');
+    const parsed: unknown = JSON.parse(content);
+    if (!validateToolManifest(parsed)) {
+      console.warn(`[Tools] Tool '${name}' has malformed manifest`);
+      return null;
+    }
+    return {
+      name: parsed.name,
+      scriptPath: path.join(toolsDir, name),
+      manifestPath,
+      manifest: parsed,
     };
-
-    store.tools.push(tool);
-    await saveToolStore(store);
-    console.log(`[Tools] Added tool ${tool.name}`);
-    return tool;
-  });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.warn(`[Tools] Failed to load tool '${name}': ${msg}`);
+    return null;
+  }
 }
 
 /**
- * Increment the usage_count of a named tool by 1 and persist.
+ * Increment usage_count in a tool's manifest.json.
  * No-ops silently if the tool is not found.
- * Wrapped in withLock() to prevent concurrent increments losing updates.
  */
-export async function incrementUsage(name: string): Promise<void> {
-  return withLock(async () => {
-    const store = await loadToolStore();
-    const tool = store.tools.find(t => t.name === name);
-    if (!tool) {
-      return;
-    }
-    tool.usage_count += 1;
-    await saveToolStore(store);
+export async function recordToolUsage(name: string): Promise<void> {
+  const toolsDir = getToolsDir();
+  const manifestPath = path.join(toolsDir, name, 'manifest.json');
+  if (!existsSync(manifestPath)) return;
+
+  try {
+    const content = await readFile(manifestPath, 'utf-8');
+    const parsed: unknown = JSON.parse(content);
+    if (!validateToolManifest(parsed)) return;
+
+    const updated: ToolManifest = { ...parsed, usage_count: parsed.usage_count + 1 };
+    await writeFile(manifestPath, JSON.stringify(updated, null, 2), 'utf-8');
     console.log(`[Tools] Incremented usage for ${name}`);
-  });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.warn(`[Tools] Failed to record usage for '${name}': ${msg}`);
+  }
+}
+
+/**
+ * Register a new tool by creating a subdirectory with manifest.json.
+ * Throws if the tool already exists or input is invalid.
+ */
+export async function addTool(input: { name: string; description: string; command: string; created_by: string }): Promise<Tool> {
+  if (!input.name || !/^[a-z0-9-]+$/.test(input.name)) {
+    throw new Error('[Tools] name must be a non-empty slug containing only lowercase letters, digits, and hyphens');
+  }
+  if (!input.description || !input.command) {
+    throw new Error('[Tools] description and command are required');
+  }
+
+  const toolsDir = getToolsDir();
+  const toolDir = path.join(toolsDir, input.name);
+  const manifestPath = path.join(toolDir, 'manifest.json');
+
+  if (existsSync(toolDir)) {
+    throw new Error(`[Tools] A tool named '${input.name}' already exists`);
+  }
+
+  await ensureToolsDir();
+  await mkdir(toolDir, { recursive: true });
+
+  const manifest: ToolManifest = {
+    name: input.name,
+    description: input.description,
+    command: input.command,
+    created_by: input.created_by,
+    usage_count: 0,
+  };
+
+  await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
+  console.log(`[Tools] Added tool ${manifest.name}`);
+
+  return {
+    name: manifest.name,
+    scriptPath: toolDir,
+    manifestPath,
+    manifest,
+  };
 }

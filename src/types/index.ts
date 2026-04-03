@@ -94,26 +94,30 @@ export interface MemoryStore {
 
 // ==================== Tool Forging Types ====================
 
-/** A single reusable tool created and registered by an agent */
-export interface Tool {
-  /** Unique tool name (slug, e.g. 'run-eslint-fix') */
+/** Manifest file stored alongside each tool script in .formic/tools/ */
+export interface ToolManifest {
+  /** Tool name (kebab-case, unique) */
   name: string;
   /** Human-readable description of what the tool does */
   description: string;
-  /** Shell command to execute this tool (may contain {args} placeholder) */
+  /** Shell command template; use {{file}} as a placeholder for a target file path */
   command: string;
-  /** Task ID that originally created this tool */
+  /** Task ID that created this tool */
   created_by: string;
-  /** ISO-8601 creation timestamp */
-  created_at: string;
-  /** Number of times this tool has been invoked */
+  /** Number of times the tool has been invoked */
   usage_count: number;
 }
 
-/** Root schema for .formic/tools/tools.json */
-export interface ToolStore {
-  version: string;
-  tools: Tool[];
+/** A resolved tool entry (manifest + resolved script path) */
+export interface Tool {
+  /** Tool name (matches manifest name) */
+  name: string;
+  /** Absolute path to the tool script */
+  scriptPath: string;
+  /** Absolute path to the manifest.json */
+  manifestPath: string;
+  /** Parsed manifest data */
+  manifest: ToolManifest;
 }
 
 export interface Task {
