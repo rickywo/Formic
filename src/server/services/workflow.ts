@@ -434,16 +434,14 @@ function runWorkflowStep(
   });
 
   // Persist child.pid to board.json so the OS process is identifiable for running tasks.
-  // We read the task's current status and re-write it together with the PID in a single
-  // updateTaskStatus call so the PID is set atomically.  Callers await `pidPersisted`
-  // to eliminate the read-modify-write race that the old fire-and-forget had.
+  // We use updateTask to patch ONLY the pid field without touching the status, avoiding a
+  // race where the task status may have already advanced by the time this promise runs.
+  // Callers must `await pidPersisted` before proceeding to ensure the PID write completes
+  // before any competing board writes.
   const pidPersisted: Promise<void> = (async () => {
     if (!child.pid) return;
     try {
-      const currentTask = await getTask(taskId);
-      if (currentTask) {
-        await updateTaskStatus(taskId, currentTask.status, child.pid, 'workflow.process_spawned');
-      }
+      await updateTask(taskId, { pid: child.pid });
     } catch (err) {
       console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
     }
@@ -1917,7 +1915,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       }
 
       let pidPromise: Promise<void> | undefined;
-      const success = await new Promise<boolean>((resolve) => {
+      const resultPromise = new Promise<boolean>((resolve) => {
         const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
           resolve(stepSuccess);
         });
@@ -1927,7 +1925,11 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
           activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
         }
       });
+
+      // Await PID persistence so board.json has the correct PID before the process completes
       if (pidPromise) await pidPromise;
+
+      const success = await resultPromise;
 
       activeWorkflows.delete(taskId);
 
