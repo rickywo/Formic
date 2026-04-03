@@ -10,8 +10,62 @@ import type { OutputParseResult, OutputEventType } from '../../types/index.js';
 import { getAgentType, type AgentType } from './agentAdapter.js';
 
 /**
+ * Format a tool_use content block into a human-readable status label.
+ * Truncates long file paths to the last 2 segments for readability.
+ */
+function formatToolStatus(name: string, input?: Record<string, unknown>): string {
+  switch (name) {
+    case 'Read': {
+      const filePath = input?.file_path as string | undefined;
+      if (filePath) {
+        const segments = filePath.split('/');
+        const short = segments.length > 2 ? segments.slice(-2).join('/') : filePath;
+        return `Reading ${short}`;
+      }
+      return 'Reading file…';
+    }
+    case 'Grep': {
+      const pattern = input?.pattern as string | undefined;
+      return pattern ? `Searching for ${pattern}` : 'Searching…';
+    }
+    case 'Glob': {
+      const pattern = input?.pattern as string | undefined;
+      return pattern ? `Finding files ${pattern}` : 'Finding files…';
+    }
+    case 'WebSearch':
+      return 'Searching web…';
+    case 'WebFetch': {
+      const url = input?.url as string | undefined;
+      return url ? `Fetching ${url}` : 'Fetching URL…';
+    }
+    case 'Bash':
+      return 'Running command…';
+    case 'Agent':
+      return 'Launching agent…';
+    case 'Edit':
+      return 'Editing file…';
+    case 'Write':
+      return 'Writing file…';
+    default:
+      // MCP tools have names like mcp__server__toolName
+      if (name.startsWith('mcp__')) {
+        const parts = name.split('__');
+        const toolLabel = parts.length >= 3 ? parts.slice(2).join('__') : name;
+        return `Using ${toolLabel}…`;
+      }
+      return `Using ${name}…`;
+  }
+}
+
+/**
  * Parse Claude Code CLI stream-json output line
  * Format: Line-delimited JSON with event types: 'assistant', 'result', 'system'
+ *
+ * Claude Code CLI emits these high-level events (NOT raw Anthropic SSE events):
+ *   type=system   (subtypes: hook_started, hook_response, init)
+ *   type=assistant (content blocks: text, tool_use)
+ *   type=user     (tool results)
+ *   type=result   (final response)
  */
 export function parseClaudeStreamJson(line: string): OutputParseResult {
   if (!line.trim()) {
@@ -23,57 +77,35 @@ export function parseClaudeStreamJson(line: string): OutputParseResult {
       type?: string;
       subtype?: string;
       message?: {
-        content?: Array<{ type: string; text?: string }>;
+        content?: Array<{
+          type: string;
+          text?: string;
+          name?: string;
+          input?: Record<string, unknown>;
+        }>;
       };
       result?: string;
-      index?: number;
-      content_block?: { type?: string; name?: string };
-      delta?: { type?: string };
     };
 
     const eventType = event.type;
 
-    // Handle content_block_start events (thinking / tool_use indicators)
-    if (eventType === 'content_block_start') {
-      const blockType = event.content_block?.type;
-      if (blockType === 'thinking') {
-        return { type: 'status', content: 'Thinking…' };
-      }
-      if (blockType === 'tool_use') {
-        const toolName = event.content_block?.name || 'unknown';
-        return { type: 'status', content: `Using tool: ${toolName}…` };
-      }
-      return { type: 'unknown', raw: event };
-    }
-
-    // Handle content_block_delta events (maintain status state)
-    if (eventType === 'content_block_delta') {
-      const deltaType = event.delta?.type;
-      if (deltaType === 'thinking_delta') {
-        return { type: 'status', content: 'Thinking…' };
-      }
-      if (deltaType === 'input_json_delta') {
-        return { type: 'status', content: 'Using tool…' };
-      }
-      return { type: 'unknown', raw: event };
-    }
-
-    // Handle content_block_stop events (no visible output)
-    if (eventType === 'content_block_stop') {
-      return { type: 'unknown', raw: event };
-    }
-
     if (eventType === 'assistant') {
-      // Extract text from assistant message content blocks
+      // An assistant event can contain both text AND tool_use blocks.
+      // We extract text for streaming display and tool_use for status indicators.
       const textContent: string[] = [];
+      let lastToolStatus: string | null = null;
+
       if (event.message?.content) {
         for (const block of event.message.content) {
           if (block.type === 'text' && block.text) {
             textContent.push(block.text);
+          } else if (block.type === 'tool_use' && block.name) {
+            lastToolStatus = formatToolStatus(block.name, block.input);
           }
         }
       }
 
+      // If we have text content, return it (text takes priority for display)
       if (textContent.length > 0) {
         return {
           type: 'text',
@@ -81,6 +113,16 @@ export function parseClaudeStreamJson(line: string): OutputParseResult {
           raw: event,
         };
       }
+
+      // Otherwise, if we found tool_use blocks, return a status update
+      if (lastToolStatus) {
+        return {
+          type: 'status',
+          content: lastToolStatus,
+          raw: event,
+        };
+      }
+
       return { type: 'unknown', raw: event };
     }
 
@@ -94,6 +136,15 @@ export function parseClaudeStreamJson(line: string): OutputParseResult {
     }
 
     if (eventType === 'system') {
+      // The 'init' subtype fires when the CLI boots — use it as the first
+      // status indicator so users see 'Thinking…' before any tool calls.
+      if (event.subtype === 'init') {
+        return {
+          type: 'status',
+          content: 'Thinking…',
+          raw: event,
+        };
+      }
       return {
         type: 'system',
         content: event.subtype || 'system',
