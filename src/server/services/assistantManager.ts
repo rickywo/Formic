@@ -634,9 +634,6 @@ function processMessage(content: string): void {
         }
       } else if (result.type === 'system') {
         console.log('[AssistantManager] System event:', result.content);
-      } else if (result.type === 'status' && result.content) {
-        // Forward status events (tool use indicators, thinking) to frontend
-        broadcastStreamStatus(result.content);
       } else if (!isJsonOutput && result.type === 'unknown' && line.trim()) {
         // For non-JSON agents, treat unknown lines as potential text content
         streamingContent += line + '\n';
