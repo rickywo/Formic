@@ -798,12 +798,14 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
     return { success: false, stderrLines: [message] };
   }
 
-  // Persist verifier PID to board.json using updateTask to patch only the pid field,
-  // avoiding a race where the status may have changed between spawn and this write.
+  // Persist verifier PID to board.json using updateTaskStatus for atomic status+PID writes.
   if (child.pid) {
-    await updateTask(taskId, { pid: child.pid }).catch((err) => {
-      console.warn(`[Verifier] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-    });
+    const currentTask = await getTask(taskId);
+    if (currentTask) {
+      await updateTaskStatus(taskId, currentTask.status, child.pid, 'workflow.executeVerifyStep.process_spawned').catch((err) => {
+        console.warn(`[Verifier] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+      });
+    }
   }
 
   return new Promise((resolve) => {
