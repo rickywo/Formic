@@ -339,6 +339,9 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
 
       if (child.pid) {
         activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
+        void updateTask(taskId, { pid: child.pid }).catch((err) => {
+          console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+        });
       }
     }).catch(() => {
       resolve(true); // Skip on error
@@ -1177,6 +1180,9 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
 
         if (child.pid) {
           activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
+          void updateTask(taskId, { pid: child.pid }).catch((err) => {
+            console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+          });
         }
       });
 
@@ -1356,6 +1362,9 @@ export async function executeSingleStep(
 
     if (child.pid) {
       activeWorkflows.set(taskId, { process: child, currentStep: step });
+      void updateTask(taskId, { pid: child.pid }).catch((err) => {
+        console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+      });
     }
   });
 }
@@ -1435,6 +1444,9 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
 
       if (child.pid) {
         activeWorkflows.set(taskId, { process: child, currentStep: step });
+        void updateTask(taskId, { pid: child.pid }).catch((err) => {
+          console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+        });
       }
     });
   };
@@ -1881,6 +1893,9 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
 
         if (child.pid) {
           activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
+          void updateTask(taskId, { pid: child.pid }).catch((err) => {
+            console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
+          });
         }
       });
 
