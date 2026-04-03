@@ -1459,16 +1459,15 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     });
 
     return new Promise((resolve) => {
-      const child = runWorkflowStep(taskId, step, prompt, (success) => {
+      const { child, pidPersisted } = runWorkflowStep(taskId, step, prompt, (success) => {
         resolve(success);
       });
 
       if (child.pid) {
         activeWorkflows.set(taskId, { process: child, currentStep: step });
-        void updateTask(taskId, { pid: child.pid }).catch((err) => {
-          console.warn(`[Workflow] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-        });
       }
+      // PID is persisted inside runWorkflowStep via pidPersisted promise
+      void pidPersisted;
     });
   };
 
