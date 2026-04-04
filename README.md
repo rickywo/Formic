@@ -3,18 +3,28 @@
 </p>
 
 <p align="center">
-<a href="https://www.npmjs.com/package/@rickywo/formic"><img src="https://img.shields.io/badge/npm-v1.0.0-CB3837?style=flat-square&logo=npm" alt="npm v1.0.0"></a>
+<a href="https://www.npmjs.com/package/@rickywo/formic"><img src="https://img.shields.io/badge/npm-v0.8.0-CB3837?style=flat-square&logo=npm" alt="npm v0.8.0"></a>
 <img src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 20+">
 <img src="https://img.shields.io/badge/Agents-Claude%20Code%20CLI%20%7C%20GitHub%20Copilot%20CLI-6f42c1?style=flat-square" alt="Supported agents">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
 <a href="https://rickywo.github.io/Formic/"><img src="https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue?style=flat-square&logo=github" alt="Live Demo"></a>
 </p>
 
-**Formic — AI-powered Kanban that turns goals into shipped features.**
+**Formic — AI-powered task manager that turns goals into shipped code. Orchestrates Claude Code & Copilot CLI with structured planning, parallel execution, and human review. 🐜**
 
 <video src="https://github.com/user-attachments/assets/909773e7-d356-4485-a020-9505ff3d85ae" width="100%" controls autoplay muted loop></video>
 
 > 📺 [Watch the demo video](video/formic-demo.mp4) if the player above doesn't load.
+
+## Why Formic?
+
+AI coding agents are powerful but chaotic. Without structure, they skip planning, overwrite each other's files, and lose context mid-task. Formic adds a **tech-lead layer** — every task goes through briefing, planning, and review before code ships.
+
+- 🏗️ **Structured pipeline** — Brief → Plan → Declare → Execute → Review
+- 🔀 **Parallel execution** — multiple agents work simultaneously with file-lease concurrency
+- 🎯 **Goal decomposition** — describe a high-level objective, the architect AI breaks it into subtasks
+- 🛡️ **Crash-resilient** — atomic saves, rolling backups, auto-recovery from corruption
+- 🖥️ **100% local** — your code never leaves your machine
 
 ## Requirements
 
@@ -27,17 +37,23 @@
 
 2. **Start the server** — Run `PORT=8000 formic start`, then open [http://localhost:8000](http://localhost:8000).
 
-3. **Add a workspace** — Open the workspace selector in the top-left and point it at your project repo directory.
+Open [http://localhost:8000](http://localhost:8000) and you're ready to go.
 
-4. **Brainstorm with the AI chatbot** — Click the AI Assistant panel and describe your idea. Formic's chatbot helps you refine requirements, explore the codebase, and shape a clear objective.
+## How It Works
 
-5. **Create a Goal task** — When you're ready, the chatbot crafts a Goal task for you. Goals are high-level objectives that the architect AI will decompose.
+1. **Brainstorm** — Chat with the AI Assistant to refine your idea and explore the codebase.
+2. **Create a Goal** — The assistant crafts a structured task with clear requirements.
+3. **Automatic decomposition** — The architect AI breaks the goal into 3–8 child subtasks.
+4. **Parallel execution** — Agents execute tasks concurrently with file-lease safety (briefing → planning → declaring → running → verifying).
+5. **Review & approve** — When tasks land in the Review column, inspect the changes and approve. Your feature is ready.
 
-6. **Automatic decomposition** — Once queued, Formic's architect skill analyzes the goal and generates multiple child subtasks, each with its own context and scope.
+## What's New in v0.8.0
 
-7. **Queued & processed** — Child tasks are automatically queued and executed by AI agents (briefing → planning → declaring → running → verifying) with full concurrency and file-lease safety.
-
-8. **Voilà — review your new feature!** — When tasks land in the Review column, inspect the changes and approve. Your feature is ready.
+- 🛡️ **Crash-resilient board** — atomic saves with rolling backups and auto-recovery
+- ⚡ **Smart stage skipping** — detects existing artifacts and resumes where it left off
+- 📊 **Usage meter** — track agent credit consumption in real-time
+- 🔄 **Resume from any step** — re-run tasks without restarting from scratch
+- 🪵 **Full log replay** — reconnect and see complete task history
 
 ## License
 
