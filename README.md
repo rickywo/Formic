@@ -37,7 +37,7 @@ AI coding agents are powerful but chaotic. Without structure, they skip planning
 
 2. **Start the server** — Run `PORT=8000 formic start`, then open [http://localhost:8000](http://localhost:8000).
 
-Open [http://localhost:8000](http://localhost:8000) and you're ready to go.
+3. **Add a workspace** — Open the workspace selector in the top-left and point it at your project repo directory.
 
 ## How It Works
 
