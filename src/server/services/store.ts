@@ -415,7 +415,7 @@ async function unblockSiblingTasks(completedTaskId: string, parentGoalId: string
 
     if (allDepsResolved) {
       await queueTask(sibling.id);
-      console.log(`[Store] Unblocked task ${sibling.id} — all dependencies resolved`);
+      console.warn(`[Store] Unblocked task ${sibling.id} — all dependencies resolved`);
       broadcastDependencyResolved(sibling.id, parentGoalId);
     }
   }
@@ -473,7 +473,7 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
   const timestamp = new Date().toISOString();
   const resolvedCaller = caller ?? 'unknown';
   const logLine = `[StatusTransition] taskId=${taskId} ${previousStatus} → ${status} | caller=${resolvedCaller} | ${timestamp}`;
-  console.log(logLine);
+  console.warn(logLine);
 
   try {
     await appendTaskLogs(taskId, [logLine]);
@@ -625,7 +625,7 @@ export async function recoverStuckTasks(): Promise<number> {
 
   for (const task of board.tasks) {
     if (interruptedStatuses.includes(task.status)) {
-      console.log(`[Recovery] Re-queuing interrupted task ${task.id} (was '${task.status}')`);
+      console.warn(`[Recovery] Re-queuing interrupted task ${task.id} (was '${task.status}')`);
       task.status = 'queued';
       task.pid = null;
       task.startedAt = undefined;
@@ -638,7 +638,7 @@ export async function recoverStuckTasks(): Promise<number> {
 
   if (recoveredCount > 0) {
     await saveBoard(board);
-    console.log(`[Recovery] Re-queued ${recoveredCount} interrupted task(s)`);
+    console.warn(`[Recovery] Re-queued ${recoveredCount} interrupted task(s)`);
   }
 
   return recoveredCount;

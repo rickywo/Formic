@@ -44,7 +44,7 @@ async function scanExpiredLeases(): Promise<void> {
   }
 
   for (const [taskId, files] of taskFiles.entries()) {
-    console.log(`[Watchdog] Expired leases for task ${taskId}: ${files.join(', ')}`);
+    console.warn(`[Watchdog] Expired leases for task ${taskId}: ${files.join(', ')}`);
 
     try {
       // Guard: if the task is still actively running (has a live workflow process),
@@ -53,7 +53,7 @@ async function scanExpiredLeases(): Promise<void> {
       const task = await getTask(taskId);
       const activeStates = new Set(['running', 'briefing', 'planning', 'declaring', 'architecting', 'verifying']);
       if (task && activeStates.has(task.status) && isWorkflowRunning(taskId)) {
-        console.log(`[Watchdog] Task ${taskId} is actively ${task.status} with live process — renewing leases instead of killing`);
+        console.warn(`[Watchdog] Task ${taskId} is actively ${task.status} with live process — renewing leases instead of killing`);
         renewLeases(taskId);
         continue;
       }
@@ -70,7 +70,7 @@ async function scanExpiredLeases(): Promise<void> {
         try {
           const fileList = exclusiveFiles.map(f => `"${f}"`).join(' ');
           await execAsync(`git checkout -- ${fileList}`, { cwd: getWorkspacePath() });
-          console.log(`[Watchdog] Reverted files for task ${taskId}`);
+          console.warn(`[Watchdog] Reverted files for task ${taskId}`);
         } catch (error) {
           console.warn(`[Watchdog] Failed to revert files for task ${taskId}:`, error);
         }
@@ -81,7 +81,7 @@ async function scanExpiredLeases(): Promise<void> {
 
       // 4. Re-queue the task
       await updateTaskStatus(taskId, 'queued', null, 'watchdog.lease_expired');
-      console.log(`[Watchdog] Re-queued task ${taskId} after lease expiration`);
+      console.warn(`[Watchdog] Re-queued task ${taskId} after lease expiration`);
 
       // 5. Broadcast board update
       broadcastBoardUpdate();
@@ -158,12 +158,12 @@ function scheduleWatchdog(): void {
  */
 export function startWatchdog(): void {
   if (watchdogTimeout !== null) {
-    console.log('[Watchdog] Already running');
+    console.warn('[Watchdog] Already running');
     return;
   }
 
   void refreshEngineConfig().then(() => {
-    console.log(`[Watchdog] Starting watchdog (interval: ${engineConfig.watchdogIntervalMs}ms)`);
+    console.warn(`[Watchdog] Starting watchdog (interval: ${engineConfig.watchdogIntervalMs}ms)`);
     restoreLeases().catch(e => console.warn('[Watchdog] restore error:', e));
     scheduleWatchdog();
   });
@@ -176,6 +176,6 @@ export function stopWatchdog(): void {
   if (watchdogTimeout !== null) {
     clearTimeout(watchdogTimeout);
     watchdogTimeout = null;
-    console.log('[Watchdog] Stopped');
+    console.warn('[Watchdog] Stopped');
   }
 }
