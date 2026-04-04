@@ -10,6 +10,7 @@ import { workspaceRoutes } from './routes/workspace.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { configRoutes } from './routes/config.js';
 import { toolRoutes } from './routes/tools.js';
+import { usageRoutes } from './routes/usage.js';
 import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { readFile } from 'node:fs/promises';
@@ -108,6 +109,7 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   await fastify.register(webhookRoutes);
   await fastify.register(configRoutes);
   await fastify.register(toolRoutes);
+  await fastify.register(usageRoutes);
 
   // Register WebSocket routes
   await fastify.register(logsWebSocket);
