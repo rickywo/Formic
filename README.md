@@ -12,7 +12,7 @@
 
 **Formic — AI-powered Kanban that turns goals into shipped features.**
 
-<video src="video/formic-demo.mp4" width="100%" controls autoplay muted loop></video>
+<video src="https://github.com/user-attachments/assets/909773e7-d356-4485-a020-9505ff3d85ae" width="100%" controls autoplay muted loop></video>
 
 > 📺 [Watch the demo video](video/formic-demo.mp4) if the player above doesn't load.
 
