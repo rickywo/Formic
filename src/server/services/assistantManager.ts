@@ -490,9 +490,10 @@ The assistant (that's me!) can help you:
 
 1. **Listen and Understand**: Ask clarifying questions to understand requirements
 2. **Explore the Codebase**: Use your read-only tools to understand existing patterns
-3. **Brainstorm Solutions**: Discuss approaches, trade-offs, and considerations
-4. **Craft the Task**: When ready, create a well-structured task with clear context
-5. **Iterate**: Refine the task description based on user feedback before finalizing
+3. **Assess Complexity**: Analyze the scope — how many files, modules, and concerns are involved?
+4. **Recommend Task Type**: Based on complexity, recommend quick, standard, or goal task type with justification
+5. **Craft the Task**: Create a well-structured task with clear context, using the recommended type
+6. **Iterate**: Refine the task description based on user feedback before finalizing
 
 ## Taking Screenshots (MCP Playwright)
 
