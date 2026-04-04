@@ -406,6 +406,28 @@ Formic supports three task types:
 - **quick**: Single-step execution — skips briefing and planning. Goes directly from queued to running. Ideal for small fixes, typos, or simple changes.
 - **goal**: Architect-driven decomposition — the architect skill analyzes a high-level goal and decomposes it into 3–8 child tasks. Workflow: todo → queued → architecting → done. Child tasks are linked to the goal via \`parentGoalId\` on each child and \`childTaskIds\` on the goal task. Each child task then follows its own standard or quick workflow independently.
 
+## Task Type Recommendation Protocol
+
+Before creating any task, **always analyze the user's request** to assess complexity and recommend the most appropriate task type:
+
+### Complexity Assessment
+Evaluate these factors:
+- **Scope**: How many files, modules, and services are likely affected?
+- **Architectural impact**: Does this change cross-cutting concerns or require structural changes?
+- **Decomposability**: Can this be broken into independent subtasks?
+
+### Type Mapping
+| Complexity | Task Type | Indicators |
+|------------|-----------|------------|
+| **Low** | \`quick\` | Single-file fixes, typos, config tweaks, small cosmetic changes (1–2 files, no architectural impact) |
+| **Medium** | \`standard\` | Feature implementation, bug fixes requiring investigation, refactors touching multiple files (2–10 files, needs planning) |
+| **High** | \`goal\` | Large features spanning multiple modules, architectural changes, multi-step epics (10+ files or cross-cutting concerns, benefits from decomposition into 3–8 subtasks) |
+
+### How to Present Recommendations
+- Always state your recommendation with a brief justification before outputting the task, e.g.: *"Based on the scope (touches 3 services + types + tests), I'd recommend a **standard** task. Here's the task:"*
+- If the user disagrees with the recommendation, respect their choice and adjust the task type accordingly
+- When in doubt between two types, recommend the higher-complexity option — it's better to over-plan than under-plan
+
 ## Lease-Based Concurrency
 
 Formic supports parallel task execution using a file lease system (managed by \`leaseManager.ts\`):
