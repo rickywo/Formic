@@ -1,9 +1,51 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { SocketStream } from '@fastify/websocket';
+import { readFile, readdir } from 'node:fs/promises';
+import path from 'node:path';
 import { registerConnection, unregisterConnection } from '../services/runner.js';
 import { registerWorkflowConnection, unregisterWorkflowConnection } from '../services/workflow.js';
 import { registerTaskConnection, unregisterTaskConnection } from '../services/boardNotifier.js';
 import { getTask } from '../services/store.js';
+import { getTaskLogsDir } from '../utils/paths.js';
+
+const CANONICAL_STEP_ORDER = ['brief', 'plan', 'declare', 'execute', 'verify', 'architect'];
+
+async function loadDiskLogs(taskId: string): Promise<string | null> {
+  const logsDir = getTaskLogsDir(taskId);
+
+  let files: string[];
+  try {
+    files = await readdir(logsDir);
+  } catch (err: unknown) {
+    if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return null;
+    }
+    throw err;
+  }
+
+  const logFileSet = new Set(files);
+  const parts: string[] = [];
+
+  for (const step of CANONICAL_STEP_ORDER) {
+    const filename = `${step}.log`;
+    if (!logFileSet.has(filename)) continue;
+
+    try {
+      const content = await readFile(path.join(logsDir, filename), 'utf-8');
+      if (content.trim().length > 0) {
+        parts.push(`\n========== ${step.toUpperCase()} STEP ==========\n`);
+        parts.push(content);
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  return parts.length > 0 ? parts.join('') : null;
+}
 
 export async function logsWebSocket(fastify: FastifyInstance): Promise<void> {
   fastify.get<{ Params: { taskId: string } }>('/ws/logs/:taskId', { websocket: true }, async (connection: SocketStream, request: FastifyRequest<{ Params: { taskId: string } }>) => {
@@ -23,8 +65,15 @@ export async function logsWebSocket(fastify: FastifyInstance): Promise<void> {
     registerWorkflowConnection(taskId, socket);
     registerTaskConnection(taskId, socket);
 
-    // Send existing logs if task has any
-    if (task.agentLogs.length > 0) {
+    // Send disk logs if available, fall back to in-memory agentLogs
+    const diskLogs = await loadDiskLogs(taskId);
+    if (diskLogs) {
+      socket.send(JSON.stringify({
+        type: 'history',
+        data: diskLogs,
+        timestamp: new Date().toISOString(),
+      }));
+    } else if (task.agentLogs.length > 0) {
       socket.send(JSON.stringify({
         type: 'history',
         data: task.agentLogs.join('\n'),
