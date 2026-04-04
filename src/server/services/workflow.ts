@@ -1,6 +1,6 @@
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile, mkdir, appendFile } from 'node:fs/promises';
+import { readFile, mkdir, appendFile, access } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
 const execFileAsync = promisify(execFile);
@@ -111,6 +111,15 @@ export function unregisterWorkflowConnection(taskId: string, ws: WebSocket): voi
     if (connections.size === 0) {
       taskConnections.delete(taskId);
     }
+  }
+}
+
+async function artifactExists(docsDir: string, filename: string): Promise<boolean> {
+  try {
+    await access(path.join(docsDir, filename));
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -1514,10 +1523,16 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       // Create a git safe-point commit before execution for rollback support.
       // Guard against duplicate commits on re-entry (e.g. if resumeFromStep was
       // not persisted and the task re-enters executeFullWorkflow on a retry).
+      // Capture safePointCommit BEFORE creating a new safe-point.
+      // A null value means this is a fresh run (e.g. re-run from review) — never skip stages.
       const taskBeforeSafePoint = await getTask(taskId);
+      const isReEntry = !!taskBeforeSafePoint?.safePointCommit;
       if (!taskBeforeSafePoint?.safePointCommit) {
         await createSafePoint(taskId);
       }
+
+      // Resolve task docs directory for artifact checks
+      const docsDir = path.join(getWorkspacePath(), task.docsPath);
 
     // Abort if stop was requested before brief starts
     if (stoppedWorkflows.has(taskId)) {
@@ -1525,13 +1540,25 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       return;
     }
 
-    // Step 1: Brief
-    const briefSuccess = await runStep('brief');
-    if (!briefSuccess) {
-      activeWorkflows.delete(taskId);
-      await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.brief_failed');
-      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.brief_failed');
-      return;
+    // Step 1: Brief — skip if README.md already exists on re-entry
+    const skipBrief = isReEntry && await artifactExists(docsDir, 'README.md');
+    if (skipBrief) {
+      console.warn('[Workflow] Skipping brief step — README.md already exists');
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: '\n========== Skipping BRIEF step (README.md exists) ==========\n',
+        timestamp: new Date().toISOString(),
+      });
+      // Transition through briefing→planning so the board UI shows progress
+      await updateTaskStatus(taskId, 'planning', undefined, 'workflow.executeFullWorkflow.brief_skipped');
+    } else {
+      const briefSuccess = await runStep('brief');
+      if (!briefSuccess) {
+        activeWorkflows.delete(taskId);
+        await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.brief_failed');
+        await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.brief_failed');
+        return;
+      }
     }
 
     // Abort if stop was requested between brief and plan
@@ -1540,13 +1567,27 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       return;
     }
 
-    // Step 2: Plan
-    const planSuccess = await runStep('plan');
-    if (!planSuccess) {
-      activeWorkflows.delete(taskId);
-      await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.plan_failed');
-      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.plan_failed');
-      return;
+    // Step 2: Plan — skip if PLAN.md and subtasks.json already exist on re-entry
+    const skipPlan = isReEntry
+      && await artifactExists(docsDir, 'PLAN.md')
+      && await artifactExists(docsDir, 'subtasks.json');
+    if (skipPlan) {
+      console.warn('[Workflow] Skipping plan step — PLAN.md + subtasks.json already exist');
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: '\n========== Skipping PLAN step (PLAN.md + subtasks.json exist) ==========\n',
+        timestamp: new Date().toISOString(),
+      });
+      // Transition to declaring so the board UI shows progress
+      await updateTaskStatus(taskId, 'declaring', undefined, 'workflow.executeFullWorkflow.plan_skipped');
+    } else {
+      const planSuccess = await runStep('plan');
+      if (!planSuccess) {
+        activeWorkflows.delete(taskId);
+        await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.plan_failed');
+        await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.plan_failed');
+        return;
+      }
     }
 
     // Abort if stop was requested between plan and declare
