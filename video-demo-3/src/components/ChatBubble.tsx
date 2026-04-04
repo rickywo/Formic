@@ -1,5 +1,5 @@
 import React from "react";
-import { useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
+import { useCurrentFrame, useVideoConfig, spring, interpolate, Img, staticFile } from "remotion";
 
 interface ChatBubbleProps {
   message: string;
@@ -56,7 +56,7 @@ export const ChatBubble: React.FC<ChatBubbleProps> = ({
             boxShadow: "0 0 15px rgba(99,102,241,0.3)",
           }}
         >
-          🐜
+          <Img src={staticFile("formic.png")} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
         </div>
       )}
       <div

@@ -1,5 +1,5 @@
 import React from "react";
-import { useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
+import { useCurrentFrame, useVideoConfig, spring, interpolate, Img, staticFile } from "remotion";
 import { SceneContainer } from "../components/SceneContainer";
 
 const DURATION = 150; // 5 seconds at 30fps
@@ -58,13 +58,12 @@ export const TitleScene: React.FC = () => {
       {/* Logo */}
       <div
         style={{
-          fontSize: 80,
           transform: `scale(${logoScale})`,
           marginBottom: 20,
           filter: `drop-shadow(0 0 ${20 * glowPulse}px rgba(139,92,246,0.6))`,
         }}
       >
-        🐜
+        <Img src={staticFile("formic.png")} style={{ width: 80, height: 80 }} />
       </div>
 
       {/* Title */}

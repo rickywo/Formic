@@ -1,5 +1,5 @@
 import React from "react";
-import { useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
+import { useCurrentFrame, useVideoConfig, spring, interpolate, Img, staticFile } from "remotion";
 import { SceneContainer } from "../components/SceneContainer";
 import { TerminalWindow } from "../components/TerminalWindow";
 import { Typewriter } from "../components/Typewriter";
@@ -60,7 +60,7 @@ export const StartScene: React.FC = () => {
                   letterSpacing: 4,
                 }}
               >
-                🐜 F O R M I C{" "}
+                <Img src={staticFile("formic.png")} style={{ width: 24, height: 24, verticalAlign: "middle", display: "inline-block", marginRight: 8 }} /> F O R M I C{" "}
                 <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 13, fontWeight: 400 }}>
                   v0.7.4
                 </span>

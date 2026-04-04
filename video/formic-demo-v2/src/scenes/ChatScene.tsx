@@ -1,5 +1,5 @@
 import React from "react";
-import { useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
+import { useCurrentFrame, useVideoConfig, spring, interpolate, Img, staticFile } from "remotion";
 import { SceneContainer } from "../components/SceneContainer";
 import { ChatBubble } from "../components/ChatBubble";
 
@@ -45,7 +45,7 @@ export const ChatScene: React.FC = () => {
             gap: 10,
           }}
         >
-          <span style={{ fontSize: 22 }}>🐜</span>
+          <Img src={staticFile("formic.png")} style={{ width: 22, height: 22 }} />
           <span style={{ color: "#fff", fontWeight: 600, fontSize: 16 }}>
             Formic AI Assistant
           </span>

@@ -1,5 +1,5 @@
 import React from "react";
-import { useCurrentFrame, useVideoConfig, spring, interpolate } from "remotion";
+import { useCurrentFrame, useVideoConfig, spring, interpolate, Img, staticFile } from "remotion";
 import { SceneContainer } from "../components/SceneContainer";
 
 const DURATION = 180; // 6 seconds
@@ -90,7 +90,7 @@ export const WorkspaceScene: React.FC = () => {
               gap: 12,
             }}
           >
-            🐜 Formic — Workspace Settings
+            <Img src={staticFile("formic.png")} style={{ width: 28, height: 28 }} /> Formic — Workspace Settings
           </div>
 
           {/* Input field */}
