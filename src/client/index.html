@@ -10282,7 +10282,7 @@
         let tasks;
         if (status === 'running') {
           tasks = board.tasks.filter(t =>
-            t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'architecting'
+            t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'architecting' || t.status === 'declaring'
           );
         } else {
           tasks = board.tasks.filter(t => t.status === status);
