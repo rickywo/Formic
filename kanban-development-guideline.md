@@ -5,7 +5,7 @@
 - **Core Stack:** Node.js ≥ 20, TypeScript 5.5 (strict), Fastify 4.26, Vanilla JS + Tailwind CSS, Python (testing)
 - **Primary Goal:** AI-powered Kanban task manager where AI agents autonomously execute tasks — briefing, planning, coding, and committing — while humans review the results
 - **Module System:** ES Modules (`"type": "module"` in package.json, `NodeNext` module resolution)
-- **Package:** `@rickywo/formic` v0.7.4, published as an npm CLI (`formic` binary)
+- **Package:** `@rickywo/formic` v1.0.0, published as an npm CLI (`formic` binary)
 
 ## 2. Architectural Patterns
 - **Service-Oriented Server:** Business logic lives in `src/server/services/` (28 service files), HTTP routes in `src/server/routes/`, WebSocket handlers in `src/server/ws/`, utilities in `src/server/utils/`, and prompt templates in `src/server/templates/`
