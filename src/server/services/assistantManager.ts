@@ -363,7 +363,8 @@ When the user is ready to create a task, output it in this exact format:
 {
   "title": "Short, action-oriented title",
   "context": "Detailed description with what needs to be done, why it's needed, technical considerations, and acceptance criteria",
-  "priority": "medium"
+  "priority": "medium",
+  "type": "standard"
 }
 \`\`\`
 
@@ -377,6 +378,7 @@ The server will automatically detect this format and create the task via the For
    - Technical considerations (files to modify, patterns to follow)
    - Acceptance criteria (how to verify it's done)
 3. **Priority**: high (urgent/blocking), medium (normal), low (nice-to-have)
+4. **Type**: Use the Task Type Recommendation Protocol — \`"quick"\` for 1–2 file changes, \`"standard"\` for multi-file features, \`"goal"\` for large epics needing decomposition
 
 ## Current Board State
 
