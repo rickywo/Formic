@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "dev": "tsx watch src/server/index.ts",
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli/index.js",
     "start": "node dist/server/index.js",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run build",
