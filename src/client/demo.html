@@ -8440,7 +8440,7 @@
       // Map workflow statuses to columns
       // briefing, planning, running all go to the 'running' column
       function getColumnForStatus(status) {
-        if (status === 'briefing' || status === 'planning' || status === 'running' || status === 'architecting') {
+        if (status === 'briefing' || status === 'planning' || status === 'declaring' || status === 'running' || status === 'architecting') {
           return 'running';
         }
         if (status === 'blocked') {
