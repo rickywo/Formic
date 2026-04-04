@@ -154,8 +154,8 @@ async function processQueue(): Promise<void> {
       } else if (nextTask.type === 'goal') {
         console.log(`[QueueProcessor] Task ${nextTask.id} is a goal task - running architect decomposition`);
         await executeGoalWorkflow(nextTask.id);
-      } else if (freshTask?.resumeFromStep === 'declare') {
-        console.log(`[QueueProcessor] Task ${nextTask.id} resuming from declare step (skipping brief/plan)`);
+      } else if (freshTask?.resumeFromStep === 'declare' || freshTask?.resumeFromStep === 'execute') {
+        console.log(`[QueueProcessor] Task ${nextTask.id} resuming from ${freshTask.resumeFromStep} step (skipping brief/plan)`);
         await executeFromDeclare(nextTask.id);
       } else {
         await executeFullWorkflow(nextTask.id);
