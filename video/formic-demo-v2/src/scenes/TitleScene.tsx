@@ -63,7 +63,7 @@ export const TitleScene: React.FC = () => {
           filter: `drop-shadow(0 0 ${20 * glowPulse}px rgba(139,92,246,0.6))`,
         }}
       >
-        <Img src={staticFile("formic.png")} style={{ width: 80, height: 80 }} />
+        <Img src={staticFile("formic.png")} style={{ width: 320, height: 320 }} />
       </div>
 
       {/* Title */}
