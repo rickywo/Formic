@@ -2,7 +2,7 @@ import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import type { FormicConfig, ConfigWorkspace, ConfigSettings } from '../../types/index.js';
+import type { FormicConfig, ConfigWorkspace, ConfigSettings, PluginConfig } from '../../types/index.js';
 import { getGlobalFormicDir, getGlobalConfigPath } from '../utils/paths.js';
 
 /**
@@ -45,6 +45,7 @@ function createDefaultConfig(): FormicConfig {
       leaseDurationMs: 300000,
       watchdogIntervalMs: 30000,
     },
+    plugins: {},
   };
 }
 
@@ -103,6 +104,10 @@ export async function loadConfig(): Promise<FormicConfig> {
       settings: {
         ...createDefaultConfig().settings,
         ...parsed.settings,
+      },
+      plugins: {
+        ...createDefaultConfig().plugins,
+        ...parsed.plugins,
       },
     };
   } catch (error) {
@@ -247,4 +252,55 @@ export async function setSetting<K extends keyof ConfigSettings>(
   config.settings[key] = value;
   await saveConfig(config);
   console.log('[ConfigStore] Setting updated:', key, '=', value);
+}
+
+// ==================== Plugin Config Helpers ====================
+
+/**
+ * Get the persisted config for a specific plugin.
+ * Returns undefined if the plugin has no config entry.
+ */
+export async function getPluginConfig(name: string): Promise<PluginConfig | undefined> {
+  const config = await loadConfig();
+  return config.plugins?.[name];
+}
+
+/**
+ * Set the full config for a specific plugin (enabled state + settings).
+ * Creates the plugins map if it doesn't exist.
+ */
+export async function setPluginConfig(name: string, pluginConfig: PluginConfig): Promise<void> {
+  const config = await loadConfig();
+  if (!config.plugins) {
+    config.plugins = {};
+  }
+  config.plugins[name] = pluginConfig;
+  await saveConfig(config);
+  console.warn('[ConfigStore] Plugin config updated:', name);
+}
+
+/**
+ * Get a single setting value for a plugin.
+ * Returns undefined if the plugin has no config or the key doesn't exist.
+ */
+export async function getPluginSetting(name: string, key: string): Promise<unknown> {
+  const config = await loadConfig();
+  return config.plugins?.[name]?.settings?.[key];
+}
+
+/**
+ * Set a single setting value for a plugin.
+ * Creates the plugin config entry if it doesn't exist.
+ */
+export async function setPluginSetting(name: string, key: string, value: unknown): Promise<void> {
+  const config = await loadConfig();
+  if (!config.plugins) {
+    config.plugins = {};
+  }
+  if (!config.plugins[name]) {
+    config.plugins[name] = { enabled: false, settings: {} };
+  }
+  config.plugins[name].settings[key] = value;
+  await saveConfig(config);
+  console.warn('[ConfigStore] Plugin setting updated:', name, key);
 }

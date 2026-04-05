@@ -86,6 +86,64 @@ export interface UsageInfo {
   status: UsageStatus;
 }
 
+// ==================== Plugin System Types ====================
+
+/** Allowed plugin permission values */
+export type PluginPermission =
+  | 'tasks:read'
+  | 'tasks:write'
+  | 'config:read'
+  | 'config:write'
+  | 'http:outbound'
+  | 'fs:workspace'
+  | 'process:info'
+  | 'events:subscribe'
+  | 'ui:panel';
+
+/** Manifest schema for a plugin's manifest.json */
+export interface PluginManifest {
+  /** Plugin name (required, kebab-case) */
+  name: string;
+  /** Semver version string (required) */
+  version: string;
+  /** Human-readable description */
+  description?: string;
+  /** Author name or identifier */
+  author?: string;
+  /** Minimum Formic version required (semver) */
+  minFormicVersion?: string;
+  /** Declared permissions the plugin requires */
+  permissions?: PluginPermission[];
+  /** Relative path to the server-side Fastify plugin entry point */
+  serverEntry?: string;
+  /** Relative path to the client-side module entry point */
+  clientEntry?: string;
+  /** Default settings with their initial values */
+  settings?: Record<string, unknown>;
+}
+
+/** Runtime state of a discovered plugin */
+export interface PluginEntry {
+  /** Parsed and validated manifest */
+  manifest: PluginManifest;
+  /** Current lifecycle status */
+  status: 'discovered' | 'loaded' | 'enabled' | 'disabled' | 'error';
+  /** Error message if status is 'error' */
+  error?: string;
+  /** Reference to the dynamically imported server module */
+  loadedModule?: unknown;
+  /** Absolute path to the plugin directory */
+  pluginDir: string;
+}
+
+/** Persisted plugin configuration (enabled state + user settings) */
+export interface PluginConfig {
+  /** Whether the plugin is enabled */
+  enabled: boolean;
+  /** User-configurable settings */
+  settings: Record<string, unknown>;
+}
+
 // ==================== Long-Term Memory Types ====================
 
 /** Type of memory: learned pattern, known pitfall, or user preference */
@@ -390,6 +448,8 @@ export interface FormicConfig {
   activeWorkspaceId: string | null;
   /** User settings */
   settings: ConfigSettings;
+  /** Plugin enabled/disabled state and user settings */
+  plugins?: Record<string, PluginConfig>;
 }
 
 // CLI Server Options
