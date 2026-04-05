@@ -26,6 +26,7 @@ import { getMessagingConfig } from './services/messagingAdapter.js';
 import { initializeStatusCache } from './services/messagingNotifier.js';
 import type { ServerOptions } from '../types/index.js';
 import { setBoundPort } from './services/runner.js';
+import { internalEvents, SERVER_STARTUP, SERVER_SHUTDOWN } from './services/internalEvents.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -194,6 +195,16 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     };
 
     await printStartupBanner(bannerInfo);
+
+    // Emit server startup event for plugin hooks
+    internalEvents.emit(SERVER_STARTUP, { port, host });
+
+    // Register graceful shutdown handlers
+    const shutdownHandler = (signal: string) => {
+      internalEvents.emit(SERVER_SHUTDOWN, { reason: signal });
+    };
+    process.on('SIGTERM', () => shutdownHandler('SIGTERM'));
+    process.on('SIGINT', () => shutdownHandler('SIGINT'));
 
     // Suppress unused variable warning for agentCommand (retained for potential future use)
     void agentCommand;

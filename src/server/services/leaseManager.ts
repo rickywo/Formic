@@ -13,7 +13,7 @@ import type { FileLease, LeaseRequest, LeaseResult, FileConflict, LeaseStoreSnap
 import { getFormicDir } from '../utils/paths.js';
 import { getTask, updateTaskStatus } from './store.js';
 import { broadcastLeaseReleased } from './boardNotifier.js';
-import { internalEvents, LEASE_RELEASED } from './internalEvents.js';
+import { internalEvents, LEASE_RELEASED, LEASE_ACQUIRED } from './internalEvents.js';
 
 const execAsync = promisify(exec);
 
@@ -109,6 +109,7 @@ export function acquireLeases(request: LeaseRequest): LeaseResult {
   }
 
   console.log(`[LeaseManager] Leases granted for task ${taskId}: ${exclusiveFiles.length} exclusive, ${sharedFiles.length} shared`);
+  internalEvents.emit(LEASE_ACQUIRED, { taskId, leases: grantedLeases });
   persistLeases().catch(e => console.warn('[LeaseManager] persist error:', e));
   return { granted: true, leases: grantedLeases, conflictingFiles: [] };
 }

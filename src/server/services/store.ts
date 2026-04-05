@@ -14,6 +14,7 @@ import { copySkillsToWorkspace } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
 import { releaseLeases } from './leaseManager.js';
 import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
+import { internalEvents, TASK_CREATED, TASK_QUEUED, BOARD_UPDATE } from './internalEvents.js';
 
 /** Async write mutex — serializes all saveBoard() calls to prevent concurrent write corruption */
 let saveLock: Promise<void> = Promise.resolve();
@@ -264,6 +265,7 @@ async function saveBoardInternal(board: Board): Promise<void> {
   try {
     await writeFile(tmpPath, JSON.stringify(board, null, 2), 'utf-8');
     await rename(tmpPath, boardPath);
+    internalEvents.emit(BOARD_UPDATE, { board });
   } catch (error) {
     const err = error as Error;
     console.error('[Store] Failed to save board:', err.message);
@@ -322,6 +324,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
 
   board.tasks.push(task);
   await saveBoard(board);
+  internalEvents.emit(TASK_CREATED, { task });
   return task;
 }
 
@@ -542,6 +545,7 @@ export async function queueTask(taskId: string): Promise<Task | null> {
   };
 
   await saveBoard(board);
+  internalEvents.emit(TASK_QUEUED, { task: board.tasks[taskIndex], previousStatus: task.status });
   return board.tasks[taskIndex];
 }
 

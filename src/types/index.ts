@@ -100,6 +100,52 @@ export type PluginPermission =
   | 'events:subscribe'
   | 'ui:panel';
 
+/** Error thrown when a plugin attempts an action it lacks permission for */
+export class PluginPermissionError extends Error {
+  public readonly pluginName: string;
+  public readonly permission: string;
+
+  constructor(pluginName: string, permission: string) {
+    super(`Plugin "${pluginName}" lacks permission "${permission}"`);
+    this.name = 'PluginPermissionError';
+    this.pluginName = pluginName;
+    this.permission = permission;
+  }
+}
+
+/** Sandboxed context object provided to plugins */
+export interface PluginContext {
+  board: {
+    getTasks(): Promise<Task[]>;
+    getTask(id: string): Promise<Task | null>;
+    onUpdate(cb: (board: Board) => void): void;
+  };
+  tasks: {
+    create(data: CreateTaskInput): Promise<Task>;
+    update(id: string, data: Partial<Task>): Promise<Task>;
+  };
+  config: {
+    get(key: string): Promise<unknown>;
+    set(key: string, value: unknown): Promise<void>;
+  };
+  events: {
+    on(event: string, handler: (...args: unknown[]) => void): void;
+    off(event: string, handler: (...args: unknown[]) => void): void;
+  };
+  logger: {
+    info(...args: unknown[]): void;
+    warn(...args: unknown[]): void;
+    error(...args: unknown[]): void;
+  };
+  http: {
+    fetch(url: string, options?: RequestInit): Promise<Response>;
+  };
+  process: {
+    uptime(): number;
+    memoryUsage(): NodeJS.MemoryUsage;
+  };
+}
+
 /** Manifest schema for a plugin's manifest.json */
 export interface PluginManifest {
   /** Plugin name (required, kebab-case) */

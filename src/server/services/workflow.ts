@@ -26,7 +26,7 @@ import { stopQueueProcessor, removeInFlightTask } from './queueProcessor.js';
 import { broadcastToWorkspace } from './messagingNotifier.js';
 import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
-import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
+import { internalEvents, TASK_COMPLETED, BEFORE_EXECUTE, AFTER_EXECUTE, TASK_FAILED } from './internalEvents.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
@@ -1640,6 +1640,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     // Wrap post-lease-acquisition code in try/finally to guarantee lease release
     // even if an unexpected exception occurs during execution or collision detection
     try {
+      internalEvents.emit(BEFORE_EXECUTE, { taskId, task: currentTask });
       await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeFullWorkflow.execute_start');
       await updateWorkflowStep(taskId, 'execute');
 
@@ -1662,6 +1663,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       }
 
       if (executeResult.success) {
+        internalEvents.emit(AFTER_EXECUTE, { taskId, task: currentTask, success: true });
         // Guard against stale status updates: check if watchdog has already re-queued the task
         const latestTask = await getTask(taskId);
         if (latestTask && latestTask.status === 'running') {
@@ -1680,6 +1682,8 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
           console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
         }
       } else {
+        internalEvents.emit(AFTER_EXECUTE, { taskId, task: currentTask, success: false });
+        internalEvents.emit(TASK_FAILED, { taskId, task: currentTask, error: 'Full workflow execution failed' });
         const latestTask = await getTask(taskId);
         if (latestTask && latestTask.status === 'running') {
           await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.execute_failed');
@@ -1784,6 +1788,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
       }
 
       try {
+        internalEvents.emit(BEFORE_EXECUTE, { taskId, task: taskForExecution });
         await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeFromDeclare.execute_start');
         await updateWorkflowStep(taskId, 'execute');
 
@@ -1804,6 +1809,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
         }
 
         if (executeResult.success) {
+          internalEvents.emit(AFTER_EXECUTE, { taskId, task: taskForExecution, success: true });
           const latestTask = await getTask(taskId);
           if (latestTask && latestTask.status === 'running') {
             const verifyResult = await executeVerifyStep(taskId);
@@ -1821,6 +1827,8 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
             console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
           }
         } else {
+          internalEvents.emit(AFTER_EXECUTE, { taskId, task: taskForExecution, success: false });
+          internalEvents.emit(TASK_FAILED, { taskId, task: taskForExecution, error: 'Execution failed after declare' });
           const latestTask = await getTask(taskId);
           if (latestTask && latestTask.status === 'running') {
             await incrementRetryCount(taskId, 'workflow.executeFromDeclare.execute_failed');

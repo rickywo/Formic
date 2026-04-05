@@ -4,6 +4,7 @@ import path from 'node:path';
 import { getSkillPath, skillExists, getSkillContent } from './skills.js';
 import { getWorkspacePath } from '../utils/paths.js';
 import type { Task } from '../../types/index.js';
+import { internalEvents, SKILL_LOADED } from './internalEvents.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 
@@ -124,6 +125,7 @@ export async function loadSkillPrompt(
     const finalContent = guidelines + substitutedContent;
 
     console.log(`[SkillReader] Loaded skill '${skillName}' with variables substituted`);
+    internalEvents.emit(SKILL_LOADED, { skillName, taskId: task.id });
     return { success: true, content: finalContent, source: 'skill' };
   } catch (error) {
     console.error(`[SkillReader] Error loading skill '${skillName}':`, error);
