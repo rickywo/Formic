@@ -1,0 +1,9 @@
+(function() {
+  window.FormicPluginAPI.addPanel('right-sidebar', {
+    id: '{{name}}',
+    title: '{{Name}}',
+    render(container) {
+      container.innerHTML = '<p>Hello from {{name}}!</p>';
+    }
+  });
+})();

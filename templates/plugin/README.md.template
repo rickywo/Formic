@@ -1,0 +1,28 @@
+# {{Name}}
+
+A Formic plugin.
+
+## Installation
+
+```bash
+formic plugin install /path/to/{{name}}
+```
+
+## Usage
+
+Once installed and enabled, the plugin adds:
+
+- **Server hook**: `GET /plugins/{{name}}/hello` — returns a greeting
+- **UI panel**: Renders in the right sidebar
+
+## Development
+
+Edit the plugin files in `.formic/plugins/{{name}}/`:
+
+- `manifest.json` — Plugin metadata and permissions
+- `server.js` — Server-side Fastify plugin
+- `client.js` — Client-side UI module
+
+## License
+
+MIT

@@ -292,6 +292,19 @@ export async function getPluginSetting(name: string, key: string): Promise<unkno
  * Set a single setting value for a plugin.
  * Creates the plugin config entry if it doesn't exist.
  */
+/**
+ * Remove the config entry for a specific plugin.
+ * No-op if the plugin has no config entry.
+ */
+export async function removePluginConfig(name: string): Promise<void> {
+  const config = await loadConfig();
+  if (config.plugins && config.plugins[name]) {
+    delete config.plugins[name];
+    await saveConfig(config);
+    console.warn('[ConfigStore] Plugin config removed:', name);
+  }
+}
+
 export async function setPluginSetting(name: string, key: string, value: unknown): Promise<void> {
   const config = await loadConfig();
   if (!config.plugins) {

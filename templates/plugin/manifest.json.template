@@ -1,0 +1,10 @@
+{
+  "name": "{{name}}",
+  "version": "1.0.0",
+  "description": "A Formic plugin",
+  "author": "",
+  "minFormicVersion": "1.0.0",
+  "permissions": [],
+  "serverEntry": "server.js",
+  "clientEntry": "client.js"
+}

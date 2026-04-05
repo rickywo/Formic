@@ -79,6 +79,12 @@ Usage:
 Commands:
   start             Start the Formic server
   init              Initialize .formic/ in the current directory (optional)
+  plugin list       List installed plugins
+  plugin install    Install a plugin from path or git URL
+  plugin remove     Remove an installed plugin
+  plugin enable     Enable a plugin
+  plugin disable    Disable a plugin
+  plugin create     Scaffold a new plugin from template
 
 Options:
   -p, --port <n>    Port to run the server on (default: 8000)
@@ -245,6 +251,14 @@ async function main(): Promise<void> {
     case 'start':
       await startCommand(port);
       break;
+
+    case 'plugin': {
+      // Pass remaining args after 'plugin' to the plugin command handler
+      const pluginArgs = args.slice(args.indexOf('plugin') + 1);
+      const { handlePluginCommand } = await import('./pluginCommands.js');
+      await handlePluginCommand(pluginArgs);
+      break;
+    }
 
     default:
       if (command) {
