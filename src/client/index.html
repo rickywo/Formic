@@ -7393,6 +7393,450 @@
     [data-theme="light"] .plugin-empty-state code {
       background: rgba(0, 0, 0, 0.05);
     }
+
+    /* ============================================
+       Marketplace Tab — Plugins Settings Panel
+       ============================================ */
+
+    /* Tab bar */
+    .plugins-tab-bar {
+      display: flex;
+      gap: 0;
+      margin-bottom: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .plugins-tab {
+      padding: 8px 18px;
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.4);
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      transition: color 0.2s ease, border-color 0.2s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .plugins-tab:hover {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .plugins-tab.active {
+      color: var(--accent-blue);
+      border-bottom-color: var(--accent-blue);
+    }
+
+    /* Marketplace controls */
+    .marketplace-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .marketplace-controls input[type="text"] {
+      flex: 1;
+      min-width: 140px;
+      padding: 7px 12px;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: var(--text-primary);
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .marketplace-controls input[type="text"]:focus {
+      border-color: rgba(88, 166, 255, 0.4);
+    }
+
+    .marketplace-controls input[type="text"]::placeholder {
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    .marketplace-controls label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .marketplace-controls input[type="checkbox"] {
+      accent-color: var(--accent-blue);
+    }
+
+    /* Marketplace cards */
+    .marketplace-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 10px;
+      transition: border-color 0.2s ease;
+    }
+
+    .marketplace-card:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .marketplace-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .marketplace-card-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .marketplace-card-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .marketplace-card-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .marketplace-card-version {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .marketplace-card-author {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      margin-bottom: 6px;
+    }
+
+    .marketplace-card-desc {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.45);
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .marketplace-card-tags {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+
+    .marketplace-tag-pill {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .marketplace-card-actions {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+
+    .marketplace-install-btn {
+      padding: 5px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid rgba(88, 166, 255, 0.25);
+      background: rgba(88, 166, 255, 0.1);
+      color: var(--accent-blue);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .marketplace-install-btn:hover:not(:disabled) {
+      background: rgba(88, 166, 255, 0.2);
+      border-color: rgba(88, 166, 255, 0.4);
+    }
+
+    .marketplace-install-btn:disabled {
+      opacity: 0.5;
+      cursor: default;
+      color: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.03);
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    /* Verified / Unverified badges */
+    .verified-badge {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: #4ade80;
+      background: rgba(74, 222, 128, 0.12);
+      flex-shrink: 0;
+    }
+
+    .unverified-badge {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 7px;
+      border-radius: 4px;
+      color: #facc15;
+      background: rgba(250, 204, 21, 0.12);
+      flex-shrink: 0;
+    }
+
+    /* Updates banner */
+    .marketplace-updates-banner {
+      background: rgba(88, 166, 255, 0.06);
+      border: 1px solid rgba(88, 166, 255, 0.15);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+
+    .marketplace-updates-banner:empty {
+      display: none;
+    }
+
+    .marketplace-updates-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent-blue);
+      margin-bottom: 8px;
+    }
+
+    .marketplace-update-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .marketplace-update-btn {
+      padding: 4px 12px;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 5px;
+      border: 1px solid rgba(88, 166, 255, 0.25);
+      background: rgba(88, 166, 255, 0.1);
+      color: var(--accent-blue);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .marketplace-update-btn:hover {
+      background: rgba(88, 166, 255, 0.2);
+      border-color: rgba(88, 166, 255, 0.4);
+    }
+
+    /* Pagination */
+    .marketplace-pagination {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 12px 0 4px;
+    }
+
+    .marketplace-pagination button {
+      padding: 5px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.6);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .marketplace-pagination button:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .marketplace-pagination button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .marketplace-page-indicator {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .marketplace-empty {
+      text-align: center;
+      padding: 32px 16px;
+      color: rgba(255, 255, 255, 0.3);
+      font-size: 12px;
+    }
+
+    /* Light theme — Marketplace */
+    [data-theme="light"] .plugins-tab-bar {
+      border-bottom-color: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .plugins-tab {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .plugins-tab:hover {
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    [data-theme="light"] .plugins-tab.active {
+      color: var(--accent-blue);
+      border-bottom-color: var(--accent-blue);
+    }
+
+    [data-theme="light"] .marketplace-controls input[type="text"] {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.08);
+      color: var(--text-primary);
+    }
+
+    [data-theme="light"] .marketplace-controls input[type="text"]:focus {
+      border-color: rgba(37, 99, 235, 0.4);
+    }
+
+    [data-theme="light"] .marketplace-controls input[type="text"]::placeholder {
+      color: rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme="light"] .marketplace-controls label {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .marketplace-card {
+      background: rgba(0, 0, 0, 0.02);
+      border-color: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .marketplace-card:hover {
+      border-color: rgba(0, 0, 0, 0.12);
+    }
+
+    [data-theme="light"] .marketplace-card-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .marketplace-card-version {
+      color: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .marketplace-card-author {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .marketplace-card-desc {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .marketplace-tag-pill {
+      color: rgba(0, 0, 0, 0.45);
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="light"] .marketplace-install-btn {
+      border-color: rgba(37, 99, 235, 0.2);
+      background: rgba(37, 99, 235, 0.08);
+      color: var(--accent-blue);
+    }
+
+    [data-theme="light"] .marketplace-install-btn:hover:not(:disabled) {
+      background: rgba(37, 99, 235, 0.15);
+      border-color: rgba(37, 99, 235, 0.3);
+    }
+
+    [data-theme="light"] .marketplace-install-btn:disabled {
+      color: rgba(0, 0, 0, 0.3);
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .verified-badge {
+      color: #16a34a;
+      background: rgba(22, 163, 74, 0.1);
+    }
+
+    [data-theme="light"] .unverified-badge {
+      color: #ca8a04;
+      background: rgba(202, 138, 4, 0.1);
+    }
+
+    [data-theme="light"] .marketplace-updates-banner {
+      background: rgba(37, 99, 235, 0.04);
+      border-color: rgba(37, 99, 235, 0.12);
+    }
+
+    [data-theme="light"] .marketplace-updates-title {
+      color: var(--accent-blue);
+    }
+
+    [data-theme="light"] .marketplace-update-item {
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    [data-theme="light"] .marketplace-update-btn {
+      border-color: rgba(37, 99, 235, 0.2);
+      background: rgba(37, 99, 235, 0.08);
+      color: var(--accent-blue);
+    }
+
+    [data-theme="light"] .marketplace-update-btn:hover {
+      background: rgba(37, 99, 235, 0.15);
+      border-color: rgba(37, 99, 235, 0.3);
+    }
+
+    [data-theme="light"] .marketplace-pagination button {
+      border-color: rgba(0, 0, 0, 0.08);
+      background: rgba(0, 0, 0, 0.03);
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .marketplace-pagination button:hover:not(:disabled) {
+      background: rgba(0, 0, 0, 0.06);
+      border-color: rgba(0, 0, 0, 0.12);
+      color: rgba(0, 0, 0, 0.8);
+    }
+
+    [data-theme="light"] .marketplace-page-indicator {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .marketplace-empty {
+      color: rgba(0, 0, 0, 0.3);
+    }
   </style>
 </head>
 <body>
@@ -8324,8 +8768,30 @@
       <!-- Plugins Management Section -->
       <div class="settings-section" id="plugins-settings-section">
         <div class="settings-section-title">Plugins</div>
-        <div id="plugins-list">
-          <!-- Plugin cards rendered dynamically -->
+        <div class="plugins-tab-bar">
+          <button class="plugins-tab active" data-tab="installed" onclick="switchPluginsTab('installed')">Installed</button>
+          <button class="plugins-tab" data-tab="marketplace" onclick="switchPluginsTab('marketplace')">Marketplace</button>
+        </div>
+        <div id="plugins-installed-panel">
+          <div id="plugins-list">
+            <!-- Plugin cards rendered dynamically -->
+          </div>
+        </div>
+        <div id="marketplace-panel" style="display:none;">
+          <div class="marketplace-controls">
+            <input type="text" id="marketplace-search" placeholder="Search plugins...">
+            <input type="text" id="marketplace-tags" placeholder="Tags (comma-separated)...">
+            <label><input type="checkbox" id="marketplace-verified-only"> Verified only</label>
+          </div>
+          <div id="marketplace-updates-banner"></div>
+          <div id="marketplace-cards-container">
+            <div class="marketplace-empty">Switch to the Marketplace tab to browse plugins.</div>
+          </div>
+          <div class="marketplace-pagination">
+            <button id="marketplace-prev-btn" onclick="marketplacePrevPage()" disabled>Previous</button>
+            <span class="marketplace-page-indicator" id="marketplace-page-indicator">Page 1</span>
+            <button id="marketplace-next-btn" onclick="marketplaceNextPage()" disabled>Next</button>
+          </div>
         </div>
       </div>
 
@@ -11091,6 +11557,276 @@
         showToast(err.message || 'Failed to uninstall plugin', 'error');
       }
     }
+
+    // ============================================
+    // Marketplace Tab — Plugin Settings Panel
+    // ============================================
+
+    let marketplacePage = 1;
+    let marketplaceQuery = '';
+    let marketplaceTags = '';
+    let marketplaceVerifiedOnly = false;
+    let marketplaceLoaded = false;
+    let marketplaceTotal = 0;
+    let marketplacePageSize = 20;
+    let installedPluginNames = new Set();
+    let _marketplaceSearchTimer = null;
+    let _marketplaceTagsTimer = null;
+
+    function switchPluginsTab(tabName) {
+      const tabs = document.querySelectorAll('.plugins-tab-bar .plugins-tab');
+      tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
+
+      const installedPanel = document.getElementById('plugins-installed-panel');
+      const marketplacePanel = document.getElementById('marketplace-panel');
+      if (!installedPanel || !marketplacePanel) return;
+
+      if (tabName === 'installed') {
+        installedPanel.style.display = '';
+        marketplacePanel.style.display = 'none';
+      } else {
+        installedPanel.style.display = 'none';
+        marketplacePanel.style.display = '';
+        // Lazy load: fetch data on first activation
+        if (!marketplaceLoaded) {
+          marketplaceLoaded = true;
+          fetchMarketplace();
+        }
+        // Always refresh updates when switching to marketplace
+        fetchMarketplaceUpdates();
+      }
+    }
+
+    async function fetchMarketplace() {
+      const container = document.getElementById('marketplace-cards-container');
+      if (!container) return;
+
+      container.innerHTML = '<div class="marketplace-empty">Loading...</div>';
+
+      try {
+        // Fetch installed plugin names for cross-referencing
+        const pluginRes = await fetch('/api/plugins');
+        if (pluginRes.ok) {
+          const pluginData = await pluginRes.json();
+          const plugins = pluginData.plugins || [];
+          installedPluginNames = new Set(plugins.map(p => p.name));
+        }
+
+        // Build query params
+        const params = new URLSearchParams();
+        if (marketplaceQuery) params.set('query', marketplaceQuery);
+        if (marketplaceTags) params.set('tags', marketplaceTags);
+        if (marketplaceVerifiedOnly) params.set('verified', 'true');
+        params.set('page', String(marketplacePage));
+
+        const res = await fetch(`/api/marketplace?${params.toString()}`);
+        if (!res.ok) throw new Error('Failed to fetch marketplace');
+
+        const data = await res.json();
+        const entries = data.entries || [];
+        marketplaceTotal = data.total || 0;
+        marketplacePageSize = data.pageSize || 20;
+
+        if (entries.length === 0) {
+          container.innerHTML = '<div class="marketplace-empty">No plugins found. Try a different search.</div>';
+        } else {
+          container.innerHTML = entries.map(entry => renderMarketplaceCard(entry, installedPluginNames)).join('');
+        }
+
+        updateMarketplacePagination();
+      } catch (err) {
+        container.innerHTML = `<div class="marketplace-empty">Failed to load marketplace: ${escapeHtml(err.message || 'Unknown error')}</div>`;
+      }
+    }
+
+    function renderMarketplaceCard(entry, installed) {
+      const isInstalled = installed.has(entry.name);
+      const verifiedBadge = entry.verified
+        ? '<span class="verified-badge">Verified</span>'
+        : '<span class="unverified-badge">Unverified</span>';
+
+      const tagsHtml = (entry.tags || []).map(tag =>
+        `<span class="marketplace-tag-pill">${escapeHtml(tag)}</span>`
+      ).join('');
+
+      const installBtnLabel = isInstalled ? 'Installed' : 'Install';
+      const installBtnDisabled = isInstalled ? 'disabled' : '';
+      const installOnclick = isInstalled
+        ? ''
+        : `onclick="installMarketplacePlugin('${escapeHtml(entry.id || entry.name)}', ${!!entry.verified})"`;
+
+      return `
+        <div class="marketplace-card">
+          <div class="marketplace-card-header">
+            <div class="marketplace-card-info">
+              <div class="marketplace-card-name-row">
+                <span class="marketplace-card-name">${escapeHtml(entry.name)}</span>
+                <span class="marketplace-card-version">v${escapeHtml(entry.version || '0.0.0')}</span>
+                ${verifiedBadge}
+              </div>
+              ${entry.author ? `<div class="marketplace-card-author">by ${escapeHtml(entry.author)}</div>` : ''}
+              ${entry.description ? `<div class="marketplace-card-desc">${escapeHtml(entry.description)}</div>` : ''}
+              ${tagsHtml ? `<div class="marketplace-card-tags">${tagsHtml}</div>` : ''}
+            </div>
+            <div class="marketplace-card-actions">
+              <button class="marketplace-install-btn" ${installBtnDisabled} ${installOnclick}>${installBtnLabel}</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateMarketplacePagination() {
+      const prevBtn = document.getElementById('marketplace-prev-btn');
+      const nextBtn = document.getElementById('marketplace-next-btn');
+      const indicator = document.getElementById('marketplace-page-indicator');
+
+      const totalPages = Math.max(1, Math.ceil(marketplaceTotal / marketplacePageSize));
+
+      if (prevBtn) prevBtn.disabled = marketplacePage <= 1;
+      if (nextBtn) nextBtn.disabled = marketplacePage >= totalPages;
+      if (indicator) indicator.textContent = `Page ${marketplacePage} of ${totalPages}`;
+    }
+
+    function marketplacePrevPage() {
+      if (marketplacePage > 1) {
+        marketplacePage--;
+        fetchMarketplace();
+      }
+    }
+
+    function marketplaceNextPage() {
+      const totalPages = Math.max(1, Math.ceil(marketplaceTotal / marketplacePageSize));
+      if (marketplacePage < totalPages) {
+        marketplacePage++;
+        fetchMarketplace();
+      }
+    }
+
+    async function fetchMarketplaceUpdates() {
+      const banner = document.getElementById('marketplace-updates-banner');
+      if (!banner) return;
+
+      try {
+        const res = await fetch('/api/marketplace/updates');
+        if (!res.ok) {
+          banner.innerHTML = '';
+          return;
+        }
+
+        const data = await res.json();
+        const updates = data.updates || [];
+
+        if (updates.length === 0) {
+          banner.innerHTML = '';
+          return;
+        }
+
+        let itemsHtml = updates.map(u => {
+          const entryId = u.registryEntry ? (u.registryEntry.id || u.registryEntry.name) : u.pluginId;
+          return `
+            <div class="marketplace-update-item">
+              <span>${escapeHtml(u.pluginId || 'Unknown')} — ${escapeHtml(u.installedVersion || '?')} &rarr; ${escapeHtml(u.latestVersion || '?')}</span>
+              <button class="marketplace-update-btn" onclick="updateMarketplacePlugin('${escapeHtml(entryId)}')">Update</button>
+            </div>
+          `;
+        }).join('');
+
+        banner.innerHTML = `
+          <div class="marketplace-updates-title">Updates Available</div>
+          ${itemsHtml}
+        `;
+      } catch (err) {
+        banner.innerHTML = '';
+      }
+    }
+
+    async function installMarketplacePlugin(id, verified) {
+      if (!verified) {
+        if (!confirm('This plugin has not been verified by the Formic team. Install anyway?')) {
+          return;
+        }
+      }
+
+      try {
+        const res = await fetch(`/api/marketplace/${encodeURIComponent(id)}/install`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirmed: true }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to install plugin');
+        }
+
+        showToast('Plugin installed successfully', 'success');
+        await loadPlugins();
+        await fetchMarketplace();
+      } catch (err) {
+        showToast(err.message || 'Failed to install plugin', 'error');
+      }
+    }
+
+    async function updateMarketplacePlugin(id) {
+      try {
+        const res = await fetch(`/api/marketplace/${encodeURIComponent(id)}/update`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to update plugin');
+        }
+
+        showToast('Plugin updated successfully', 'success');
+        await loadPlugins();
+        await fetchMarketplace();
+        await fetchMarketplaceUpdates();
+      } catch (err) {
+        showToast(err.message || 'Failed to update plugin', 'error');
+      }
+    }
+
+    // Wire marketplace search/filter inputs (debounced)
+    (function initMarketplaceControls() {
+      document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('marketplace-search');
+        const tagsInput = document.getElementById('marketplace-tags');
+        const verifiedCheckbox = document.getElementById('marketplace-verified-only');
+
+        if (searchInput) {
+          searchInput.addEventListener('input', function() {
+            clearTimeout(_marketplaceSearchTimer);
+            _marketplaceSearchTimer = setTimeout(function() {
+              marketplaceQuery = searchInput.value.trim();
+              marketplacePage = 1;
+              if (marketplaceLoaded) fetchMarketplace();
+            }, 300);
+          });
+        }
+
+        if (tagsInput) {
+          tagsInput.addEventListener('input', function() {
+            clearTimeout(_marketplaceTagsTimer);
+            _marketplaceTagsTimer = setTimeout(function() {
+              marketplaceTags = tagsInput.value.trim();
+              marketplacePage = 1;
+              if (marketplaceLoaded) fetchMarketplace();
+            }, 300);
+          });
+        }
+
+        if (verifiedCheckbox) {
+          verifiedCheckbox.addEventListener('change', function() {
+            marketplaceVerifiedOnly = verifiedCheckbox.checked;
+            marketplacePage = 1;
+            if (marketplaceLoaded) fetchMarketplace();
+          });
+        }
+      });
+    })();
 
     function adjustConcurrentSessions(delta) {
       const valueEl = document.getElementById('concurrent-sessions-value');
