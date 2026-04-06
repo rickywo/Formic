@@ -212,6 +212,7 @@ The server will automatically detect this format and create the task via the For
   - [t-15] Implement plugin stage cleanup on unload and disable
   - [t-16] Update board UI to render columns dynamically from pipeline stages
   - [t-17] -Verify configurable pipeline with integration tests and build validation
+  - [t-18] Add configurable custom prompt support to unit-test plugin
 
 ### Done
   - [t-bootstrap] !Setup AI Development Guidelines
