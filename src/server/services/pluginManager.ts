@@ -8,6 +8,8 @@ import { getPluginConfig, setPluginConfig, removePluginConfig } from './configSt
 import { createFormicAPI, cleanupPluginListeners } from './pluginContext.js';
 import { unregisterStages, unregisterCustomTaskTypes, unregisterVerifiers } from './pipelineRegistry.js';
 import { unregisterSkillOverrides } from './skillReader.js';
+import { unregisterPluginWebhooks } from './pluginWebhookRegistry.js';
+import { unregisterBotCommands } from './pluginBotCommands.js';
 import { internalEvents, STAGE_UNREGISTERED, BOARD_UPDATE } from './internalEvents.js';
 
 /**
@@ -539,6 +541,28 @@ export async function unloadPlugin(name: string): Promise<void> {
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       console.warn(`[PluginManager] Failed to unregister verifiers for plugin '${name}': ${msg}`);
+    }
+
+    // Clean up webhook routes registered by this plugin
+    try {
+      const removedWebhooks = unregisterPluginWebhooks(name);
+      if (removedWebhooks > 0) {
+        console.warn(`[PluginManager] Removed ${removedWebhooks} webhook route(s) for plugin: ${name}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[PluginManager] Failed to unregister webhooks for plugin '${name}': ${msg}`);
+    }
+
+    // Clean up bot commands registered by this plugin
+    try {
+      const removedCommands = unregisterBotCommands(name);
+      if (removedCommands > 0) {
+        console.warn(`[PluginManager] Removed ${removedCommands} bot command(s) for plugin: ${name}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[PluginManager] Failed to unregister bot commands for plugin '${name}': ${msg}`);
     }
 
     entry.loadedModule = undefined;
