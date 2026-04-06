@@ -13,6 +13,7 @@ import { configRoutes } from './routes/config.js';
 import { toolRoutes } from './routes/tools.js';
 import { usageRoutes } from './routes/usage.js';
 import { pluginRoutes } from './routes/plugins.js';
+import { pipelineRoutes } from './routes/pipeline.js';
 import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { readFile } from 'node:fs/promises';
@@ -115,6 +116,7 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   await fastify.register(toolRoutes);
   await fastify.register(usageRoutes);
     await fastify.register(pluginRoutes);
+  await fastify.register(pipelineRoutes);
 
   // Register WebSocket routes
   await fastify.register(logsWebSocket);

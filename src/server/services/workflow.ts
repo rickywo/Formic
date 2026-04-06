@@ -19,7 +19,7 @@ import {
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir, getTaskLogsDir } from '../utils/paths.js';
 import { createSafePoint } from '../utils/gitUtils.js';
-import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
+import type { LogMessage, Task, WorkflowStep, StageDescriptor } from '../../types/index.js';
 import path from 'node:path';
 import { broadcastBoardUpdate, broadcastKillSwitch, broadcastTaskCompleted } from './boardNotifier.js';
 import { stopQueueProcessor, removeInFlightTask } from './queueProcessor.js';
@@ -27,6 +27,7 @@ import { broadcastToWorkspace } from './messagingNotifier.js';
 import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
 import { internalEvents, TASK_COMPLETED, BEFORE_EXECUTE, AFTER_EXECUTE, TASK_FAILED } from './internalEvents.js';
+import { getActivePipeline } from './pipelineRegistry.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
@@ -1179,6 +1180,10 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
   }
   await refreshEngineConfig();
 
+  // Retrieve the active pipeline for quick tasks
+  const pipeline = getActivePipeline('quick');
+  console.warn(`[Workflow] Pipeline for quick task ${taskId}: ${pipeline.map((s: StageDescriptor) => s.name).join(' → ')}`);
+
   // Check if a workflow is already running
   if (activeWorkflows.has(taskId)) {
     throw new Error('A workflow is already running for this task');
@@ -1433,6 +1438,10 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     throw new Error(`Task ${taskId} not found`);
   }
   await refreshEngineConfig();
+
+  // Retrieve the active pipeline for standard tasks
+  const pipeline = getActivePipeline('standard');
+  console.warn(`[Workflow] Pipeline for standard task ${taskId}: ${pipeline.map((s: StageDescriptor) => s.name).join(' → ')}`);
 
   // Check if a workflow is already running
   if (activeWorkflows.has(taskId)) {
@@ -1945,6 +1954,10 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
     throw new Error(`Task ${taskId} not found`);
   }
   await refreshEngineConfig();
+
+  // Retrieve the active pipeline for goal tasks
+  const pipeline = getActivePipeline('goal');
+  console.warn(`[Workflow] Pipeline for goal task ${taskId}: ${pipeline.map((s: StageDescriptor) => s.name).join(' → ')}`);
 
   if (activeWorkflows.has(taskId)) {
     throw new Error('A workflow is already running for this task');
