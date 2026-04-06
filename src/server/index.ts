@@ -1,4 +1,5 @@
 import Fastify from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebSocket from '@fastify/websocket';
 import path from 'node:path';
@@ -11,6 +12,7 @@ import { webhookRoutes } from './routes/webhooks.js';
 import { configRoutes } from './routes/config.js';
 import { toolRoutes } from './routes/tools.js';
 import { usageRoutes } from './routes/usage.js';
+import { pluginRoutes } from './routes/plugins.js';
 import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { readFile } from 'node:fs/promises';
@@ -26,6 +28,7 @@ import { getMessagingConfig } from './services/messagingAdapter.js';
 import { initializeStatusCache } from './services/messagingNotifier.js';
 import type { ServerOptions } from '../types/index.js';
 import { setBoundPort } from './services/runner.js';
+import { discoverPlugins, getPlugins, loadPlugin } from './services/pluginManager.js';
 import { internalEvents, SERVER_STARTUP, SERVER_SHUTDOWN } from './services/internalEvents.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -111,6 +114,7 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   await fastify.register(configRoutes);
   await fastify.register(toolRoutes);
   await fastify.register(usageRoutes);
+    await fastify.register(pluginRoutes);
 
   // Register WebSocket routes
   await fastify.register(logsWebSocket);
@@ -138,6 +142,26 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
       console.error('[Server] FATAL: Cannot load or recover board — exiting',
         boardErr instanceof Error ? boardErr.message : 'Unknown error');
       process.exit(1);
+    }
+
+    // Discover and load enabled server-side plugins before accepting traffic
+    try {
+      await discoverPlugins();
+      const pluginRegistry = getPlugins();
+      for (const [pluginName, entry] of pluginRegistry) {
+        if (entry.status !== 'disabled' && entry.status !== 'error' && entry.manifest.serverEntry) {
+          await loadPlugin(pluginName);
+          const updated = pluginRegistry.get(pluginName);
+          if (updated?.loadedModule && typeof (updated.loadedModule as Record<string, unknown>).default === 'function') {
+            const pluginFn = (updated.loadedModule as Record<string, unknown>).default as
+              (instance: FastifyInstance, opts: Record<string, unknown>) => Promise<void>;
+            await fastify.register(pluginFn, { prefix: `/api/plugins/${pluginName}` });
+          }
+        }
+      }
+    } catch (pluginErr) {
+      console.warn('[Server] Plugin discovery/loading failed (non-fatal):',
+        pluginErr instanceof Error ? pluginErr.message : 'Unknown error');
     }
 
     await fastify.listen({ port, host });
