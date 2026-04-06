@@ -12,6 +12,7 @@ import {
   parseCommand,
 } from './messagingAdapter.js';
 import { getSessionAI } from './messagingStore.js';
+import { dispatchBotCommand } from './pluginBotCommands.js';
 
 /**
  * Line Adapter Service
@@ -535,6 +536,21 @@ async function handleMessageEvent(event: LineMessageEvent): Promise<SendMessageR
 
   console.log(`[LineAdapter] Received message from ${incomingMessage.userName || incomingMessage.userId}: ${incomingMessage.text}`);
 
+  // Check if this is a plugin-registered bot command before any other processing
+  if (incomingMessage.text.startsWith('/')) {
+    const parts = incomingMessage.text.split(/\s+/);
+    const commandName = parts[0].replace(/^\/+/, '');
+    const argsString = parts.slice(1).join(' ');
+    const pluginResponse = await dispatchBotCommand(commandName, argsString, incomingMessage.chatId);
+    if (pluginResponse !== null) {
+      return replyToLineMessage(event.replyToken, {
+        chatId: incomingMessage.chatId,
+        text: pluginResponse,
+        parseMode: 'plain',
+      });
+    }
+  }
+
   // Check if AI processing is needed
   const useAI = await willUseAIProcessing(incomingMessage);
 
@@ -626,6 +642,24 @@ export async function handleLineWebhookAsync(
       const incomingMessage = await parseLineEvent(messageEvent);
 
       if (incomingMessage) {
+        // Check if this is a plugin-registered bot command before any other processing
+        if (incomingMessage.text.startsWith('/')) {
+          const parts = incomingMessage.text.split(/\s+/);
+          const commandName = parts[0].replace(/^\/+/, '');
+          const argsString = parts.slice(1).join(' ');
+          const pluginResponse = await dispatchBotCommand(commandName, argsString, incomingMessage.chatId);
+          if (pluginResponse !== null) {
+            const result = await replyToLineMessage(messageEvent.replyToken, {
+              chatId: incomingMessage.chatId,
+              text: pluginResponse,
+              parseMode: 'plain',
+            });
+            immediateResults.push(result);
+            backgrounds.push(null);
+            continue;
+          }
+        }
+
         const useAI = await willUseAIProcessing(incomingMessage);
 
         if (useAI) {

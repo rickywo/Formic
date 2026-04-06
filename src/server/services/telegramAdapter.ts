@@ -12,6 +12,7 @@ import {
   parseCommand,
 } from './messagingAdapter.js';
 import { getSessionAI } from './messagingStore.js';
+import { dispatchBotCommand } from './pluginBotCommands.js';
 
 /**
  * Telegram Adapter Service
@@ -453,6 +454,21 @@ export async function handleTelegramWebhook(
 
   console.log(`[TelegramAdapter] Received message from ${incomingMessage.userName}: ${incomingMessage.text}`);
 
+  // Check if this is a plugin-registered bot command before any other processing
+  if (incomingMessage.text.startsWith('/')) {
+    const parts = incomingMessage.text.split(/\s+/);
+    const commandName = parts[0].replace(/^\/+/, '');
+    const argsString = parts.slice(1).join(' ');
+    const pluginResponse = await dispatchBotCommand(commandName, argsString, incomingMessage.chatId);
+    if (pluginResponse !== null) {
+      return sendTelegramMessage({
+        chatId: incomingMessage.chatId,
+        text: pluginResponse,
+        parseMode: 'plain',
+      });
+    }
+  }
+
   // Check if this will use AI processing (potentially slow)
   const useAI = await willUseAIProcessing(incomingMessage);
 
@@ -519,6 +535,21 @@ export function handleTelegramWebhookAsync(
     immediate: Promise.resolve({ success: true }),
     background: (async () => {
       console.log(`[TelegramAdapter] Processing message async from ${incomingMessage.userName}`);
+
+      // Check if this is a plugin-registered bot command before any other processing
+      if (incomingMessage.text.startsWith('/')) {
+        const parts = incomingMessage.text.split(/\s+/);
+        const commandName = parts[0].replace(/^\/+/, '');
+        const argsString = parts.slice(1).join(' ');
+        const pluginResponse = await dispatchBotCommand(commandName, argsString, incomingMessage.chatId);
+        if (pluginResponse !== null) {
+          return sendTelegramMessage({
+            chatId: incomingMessage.chatId,
+            text: pluginResponse,
+            parseMode: 'plain',
+          });
+        }
+      }
 
       // Check if AI processing needed
       const useAI = await willUseAIProcessing(incomingMessage);

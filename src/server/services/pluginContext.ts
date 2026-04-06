@@ -66,6 +66,12 @@ import {
   registerPluginWebhook,
   unregisterPluginWebhooks,
 } from './pluginWebhookRegistry.js';
+import {
+  registerBotCommand as registryRegisterBotCommand,
+  unregisterBotCommands,
+} from './pluginBotCommands.js';
+import { broadcastToWorkspace } from './messagingNotifier.js';
+import { getWorkspacePath } from '../utils/paths.js';
 import type { VerifierDefinition as _VerifierDef } from '../../types/index.js';
 
 export { skillReaderGetVerifiers as getVerifiers, skillReaderRunVerifiers as runVerifiers };
@@ -545,17 +551,22 @@ function buildUIApi(logger: PluginLogger): UIApi {
   };
 }
 
-function buildIntegrationApi(pluginName: string, manifest: PluginManifest, logger: PluginLogger): IntegrationApi {
+function buildIntegrationApi(pluginName: string, manifest: PluginManifest, _logger: PluginLogger): IntegrationApi {
   return {
     registerWebhook(path: string, handler: WebhookHandler): void {
       requirePermission(pluginName, manifest, 'integrations:webhook');
       registerPluginWebhook(pluginName, path, handler);
     },
-    registerBotCommand(_command: BotCommandDefinition): void {
-      logger.warn('IntegrationApi.registerBotCommand() is not yet implemented');
+    registerBotCommand(command: BotCommandDefinition): void {
+      requirePermission(pluginName, manifest, 'integrations:webhook');
+      registryRegisterBotCommand(pluginName, command);
+      console.warn(`[PluginContext] Plugin '${pluginName}' registered bot command '/${command.name}'`);
     },
-    async sendNotification(_message: string): Promise<void> {
-      logger.warn('IntegrationApi.sendNotification() is not yet implemented');
+    async sendNotification(message: string): Promise<void> {
+      requirePermission(pluginName, manifest, 'integrations:notify');
+      const workspacePath = getWorkspacePath();
+      await broadcastToWorkspace(workspacePath, { chatId: '', text: message, parseMode: 'plain' });
+      console.warn(`[PluginContext] Plugin '${pluginName}' sent notification`);
     },
   };
 }
@@ -685,6 +696,7 @@ export async function createFormicAPI(
       unregisterStages(pluginName);
       unregisterTaskTypes(pluginName);
       unregisterPluginWebhooks(pluginName);
+      unregisterBotCommands(pluginName);
     },
   };
 }
