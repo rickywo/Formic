@@ -364,7 +364,7 @@ export interface SidebarPanelDefinition {
   id: string;
   title: string;
   icon?: string;
-  mountPoint: string;
+  mountPoint: UISlot | string;
 }
 
 /** Definition for a toolbar action extension */
@@ -375,14 +375,72 @@ export interface ToolbarActionDefinition {
   onClick: () => void;
 }
 
-/** Named UI extension slots */
-export type UISlot = 'sidebar' | 'toolbar' | 'card-badge' | 'detail-tab';
+/** Vanilla JS render function for mounting plugin UI into a container element */
+export type RenderFunction<P extends Record<string, unknown> = Record<string, unknown>> = (container: HTMLElement, props: P) => void | (() => void);
 
-/** @todo Slot-based UI extension API — future implementation */
+/** React-compatible component type — supports both class-based and functional components */
+export type ComponentType<P extends Record<string, unknown> = Record<string, unknown>> = { new(props: P): unknown } | ((props: P) => unknown);
+
+/** Named UI extension slots */
+export type UISlot =
+  | 'task-node-editor'
+  | 'task-stage-panel'
+  | 'dag-visualization'
+  | 'kanban-card-badge'
+  | 'kanban-card-footer'
+  | 'settings-panel'
+  | 'task-detail-sidebar'
+  | 'toolbar-right';
+
+/** Props for the kanban-card-badge slot */
+export interface KanbanCardBadgeProps {
+  task: Task;
+}
+
+/** Props for the kanban-card-footer slot */
+export interface KanbanCardFooterProps {
+  task: Task;
+}
+
+/** Props for the task-node-editor slot */
+export interface TaskNodeEditorProps {
+  task: Task;
+  onUpdate: (patch: Partial<Task>) => void;
+}
+
+/** Props for the task-stage-panel slot */
+export interface TaskStagePanelProps {
+  task: Task;
+  stage: string;
+  onUpdate: (patch: Partial<Task>) => void;
+}
+
+/** Props for the dag-visualization slot */
+export interface DagVisualizationProps {
+  tasks: Task[];
+  edges: Array<{ from: string; to: string }>;
+}
+
+/** Props for the task-detail-sidebar slot */
+export interface TaskDetailSidebarProps {
+  task: Task;
+}
+
+/** Props for the toolbar-right slot */
+export type ToolbarRightProps = Record<string, never>;
+
+/** Props for the settings-panel slot */
+export type SettingsPanelProps = Record<string, never>;
+
+/** Slot-based UI extension API */
 export interface UIApi {
-  /** TODO: Register a sidebar panel extension */
+  /** Register a component or render function against a named slot */
+  registerSlot(slotId: UISlot, component: ComponentType<Record<string, unknown>> | RenderFunction<Record<string, unknown>>): Unsubscribe;
+  /** Unregister a previously registered component or render function from a slot */
+  unregisterSlot(slotId: UISlot, component: ComponentType<Record<string, unknown>> | RenderFunction<Record<string, unknown>>): void;
+  /** Register a sidebar panel extension */
   registerSidebarPanel(panel: SidebarPanelDefinition): Unsubscribe;
-  /** TODO: Register a toolbar action extension */
+  /** Register a toolbar action extension */
   registerToolbarAction(action: ToolbarActionDefinition): Unsubscribe;
 }
 

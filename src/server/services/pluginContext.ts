@@ -520,6 +520,13 @@ function buildLogger(pluginName: string): PluginLogger {
 
 function buildUIApi(logger: PluginLogger): UIApi {
   return {
+    registerSlot(_slotId, _component): Unsubscribe {
+      logger.warn('UIApi.registerSlot() is not yet implemented');
+      return () => {};
+    },
+    unregisterSlot(_slotId, _component): void {
+      logger.warn('UIApi.unregisterSlot() is not yet implemented');
+    },
     registerSidebarPanel(_panel: SidebarPanelDefinition): Unsubscribe {
       logger.warn('UIApi.registerSidebarPanel() is not yet implemented');
       return () => {};
