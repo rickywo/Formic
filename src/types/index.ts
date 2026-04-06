@@ -436,6 +436,15 @@ export type ToolbarRightProps = Record<string, never>;
 /** Props for the settings-panel slot */
 export type SettingsPanelProps = Record<string, never>;
 
+/** Metadata-only registration record for a server-side slot (transmittable over HTTP) */
+export interface SlotRegistration {
+  slotId: UISlot;
+  componentType: 'render-function' | 'react-component';
+  pluginName: string;
+  /** Serialized metadata — actual render functions cannot be transmitted over HTTP */
+  meta?: Record<string, unknown>;
+}
+
 /** Slot-based UI extension API */
 export interface UIApi {
   /** Register a component or render function against a named slot */

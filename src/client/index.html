@@ -10175,6 +10175,10 @@
       }
 
       await loadBoard();
+
+      // Fetch server-side slot registrations from server-loaded plugins
+      await fetchServerSlotRegistrations();
+
       terminal = new Terminal({
         theme: getTerminalTheme(),
         fontSize: 13,
@@ -10210,6 +10214,19 @@
       board = await res.json();
       renderBoard();
       _dispatchPluginEvent('board-updated', { board: window.FormicPluginAPI.getState() });
+    }
+
+    async function fetchServerSlotRegistrations() {
+      try {
+        const res = await fetch('/api/plugins/slots');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.slots && data.slots.length > 0) {
+          console.warn('[Plugins] Server plugins registered slots (rendering requires a clientEntry):', data.slots);
+        }
+      } catch (err) {
+        console.warn('[Plugins] Failed to fetch server slot registrations:', err);
+      }
     }
 
     async function createTask(event) {

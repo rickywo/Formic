@@ -20,6 +20,8 @@ import type {
   SkillApi,
   SettingsApi,
   UIApi,
+  UISlot,
+  SlotRegistration,
   IntegrationApi,
   MemoryApi,
   EventApi,
@@ -531,22 +533,85 @@ function buildLogger(pluginName: string): PluginLogger {
   };
 }
 
-function buildUIApi(logger: PluginLogger): UIApi {
+/* ------------------------------------------------------------------ */
+/*  Module-level slot registry for server-side UI registrations       */
+/* ------------------------------------------------------------------ */
+
+/** Tracks slot registrations by plugin name (server-side, metadata-only) */
+const _slotRegistry = new Map<string, SlotRegistration[]>();
+
+/** Return all active slot registrations from every server-loaded plugin */
+export function getSlotRegistrations(): SlotRegistration[] {
+  return Array.from(_slotRegistry.values()).flat();
+}
+
+/** Clear all slot registrations for a given plugin (called on unload/disable) */
+export function clearSlotRegistrations(pluginName: string): void {
+  _slotRegistry.delete(pluginName);
+}
+
+function buildUIApi(logger: PluginLogger, pluginName: string): UIApi {
   return {
-    registerSlot(_slotId, _component): Unsubscribe {
-      logger.warn('UIApi.registerSlot() is not yet implemented');
-      return () => {};
+    registerSlot(slotId: UISlot, _component): Unsubscribe {
+      const registrations = _slotRegistry.get(pluginName) ?? [];
+      const entry: SlotRegistration = {
+        slotId,
+        pluginName,
+        componentType: typeof _component === 'function'
+          && _component.prototype
+          && Object.getOwnPropertyNames(_component.prototype).length > 1
+          ? 'react-component' : 'render-function',
+      };
+      registrations.push(entry);
+      _slotRegistry.set(pluginName, registrations);
+      logger.warn(`UIApi.registerSlot('${slotId}') registered for server plugin '${pluginName}'. Note: server-side components are metadata-only; implement a clientEntry for full rendering.`);
+      return () => {
+        const list = _slotRegistry.get(pluginName) ?? [];
+        const idx = list.indexOf(entry);
+        if (idx !== -1) list.splice(idx, 1);
+        _slotRegistry.set(pluginName, list);
+      };
     },
-    unregisterSlot(_slotId, _component): void {
-      logger.warn('UIApi.unregisterSlot() is not yet implemented');
+    unregisterSlot(slotId: UISlot, _component): void {
+      const list = _slotRegistry.get(pluginName) ?? [];
+      _slotRegistry.set(pluginName, list.filter(r => r.slotId !== slotId));
     },
-    registerSidebarPanel(_panel: SidebarPanelDefinition): Unsubscribe {
-      logger.warn('UIApi.registerSidebarPanel() is not yet implemented');
-      return () => {};
+    registerSidebarPanel(panel: SidebarPanelDefinition): Unsubscribe {
+      const registrations = _slotRegistry.get(pluginName) ?? [];
+      const mountSlot = panel.mountPoint as UISlot;
+      const entry: SlotRegistration = {
+        slotId: mountSlot,
+        pluginName,
+        componentType: 'render-function',
+        meta: { title: panel.title, icon: panel.icon },
+      };
+      registrations.push(entry);
+      _slotRegistry.set(pluginName, registrations);
+      logger.warn(`UIApi.registerSidebarPanel('${mountSlot}') registered for server plugin '${pluginName}'.`);
+      return () => {
+        const list = _slotRegistry.get(pluginName) ?? [];
+        const idx = list.indexOf(entry);
+        if (idx !== -1) list.splice(idx, 1);
+        _slotRegistry.set(pluginName, list);
+      };
     },
-    registerToolbarAction(_action: ToolbarActionDefinition): Unsubscribe {
-      logger.warn('UIApi.registerToolbarAction() is not yet implemented');
-      return () => {};
+    registerToolbarAction(action: ToolbarActionDefinition): Unsubscribe {
+      const registrations = _slotRegistry.get(pluginName) ?? [];
+      const entry: SlotRegistration = {
+        slotId: 'toolbar-right',
+        pluginName,
+        componentType: 'render-function',
+        meta: { label: action.label, icon: action.icon },
+      };
+      registrations.push(entry);
+      _slotRegistry.set(pluginName, registrations);
+      logger.warn(`UIApi.registerToolbarAction() registered for server plugin '${pluginName}'.`);
+      return () => {
+        const list = _slotRegistry.get(pluginName) ?? [];
+        const idx = list.indexOf(entry);
+        if (idx !== -1) list.splice(idx, 1);
+        _slotRegistry.set(pluginName, list);
+      };
     },
   };
 }
@@ -682,7 +747,7 @@ export async function createFormicAPI(
     settings: buildSettingsApi(pluginName, manifest),
     events: buildEventApi(pluginName, manifest),
     logger,
-    ui: buildUIApi(logger),
+    ui: buildUIApi(logger, pluginName),
     integrations: buildIntegrationApi(pluginName, manifest, logger),
     memory: buildMemoryApi(pluginName, manifest, logger),
   };
@@ -697,6 +762,7 @@ export async function createFormicAPI(
       unregisterTaskTypes(pluginName);
       unregisterPluginWebhooks(pluginName);
       unregisterBotCommands(pluginName);
+      clearSlotRegistrations(pluginName);
     },
   };
 }
@@ -795,7 +861,7 @@ export function pluginContextToFormicAPI(ctx: PluginContext): FormicAPI {
     },
   };
 
-  const ui: UIApi = buildUIApi(logger);
+  const ui: UIApi = buildUIApi(logger, 'legacy-adapter');
   const integrations: IntegrationApi = buildIntegrationApiStub(logger);
   const memory: MemoryApi = buildMemoryApiStub(logger);
 

@@ -16,6 +16,7 @@ import {
   setPluginConfig,
   removePluginConfig,
 } from '../services/configStore.js';
+import { getSlotRegistrations } from '../services/pluginContext.js';
 
 /**
  * Serialize a PluginEntry for API responses (omit loadedModule).
@@ -83,6 +84,13 @@ export async function pluginRoutes(fastify: FastifyInstance): Promise<void> {
       serializePlugin(name, entry),
     );
     return reply.send({ plugins });
+  });
+
+  // GET /api/plugins/slots — Return all active slot registrations from server-loaded plugins
+  // NOTE: Must be registered BEFORE the parametric /api/plugins/:name route to avoid shadowing
+  fastify.get('/api/plugins/slots', async (_request, reply) => {
+    const registrations = getSlotRegistrations();
+    return reply.send({ slots: registrations });
   });
 
   // GET /api/plugins/:name — Get detailed plugin info
