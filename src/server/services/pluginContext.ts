@@ -243,32 +243,53 @@ export function createPluginContext(pluginName: string, manifest: PluginManifest
 
 // ==================== FormicAPI Factory ====================
 
+/** Module-level registry for plugin-registered task types */
+export const taskTypeRegistry = new Map<string, TaskTypeDefinition>();
+
+/** Get all registered task types (for use by the workflow engine) */
+export function getRegisteredTaskTypes(): TaskTypeDefinition[] {
+  return [...taskTypeRegistry.values()];
+}
+
 /** Module-level registry for plugin-registered verifiers */
-const verifierRegistry = new Map<string, VerifierDefinition>();
+export const verifierRegistry = new Map<string, VerifierDefinition>();
 
 /** Get all registered verifiers (for use by the workflow engine) */
 export function getRegisteredVerifiers(): VerifierDefinition[] {
   return [...verifierRegistry.values()];
 }
 
-/**
- * Creates a subscription tracker that maintains a set of unsubscribe functions.
- * Used to clean up all event listeners when a plugin is unloaded.
- */
-function createSubscriptionTracker(): { track(unsub: Unsubscribe): void; dispose(): void } {
-  const subscriptions = new Set<Unsubscribe>();
+/** Per-plugin listener tracking for bulk cleanup on unload */
+const pluginListeners = new Map<string, Set<{ event: string; handler: (...args: unknown[]) => void }>>();
 
-  return {
-    track(unsub: Unsubscribe): void {
-      subscriptions.add(unsub);
-    },
-    dispose(): void {
-      for (const unsub of subscriptions) {
-        unsub();
-      }
-      subscriptions.clear();
-    },
-  };
+/** Track a listener registration for a specific plugin */
+function trackListener(pluginName: string, event: string, handler: (...args: unknown[]) => void): void {
+  if (!pluginListeners.has(pluginName)) {
+    pluginListeners.set(pluginName, new Set());
+  }
+  pluginListeners.get(pluginName)!.add({ event, handler });
+}
+
+/** Remove a specific listener from the plugin's tracking set */
+function untrackListener(pluginName: string, event: string, handler: (...args: unknown[]) => void): void {
+  const listeners = pluginListeners.get(pluginName);
+  if (!listeners) return;
+  for (const entry of listeners) {
+    if (entry.event === event && entry.handler === handler) {
+      listeners.delete(entry);
+      break;
+    }
+  }
+}
+
+/** Remove all event subscriptions registered by a plugin */
+export function cleanupPluginListeners(pluginName: string): void {
+  const listeners = pluginListeners.get(pluginName);
+  if (!listeners) return;
+  for (const entry of listeners) {
+    internalEvents.off(entry.event, entry.handler);
+  }
+  pluginListeners.delete(pluginName);
 }
 
 const BUILTIN_STAGES_SET = new Set(['brief', 'plan', 'declare', 'execute', 'verify', 'architect']);
@@ -276,7 +297,6 @@ const BUILTIN_STAGES_SET = new Set(['brief', 'plan', 'declare', 'execute', 'veri
 function buildTaskApi(
   pluginName: string,
   manifest: PluginManifest,
-  tracker: ReturnType<typeof createSubscriptionTracker>,
   boardSnapshot: Board,
 ): TaskApi {
   // Mutable reference updated via BOARD_UPDATE events
@@ -289,7 +309,7 @@ function buildTaskApi(
     }
   };
   internalEvents.on(BOARD_UPDATE, boardHandler);
-  tracker.track(() => internalEvents.off(BOARD_UPDATE, boardHandler));
+  trackListener(pluginName, BOARD_UPDATE, boardHandler);
 
   function createLifecycleHook<TArgs extends unknown[]>(
     eventName: string,
@@ -299,8 +319,11 @@ function buildTaskApi(
       requirePermission(pluginName, manifest, 'events:subscribe');
       const wrapped = wrapHandler(handler);
       internalEvents.on(eventName, wrapped);
-      const unsub: Unsubscribe = () => internalEvents.off(eventName, wrapped);
-      tracker.track(unsub);
+      trackListener(pluginName, eventName, wrapped);
+      const unsub: Unsubscribe = () => {
+        internalEvents.off(eventName, wrapped);
+        untrackListener(pluginName, eventName, wrapped);
+      };
       return unsub;
     };
   }
@@ -384,6 +407,8 @@ function buildTaskApi(
   };
 }
 
+const BUILTIN_TASK_TYPES = new Set(['standard', 'quick', 'goal']);
+
 function buildSkillApi(pluginName: string, manifest: PluginManifest): SkillApi {
   return {
     register(stageName: string, content: string): void {
@@ -401,7 +426,6 @@ function buildSkillApi(pluginName: string, manifest: PluginManifest): SkillApi {
     },
 
     getAvailable(): string[] {
-      requirePermission(pluginName, manifest, 'tasks:read');
       const builtinSkills = getAvailableSkills();
       const registeredStages = getRegisteredStages();
       const pluginSkillNames = registeredStages
@@ -413,6 +437,13 @@ function buildSkillApi(pluginName: string, manifest: PluginManifest): SkillApi {
 
     registerTaskType(definition: TaskTypeDefinition): void {
       requirePermission(pluginName, manifest, 'workflow:extend');
+      if (BUILTIN_TASK_TYPES.has(definition.id)) {
+        throw new Error(`Cannot override built-in task type '${definition.id}'`);
+      }
+      if (taskTypeRegistry.has(definition.id)) {
+        throw new Error(`Task type '${definition.id}' is already registered`);
+      }
+      taskTypeRegistry.set(definition.id, definition);
       let previousStageName = '';
       const existingStages = getRegisteredStages();
       if (existingStages.length > 0) {
@@ -471,20 +502,23 @@ function buildSettingsApi(pluginName: string, manifest: PluginManifest): Setting
 function buildEventApi(
   pluginName: string,
   manifest: PluginManifest,
-  tracker: ReturnType<typeof createSubscriptionTracker>,
 ): EventApi {
   return {
     on(event: string, handler: (...args: unknown[]) => void): Unsubscribe {
       requirePermission(pluginName, manifest, 'events:subscribe');
       internalEvents.on(event, handler);
-      const unsub: Unsubscribe = () => internalEvents.off(event, handler);
-      tracker.track(unsub);
+      trackListener(pluginName, event, handler);
+      const unsub: Unsubscribe = () => {
+        internalEvents.off(event, handler);
+        untrackListener(pluginName, event, handler);
+      };
       return unsub;
     },
 
     off(event: string, handler: (...args: unknown[]) => void): void {
       requirePermission(pluginName, manifest, 'events:subscribe');
       internalEvents.off(event, handler);
+      untrackListener(pluginName, event, handler);
     },
   };
 }
@@ -503,32 +537,40 @@ function buildLogger(pluginName: string): PluginLogger {
   };
 }
 
-function buildUIApi(): UIApi {
+function buildUIApi(logger: PluginLogger): UIApi {
   return {
     registerSidebarPanel(_panel: SidebarPanelDefinition): Unsubscribe {
-      throw new Error('UIApi.registerSidebarPanel is not yet implemented');
+      logger.warn('UIApi.registerSidebarPanel() is not yet implemented');
+      return () => {};
     },
     registerToolbarAction(_action: ToolbarActionDefinition): Unsubscribe {
-      throw new Error('UIApi.registerToolbarAction is not yet implemented');
+      logger.warn('UIApi.registerToolbarAction() is not yet implemented');
+      return () => {};
     },
   };
 }
 
-function buildIntegrationApi(): IntegrationApi {
+function buildIntegrationApi(logger: PluginLogger): IntegrationApi {
   return {
     register(_name: string, _config: Record<string, unknown>): void {
-      throw new Error('IntegrationApi.register is not yet implemented');
+      logger.warn('IntegrationApi.register() is not yet implemented');
     },
   };
 }
 
-function buildMemoryApi(): MemoryApi {
+function buildMemoryApi(logger: PluginLogger): MemoryApi {
   return {
     async getRelevant(_tags: string[]): Promise<MemoryEntry[]> {
-      throw new Error('MemoryApi.getRelevant is not yet implemented');
+      logger.warn('MemoryApi.getRelevant() is not yet implemented');
+      return [];
     },
-    async add(_entry: Omit<MemoryEntry, 'id' | 'created_at'>): Promise<MemoryEntry> {
-      throw new Error('MemoryApi.add is not yet implemented');
+    async add(entry: Omit<MemoryEntry, 'id' | 'created_at'>): Promise<MemoryEntry> {
+      logger.warn('MemoryApi.add() is not yet implemented');
+      return {
+        ...entry,
+        id: `mem-${Date.now()}`,
+        created_at: new Date().toISOString(),
+      };
     },
   };
 }
@@ -541,19 +583,24 @@ export async function createFormicAPI(
   pluginName: string,
   manifest: PluginManifest,
 ): Promise<{ api: FormicAPI; dispose: () => void }> {
-  const tracker = createSubscriptionTracker();
   const boardSnapshot = await loadBoard();
+  const logger = buildLogger(pluginName);
 
   const api: FormicAPI = {
-    tasks: buildTaskApi(pluginName, manifest, tracker, boardSnapshot),
+    tasks: buildTaskApi(pluginName, manifest, boardSnapshot),
     skills: buildSkillApi(pluginName, manifest),
     settings: buildSettingsApi(pluginName, manifest),
-    events: buildEventApi(pluginName, manifest, tracker),
-    logger: buildLogger(pluginName),
-    ui: buildUIApi(),
-    integrations: buildIntegrationApi(),
-    memory: buildMemoryApi(),
+    events: buildEventApi(pluginName, manifest),
+    logger,
+    ui: buildUIApi(logger),
+    integrations: buildIntegrationApi(logger),
+    memory: buildMemoryApi(logger),
   };
 
-  return { api, dispose: tracker.dispose };
+  return {
+    api,
+    dispose(): void {
+      cleanupPluginListeners(pluginName);
+    },
+  };
 }

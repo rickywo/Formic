@@ -191,6 +191,10 @@ export interface PluginEntry {
   loadedModule?: unknown;
   /** Absolute path to the plugin directory */
   pluginDir: string;
+  /** Instantiated class-based plugin (undefined for legacy plugins) */
+  pluginInstance?: FormicPlugin;
+  /** Which loading path was used */
+  format?: 'legacy' | 'class';
 }
 
 // ==================== Configurable Pipeline Types ====================

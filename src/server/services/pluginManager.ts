@@ -1,8 +1,9 @@
 import { readFile, readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import type { PluginManifest, PluginEntry, PluginPermission } from '../../types/index.js';
+import type { PluginManifest, PluginEntry, PluginPermission, FormicPlugin } from '../../types/index.js';
 import { getFormicDir } from '../utils/paths.js';
 import { getPluginConfig, setPluginConfig } from './configStore.js';
+import { createFormicAPI } from './pluginContext.js';
 import { unregisterStages } from './pipelineRegistry.js';
 import { unregisterSkillOverrides } from './skillReader.js';
 import { internalEvents, STAGE_UNREGISTERED, BOARD_UPDATE } from './internalEvents.js';
