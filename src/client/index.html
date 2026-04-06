@@ -6862,6 +6862,8 @@
       align-items: center;
     }
 
+    .slot-kanban-card-badge:empty { display: none; }
+
     .slot-kanban-card-footer {
       margin-top: 6px;
       border-top: 1px solid var(--border-color);
@@ -9824,6 +9826,24 @@
       await runTask(BOOTSTRAP_TASK_ID);
     }
 
+    /** Compute dependency edges from tasks for DAG visualization */
+    function _computeDependencyEdges(tasks) {
+      const edges = [];
+      tasks.forEach(function(task) {
+        // Edges from explicit dependencies
+        if (task.dependsOn && Array.isArray(task.dependsOn)) {
+          task.dependsOn.forEach(function(depId) {
+            edges.push({ from: depId, to: task.id, type: 'dependency' });
+          });
+        }
+        // Edges from parent goal relationships
+        if (task.parentGoalId) {
+          edges.push({ from: task.parentGoalId, to: task.id, type: 'parent' });
+        }
+      });
+      return edges;
+    }
+
     // Render
     function renderBoard() {
       // Build a lookup of column IDs for quick access
@@ -10042,6 +10062,7 @@
               ${queuePositionHtml}
               <div class="task-header">
                 <span class="task-title">${bootstrapBadge}${goalBadge}${quickBadge}${childBadge}${manualBadge}${blockedBadge}${escapeHtml(task.title)}${statusBadge}</span>
+                <span class="slot-kanban-card-badge" data-slot="kanban-card-badge" data-task-id="${task.id}"></span>
                 <span class="priority-badge priority-${task.priority}">${task.priority}</span>
               </div>
               ${depsHtml}
@@ -10071,9 +10092,18 @@
                 ${!isRunning && task.status !== 'queued' && task.status !== 'review' ? `<button class="btn" onclick="deleteTask('${task.id}')">Delete</button>` : ''}
               </div>
               ${progressBarHtml}
+              <div class="slot-kanban-card-footer" data-slot="kanban-card-footer" data-task-id="${task.id}"></div>
             </div>
           `;
         }).join('');
+
+        // Post-render: hydrate plugin slots in this column
+        container.querySelectorAll('[data-slot]').forEach(slotEl => {
+          const slotId = slotEl.dataset.slot;
+          const taskId = slotEl.dataset.taskId;
+          const slotTask = board.tasks.find(t => t.id === taskId);
+          if (slotTask) renderSlot(slotId, slotEl, { task: slotTask });
+        });
       });
 
       // Start live duration timer if any active tasks exist
@@ -10083,6 +10113,13 @@
       const totalTasks = board && board.tasks ? board.tasks.length : 0;
       const welcomeBanner = document.getElementById('welcome-banner');
       if (welcomeBanner) welcomeBanner.style.display = totalTasks === 0 ? 'flex' : 'none';
+
+      // Render DAG visualization slot with task dependency data
+      const dagSlotEl = document.getElementById('slot-dag-visualization');
+      if (dagSlotEl) {
+        const edges = _computeDependencyEdges(board.tasks);
+        renderSlot('dag-visualization', dagSlotEl, { tasks: board.tasks, edges: edges });
+      }
     }
 
     function escapeHtml(text) {
@@ -10370,6 +10407,18 @@
       await loadChildTasksForDetail(task);
 
       document.getElementById('detail-modal').classList.add('open');
+
+      // Render plugin slots in the detail modal with task context
+      const _detailOnUpdate = function(patch) { loadBoard(); };
+
+      const sidebarSlotEl = document.getElementById('slot-task-detail-sidebar');
+      if (sidebarSlotEl) renderSlot('task-detail-sidebar', sidebarSlotEl, { task });
+
+      const nodeEditorSlotEl = document.getElementById('slot-task-node-editor');
+      if (nodeEditorSlotEl) renderSlot('task-node-editor', nodeEditorSlotEl, { task, onUpdate: _detailOnUpdate });
+
+      const stagePanelSlotEl = document.getElementById('slot-task-stage-panel');
+      if (stagePanelSlotEl) renderSlot('task-stage-panel', stagePanelSlotEl, { task, stage: task.status, onUpdate: _detailOnUpdate });
     }
 
     async function loadSubtasksForDetail(taskId) {
@@ -10581,6 +10630,10 @@
       backdrop.classList.add('open');
       initializeSettingsPanel();
       _dispatchPluginEvent('settings-opened', {});
+
+      // Render plugin settings-panel slot
+      const settingsPanelSlotEl = document.getElementById('slot-settings-panel');
+      if (settingsPanelSlotEl) renderSlot('settings-panel', settingsPanelSlotEl, {});
     }
 
     function closeSettings() {
