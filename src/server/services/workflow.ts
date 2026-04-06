@@ -7,7 +7,7 @@ const execFileAsync = promisify(execFile);
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
-import { loadSkillPrompt } from './skillReader.js';
+import { loadSkillPrompt, runVerifiers } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
 import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder } from './leaseManager.js';
 import {
@@ -783,6 +783,30 @@ async function executeWithIterativeLoop(
 }
 
 /**
+ * Runs all plugin-registered verifiers sequentially against the given task.
+ * Each verifier is wrapped in its own try/catch for error isolation.
+ * Returns aggregated pass/fail and any failure messages.
+ */
+async function executePluginVerifiers(taskId: string): Promise<{ allPassed: boolean; stderrLines: string[] }> {
+  const results = await runVerifiers(taskId);
+  const stderrLines: string[] = [];
+  let allPassed = true;
+
+  for (const result of results) {
+    if (!result.passed) {
+      allPassed = false;
+      const msg = result.message ?? `Verifier '${result.verifierId}' failed`;
+      stderrLines.push(`[Plugin Verifier '${result.verifierId}'] ${msg}`);
+      console.warn(`[Workflow] Plugin verifier '${result.verifierId}' FAILED for task ${taskId}: ${msg}`);
+    } else {
+      console.warn(`[Workflow] Plugin verifier '${result.verifierId}' passed for task ${taskId}`);
+    }
+  }
+
+  return { allPassed, stderrLines };
+}
+
+/**
  * Run the verification command against the workspace.
  * Always refreshes engineConfig first to pick up any changes made during execution.
  * Returns { success: true } immediately when skipVerify is true or verifyCommand is unset.
@@ -792,12 +816,14 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
 
   if (engineConfig.skipVerify) {
     console.log('[Verifier] Skipping verification — toggle is OFF');
-    return { success: true, stderrLines: [] };
+    const pluginResult = await executePluginVerifiers(taskId);
+    return { success: pluginResult.allPassed, stderrLines: pluginResult.stderrLines };
   }
 
   if (!engineConfig.verifyCommand) {
     console.warn('[Verifier] Skipping verification — toggle is ON but verifyCommand is not configured. Set a verify command in Settings.');
-    return { success: true, stderrLines: [] };
+    const pluginResult = await executePluginVerifiers(taskId);
+    return { success: pluginResult.allPassed, stderrLines: pluginResult.stderrLines };
   }
 
   await updateTaskStatus(taskId, 'verifying', undefined, 'workflow.executeVerifyStep');
@@ -868,13 +894,16 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
         timestamp: new Date().toISOString(),
       });
 
-      if (code === 0) {
+      const builtinPassed = code === 0;
+      if (builtinPassed) {
         console.log('[Verifier] Verification PASSED');
-        resolve({ success: true, stderrLines: [] });
       } else {
         console.log(`[Verifier] Verification FAILED (exit code ${code})`);
-        resolve({ success: false, stderrLines });
       }
+
+      const pluginResult = await executePluginVerifiers(taskId);
+      const allStderr = [...(builtinPassed ? [] : stderrLines), ...pluginResult.stderrLines];
+      resolve({ success: builtinPassed && pluginResult.allPassed, stderrLines: allStderr });
     });
   });
 }

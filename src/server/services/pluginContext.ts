@@ -43,8 +43,33 @@ import {
   TASK_FAILED,
   TASK_STAGE_CHANGED,
 } from './internalEvents.js';
-import { registerStage, getRegisteredStages } from './pipelineRegistry.js';
-import { registerSkillOverride, getAvailableSkills } from './skillReader.js';
+import {
+  registerStage,
+  getRegisteredStages,
+  registerTaskType as pipelineRegisterTaskType,
+  unregisterTaskTypes,
+  unregisterStages,
+} from './pipelineRegistry.js';
+import {
+  registerSkillOverride,
+  getAvailableSkills,
+  registerVerifier as skillReaderRegisterVerifier,
+  unregisterVerifiers as skillReaderUnregisterVerifiers,
+  unregisterSkillOverrides,
+  getVerifiers as skillReaderGetVerifiers,
+  runVerifiers as skillReaderRunVerifiers,
+} from './skillReader.js';
+import type { VerifierDefinition as _VerifierDef } from '../../types/index.js';
+
+export { skillReaderGetVerifiers as getVerifiers, skillReaderRunVerifiers as runVerifiers };
+
+export function getVerifier(id: string): _VerifierDef | undefined {
+  return skillReaderGetVerifiers().find(v => v.id === id);
+}
+
+export function unregisterVerifiers(pluginName: string): number {
+  return skillReaderUnregisterVerifiers(pluginName);
+}
 
 /**
  * Check if a plugin has a specific permission.
@@ -239,24 +264,6 @@ export function createPluginContext(pluginName: string, manifest: PluginManifest
   };
 }
 
-// ==================== FormicAPI Factory ====================
-
-/** Module-level registry for plugin-registered task types */
-export const taskTypeRegistry = new Map<string, TaskTypeDefinition>();
-
-/** Get all registered task types (for use by the workflow engine) */
-export function getRegisteredTaskTypes(): TaskTypeDefinition[] {
-  return [...taskTypeRegistry.values()];
-}
-
-/** Module-level registry for plugin-registered verifiers */
-export const verifierRegistry = new Map<string, VerifierDefinition>();
-
-/** Get all registered verifiers (for use by the workflow engine) */
-export function getRegisteredVerifiers(): VerifierDefinition[] {
-  return [...verifierRegistry.values()];
-}
-
 /** Per-plugin listener tracking for bulk cleanup on unload */
 const pluginListeners = new Map<string, Set<{ event: string; handler: (...args: unknown[]) => void }>>();
 
@@ -398,8 +405,6 @@ function buildTaskApi(
   };
 }
 
-const BUILTIN_TASK_TYPES = new Set(['standard', 'quick', 'goal']);
-
 function buildSkillApi(pluginName: string, manifest: PluginManifest): SkillApi {
   return {
     async register(stageName: string, content: string): Promise<void> {
@@ -428,35 +433,32 @@ function buildSkillApi(pluginName: string, manifest: PluginManifest): SkillApi {
 
     registerTaskType(definition: TaskTypeDefinition): void {
       requirePermission(pluginName, manifest, 'workflow:extend');
-      if (BUILTIN_TASK_TYPES.has(definition.id)) {
-        throw new Error(`Cannot override built-in task type '${definition.id}'`);
+      if (!definition.id || definition.id.trim() === '') {
+        throw new Error('[SkillApi] registerTaskType: definition.id must be a non-empty string');
       }
-      if (taskTypeRegistry.has(definition.id)) {
-        throw new Error(`Task type '${definition.id}' is already registered`);
+      if (!definition.label || definition.label.trim() === '') {
+        throw new Error('[SkillApi] registerTaskType: definition.label must be a non-empty string');
       }
-      taskTypeRegistry.set(definition.id, definition);
-      let previousStageName = '';
-      const existingStages = getRegisteredStages();
-      if (existingStages.length > 0) {
-        previousStageName = existingStages[existingStages.length - 1].name;
+      if (!Array.isArray(definition.workflow) || definition.workflow.length === 0) {
+        throw new Error('[SkillApi] registerTaskType: definition.workflow must be a non-empty array');
       }
-      for (const stage of definition.workflow) {
-        const registration: StageRegistration = {
-          name: stage.name,
-          displayName: stage.displayName,
-          after: previousStageName,
-          skillContent: definition.skillPrompt,
-        };
-        registerStage(registration, pluginName);
-        previousStageName = stage.name;
-      }
-      console.warn(`[PluginContext] Plugin '${pluginName}' registered task type '${definition.id}'`);
+      pipelineRegisterTaskType(definition, pluginName);
+      console.warn(`[SkillApi] Plugin '${pluginName}' registered task type '${definition.id}'`);
     },
 
     registerVerifier(verifier: VerifierDefinition): void {
       requirePermission(pluginName, manifest, 'workflow:extend');
-      verifierRegistry.set(verifier.id, verifier);
-      console.warn(`[PluginContext] Plugin '${pluginName}' registered verifier '${verifier.id}'`);
+      if (!verifier.id || verifier.id.trim() === '') {
+        throw new Error('[SkillApi] registerVerifier: verifier.id must be a non-empty string');
+      }
+      if (!verifier.name || verifier.name.trim() === '') {
+        throw new Error('[SkillApi] registerVerifier: verifier.name must be a non-empty string');
+      }
+      if (typeof verifier.verify !== 'function') {
+        throw new Error('[SkillApi] registerVerifier: verifier.verify must be a function');
+      }
+      skillReaderRegisterVerifier(verifier, pluginName);
+      console.warn(`[SkillApi] Plugin '${pluginName}' registered verifier '${verifier.id}'`);
     },
   };
 }
@@ -578,6 +580,10 @@ export async function createFormicAPI(
     api,
     dispose(): void {
       cleanupPluginListeners(pluginName);
+      skillReaderUnregisterVerifiers(pluginName);
+      unregisterSkillOverrides(pluginName);
+      unregisterStages(pluginName);
+      unregisterTaskTypes(pluginName);
     },
   };
 }

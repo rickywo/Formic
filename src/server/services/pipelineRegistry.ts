@@ -6,8 +6,8 @@
  * and supports plugin-contributed stage insertion.
  */
 
-import type { StageDescriptor, StageRegistration, WorkflowPipeline, TaskType } from '../../types/index.js';
-import { internalEvents, STAGE_REGISTERED } from './internalEvents.js';
+import type { StageDescriptor, StageRegistration, WorkflowPipeline, TaskType, TaskTypeDefinition } from '../../types/index.js';
+import { internalEvents, STAGE_REGISTERED, TASK_TYPE_REGISTERED } from './internalEvents.js';
 
 // ==================== Default Pipeline Definitions ====================
 
@@ -100,6 +100,14 @@ const pluginStages = new Map<string, StageDescriptor[]>();
 /** Plugin-provided custom handler functions, keyed by stage name */
 const pluginHandlers = new Map<string, (taskId: string) => Promise<void>>();
 
+// ==================== Custom Task Type Registry ====================
+
+/** Plugin-registered custom task types, keyed by task type ID */
+const customTaskTypes = new Map<string, TaskTypeDefinition & { pluginName: string }>();
+
+/** Compiled pipelines for custom task types, keyed by task type ID */
+const customPipelines = new Map<string, WorkflowPipeline>();
+
 // ==================== Public API ====================
 
 /**
@@ -113,9 +121,14 @@ export function getDefaultPipeline(taskType: TaskType | string): WorkflowPipelin
       return structuredClone(QUICK_PIPELINE);
     case 'goal':
       return structuredClone(GOAL_PIPELINE);
-    default:
+    default: {
+      const custom = customPipelines.get(taskType);
+      if (custom) {
+        return structuredClone(custom);
+      }
       console.warn(`[Pipeline] Unknown task type '${taskType}', returning standard pipeline`);
       return structuredClone(STANDARD_PIPELINE);
+    }
   }
 }
 
@@ -125,6 +138,11 @@ export function getDefaultPipeline(taskType: TaskType | string): WorkflowPipelin
  */
 export function getActivePipeline(taskType: TaskType | string): WorkflowPipeline {
   const pipeline = getDefaultPipeline(taskType);
+
+  // For custom task types, return their pipeline as-is (they define their own stages)
+  if (customPipelines.has(taskType)) {
+    return pipeline;
+  }
 
   // Collect all plugin stages
   const allPluginStages: StageDescriptor[] = [];
@@ -151,6 +169,88 @@ export function getActivePipeline(taskType: TaskType | string): WorkflowPipeline
   }
 
   return pipeline;
+}
+
+const BUILTIN_TASK_TYPES = new Set(['standard', 'quick', 'goal']);
+
+/**
+ * Registers a custom pipeline for a task type.
+ * Lower-level function; stores stages directly into the custom pipeline map.
+ * Rejects built-in task types to prevent overriding core workflows.
+ */
+export function registerCustomPipeline(taskType: string, stages: StageDescriptor[]): void {
+  if (BUILTIN_TASK_TYPES.has(taskType)) {
+    throw new Error(`[Pipeline] Cannot override built-in task type '${taskType}'`);
+  }
+  const pipeline: WorkflowPipeline = stages.map((stage, index) => ({
+    ...stage,
+    source: 'plugin' as const,
+    order: index,
+  }));
+  customPipelines.set(taskType, pipeline);
+  console.warn(`[Pipeline] Registered custom pipeline for task type '${taskType}'`);
+}
+
+/**
+ * Removes the custom pipeline for a specific task type.
+ * Returns true if a pipeline existed and was removed.
+ */
+export function unregisterCustomPipeline(taskType: string): boolean {
+  const existed = customPipelines.has(taskType);
+  if (existed) {
+    customPipelines.delete(taskType);
+    console.warn(`[Pipeline] Unregistered custom pipeline for task type '${taskType}'`);
+  }
+  return existed;
+}
+
+/**
+ * Registers a custom task type contributed by a plugin.
+ * Validates uniqueness against built-in types and previously registered types.
+ */
+export function registerTaskType(definition: TaskTypeDefinition, pluginName: string): void {
+  if (BUILTIN_TASK_TYPES.has(definition.id)) {
+    throw new Error(`[Pipeline] Cannot override built-in task type '${definition.id}'`);
+  }
+  if (customTaskTypes.has(definition.id)) {
+    throw new Error(`[Pipeline] Task type '${definition.id}' is already registered`);
+  }
+
+  registerCustomPipeline(definition.id, definition.workflow);
+  // Annotate the pipeline entries with the plugin name
+  const pipeline = customPipelines.get(definition.id)!;
+  customPipelines.set(definition.id, pipeline.map(stage => ({ ...stage, pluginName })));
+
+  customTaskTypes.set(definition.id, { ...definition, pluginName });
+
+  console.warn(`[Pipeline] Registered custom task type '${definition.id}' from plugin '${pluginName}'`);
+  internalEvents.emit(TASK_TYPE_REGISTERED, { taskTypeId: definition.id, pluginName });
+}
+
+/**
+ * Removes all custom task types registered by a given plugin.
+ * Returns the count of removed task types.
+ */
+export function unregisterTaskTypes(pluginName: string): number {
+  let count = 0;
+  for (const [id, entry] of customTaskTypes) {
+    if (entry.pluginName === pluginName) {
+      customTaskTypes.delete(id);
+      customPipelines.delete(id);
+      count++;
+    }
+  }
+  if (count > 0) {
+    console.warn(`[Pipeline] Unregistered ${count} task type(s) from plugin '${pluginName}'`);
+  }
+  return count;
+}
+
+/**
+ * Returns all registered custom task types.
+ */
+export function getCustomTaskTypes(): TaskTypeDefinition[] {
+  return [...customTaskTypes.values()].map(({ pluginName: _pluginName, ...def }) => def);
 }
 
 /**

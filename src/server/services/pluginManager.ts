@@ -4,8 +4,8 @@ import type { PluginManifest, PluginEntry, PluginPermission, FormicPlugin } from
 import { getFormicDir } from '../utils/paths.js';
 import { getPluginConfig, setPluginConfig } from './configStore.js';
 import { createFormicAPI, cleanupPluginListeners } from './pluginContext.js';
-import { unregisterStages } from './pipelineRegistry.js';
-import { unregisterSkillOverrides } from './skillReader.js';
+import { unregisterStages, unregisterTaskTypes } from './pipelineRegistry.js';
+import { unregisterSkillOverrides, unregisterVerifiers } from './skillReader.js';
 import { internalEvents, STAGE_UNREGISTERED, BOARD_UPDATE } from './internalEvents.js';
 
 /**
@@ -203,11 +203,107 @@ export async function discoverPlugins(): Promise<Map<string, PluginEntry>> {
       if (!entryStat.isDirectory()) continue;
 
       const manifestPath = path.join(pluginDir, 'manifest.json');
-      let manifestData: string;
+      let manifestData: string | null = null;
       try {
         manifestData = await readFile(manifestPath, 'utf-8');
       } catch {
-        // No manifest.json — skip silently
+        // No manifest.json — fall back to package.json-based class plugin detection
+      }
+
+      if (manifestData === null) {
+        // Package.json fallback: detect class-based plugins
+        try {
+          const pkgPath = path.join(pluginDir, 'package.json');
+          let pkgData: string;
+          try {
+            pkgData = await readFile(pkgPath, 'utf-8');
+          } catch {
+            // No package.json either — skip silently
+            continue;
+          }
+
+          let pkg: unknown;
+          try {
+            pkg = JSON.parse(pkgData);
+          } catch {
+            console.warn(`[PluginManager] Malformed JSON in ${pkgPath}`);
+            registry.set(entry, {
+              manifest: { name: entry, version: '0.0.0' },
+              status: 'error',
+              error: 'Malformed JSON in package.json',
+              pluginDir,
+            });
+            continue;
+          }
+
+          const pkgObj = pkg as Record<string, unknown>;
+
+          if (typeof pkgObj.name !== 'string' || pkgObj.name.length === 0) {
+            console.warn(`[PluginManager] package.json in ${pluginDir}: 'name' must be a non-empty string`);
+            registry.set(entry, {
+              manifest: { name: entry, version: '0.0.0' },
+              status: 'error',
+              error: 'package.json missing valid name field',
+              pluginDir,
+            });
+            continue;
+          }
+
+          if (typeof pkgObj.version !== 'string' || pkgObj.version.length === 0) {
+            console.warn(`[PluginManager] package.json in ${pluginDir}: 'version' must be a non-empty string`);
+            registry.set(entry, {
+              manifest: { name: pkgObj.name, version: '0.0.0' },
+              status: 'error',
+              error: 'package.json missing valid version field',
+              pluginDir,
+            });
+            continue;
+          }
+
+          // Resolve entry point from main or exports
+          let serverEntry = 'index.js';
+          if (typeof pkgObj.main === 'string' && pkgObj.main.length > 0) {
+            serverEntry = pkgObj.main;
+          } else if (pkgObj.exports && typeof pkgObj.exports === 'object' && !Array.isArray(pkgObj.exports)) {
+            const exportsObj = pkgObj.exports as Record<string, unknown>;
+            const defaultExport = exportsObj['.'] ?? exportsObj['default'];
+            if (typeof defaultExport === 'string') {
+              serverEntry = defaultExport;
+            }
+          }
+
+          const synthesizedManifest: PluginManifest = {
+            name: pkgObj.name,
+            version: pkgObj.version,
+            description: typeof pkgObj.description === 'string' ? pkgObj.description : undefined,
+            permissions: [],
+            serverEntry,
+          };
+
+          const persistedConfig = await getPluginConfig(pkgObj.name);
+          let pkgStatus: PluginEntry['status'] = 'discovered';
+          if (persistedConfig) {
+            pkgStatus = persistedConfig.enabled ? 'discovered' : 'disabled';
+          } else {
+            await setPluginConfig(pkgObj.name, { enabled: true, settings: {} });
+          }
+
+          registry.set(pkgObj.name, {
+            manifest: synthesizedManifest,
+            status: pkgStatus,
+            format: 'class',
+            pluginDir,
+          });
+        } catch (pkgError) {
+          const pkgMsg = pkgError instanceof Error ? pkgError.message : 'Unknown error';
+          console.warn(`[PluginManager] Error reading package.json in ${pluginDir}: ${pkgMsg}`);
+          registry.set(entry, {
+            manifest: { name: entry, version: '0.0.0' },
+            status: 'error',
+            error: pkgMsg,
+            pluginDir,
+          });
+        }
         continue;
       }
 
@@ -297,7 +393,16 @@ export async function loadPlugin(name: string): Promise<void> {
         console.warn(`[PluginManager] Plugin '${name}' detected as class format`);
 
         const PluginClass = (mod as Record<string, new () => FormicPlugin>).default;
-        const pluginInstance = new PluginClass();
+        let pluginInstance: FormicPlugin;
+        try {
+          pluginInstance = new PluginClass();
+        } catch (ctorErr) {
+          const ctorMsg = ctorErr instanceof Error ? ctorErr.message : 'Unknown error';
+          entry.status = 'error';
+          entry.error = `Class constructor failed: ${ctorMsg}`;
+          console.warn(`[PluginManager] Plugin '${name}' constructor failed: ${ctorMsg}`);
+          return;
+        }
 
         // Validate required fields
         if (
@@ -313,7 +418,7 @@ export async function loadPlugin(name: string): Promise<void> {
           return;
         }
 
-        const { api } = await createFormicAPI(name, entry.manifest);
+        const { api, dispose } = await createFormicAPI(name, entry.manifest);
 
         try {
           await pluginInstance.onLoad(api);
@@ -326,6 +431,7 @@ export async function loadPlugin(name: string): Promise<void> {
         }
 
         entry.pluginInstance = pluginInstance;
+        entry.apiDispose = dispose;
         entry.loadedModule = mod;
       } else {
         // Legacy manifest-based plugin loading
@@ -367,6 +473,16 @@ export async function unloadPlugin(name: string): Promise<void> {
       }
     }
 
+    // Dispose FormicAPI-level event subscriptions
+    if (entry.apiDispose) {
+      try {
+        entry.apiDispose();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        console.warn(`[PluginManager] Plugin '${name}' apiDispose() failed: ${msg}`);
+      }
+    }
+
     // Clean up event subscriptions registered through the plugin's EventApi
     try {
       cleanupPluginListeners(name);
@@ -394,8 +510,31 @@ export async function unloadPlugin(name: string): Promise<void> {
       console.warn(`[PluginManager] Failed to unregister skill overrides for plugin '${name}': ${msg}`);
     }
 
+    // Clean up custom task types registered by this plugin
+    try {
+      const removedTypes = unregisterTaskTypes(name);
+      if (removedTypes > 0) {
+        console.warn(`[PluginManager] Removed ${removedTypes} custom task type(s) for plugin: ${name}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[PluginManager] Failed to unregister task types for plugin '${name}': ${msg}`);
+    }
+
+    // Clean up verifiers registered by this plugin
+    try {
+      const removedVerifiers = unregisterVerifiers(name);
+      if (removedVerifiers > 0) {
+        console.warn(`[PluginManager] Removed ${removedVerifiers} verifier(s) for plugin: ${name}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[PluginManager] Failed to unregister verifiers for plugin '${name}': ${msg}`);
+    }
+
     entry.loadedModule = undefined;
     entry.pluginInstance = undefined;
+    entry.apiDispose = undefined;
     entry.status = 'discovered';
     entry.error = undefined;
 

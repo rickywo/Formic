@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { getSkillPath, skillExists, getSkillContent } from './skills.js';
 import { getWorkspacePath } from '../utils/paths.js';
-import type { Task, SkillOverride } from '../../types/index.js';
+import type { Task, SkillOverride, VerifierDefinition, VerifierResult } from '../../types/index.js';
 import { internalEvents, SKILL_LOADED, BEFORE_SKILL_LOAD } from './internalEvents.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
@@ -11,6 +11,68 @@ const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 // ── Skill Override Registry ──────────────────────────────────────────────────
 
 const skillOverrides = new Map<string, SkillOverride>();
+
+// ── Verifier Registry ────────────────────────────────────────────────────────
+
+const verifierRegistry = new Map<string, VerifierDefinition & { registeredByPlugin: string }>();
+
+/**
+ * Register a custom verifier contributed by a plugin.
+ * Validates that the verifier ID is unique.
+ */
+export function registerVerifier(verifier: VerifierDefinition, pluginName: string): void {
+  if (verifierRegistry.has(verifier.id)) {
+    throw new Error(`[SkillReader] Verifier '${verifier.id}' is already registered`);
+  }
+  verifierRegistry.set(verifier.id, { ...verifier, registeredByPlugin: pluginName });
+  console.warn(`[SkillReader] Verifier registered: ${verifier.id} by ${pluginName}`);
+}
+
+/**
+ * Remove all verifiers registered by a given plugin.
+ * Returns the count of removed verifiers.
+ */
+export function unregisterVerifiers(pluginName: string): number {
+  let count = 0;
+  for (const [id, entry] of verifierRegistry) {
+    if (entry.registeredByPlugin === pluginName) {
+      verifierRegistry.delete(id);
+      count++;
+    }
+  }
+  if (count > 0) {
+    console.warn(`[SkillReader] Unregistered ${count} verifier(s) from plugin '${pluginName}'`);
+  }
+  return count;
+}
+
+/**
+ * Return all currently registered verifier definitions.
+ */
+export function getVerifiers(): VerifierDefinition[] {
+  return [...verifierRegistry.values()].map(({ registeredByPlugin: _reg, ...def }) => def);
+}
+
+/**
+ * Execute all registered verifiers against the given task ID.
+ * Errors are caught per-verifier so one failure doesn't block others.
+ */
+export async function runVerifiers(taskId: string): Promise<Array<{ verifierId: string; passed: boolean; message?: string }>> {
+  const results: Array<{ verifierId: string; passed: boolean; message?: string }> = [];
+
+  for (const [id, entry] of verifierRegistry) {
+    try {
+      const result: VerifierResult = await entry.verify(taskId);
+      results.push({ verifierId: id, passed: result.passed, message: result.message });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.error(`[SkillReader] Verifier '${id}' threw an error: ${message}`);
+      results.push({ verifierId: id, passed: false, message: `Verifier error: ${message}` });
+    }
+  }
+
+  return results;
+}
 
 /**
  * Register a plugin's skill content override for a given stage name.

@@ -195,6 +195,8 @@ export interface PluginEntry {
   pluginInstance?: FormicPlugin;
   /** Which loading path was used */
   format?: 'legacy' | 'class';
+  /** Dispose function returned by createFormicAPI() — cleans up API-level event subscriptions */
+  apiDispose?: () => void;
 }
 
 // ==================== Configurable Pipeline Types ====================

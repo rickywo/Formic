@@ -58,5 +58,8 @@ export const TASK_UPDATED = 'task-updated';
 /** Event name emitted when a task transitions between workflow stages */
 export const TASK_STAGE_CHANGED = 'task-stage-changed';
 
+/** Event name emitted when a plugin registers a new custom task type */
+export const TASK_TYPE_REGISTERED = 'task-type-registered';
+
 /** Shared internal event emitter instance */
 export const internalEvents = new EventEmitter();
