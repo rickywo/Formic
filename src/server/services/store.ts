@@ -14,7 +14,7 @@ import { copySkillsToWorkspace } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
 import { releaseLeases } from './leaseManager.js';
 import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
-import { internalEvents, TASK_CREATED, TASK_QUEUED, BOARD_UPDATE, TASK_UPDATED, STAGE_CHANGED } from './internalEvents.js';
+import { internalEvents, TASK_CREATED, TASK_QUEUED, BOARD_UPDATE, TASK_UPDATED, TASK_STAGE_CHANGED } from './internalEvents.js';
 
 /** Async write mutex — serializes all saveBoard() calls to prevent concurrent write corruption */
 let saveLock: Promise<void> = Promise.resolve();
@@ -353,9 +353,9 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
 
   internalEvents.emit(TASK_UPDATED, { task: structuredClone(board.tasks[taskIndex]) });
 
-  // Emit STAGE_CHANGED when status changed via updateTask (e.g., user-approval path)
+  // Emit TASK_STAGE_CHANGED when status changed via updateTask (e.g., user-approval path)
   if (input.status && input.status !== previousStatus) {
-    internalEvents.emit(STAGE_CHANGED, { task: structuredClone(board.tasks[taskIndex]), fromStage: previousStatus, toStage: input.status });
+    internalEvents.emit(TASK_STAGE_CHANGED, { task: structuredClone(board.tasks[taskIndex]), fromStage: previousStatus, toStage: input.status });
   }
 
   // Post-transition hook: unblock sibling tasks when status transitions to 'review' or 'done'.
@@ -482,7 +482,7 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
   internalEvents.emit(TASK_UPDATED, { task: structuredClone(board.tasks[taskIndex]), previousStatus });
 
   if (previousStatus !== status) {
-    internalEvents.emit(STAGE_CHANGED, { task: structuredClone(board.tasks[taskIndex]), fromStage: previousStatus, toStage: status });
+    internalEvents.emit(TASK_STAGE_CHANGED, { task: structuredClone(board.tasks[taskIndex]), fromStage: previousStatus, toStage: status });
   }
 
   // Structured status transition log

@@ -56,7 +56,7 @@ export const STAGE_UNREGISTERED = 'stage-unregistered';
 export const TASK_UPDATED = 'task:updated';
 
 /** Event name emitted when a task transitions between workflow stages */
-export const STAGE_CHANGED = 'stage:changed';
+export const TASK_STAGE_CHANGED = 'task-stage-changed';
 
 /** Shared internal event emitter instance */
 export const internalEvents = new EventEmitter();
