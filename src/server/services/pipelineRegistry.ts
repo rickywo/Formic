@@ -97,6 +97,9 @@ const GOAL_PIPELINE: WorkflowPipeline = [
 /** Plugin-registered stages, keyed by plugin name */
 const pluginStages = new Map<string, StageDescriptor[]>();
 
+/** Plugin-provided custom handler functions, keyed by stage name */
+const pluginHandlers = new Map<string, (taskId: string) => Promise<void>>();
+
 // ==================== Public API ====================
 
 /**
@@ -192,6 +195,11 @@ export function registerStage(registration: StageRegistration, pluginName: strin
     order: anchorStage.order + 0.5, // Insert after anchor; will be re-numbered on getActivePipeline
   };
 
+  // Store custom handler function if provided
+  if (registration.handler) {
+    pluginHandlers.set(registration.name, registration.handler);
+  }
+
   // Store under plugin name
   if (!pluginStages.has(pluginName)) {
     pluginStages.set(pluginName, []);
@@ -213,6 +221,10 @@ export function unregisterStages(pluginName: string): number {
   if (!stages) return 0;
 
   const count = stages.length;
+  // Clean up handler functions for removed stages
+  for (const stage of stages) {
+    pluginHandlers.delete(stage.name);
+  }
   pluginStages.delete(pluginName);
   console.warn(`[Pipeline] Unregistered ${count} stage(s) from plugin '${pluginName}'`);
   return count;
@@ -244,4 +256,11 @@ export function getRegisteredStages(): StageDescriptor[] {
   }
 
   return deduped;
+}
+
+/**
+ * Returns the custom handler function for a plugin stage, if one was registered.
+ */
+export function getStageHandler(stageName: string): ((taskId: string) => Promise<void>) | undefined {
+  return pluginHandlers.get(stageName);
 }

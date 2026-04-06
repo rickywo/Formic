@@ -27,7 +27,7 @@ import { broadcastToWorkspace } from './messagingNotifier.js';
 import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
 import { internalEvents, TASK_COMPLETED, BEFORE_EXECUTE, AFTER_EXECUTE, TASK_FAILED } from './internalEvents.js';
-import { getActivePipeline } from './pipelineRegistry.js';
+import { getActivePipeline, getStageHandler } from './pipelineRegistry.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
@@ -152,7 +152,7 @@ async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<v
  * Append logs to a per-task, per-step log file on disk.
  * Stores only the file path reference in board.json (not the log content).
  */
-async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute' | 'architect' | 'verify', logs: string[]): Promise<void> {
+async function appendWorkflowLogs(taskId: string, step: string, logs: string[]): Promise<void> {
   if (logs.length === 0) return;
 
   // Ensure the .formic/logs/{taskId}/ directory exists
@@ -452,7 +452,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
  */
 function runWorkflowStep(
   taskId: string,
-  step: 'brief' | 'plan' | 'execute',
+  step: string,
   prompt: string,
   onComplete: (success: boolean) => void
 ): { child: ChildProcess; pidPersisted: Promise<void> } {
@@ -858,6 +858,61 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
 }
 
 /**
+ * Execute a generic pipeline stage (primarily for plugin-contributed stages).
+ * Sets task status, loads skill prompt, spawns agent or calls custom handler.
+ * Returns true on success, false on failure.
+ */
+async function executeStage(taskId: string, stage: StageDescriptor): Promise<boolean> {
+  const task = await getTask(taskId);
+  if (!task) return false;
+
+  await updateTaskStatus(taskId, stage.taskStatus, undefined, `workflow.executeStage.${stage.name}`);
+  await updateWorkflowStep(taskId, stage.workflowStep as WorkflowStep);
+
+  broadcastToTask(taskId, {
+    type: 'stdout',
+    data: `\n========== Starting ${stage.displayName} step ==========\n`,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Check for custom handler registered by a plugin
+  const customHandler = getStageHandler(stage.name);
+  if (customHandler) {
+    try {
+      await customHandler(taskId);
+      return true;
+    } catch (err) {
+      console.warn(`[Workflow] Custom handler for stage '${stage.name}' failed:`, err instanceof Error ? err.message : 'Unknown error');
+      await appendWorkflowLogs(taskId, stage.name, [`Error: ${err instanceof Error ? err.message : 'Unknown error'}`]);
+      return false;
+    }
+  }
+
+  // Default: load skill prompt and spawn agent
+  const skillResult = await loadSkillPrompt(stage.skillName, task);
+  if (!skillResult.success) {
+    console.warn(`[Workflow] Skill '${stage.skillName}' not found for stage '${stage.name}', skipping`);
+    return true;
+  }
+
+  let pidPromise: Promise<void> | undefined;
+  const resultPromise = new Promise<boolean>((resolve) => {
+    const { child, pidPersisted } = runWorkflowStep(taskId, stage.name, skillResult.content, (success) => {
+      resolve(success);
+    });
+    pidPromise = pidPersisted;
+    if (child.pid) {
+      activeWorkflows.set(taskId, { process: child, currentStep: stage.workflowStep as WorkflowStep });
+    }
+  });
+
+  if (pidPromise) await pidPromise;
+  const success = await resultPromise;
+  activeWorkflows.delete(taskId);
+  return success;
+}
+
+/**
  * On verify failure: increment retryCount; create a Fix task or engage kill switch after 3 failures.
  */
 async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Promise<void> {
@@ -1173,6 +1228,10 @@ function parseToolForgeOutput(output: string): unknown[] {
  * Execute a quick task (skips brief/plan stages, runs execute directly)
  * Quick tasks use task.context directly as the execution prompt
  */
+/**
+ * Execute a quick task: iterates over the active pipeline for quick tasks.
+ * Quick tasks skip brief/plan stages and execute directly.
+ */
 export async function executeQuickTask(taskId: string): Promise<{ pid: number }> {
   const task = await getTask(taskId);
   if (!task) {
@@ -1200,9 +1259,12 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
   // Build the quick execute prompt
   const prompt = buildQuickExecutePrompt(task, guidelines);
 
-  // Update task status to running
-  await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeQuickTask.start');
-  await updateWorkflowStep(taskId, 'execute');
+  // Update task status to first pipeline stage
+  const firstStage = pipeline[0];
+  if (firstStage) {
+    await updateTaskStatus(taskId, firstStage.taskStatus, undefined, 'workflow.executeQuickTask.start');
+    await updateWorkflowStep(taskId, firstStage.workflowStep as WorkflowStep);
+  }
 
   // Broadcast start
   broadcastToTask(taskId, {
@@ -1213,69 +1275,89 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
 
   const startPid = process.pid;
 
-  // Run the execute step
+  // Iterate over pipeline stages
   (async () => {
     try {
-      // Abort if stop was requested before execute begins
-      if (stoppedWorkflows.has(taskId)) {
-        stoppedWorkflows.delete(taskId);
-        return;
-      }
-
-      let pidPromise: Promise<void> | undefined;
-      const resultPromise = new Promise<boolean>((resolve) => {
-        const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (success) => {
-          resolve(success);
-        });
-        pidPromise = pidPersisted;
-
-        if (child.pid) {
-          activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
-        }
-      });
-
-      // Await PID persistence before proceeding
-      if (pidPromise) await pidPromise;
-
-      const success = await resultPromise;
-
-      activeWorkflows.delete(taskId);
-
-      // Release any leases held by this task
-      releaseLeases(taskId);
-
-      // Abort if stop was requested while the execute step was finishing
-      if (stoppedWorkflows.has(taskId)) {
-        stoppedWorkflows.delete(taskId);
-        return;
-      }
-
-      if (success) {
-        const verifyResult = await executeVerifyStep(taskId);
-        if (!verifyResult.success) {
-          await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+      for (const stage of pipeline) {
+        // Abort if stop was requested between stages
+        if (stoppedWorkflows.has(taskId)) {
+          stoppedWorkflows.delete(taskId);
           return;
         }
-        await updateWorkflowStep(taskId, 'complete');
-        await updateTaskStatus(taskId, 'review', null, 'workflow.executeQuickTask.success');
-        broadcastTaskCompleted(taskId);
-        internalEvents.emit(TASK_COMPLETED, taskId);
-        void runReflectionStep(taskId);
-        void triggerToolForge(taskId);
-        broadcastToTask(taskId, {
-          type: 'stdout',
-          data: `\n[SUCCESS] Quick task completed. Ready for review.\n`,
-          timestamp: new Date().toISOString(),
-        });
-      } else {
-        await incrementRetryCount(taskId, 'workflow.executeQuickTask.failed');
-        await updateTaskStatus(taskId, 'todo', null, 'workflow.executeQuickTask.failed');
-        broadcastToTask(taskId, {
-          type: 'error',
-          data: `\n[FAILED] Quick task execution failed.\n`,
-          timestamp: new Date().toISOString(),
-        });
+
+        switch (stage.name) {
+          // ---- EXECUTE stage: run agent with quick prompt ----
+          case 'execute': {
+            let pidPromise: Promise<void> | undefined;
+            const resultPromise = new Promise<boolean>((resolve) => {
+              const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (success) => {
+                resolve(success);
+              });
+              pidPromise = pidPersisted;
+
+              if (child.pid) {
+                activeWorkflows.set(taskId, { process: child, currentStep: 'execute' });
+              }
+            });
+
+            // Await PID persistence before proceeding
+            if (pidPromise) await pidPromise;
+
+            const success = await resultPromise;
+
+            activeWorkflows.delete(taskId);
+
+            // Release any leases held by this task
+            releaseLeases(taskId);
+
+            if (!success) {
+              await incrementRetryCount(taskId, 'workflow.executeQuickTask.failed');
+              await updateTaskStatus(taskId, 'todo', null, 'workflow.executeQuickTask.failed');
+              broadcastToTask(taskId, {
+                type: 'error',
+                data: `\n[FAILED] Quick task execution failed.\n`,
+                timestamp: new Date().toISOString(),
+              });
+              return;
+            }
+            break;
+          }
+
+          // ---- VERIFY stage: run verify command, critic/retry on failure ----
+          case 'verify': {
+            const verifyResult = await executeVerifyStep(taskId);
+            if (!verifyResult.success) {
+              await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+              return;
+            }
+            break;
+          }
+
+          // ---- Plugin or unknown stage: use generic executeStage helper ----
+          default: {
+            const stageSuccess = await executeStage(taskId, stage);
+            if (!stageSuccess) {
+              await incrementRetryCount(taskId, `workflow.executeQuickTask.${stage.name}_failed`);
+              await updateTaskStatus(taskId, 'todo', null, `workflow.executeQuickTask.${stage.name}_failed`);
+              return;
+            }
+            break;
+          }
+        }
       }
+
+      // All pipeline stages completed successfully — move to review
+      await updateWorkflowStep(taskId, 'complete');
+      await updateTaskStatus(taskId, 'review', null, 'workflow.executeQuickTask.success');
+      broadcastTaskCompleted(taskId);
+      internalEvents.emit(TASK_COMPLETED, taskId);
+      void runReflectionStep(taskId);
+      void triggerToolForge(taskId);
+      broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `\n[SUCCESS] Quick task completed. Ready for review.\n`,
+        timestamp: new Date().toISOString(),
+      });
     } finally {
       removeInFlightTask(taskId);
     }
@@ -1430,7 +1512,9 @@ export async function executeSingleStep(
 }
 
 /**
- * Execute the full workflow: brief → plan → execute
+ * Execute the full workflow: iterates over the active pipeline for standard tasks.
+ * Built-in stages (brief, plan, declare, execute, verify) use specialized handlers;
+ * plugin-contributed stages use the generic executeStage helper.
  */
 export async function executeFullWorkflow(taskId: string): Promise<{ pid: number }> {
   const task = await getTask(taskId);
@@ -1448,7 +1532,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     throw new Error('A workflow is already running for this task');
   }
 
-  // Helper to run steps sequentially
+  // Helper to run brief/plan steps sequentially
   const runStep = async (step: 'brief' | 'plan' | 'execute'): Promise<boolean> => {
     const currentTask = await getTask(taskId);
     if (!currentTask) return false;
@@ -1522,12 +1606,16 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
   // Start the workflow
   const startPid = process.pid; // Return server PID as reference
 
-  // Set status to 'briefing' immediately to prevent queue processor re-dispatch
+  // Set status to first stage immediately to prevent queue processor re-dispatch
   // during the async setup window (createSafePoint + skill loading).
-  await updateTaskStatus(taskId, 'briefing', undefined, 'workflow.executeFullWorkflow.init');
+  const firstStage = pipeline[0];
+  if (firstStage) {
+    await updateTaskStatus(taskId, firstStage.taskStatus, undefined, 'workflow.executeFullWorkflow.init');
+  }
 
-  // Run steps sequentially
+  // Run stages sequentially from the pipeline
   (async () => {
+    let leasesHeld = false;
     try {
       // Create a git safe-point commit before execution for rollback support.
       // Guard against duplicate commits on re-entry (e.g. if resumeFromStep was
@@ -1543,170 +1631,187 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       // Resolve task docs directory for artifact checks
       const docsDir = path.join(getWorkspacePath(), task.docsPath);
 
-    // Abort if stop was requested before brief starts
-    if (stoppedWorkflows.has(taskId)) {
-      stoppedWorkflows.delete(taskId);
-      return;
-    }
+      // Iterate over pipeline stages
+      for (const stage of pipeline) {
+        // Abort if stop was requested between stages
+        if (stoppedWorkflows.has(taskId)) {
+          stoppedWorkflows.delete(taskId);
+          return;
+        }
 
-    // Step 1: Brief — skip if README.md already exists on re-entry
-    const skipBrief = isReEntry && await artifactExists(docsDir, 'README.md');
-    if (skipBrief) {
-      console.warn('[Workflow] Skipping brief step — README.md already exists');
-      broadcastToTask(taskId, {
-        type: 'stdout',
-        data: '\n========== Skipping BRIEF step (README.md exists) ==========\n',
-        timestamp: new Date().toISOString(),
-      });
-      // Transition through briefing→planning so the board UI shows progress
-      await updateTaskStatus(taskId, 'planning', undefined, 'workflow.executeFullWorkflow.brief_skipped');
-    } else {
-      const briefSuccess = await runStep('brief');
-      if (!briefSuccess) {
-        activeWorkflows.delete(taskId);
-        await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.brief_failed');
-        await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.brief_failed');
-        return;
-      }
-    }
-
-    // Abort if stop was requested between brief and plan
-    if (stoppedWorkflows.has(taskId)) {
-      stoppedWorkflows.delete(taskId);
-      return;
-    }
-
-    // Step 2: Plan — skip if PLAN.md and subtasks.json already exist on re-entry
-    const skipPlan = isReEntry
-      && await artifactExists(docsDir, 'PLAN.md')
-      && await artifactExists(docsDir, 'subtasks.json');
-    if (skipPlan) {
-      console.warn('[Workflow] Skipping plan step — PLAN.md + subtasks.json already exist');
-      broadcastToTask(taskId, {
-        type: 'stdout',
-        data: '\n========== Skipping PLAN step (PLAN.md + subtasks.json exist) ==========\n',
-        timestamp: new Date().toISOString(),
-      });
-      // Transition to declaring so the board UI shows progress
-      await updateTaskStatus(taskId, 'declaring', undefined, 'workflow.executeFullWorkflow.plan_skipped');
-    } else {
-      const planSuccess = await runStep('plan');
-      if (!planSuccess) {
-        activeWorkflows.delete(taskId);
-        await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.plan_failed');
-        await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.plan_failed');
-        return;
-      }
-    }
-
-    // Abort if stop was requested between plan and declare
-    if (stoppedWorkflows.has(taskId)) {
-      stoppedWorkflows.delete(taskId);
-      return;
-    }
-
-    // Step 2.5: Declare + Acquire Leases
-    const currentTaskForDeclare = await getTask(taskId);
-    if (!currentTaskForDeclare) {
-      activeWorkflows.delete(taskId);
-      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.task_not_found');
-      return;
-    }
-
-    const leasesAcquired = await executeDeclareAndAcquireLeases(taskId, currentTaskForDeclare);
-    if (!leasesAcquired) {
-      // Task needs to yield - mark resumeFromStep so retry skips brief+plan
-      activeWorkflows.delete(taskId);
-      const board = await loadBoard();
-      const yieldTask = board.tasks.find(t => t.id === taskId);
-      if (yieldTask) {
-        yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
-        yieldTask.resumeFromStep = 'declare';
-        await saveBoard(board);
-        const verifyTask = await getTask(taskId);
-        console.log(`[Workflow] Task ${taskId} yielded at declare — resumeFromStep persisted: ${verifyTask?.resumeFromStep}`);
-      }
-      await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFullWorkflow.declare_yield');
-      return;
-    }
-
-    // Abort if stop was requested between declare and execute
-    if (stoppedWorkflows.has(taskId)) {
-      stoppedWorkflows.delete(taskId);
-      releaseLeases(taskId);
-      return;
-    }
-
-    // Step 3: Execute (with iterative completion checking)
-    const currentTask = await getTask(taskId);
-    if (!currentTask) {
-      activeWorkflows.delete(taskId);
-      releaseLeases(taskId);
-      await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.task_not_found_post_declare');
-      return;
-    }
-
-    // Wrap post-lease-acquisition code in try/finally to guarantee lease release
-    // even if an unexpected exception occurs during execution or collision detection
-    try {
-      internalEvents.emit(BEFORE_EXECUTE, { taskId, task: currentTask });
-      await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeFullWorkflow.execute_start');
-      await updateWorkflowStep(taskId, 'execute');
-
-      const executeResult = await executeWithIterativeLoop(taskId, currentTask);
-      activeWorkflows.delete(taskId);
-
-      // Detect collisions on shared files BEFORE releasing leases
-      // (releaseLeases deletes fileHashStore entries needed by detectCollisions)
-      if (currentTask.declaredFiles?.shared && currentTask.declaredFiles.shared.length > 0) {
-        const conflicts = await detectCollisions(taskId, getWorkspacePath());
-        if (conflicts.length > 0) {
-          const board = await loadBoard();
-          const conflictTask = board.tasks.find(t => t.id === taskId);
-          if (conflictTask) {
-            conflictTask.fileConflicts = conflicts;
-            await saveBoard(board);
+        switch (stage.name) {
+          // ---- BRIEF stage: run agent with skill prompt, skip if artifact exists on re-entry ----
+          case 'brief': {
+            const skipBrief = isReEntry && await artifactExists(docsDir, 'README.md');
+            if (skipBrief) {
+              console.warn('[Workflow] Skipping brief step — README.md already exists');
+              broadcastToTask(taskId, {
+                type: 'stdout',
+                data: '\n========== Skipping BRIEF step (README.md exists) ==========\n',
+                timestamp: new Date().toISOString(),
+              });
+              // Transition through briefing→next stage so the board UI shows progress
+              const nextIdx = pipeline.indexOf(stage) + 1;
+              if (nextIdx < pipeline.length) {
+                await updateTaskStatus(taskId, pipeline[nextIdx].taskStatus, undefined, 'workflow.executeFullWorkflow.brief_skipped');
+              }
+            } else {
+              const briefSuccess = await runStep('brief');
+              if (!briefSuccess) {
+                activeWorkflows.delete(taskId);
+                await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.brief_failed');
+                await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.brief_failed');
+                return;
+              }
+            }
+            break;
           }
-          console.log(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
+
+          // ---- PLAN stage: run agent with skill prompt, skip if artifacts exist on re-entry ----
+          case 'plan': {
+            const skipPlan = isReEntry
+              && await artifactExists(docsDir, 'PLAN.md')
+              && await artifactExists(docsDir, 'subtasks.json');
+            if (skipPlan) {
+              console.warn('[Workflow] Skipping plan step — PLAN.md + subtasks.json already exist');
+              broadcastToTask(taskId, {
+                type: 'stdout',
+                data: '\n========== Skipping PLAN step (PLAN.md + subtasks.json exist) ==========\n',
+                timestamp: new Date().toISOString(),
+              });
+              const nextIdx = pipeline.indexOf(stage) + 1;
+              if (nextIdx < pipeline.length) {
+                await updateTaskStatus(taskId, pipeline[nextIdx].taskStatus, undefined, 'workflow.executeFullWorkflow.plan_skipped');
+              }
+            } else {
+              const planSuccess = await runStep('plan');
+              if (!planSuccess) {
+                activeWorkflows.delete(taskId);
+                await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.plan_failed');
+                await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.plan_failed');
+                return;
+              }
+            }
+            break;
+          }
+
+          // ---- DECLARE stage: run declare skill, parse output, acquire file leases ----
+          case 'declare': {
+            const currentTaskForDeclare = await getTask(taskId);
+            if (!currentTaskForDeclare) {
+              activeWorkflows.delete(taskId);
+              await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.task_not_found');
+              return;
+            }
+
+            const leasesAcquired = await executeDeclareAndAcquireLeases(taskId, currentTaskForDeclare);
+            if (!leasesAcquired) {
+              // Task needs to yield - mark resumeFromStep so retry skips brief+plan
+              activeWorkflows.delete(taskId);
+              const board = await loadBoard();
+              const yieldTask = board.tasks.find(t => t.id === taskId);
+              if (yieldTask) {
+                yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
+                yieldTask.resumeFromStep = 'declare';
+                await saveBoard(board);
+                const verifyTask = await getTask(taskId);
+                console.log(`[Workflow] Task ${taskId} yielded at declare — resumeFromStep persisted: ${verifyTask?.resumeFromStep}`);
+              }
+              await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFullWorkflow.declare_yield');
+              return;
+            }
+            leasesHeld = true;
+            break;
+          }
+
+          // ---- EXECUTE stage: iterative execution with subtask completion checking ----
+          case 'execute': {
+            const currentTask = await getTask(taskId);
+            if (!currentTask) {
+              activeWorkflows.delete(taskId);
+              await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.task_not_found_post_declare');
+              return;
+            }
+
+            internalEvents.emit(BEFORE_EXECUTE, { taskId, task: currentTask });
+            await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeFullWorkflow.execute_start');
+            await updateWorkflowStep(taskId, 'execute');
+
+            const executeResult = await executeWithIterativeLoop(taskId, currentTask);
+            activeWorkflows.delete(taskId);
+
+            // Detect collisions on shared files BEFORE releasing leases
+            if (currentTask.declaredFiles?.shared && currentTask.declaredFiles.shared.length > 0) {
+              const conflicts = await detectCollisions(taskId, getWorkspacePath());
+              if (conflicts.length > 0) {
+                const board = await loadBoard();
+                const conflictTask = board.tasks.find(t => t.id === taskId);
+                if (conflictTask) {
+                  conflictTask.fileConflicts = conflicts;
+                  await saveBoard(board);
+                }
+                console.log(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
+              }
+            }
+
+            if (!executeResult.success) {
+              internalEvents.emit(AFTER_EXECUTE, { taskId, task: currentTask, success: false });
+              internalEvents.emit(TASK_FAILED, { taskId, task: currentTask, error: 'Full workflow execution failed' });
+              const latestTask = await getTask(taskId);
+              if (latestTask && latestTask.status === 'running') {
+                await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.execute_failed');
+                await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.execute_failed');
+              } else {
+                console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
+              }
+              return;
+            }
+
+            internalEvents.emit(AFTER_EXECUTE, { taskId, task: currentTask, success: true });
+            break;
+          }
+
+          // ---- VERIFY stage: run verify command, critic/retry on failure ----
+          case 'verify': {
+            // Guard against stale status: check if watchdog has already re-queued the task
+            const latestTask = await getTask(taskId);
+            if (!latestTask || latestTask.status !== 'running') {
+              console.warn(`[Workflow] Skipping verify for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
+              return;
+            }
+
+            const verifyResult = await executeVerifyStep(taskId);
+            if (!verifyResult.success) {
+              await executeCriticAndRetry(taskId, verifyResult.stderrLines);
+              return;
+            }
+            break;
+          }
+
+          // ---- Plugin or unknown stage: use generic executeStage helper ----
+          default: {
+            const stageSuccess = await executeStage(taskId, stage);
+            if (!stageSuccess) {
+              await incrementRetryCount(taskId, `workflow.executeFullWorkflow.${stage.name}_failed`);
+              await updateTaskStatus(taskId, 'todo', null, `workflow.executeFullWorkflow.${stage.name}_failed`);
+              return;
+            }
+            break;
+          }
         }
       }
 
-      if (executeResult.success) {
-        internalEvents.emit(AFTER_EXECUTE, { taskId, task: currentTask, success: true });
-        // Guard against stale status updates: check if watchdog has already re-queued the task
-        const latestTask = await getTask(taskId);
-        if (latestTask && latestTask.status === 'running') {
-          const verifyResult = await executeVerifyStep(taskId);
-          if (!verifyResult.success) {
-            await executeCriticAndRetry(taskId, verifyResult.stderrLines);
-          } else {
-            await updateWorkflowStep(taskId, 'complete');
-            await updateTaskStatus(taskId, 'review', null, 'workflow.executeFullWorkflow.verified');
-            broadcastTaskCompleted(taskId);
-            internalEvents.emit(TASK_COMPLETED, taskId);
-            void runReflectionStep(taskId);
-            void triggerToolForge(taskId);
-          }
-        } else {
-          console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
-        }
-      } else {
-        internalEvents.emit(AFTER_EXECUTE, { taskId, task: currentTask, success: false });
-        internalEvents.emit(TASK_FAILED, { taskId, task: currentTask, error: 'Full workflow execution failed' });
-        const latestTask = await getTask(taskId);
-        if (latestTask && latestTask.status === 'running') {
-          await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.execute_failed');
-          await updateTaskStatus(taskId, 'todo', null, 'workflow.executeFullWorkflow.execute_failed');
-        } else {
-          console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
-        }
-      }
+      // All pipeline stages completed successfully — move to review
+      await updateWorkflowStep(taskId, 'complete');
+      await updateTaskStatus(taskId, 'review', null, 'workflow.executeFullWorkflow.verified');
+      broadcastTaskCompleted(taskId);
+      internalEvents.emit(TASK_COMPLETED, taskId);
+      void runReflectionStep(taskId);
+      void triggerToolForge(taskId);
     } finally {
       // Ensure leases are always released, even on unexpected exceptions.
       // Safe to call even if leases were already released (no-op in that case).
-      releaseLeases(taskId);
-    }
-    } finally {
+      if (leasesHeld) releaseLeases(taskId);
       removeInFlightTask(taskId);
     }
   })();
@@ -1948,6 +2053,10 @@ function detectDAGCycle(defs: ArchitectTaskDef[]): boolean {
 /**
  * Execute a goal task workflow (architect step → create child tasks)
  */
+/**
+ * Execute a goal task workflow: iterates over the active pipeline for goal tasks.
+ * The architect stage decomposes the goal into child tasks.
+ */
 export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number }> {
   const task = await getTask(taskId);
   if (!task) {
@@ -1968,279 +2077,301 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
   // Create a git safe-point commit before execution for rollback support
   await createSafePoint(taskId);
 
-  // Update status to architecting
-  await updateTaskStatus(taskId, 'architecting', undefined, 'workflow.runArchitectStep.start');
-  await updateWorkflowStep(taskId, 'architect');
-
-  // Load skill prompt with fallback
-  let prompt: string;
-  const skillResult = await loadSkillPrompt('architect', task);
-  if (skillResult.success) {
-    prompt = skillResult.content;
-    console.log('[Workflow] Using skill file for architect step');
-  } else {
-    const guidelines = await loadProjectGuidelines();
-    prompt = buildArchitectPromptFallback(task, guidelines);
-    console.log('[Workflow] Using fallback prompt for architect step');
+  // Update status to first pipeline stage
+  const firstStage = pipeline[0];
+  if (firstStage) {
+    await updateTaskStatus(taskId, firstStage.taskStatus, undefined, 'workflow.runArchitectStep.start');
+    await updateWorkflowStep(taskId, firstStage.workflowStep as WorkflowStep);
   }
-
-  // Broadcast start
-  broadcastToTask(taskId, {
-    type: 'stdout',
-    data: `\n========== Starting ARCHITECT step (goal decomposition) ==========\n`,
-    timestamp: new Date().toISOString(),
-  });
 
   const startPid = process.pid;
 
-  // Run the architect step asynchronously
+  // Iterate over pipeline stages
   (async () => {
     try {
-      // Abort if stop was requested before architect begins
-      if (stoppedWorkflows.has(taskId)) {
-        stoppedWorkflows.delete(taskId);
-        return;
-      }
-
-      let pidPromise: Promise<void> | undefined;
-      const resultPromise = new Promise<boolean>((resolve) => {
-        const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
-          resolve(stepSuccess);
-        });
-        pidPromise = pidPersisted;
-
-        if (child.pid) {
-          activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
-        }
-      });
-
-      // Await PID persistence so board.json has the correct PID before the process completes
-      if (pidPromise) await pidPromise;
-
-      const success = await resultPromise;
-
-      activeWorkflows.delete(taskId);
-
-      if (!success) {
-        await incrementRetryCount(taskId, 'workflow.runArchitectStep.failed');
-        await updateTaskStatus(taskId, 'todo', null, 'workflow.runArchitectStep.failed');
-        broadcastToTask(taskId, {
-          type: 'error',
-          data: `\n[FAILED] Architect step failed.\n`,
-          timestamp: new Date().toISOString(),
-        });
-        return;
-      }
-
-    // Abort if stop was requested between architect and child task creation
-    if (stoppedWorkflows.has(taskId)) {
-      stoppedWorkflows.delete(taskId);
-      return;
-    }
-
-    // Parse architect-output.json and create child tasks
-    const outputPath = path.join(getWorkspacePath(), task.docsPath, 'architect-output.json');
-
-    try {
-      if (!existsSync(outputPath)) {
-        console.warn(`[Workflow] architect-output.json not found at ${outputPath}`);
-        broadcastToTask(taskId, {
-          type: 'error',
-          data: `\n[WARNING] architect-output.json not found. Goal moved to review.\n`,
-          timestamp: new Date().toISOString(),
-        });
-        await updateWorkflowStep(taskId, 'complete');
-        await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.no_output');
-        broadcastTaskCompleted(taskId);
-        internalEvents.emit(TASK_COMPLETED, taskId);
-        void runReflectionStep(taskId);
-        void triggerToolForge(taskId);
-        broadcastBoardUpdate();
-        return;
-      }
-
-      const outputContent = await readFile(outputPath, 'utf-8');
-      const childTaskDefs = JSON.parse(outputContent) as Array<ArchitectTaskDef>;
-
-      if (!Array.isArray(childTaskDefs) || childTaskDefs.length === 0) {
-        throw new Error('architect-output.json must be a non-empty array');
-      }
-
-      console.log(`[Workflow] Parsed ${childTaskDefs.length} child tasks from architect output`);
-
-      // Determine if DAG mode is active: at least one def has a task_id and no cycle exists
-      const hasDagFields = childTaskDefs.some(d => typeof d.task_id === 'string' && d.task_id.length > 0);
-      let dagMode = false;
-      if (hasDagFields) {
-        if (detectDAGCycle(childTaskDefs)) {
-          console.warn('[Workflow] Cycle detected in architect DAG — falling back to flat queue mode');
-          broadcastToTask(taskId, {
-            type: 'stdout',
-            data: `\n[WARNING] Cycle detected in dependency graph. Falling back to flat queue mode.\n`,
-            timestamp: new Date().toISOString(),
-          });
-        } else {
-          dagMode = true;
-        }
-      }
-
-      broadcastToTask(taskId, {
-        type: 'stdout',
-        data: `\n[ARCHITECT] Creating ${childTaskDefs.length} child tasks...\n`,
-        timestamp: new Date().toISOString(),
-      });
-
-      const childTaskIds: string[] = [];
-      // Maps architect task_id → Formic task ID (populated in creation loop)
-      const symbolicToFormicId = new Map<string, string>();
-
-      for (const def of childTaskDefs) {
-        if (!def.title || !def.context) {
-          console.warn('[Workflow] Skipping invalid child task definition (missing title or context)');
-          continue;
+      for (const stage of pipeline) {
+        // Abort if stop was requested between stages
+        if (stoppedWorkflows.has(taskId)) {
+          stoppedWorkflows.delete(taskId);
+          return;
         }
 
-        const childTask = await createTask({
-          title: def.title,
-          context: def.context,
-          priority: def.priority || 'medium',
-          type: 'standard',
-        });
+        switch (stage.name) {
+          // ---- ARCHITECT stage: run agent, parse output, create child tasks ----
+          case 'architect': {
+            // Load skill prompt with fallback
+            let prompt: string;
+            const skillResult = await loadSkillPrompt('architect', task);
+            if (skillResult.success) {
+              prompt = skillResult.content;
+              console.log('[Workflow] Using skill file for architect step');
+            } else {
+              const guidelines = await loadProjectGuidelines();
+              prompt = buildArchitectPromptFallback(task, guidelines);
+              console.log('[Workflow] Using fallback prompt for architect step');
+            }
 
-        // Set parentGoalId on the child task
-        const board = await loadBoard();
-        const childInBoard = board.tasks.find(t => t.id === childTask.id);
-        if (childInBoard) {
-          childInBoard.parentGoalId = taskId;
-          await saveBoard(board);
-        }
-
-        if (dagMode && typeof def.task_id === 'string' && def.task_id.length > 0) {
-          symbolicToFormicId.set(def.task_id, childTask.id);
-        }
-
-        childTaskIds.push(childTask.id);
-
-        broadcastToTask(taskId, {
-          type: 'stdout',
-          data: `  → Created: ${childTask.id} - ${childTask.title}\n`,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      // Update goal task with child task IDs
-      const goalBoard = await loadBoard();
-      const goalTask = goalBoard.tasks.find(t => t.id === taskId);
-      if (goalTask) {
-        goalTask.childTaskIds = childTaskIds;
-        await saveBoard(goalBoard);
-      }
-
-      // In DAG mode: persist dependsOn / dependsOnResolved, then queue or block each child
-      if (dagMode) {
-        const depBoard = await loadBoard();
-        for (let i = 0; i < childTaskDefs.length; i++) {
-          const def = childTaskDefs[i];
-          const childId = childTaskIds[i];
-          if (!childId) continue;
-
-          const childInBoard = depBoard.tasks.find(t => t.id === childId);
-          if (childInBoard && Array.isArray(def.depends_on) && def.depends_on.length > 0) {
-            childInBoard.dependsOn = def.depends_on;
-            childInBoard.dependsOnResolved = def.depends_on
-              .map(sym => symbolicToFormicId.get(sym))
-              .filter((id): id is string => typeof id === 'string');
-          }
-        }
-        await saveBoard(depBoard);
-
-        let queuedCount = 0;
-        let blockedCount = 0;
-
-        for (let i = 0; i < childTaskDefs.length; i++) {
-          const def = childTaskDefs[i];
-          const childId = childTaskIds[i];
-          if (!childId) continue;
-
-          const hasDeps = Array.isArray(def.depends_on) && def.depends_on.length > 0;
-          if (hasDeps) {
-            await updateTaskStatus(childId, 'blocked', null, 'workflow.runArchitectStep.child_blocked');
-            blockedCount++;
+            // Broadcast start
             broadcastToTask(taskId, {
               type: 'stdout',
-              data: `  ⏸ Blocked (awaiting dependencies): ${childId}\n`,
+              data: `\n========== Starting ARCHITECT step (goal decomposition) ==========\n`,
               timestamp: new Date().toISOString(),
             });
-          } else {
-            await queueTask(childId);
-            queuedCount++;
-            broadcastToTask(taskId, {
-              type: 'stdout',
-              data: `  ✓ Queued: ${childId}\n`,
-              timestamp: new Date().toISOString(),
+
+            let pidPromise: Promise<void> | undefined;
+            const resultPromise = new Promise<boolean>((resolve) => {
+              const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
+                resolve(stepSuccess);
+              });
+              pidPromise = pidPersisted;
+
+              if (child.pid) {
+                activeWorkflows.set(taskId, { process: child, currentStep: 'architect' });
+              }
             });
+
+            // Await PID persistence so board.json has the correct PID before the process completes
+            if (pidPromise) await pidPromise;
+
+            const success = await resultPromise;
+
+            activeWorkflows.delete(taskId);
+
+            if (!success) {
+              await incrementRetryCount(taskId, 'workflow.runArchitectStep.failed');
+              await updateTaskStatus(taskId, 'todo', null, 'workflow.runArchitectStep.failed');
+              broadcastToTask(taskId, {
+                type: 'error',
+                data: `\n[FAILED] Architect step failed.\n`,
+                timestamp: new Date().toISOString(),
+              });
+              return;
+            }
+
+            // Abort if stop was requested between architect and child task creation
+            if (stoppedWorkflows.has(taskId)) {
+              stoppedWorkflows.delete(taskId);
+              return;
+            }
+
+            // Parse architect-output.json and create child tasks
+            const outputPath = path.join(getWorkspacePath(), task.docsPath, 'architect-output.json');
+
+            try {
+              if (!existsSync(outputPath)) {
+                console.warn(`[Workflow] architect-output.json not found at ${outputPath}`);
+                broadcastToTask(taskId, {
+                  type: 'error',
+                  data: `\n[WARNING] architect-output.json not found. Goal moved to review.\n`,
+                  timestamp: new Date().toISOString(),
+                });
+                await updateWorkflowStep(taskId, 'complete');
+                await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.no_output');
+                broadcastTaskCompleted(taskId);
+                internalEvents.emit(TASK_COMPLETED, taskId);
+                void runReflectionStep(taskId);
+                void triggerToolForge(taskId);
+                broadcastBoardUpdate();
+                return;
+              }
+
+              const outputContent = await readFile(outputPath, 'utf-8');
+              const childTaskDefs = JSON.parse(outputContent) as Array<ArchitectTaskDef>;
+
+              if (!Array.isArray(childTaskDefs) || childTaskDefs.length === 0) {
+                throw new Error('architect-output.json must be a non-empty array');
+              }
+
+              console.log(`[Workflow] Parsed ${childTaskDefs.length} child tasks from architect output`);
+
+              // Determine if DAG mode is active: at least one def has a task_id and no cycle exists
+              const hasDagFields = childTaskDefs.some(d => typeof d.task_id === 'string' && d.task_id.length > 0);
+              let dagMode = false;
+              if (hasDagFields) {
+                if (detectDAGCycle(childTaskDefs)) {
+                  console.warn('[Workflow] Cycle detected in architect DAG — falling back to flat queue mode');
+                  broadcastToTask(taskId, {
+                    type: 'stdout',
+                    data: `\n[WARNING] Cycle detected in dependency graph. Falling back to flat queue mode.\n`,
+                    timestamp: new Date().toISOString(),
+                  });
+                } else {
+                  dagMode = true;
+                }
+              }
+
+              broadcastToTask(taskId, {
+                type: 'stdout',
+                data: `\n[ARCHITECT] Creating ${childTaskDefs.length} child tasks...\n`,
+                timestamp: new Date().toISOString(),
+              });
+
+              const childTaskIds: string[] = [];
+              // Maps architect task_id → Formic task ID (populated in creation loop)
+              const symbolicToFormicId = new Map<string, string>();
+
+              for (const def of childTaskDefs) {
+                if (!def.title || !def.context) {
+                  console.warn('[Workflow] Skipping invalid child task definition (missing title or context)');
+                  continue;
+                }
+
+                const childTask = await createTask({
+                  title: def.title,
+                  context: def.context,
+                  priority: def.priority || 'medium',
+                  type: 'standard',
+                });
+
+                // Set parentGoalId on the child task
+                const board = await loadBoard();
+                const childInBoard = board.tasks.find(t => t.id === childTask.id);
+                if (childInBoard) {
+                  childInBoard.parentGoalId = taskId;
+                  await saveBoard(board);
+                }
+
+                if (dagMode && typeof def.task_id === 'string' && def.task_id.length > 0) {
+                  symbolicToFormicId.set(def.task_id, childTask.id);
+                }
+
+                childTaskIds.push(childTask.id);
+
+                broadcastToTask(taskId, {
+                  type: 'stdout',
+                  data: `  → Created: ${childTask.id} - ${childTask.title}\n`,
+                  timestamp: new Date().toISOString(),
+                });
+              }
+
+              // Update goal task with child task IDs
+              const goalBoard = await loadBoard();
+              const goalTask = goalBoard.tasks.find(t => t.id === taskId);
+              if (goalTask) {
+                goalTask.childTaskIds = childTaskIds;
+                await saveBoard(goalBoard);
+              }
+
+              // In DAG mode: persist dependsOn / dependsOnResolved, then queue or block each child
+              if (dagMode) {
+                const depBoard = await loadBoard();
+                for (let i = 0; i < childTaskDefs.length; i++) {
+                  const def = childTaskDefs[i];
+                  const childId = childTaskIds[i];
+                  if (!childId) continue;
+
+                  const childInBoard = depBoard.tasks.find(t => t.id === childId);
+                  if (childInBoard && Array.isArray(def.depends_on) && def.depends_on.length > 0) {
+                    childInBoard.dependsOn = def.depends_on;
+                    childInBoard.dependsOnResolved = def.depends_on
+                      .map(sym => symbolicToFormicId.get(sym))
+                      .filter((id): id is string => typeof id === 'string');
+                  }
+                }
+                await saveBoard(depBoard);
+
+                let queuedCount = 0;
+                let blockedCount = 0;
+
+                for (let i = 0; i < childTaskDefs.length; i++) {
+                  const def = childTaskDefs[i];
+                  const childId = childTaskIds[i];
+                  if (!childId) continue;
+
+                  const hasDeps = Array.isArray(def.depends_on) && def.depends_on.length > 0;
+                  if (hasDeps) {
+                    await updateTaskStatus(childId, 'blocked', null, 'workflow.runArchitectStep.child_blocked');
+                    blockedCount++;
+                    broadcastToTask(taskId, {
+                      type: 'stdout',
+                      data: `  ⏸ Blocked (awaiting dependencies): ${childId}\n`,
+                      timestamp: new Date().toISOString(),
+                    });
+                  } else {
+                    await queueTask(childId);
+                    queuedCount++;
+                    broadcastToTask(taskId, {
+                      type: 'stdout',
+                      data: `  ✓ Queued: ${childId}\n`,
+                      timestamp: new Date().toISOString(),
+                    });
+                  }
+                }
+
+                // Move goal to review
+                await updateWorkflowStep(taskId, 'complete');
+                await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.dag_complete');
+                broadcastTaskCompleted(taskId);
+                internalEvents.emit(TASK_COMPLETED, taskId);
+                void runReflectionStep(taskId);
+                void triggerToolForge(taskId);
+
+                broadcastToTask(taskId, {
+                  type: 'stdout',
+                  data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks (${queuedCount} queued, ${blockedCount} blocked). Ready for review.\n`,
+                  timestamp: new Date().toISOString(),
+                });
+              } else {
+                // Flat mode: queue all children unconditionally
+                for (const childId of childTaskIds) {
+                  await queueTask(childId);
+                  broadcastToTask(taskId, {
+                    type: 'stdout',
+                    data: `  ✓ Queued: ${childId}\n`,
+                    timestamp: new Date().toISOString(),
+                  });
+                }
+
+                // Move goal to review
+                await updateWorkflowStep(taskId, 'complete');
+                await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.flat_complete');
+                broadcastTaskCompleted(taskId);
+                internalEvents.emit(TASK_COMPLETED, taskId);
+                void runReflectionStep(taskId);
+                void triggerToolForge(taskId);
+
+                broadcastToTask(taskId, {
+                  type: 'stdout',
+                  data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks. Ready for review.\n`,
+                  timestamp: new Date().toISOString(),
+                });
+              }
+
+              broadcastBoardUpdate();
+
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Unknown error';
+              console.warn('[Workflow] Failed to parse architect output:', message);
+
+              broadcastToTask(taskId, {
+                type: 'error',
+                data: `\n[WARNING] Failed to parse architect-output.json: ${message}\nGoal moved to review for manual inspection.\n`,
+                timestamp: new Date().toISOString(),
+              });
+
+              await updateWorkflowStep(taskId, 'complete');
+              await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.parse_error');
+              broadcastTaskCompleted(taskId);
+              internalEvents.emit(TASK_COMPLETED, taskId);
+              void runReflectionStep(taskId);
+              void triggerToolForge(taskId);
+              broadcastBoardUpdate();
+            }
+            break;
+          }
+
+          // ---- Plugin or unknown stage: use generic executeStage helper ----
+          default: {
+            const stageSuccess = await executeStage(taskId, stage);
+            if (!stageSuccess) {
+              await incrementRetryCount(taskId, `workflow.executeGoalWorkflow.${stage.name}_failed`);
+              await updateTaskStatus(taskId, 'todo', null, `workflow.executeGoalWorkflow.${stage.name}_failed`);
+              return;
+            }
+            break;
           }
         }
-
-        // Move goal to review
-        await updateWorkflowStep(taskId, 'complete');
-        await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.dag_complete');
-        broadcastTaskCompleted(taskId);
-        internalEvents.emit(TASK_COMPLETED, taskId);
-        void runReflectionStep(taskId);
-        void triggerToolForge(taskId);
-
-        broadcastToTask(taskId, {
-          type: 'stdout',
-          data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks (${queuedCount} queued, ${blockedCount} blocked). Ready for review.\n`,
-          timestamp: new Date().toISOString(),
-        });
-      } else {
-        // Flat mode: queue all children unconditionally
-        for (const childId of childTaskIds) {
-          await queueTask(childId);
-          broadcastToTask(taskId, {
-            type: 'stdout',
-            data: `  ✓ Queued: ${childId}\n`,
-            timestamp: new Date().toISOString(),
-          });
-        }
-
-        // Move goal to review
-        await updateWorkflowStep(taskId, 'complete');
-        await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.flat_complete');
-        broadcastTaskCompleted(taskId);
-        internalEvents.emit(TASK_COMPLETED, taskId);
-        void runReflectionStep(taskId);
-        void triggerToolForge(taskId);
-
-        broadcastToTask(taskId, {
-          type: 'stdout',
-          data: `\n[SUCCESS] Goal decomposed into ${childTaskIds.length} tasks. Ready for review.\n`,
-          timestamp: new Date().toISOString(),
-        });
       }
-
-      broadcastBoardUpdate();
-
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      console.warn('[Workflow] Failed to parse architect output:', message);
-
-      broadcastToTask(taskId, {
-        type: 'error',
-        data: `\n[WARNING] Failed to parse architect-output.json: ${message}\nGoal moved to review for manual inspection.\n`,
-        timestamp: new Date().toISOString(),
-      });
-
-      await updateWorkflowStep(taskId, 'complete');
-      await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.parse_error');
-      broadcastTaskCompleted(taskId);
-      internalEvents.emit(TASK_COMPLETED, taskId);
-      void runReflectionStep(taskId);
-      void triggerToolForge(taskId);
-      broadcastBoardUpdate();
-    }
     } finally {
       removeInFlightTask(taskId);
     }
