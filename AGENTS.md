@@ -215,6 +215,7 @@ The server will automatically detect this format and create the task via the For
   - [t-18] Add configurable custom prompt support to unit-test plugin
   - [t-19] !Add unit-test stage to card workflow indicator and kanban board
   - [t-20] !Fix [object Object] rendering in plugin settings GET endpoint
+  - [t-22] !Enforce API-driven subtask status updates to prevent invalid status values
 
 ### Done
   - [t-bootstrap] !Setup AI Development Guidelines
