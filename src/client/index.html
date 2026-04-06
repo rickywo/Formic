@@ -6900,6 +6900,426 @@
     [data-theme="light"] .plugin-menu-item:hover {
       background: rgba(0, 0, 0, 0.05);
     }
+
+    /* ============================================
+       Plugin Management Section — Settings Panel
+       ============================================ */
+    .plugin-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      margin-bottom: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .plugin-card:hover {
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .plugin-card.disabled {
+      opacity: 0.6;
+    }
+
+    .plugin-card.error {
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .plugin-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      cursor: pointer;
+      user-select: none;
+      gap: 10px;
+    }
+
+    .plugin-card-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .plugin-card-name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .plugin-card-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.9);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .plugin-card-version {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.35);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 1px 6px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .plugin-status-badge {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 7px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .plugin-status-badge.loaded {
+      color: #4ade80;
+      background: rgba(74, 222, 128, 0.12);
+    }
+
+    .plugin-status-badge.disabled {
+      color: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .plugin-status-badge.error {
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.12);
+    }
+
+    .plugin-status-badge.discovered {
+      color: #facc15;
+      background: rgba(250, 204, 21, 0.12);
+    }
+
+    .plugin-card-desc {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .plugin-card-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .plugin-card-expand {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.3);
+      transition: transform 0.2s ease;
+    }
+
+    .plugin-card.expanded .plugin-card-expand {
+      transform: rotate(90deg);
+    }
+
+    .plugin-card-detail {
+      display: none;
+      padding: 0 14px 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .plugin-card.expanded .plugin-card-detail {
+      display: block;
+    }
+
+    .plugin-detail-section {
+      margin-top: 12px;
+    }
+
+    .plugin-detail-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.35);
+      margin-bottom: 6px;
+    }
+
+    .plugin-detail-desc {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.5;
+    }
+
+    .plugin-perm-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .plugin-perm-item {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.55);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .plugin-perm-icon {
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .plugin-error-box {
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #f87171;
+      line-height: 1.4;
+    }
+
+    .plugin-settings-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .plugin-setting-field {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .plugin-setting-label {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    .plugin-setting-hint {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .plugin-setting-input {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .plugin-setting-input:focus {
+      outline: none;
+      border-color: rgba(139, 92, 246, 0.4);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .plugin-setting-toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .plugin-save-btn {
+      padding: 6px 14px;
+      background: rgba(139, 92, 246, 0.2);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: 6px;
+      color: #c4b5fd;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      align-self: flex-start;
+      margin-top: 4px;
+    }
+
+    .plugin-save-btn:hover {
+      background: rgba(139, 92, 246, 0.3);
+      border-color: rgba(139, 92, 246, 0.4);
+    }
+
+    .plugin-save-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .plugin-uninstall-btn {
+      padding: 5px 10px;
+      background: rgba(239, 68, 68, 0.08);
+      border: 1px solid rgba(239, 68, 68, 0.15);
+      border-radius: 6px;
+      color: #f87171;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .plugin-uninstall-btn:hover {
+      background: rgba(239, 68, 68, 0.15);
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .plugin-empty-state {
+      text-align: center;
+      padding: 24px 16px;
+    }
+
+    .plugin-empty-state-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .plugin-empty-state-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 4px;
+    }
+
+    .plugin-empty-state-desc {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+      line-height: 1.5;
+    }
+
+    .plugin-empty-state code {
+      background: rgba(255, 255, 255, 0.06);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+
+    /* Light theme — plugin management */
+    [data-theme="light"] .plugin-card {
+      background: rgba(0, 0, 0, 0.02);
+      border-color: rgba(0, 0, 0, 0.06);
+    }
+
+    [data-theme="light"] .plugin-card:hover {
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+
+    [data-theme="light"] .plugin-card.error {
+      border-color: rgba(220, 38, 38, 0.25);
+    }
+
+    [data-theme="light"] .plugin-card-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .plugin-card-version {
+      color: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .plugin-status-badge.loaded {
+      color: #16a34a;
+      background: rgba(22, 163, 74, 0.1);
+    }
+
+    [data-theme="light"] .plugin-status-badge.disabled {
+      color: rgba(0, 0, 0, 0.4);
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .plugin-status-badge.error {
+      color: #dc2626;
+      background: rgba(220, 38, 38, 0.08);
+    }
+
+    [data-theme="light"] .plugin-status-badge.discovered {
+      color: #ca8a04;
+      background: rgba(202, 138, 4, 0.1);
+    }
+
+    [data-theme="light"] .plugin-card-desc {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .plugin-card-expand {
+      color: rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme="light"] .plugin-card-detail {
+      border-top-color: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .plugin-detail-label {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .plugin-detail-desc {
+      color: rgba(0, 0, 0, 0.55);
+    }
+
+    [data-theme="light"] .plugin-perm-item {
+      color: rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="light"] .plugin-error-box {
+      background: rgba(220, 38, 38, 0.05);
+      border-color: rgba(220, 38, 38, 0.15);
+      color: #dc2626;
+    }
+
+    [data-theme="light"] .plugin-setting-label {
+      color: rgba(0, 0, 0, 0.65);
+    }
+
+    [data-theme="light"] .plugin-setting-hint {
+      color: rgba(0, 0, 0, 0.35);
+    }
+
+    [data-theme="light"] .plugin-setting-input {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.1);
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .plugin-setting-input:focus {
+      border-color: rgba(99, 102, 241, 0.4);
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .plugin-save-btn {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: rgba(99, 102, 241, 0.2);
+      color: #4f46e5;
+    }
+
+    [data-theme="light"] .plugin-save-btn:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+
+    [data-theme="light"] .plugin-uninstall-btn {
+      background: rgba(220, 38, 38, 0.05);
+      border-color: rgba(220, 38, 38, 0.12);
+      color: #dc2626;
+    }
+
+    [data-theme="light"] .plugin-uninstall-btn:hover {
+      background: rgba(220, 38, 38, 0.1);
+      border-color: rgba(220, 38, 38, 0.2);
+    }
+
+    [data-theme="light"] .plugin-empty-state-title {
+      color: rgba(0, 0, 0, 0.55);
+    }
+
+    [data-theme="light"] .plugin-empty-state-desc {
+      color: rgba(0, 0, 0, 0.35);
+    }
+
+    [data-theme="light"] .plugin-empty-state code {
+      background: rgba(0, 0, 0, 0.05);
+    }
   </style>
 </head>
 <body>
@@ -7912,6 +8332,14 @@
         <div class="add-workspace-form" id="add-workspace-form">
           <input type="text" class="add-workspace-input" id="add-workspace-path" placeholder="Enter workspace path...">
           <button class="btn btn-primary add-workspace-btn" onclick="addWorkspaceFromSettings()">+ Add</button>
+        </div>
+      </div>
+
+      <!-- Plugins Management Section -->
+      <div class="settings-section" id="plugins-settings-section">
+        <div class="settings-section-title">Plugins</div>
+        <div id="plugins-list">
+          <!-- Plugin cards rendered dynamically -->
         </div>
       </div>
 
@@ -10007,6 +10435,9 @@
 
       // Render workspace list
       renderWorkspaceList();
+
+      // Load plugins list
+      loadPlugins();
     }
 
     function updateThemeSelector(theme) {
@@ -10024,6 +10455,339 @@
 
     function toggleNotifications(enabled) {
       window.configStore.setSetting('notificationsEnabled', enabled);
+    }
+
+    // ============================================
+    // Plugin Management Functions
+    // ============================================
+
+    const PERMISSION_LABELS = {
+      'tasks:read': { icon: '📖', label: 'Read board and task data' },
+      'tasks:write': { icon: '✏️', label: 'Create and modify tasks' },
+      'config:read': { icon: '🔧', label: 'Read configuration' },
+      'config:write': { icon: '⚙️', label: 'Modify configuration' },
+      'http:outbound': { icon: '🌐', label: 'Make external HTTP requests' },
+      'fs:workspace': { icon: '📁', label: 'Access workspace files' },
+      'process:info': { icon: '💻', label: 'Read process information' },
+      'events:subscribe': { icon: '📡', label: 'Subscribe to system events' },
+      'ui:panel': { icon: '🖼️', label: 'Render UI panels' },
+    };
+
+    let _pluginSettingsCache = {};
+
+    async function loadPlugins() {
+      const container = document.getElementById('plugins-list');
+      if (!container) return;
+
+      try {
+        const res = await fetch('/api/plugins');
+        if (!res.ok) throw new Error('Failed to fetch plugins');
+        const data = await res.json();
+        const plugins = data.plugins || [];
+
+        if (plugins.length === 0) {
+          container.innerHTML = `
+            <div class="plugin-empty-state">
+              <div class="plugin-empty-state-icon">🧩</div>
+              <div class="plugin-empty-state-title">No plugins installed</div>
+              <div class="plugin-empty-state-desc">
+                Plugins extend Formic with custom functionality.<br>
+                Use <code>formic plugin create &lt;name&gt;</code> to get started.
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = plugins.map(p => renderPluginCard(p)).join('');
+      } catch (err) {
+        container.innerHTML = `
+          <div class="plugin-empty-state">
+            <div class="plugin-empty-state-icon">⚠️</div>
+            <div class="plugin-empty-state-title">Failed to load plugins</div>
+            <div class="plugin-empty-state-desc">${err.message || 'Unknown error'}</div>
+          </div>
+        `;
+      }
+    }
+
+    function renderPluginCard(plugin) {
+      const statusClass = plugin.status === 'loaded' ? 'loaded'
+        : plugin.status === 'disabled' ? 'disabled'
+        : plugin.status === 'error' ? 'error'
+        : 'discovered';
+      const cardClass = `plugin-card ${plugin.status === 'disabled' ? 'disabled' : ''} ${plugin.status === 'error' ? 'error' : ''}`;
+      const isEnabled = plugin.enabled !== false && plugin.status !== 'disabled';
+      const checkedAttr = isEnabled ? 'checked' : '';
+
+      return `
+        <div class="${cardClass}" data-plugin-name="${plugin.name}" id="plugin-card-${plugin.name}">
+          <div class="plugin-card-header" onclick="togglePluginExpand('${plugin.name}')">
+            <div class="plugin-card-info">
+              <div class="plugin-card-name-row">
+                <span class="plugin-card-name">${escapeHtml(plugin.name)}</span>
+                <span class="plugin-card-version">v${escapeHtml(plugin.version)}</span>
+                <span class="plugin-status-badge ${statusClass}">${statusClass}</span>
+              </div>
+              ${plugin.description ? `<div class="plugin-card-desc">${escapeHtml(plugin.description)}</div>` : ''}
+            </div>
+            <div class="plugin-card-actions" onclick="event.stopPropagation()">
+              <label class="settings-toggle" title="${isEnabled ? 'Disable' : 'Enable'} plugin">
+                <input type="checkbox" ${checkedAttr} onchange="togglePluginEnabled('${plugin.name}', this.checked)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <span class="plugin-card-expand">▶</span>
+          </div>
+          <div class="plugin-card-detail" id="plugin-detail-${plugin.name}">
+            <div class="plugin-detail-loading" style="font-size:11px;color:rgba(255,255,255,0.3);padding:8px 0;">Loading details…</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    async function togglePluginExpand(name) {
+      const card = document.getElementById(`plugin-card-${name}`);
+      if (!card) return;
+
+      const wasExpanded = card.classList.contains('expanded');
+      card.classList.toggle('expanded');
+
+      if (!wasExpanded) {
+        await loadPluginDetail(name);
+      }
+    }
+
+    async function loadPluginDetail(name) {
+      const detailEl = document.getElementById(`plugin-detail-${name}`);
+      if (!detailEl) return;
+
+      try {
+        const [pluginRes, settingsRes] = await Promise.all([
+          fetch(`/api/plugins/${encodeURIComponent(name)}`),
+          fetch(`/api/plugins/${encodeURIComponent(name)}/settings`),
+        ]);
+
+        if (!pluginRes.ok) throw new Error('Failed to fetch plugin details');
+
+        const pluginData = await pluginRes.json();
+        const plugin = pluginData.plugin;
+        const manifest = plugin.manifest || {};
+
+        let settingsData = {};
+        let settingsSchema = manifest.settings || {};
+        if (settingsRes.ok) {
+          const sData = await settingsRes.json();
+          settingsData = sData.settings || {};
+        }
+
+        _pluginSettingsCache[name] = { ...settingsData };
+
+        let html = '';
+
+        // Full description
+        if (manifest.description) {
+          html += `
+            <div class="plugin-detail-section">
+              <div class="plugin-detail-label">Description</div>
+              <div class="plugin-detail-desc">${escapeHtml(manifest.description)}</div>
+            </div>
+          `;
+        }
+
+        // Author
+        if (manifest.author) {
+          html += `
+            <div class="plugin-detail-section">
+              <div class="plugin-detail-label">Author</div>
+              <div class="plugin-detail-desc">${escapeHtml(manifest.author)}</div>
+            </div>
+          `;
+        }
+
+        // Permissions
+        if (manifest.permissions && manifest.permissions.length > 0) {
+          const permItems = manifest.permissions.map(p => {
+            const info = PERMISSION_LABELS[p] || { icon: '🔑', label: p };
+            return `<li class="plugin-perm-item"><span class="plugin-perm-icon">${info.icon}</span> ${escapeHtml(info.label)}</li>`;
+          }).join('');
+          html += `
+            <div class="plugin-detail-section">
+              <div class="plugin-detail-label">Permissions</div>
+              <ul class="plugin-perm-list">${permItems}</ul>
+            </div>
+          `;
+        }
+
+        // Error message
+        if (plugin.status === 'error' && plugin.error) {
+          html += `
+            <div class="plugin-detail-section">
+              <div class="plugin-error-box">⚠️ ${escapeHtml(plugin.error)}</div>
+            </div>
+          `;
+        }
+
+        // Settings form
+        const settingKeys = Object.keys(settingsSchema);
+        if (settingKeys.length > 0) {
+          html += `
+            <div class="plugin-detail-section">
+              <div class="plugin-detail-label">Settings</div>
+              <div class="plugin-settings-form" id="plugin-settings-form-${name}">
+                ${settingKeys.map(key => renderPluginSettingField(name, key, settingsSchema[key], settingsData[key])).join('')}
+                <button class="plugin-save-btn" onclick="savePluginSettings('${name}')" id="plugin-save-btn-${name}">Save Settings</button>
+              </div>
+            </div>
+          `;
+        }
+
+        // Uninstall
+        html += `
+          <div class="plugin-detail-section" style="margin-top:16px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.04);">
+            <button class="plugin-uninstall-btn" onclick="uninstallPlugin('${name}')">🗑 Uninstall Plugin</button>
+          </div>
+        `;
+
+        detailEl.innerHTML = html;
+      } catch (err) {
+        detailEl.innerHTML = `<div class="plugin-error-box" style="margin:8px 0;">Failed to load details: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    function renderPluginSettingField(pluginName, key, schema, currentValue) {
+      const schemaDef = (typeof schema === 'object' && schema !== null) ? schema : {};
+      const type = schemaDef.type || 'string';
+      const description = schemaDef.description || '';
+      const defaultValue = schemaDef.default;
+      const value = currentValue !== undefined ? currentValue : (defaultValue !== undefined ? defaultValue : '');
+
+      let inputHtml = '';
+
+      if (type === 'boolean') {
+        const isChecked = value === true ? 'checked' : '';
+        inputHtml = `
+          <div class="plugin-setting-toggle-row">
+            <span class="plugin-setting-label">${escapeHtml(key)}</span>
+            <label class="settings-toggle">
+              <input type="checkbox" ${isChecked} data-plugin-setting="${pluginName}:${key}" data-setting-type="boolean">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+        `;
+        if (description) {
+          inputHtml += `<div class="plugin-setting-hint">${escapeHtml(description)}</div>`;
+        }
+        return `<div class="plugin-setting-field">${inputHtml}</div>`;
+      }
+
+      const inputType = type === 'secret' ? 'password' : type === 'number' ? 'number' : 'text';
+      const displayValue = type === 'secret' ? '' : escapeHtml(String(value));
+      const placeholder = type === 'secret' ? '••••••••' : '';
+
+      inputHtml = `
+        <div class="plugin-setting-field">
+          <span class="plugin-setting-label">${escapeHtml(key)}</span>
+          ${description ? `<div class="plugin-setting-hint">${escapeHtml(description)}</div>` : ''}
+          <input class="plugin-setting-input" type="${inputType}" value="${displayValue}" placeholder="${placeholder}"
+                 data-plugin-setting="${pluginName}:${key}" data-setting-type="${type}">
+        </div>
+      `;
+
+      return inputHtml;
+    }
+
+    async function savePluginSettings(name) {
+      const formEl = document.getElementById(`plugin-settings-form-${name}`);
+      if (!formEl) return;
+
+      const inputs = formEl.querySelectorAll('[data-plugin-setting]');
+      const settings = {};
+
+      inputs.forEach(input => {
+        const attr = input.getAttribute('data-plugin-setting');
+        const key = attr.split(':').slice(1).join(':');
+        const type = input.getAttribute('data-setting-type');
+
+        if (type === 'boolean') {
+          settings[key] = input.checked;
+        } else if (type === 'number') {
+          settings[key] = parseFloat(input.value) || 0;
+        } else if (type === 'secret') {
+          if (input.value) settings[key] = input.value;
+        } else {
+          settings[key] = input.value;
+        }
+      });
+
+      try {
+        const res = await fetch(`/api/plugins/${encodeURIComponent(name)}/settings`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to save settings');
+        }
+
+        _pluginSettingsCache[name] = { ...settings };
+        showToast(`Settings saved for ${name}`, 'success');
+      } catch (err) {
+        showToast(err.message || 'Failed to save settings', 'error');
+      }
+    }
+
+    async function togglePluginEnabled(name, enabled) {
+      const action = enabled ? 'enable' : 'disable';
+      try {
+        const res = await fetch(`/api/plugins/${encodeURIComponent(name)}/${action}`, {
+          method: 'POST',
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Failed to ${action} plugin`);
+        }
+
+        const data = await res.json();
+        showToast(`Plugin ${name} ${action}d`, 'success');
+
+        // Refresh the plugins list to update visuals
+        await loadPlugins();
+      } catch (err) {
+        showToast(err.message || `Failed to ${action} plugin`, 'error');
+        // Revert toggle
+        await loadPlugins();
+      }
+    }
+
+    async function uninstallPlugin(name) {
+      if (!confirm(`Are you sure you want to uninstall "${name}"? This cannot be undone.`)) {
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/plugins/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Failed to uninstall plugin');
+        }
+
+        showToast(`Plugin ${name} uninstalled`, 'success');
+        await loadPlugins();
+      } catch (err) {
+        showToast(err.message || 'Failed to uninstall plugin', 'error');
+      }
     }
 
     function adjustConcurrentSessions(delta) {
