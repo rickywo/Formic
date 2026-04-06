@@ -101,7 +101,11 @@ export type PluginPermission =
   | 'events:subscribe'
   | 'ui:panel'
   | 'workflow:extend'
-  | 'skills:override';
+  | 'skills:override'
+  | 'integrations:webhook'
+  | 'integrations:notify'
+  | 'memory:read'
+  | 'memory:write';
 
 /** Error thrown when a plugin attempts an action it lacks permission for */
 export class PluginPermissionError extends Error {
@@ -444,18 +448,24 @@ export interface UIApi {
   registerToolbarAction(action: ToolbarActionDefinition): Unsubscribe;
 }
 
-/** @todo External service integration API — future implementation */
-export interface IntegrationApi {
-  /** TODO: Register an external integration */
-  register(name: string, config: Record<string, unknown>): void;
+export type WebhookResponse = { status: number; body?: unknown };
+export type WebhookHandler = (body: unknown, headers: Record<string, string>) => Promise<WebhookResponse>;
+export interface BotCommandDefinition {
+  name: string;
+  description: string;
+  handler: (args: string, chatId: string) => Promise<string>;
 }
 
-/** @todo Plugin memory / state persistence API — future implementation */
+export interface IntegrationApi {
+  registerWebhook(path: string, handler: WebhookHandler): void;
+  registerBotCommand(command: BotCommandDefinition): void;
+  sendNotification(message: string): Promise<void>;
+}
+
 export interface MemoryApi {
-  /** TODO: Retrieve relevant memory entries by tags */
-  getRelevant(tags: string[]): Promise<MemoryEntry[]>;
-  /** TODO: Add a new memory entry */
-  add(entry: Omit<MemoryEntry, 'id' | 'created_at'>): Promise<MemoryEntry>;
+  getLessons(filter?: { tags?: string[] }): Promise<MemoryEntry[]>;
+  addLesson(lesson: Omit<MemoryEntry, 'id' | 'created_at'>): Promise<MemoryEntry>;
+  onReflection(handler: (task: Task, lessons: MemoryEntry[]) => void): Unsubscribe;
 }
 
 /** Aggregated API surface exposed to plugins via onLoad */

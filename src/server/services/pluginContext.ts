@@ -30,6 +30,8 @@ import type {
   SidebarPanelDefinition,
   ToolbarActionDefinition,
   MemoryEntry,
+  WebhookHandler,
+  BotCommandDefinition,
 } from '../../types/index.js';
 import { PluginPermissionError } from '../../types/index.js';
 import { loadBoard, getTask, createTask, updateTask } from './store.js';
@@ -540,25 +542,35 @@ function buildUIApi(logger: PluginLogger): UIApi {
 
 function buildIntegrationApi(logger: PluginLogger): IntegrationApi {
   return {
-    register(_name: string, _config: Record<string, unknown>): void {
-      logger.warn('IntegrationApi.register() is not yet implemented');
+    registerWebhook(_path: string, _handler: WebhookHandler): void {
+      logger.warn('IntegrationApi.registerWebhook() is not yet implemented');
+    },
+    registerBotCommand(_command: BotCommandDefinition): void {
+      logger.warn('IntegrationApi.registerBotCommand() is not yet implemented');
+    },
+    async sendNotification(_message: string): Promise<void> {
+      logger.warn('IntegrationApi.sendNotification() is not yet implemented');
     },
   };
 }
 
 function buildMemoryApi(logger: PluginLogger): MemoryApi {
   return {
-    async getRelevant(_tags: string[]): Promise<MemoryEntry[]> {
-      logger.warn('MemoryApi.getRelevant() is not yet implemented');
+    async getLessons(_filter?: { tags?: string[] }): Promise<MemoryEntry[]> {
+      logger.warn('MemoryApi.getLessons() is not yet implemented');
       return [];
     },
-    async add(entry: Omit<MemoryEntry, 'id' | 'created_at'>): Promise<MemoryEntry> {
-      logger.warn('MemoryApi.add() is not yet implemented');
+    async addLesson(lesson: Omit<MemoryEntry, 'id' | 'created_at'>): Promise<MemoryEntry> {
+      logger.warn('MemoryApi.addLesson() is not yet implemented');
       return {
-        ...entry,
+        ...lesson,
         id: `mem-${Date.now()}`,
         created_at: new Date().toISOString(),
       };
+    },
+    onReflection(_handler: (task: Task, lessons: MemoryEntry[]) => void): Unsubscribe {
+      logger.warn('MemoryApi.onReflection() is not yet implemented');
+      return () => {};
     },
   };
 }
