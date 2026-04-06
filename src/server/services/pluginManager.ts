@@ -159,6 +159,21 @@ function validateManifest(raw: unknown, pluginDir: string): PluginManifest | nul
   };
 }
 
+// ==================== Plugin Format Detection ====================
+
+/**
+ * Detect whether a dynamically imported module exports a class-based FormicPlugin.
+ * Checks if `mod.default` is a constructor whose prototype has `onLoad` and `onUnload` methods.
+ */
+function isClassPlugin(mod: unknown): boolean {
+  if (!mod || typeof mod !== 'object') return false;
+  const defaultExport = (mod as Record<string, unknown>).default;
+  if (typeof defaultExport !== 'function') return false;
+  const proto = defaultExport.prototype as Record<string, unknown> | undefined;
+  if (!proto || typeof proto !== 'object') return false;
+  return typeof proto.onLoad === 'function' && typeof proto.onUnload === 'function';
+}
+
 // ==================== Lifecycle Functions ====================
 
 /**
@@ -275,7 +290,49 @@ export async function loadPlugin(name: string): Promise<void> {
     if (entry.manifest.serverEntry) {
       const entryPath = path.resolve(entry.pluginDir, entry.manifest.serverEntry);
       const mod = await import(entryPath);
-      entry.loadedModule = mod;
+
+      if (isClassPlugin(mod)) {
+        // Class-based plugin loading
+        entry.format = 'class';
+        console.warn(`[PluginManager] Plugin '${name}' detected as class format`);
+
+        const PluginClass = (mod as Record<string, new () => FormicPlugin>).default;
+        const pluginInstance = new PluginClass();
+
+        // Validate required fields
+        if (
+          typeof pluginInstance.id !== 'string' ||
+          typeof pluginInstance.name !== 'string' ||
+          typeof pluginInstance.version !== 'string' ||
+          typeof pluginInstance.onLoad !== 'function' ||
+          typeof pluginInstance.onUnload !== 'function'
+        ) {
+          entry.status = 'error';
+          entry.error = 'Class plugin missing required fields (id, name, version, onLoad, onUnload)';
+          console.warn(`[PluginManager] Plugin '${name}' class missing required fields`);
+          return;
+        }
+
+        const { api } = await createFormicAPI(name, entry.manifest);
+
+        try {
+          await pluginInstance.onLoad(api);
+        } catch (loadErr) {
+          const loadMsg = loadErr instanceof Error ? loadErr.message : 'Unknown error';
+          entry.status = 'error';
+          entry.error = `onLoad failed: ${loadMsg}`;
+          console.warn(`[PluginManager] Plugin '${name}' onLoad() failed: ${loadMsg}`);
+          return;
+        }
+
+        entry.pluginInstance = pluginInstance;
+        entry.loadedModule = mod;
+      } else {
+        // Legacy manifest-based plugin loading
+        entry.format = 'legacy';
+        console.warn(`[PluginManager] Plugin '${name}' detected as legacy format`);
+        entry.loadedModule = mod;
+      }
     }
     entry.status = 'loaded';
     entry.error = undefined;
@@ -300,6 +357,16 @@ export async function unloadPlugin(name: string): Promise<void> {
   }
 
   try {
+    // Call onUnload() for class-based plugins before cleanup
+    if (entry.pluginInstance) {
+      try {
+        await entry.pluginInstance.onUnload();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        console.warn(`[PluginManager] Plugin '${name}' onUnload() failed: ${msg}`);
+      }
+    }
+
     // Clean up pipeline stages registered by this plugin
     try {
       const removedCount = unregisterStages(name);
@@ -320,6 +387,7 @@ export async function unloadPlugin(name: string): Promise<void> {
     }
 
     entry.loadedModule = undefined;
+    entry.pluginInstance = undefined;
     entry.status = 'discovered';
     entry.error = undefined;
 
