@@ -52,5 +52,11 @@ export const STAGE_REGISTERED = 'stage-registered';
 /** Event name emitted when a plugin stage is unregistered from the pipeline */
 export const STAGE_UNREGISTERED = 'stage-unregistered';
 
+/** Event name emitted when a task is updated */
+export const TASK_UPDATED = 'task:updated';
+
+/** Event name emitted when a task transitions between workflow stages */
+export const STAGE_CHANGED = 'stage:changed';
+
 /** Shared internal event emitter instance */
 export const internalEvents = new EventEmitter();

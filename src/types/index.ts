@@ -254,6 +254,103 @@ export interface PluginConfig {
   settings: Record<string, unknown>;
 }
 
+// ==================== Next-Gen Plugin API Types ====================
+
+/** Callback disposal handle returned by event subscription methods */
+export type Unsubscribe = () => void;
+
+/** Defines a custom task type that plugins can register */
+export interface TaskTypeDefinition {
+  /** Unique identifier for the task type */
+  id: string;
+  /** Human-readable label */
+  label: string;
+  /** Optional icon identifier */
+  icon?: string;
+  /** Ordered workflow stages for this task type */
+  workflow: WorkflowStageDefinition[];
+  /** Optional skill prompt content */
+  skillPrompt?: string;
+}
+
+/** Defines a single stage within a workflow */
+export interface WorkflowStageDefinition {
+  /** Stage identifier */
+  name: string;
+  /** Human-readable display name */
+  displayName: string;
+  /** Optional skill name to invoke during this stage */
+  skillName?: string;
+}
+
+/** Defines a custom verification step that plugins can register */
+export interface VerifierDefinition {
+  /** Unique identifier for the verifier */
+  id: string;
+  /** Human-readable name */
+  name: string;
+  /** Optional description of what this verifier checks */
+  description?: string;
+  /** Verification handler — returns pass/fail with optional message */
+  handler: (task: Task) => Promise<{ passed: boolean; message?: string }>;
+}
+
+/** Task read/write access and lifecycle event hooks */
+export interface TaskApi {
+  getTask(id: string): Task | undefined;
+  getAllTasks(): Task[];
+  createTask(title: string, context: string, options?: { priority?: string; type?: string }): Promise<Task>;
+  updateTask(id: string, updates: Partial<Task>): Promise<void>;
+  onTaskCreated(handler: (task: Task) => void): Unsubscribe;
+  onTaskUpdated(handler: (task: Task) => void): Unsubscribe;
+  onTaskCompleted(handler: (task: Task) => void): Unsubscribe;
+  onTaskFailed(handler: (task: Task, error: string) => void): Unsubscribe;
+  onStageChanged(handler: (task: Task, fromStage: string, toStage: string) => void): Unsubscribe;
+}
+
+/** Skill and workflow registration API */
+export interface SkillApi {
+  registerTaskType(definition: TaskTypeDefinition): void;
+  registerVerifier(verifier: VerifierDefinition): void;
+  registerSkillOverride(stageName: string, content: string): void;
+  getAvailable(): string[];
+}
+
+/** Generic typed key-value settings API */
+export interface SettingsApi {
+  get<T = unknown>(key: string, defaultValue?: T): T | undefined;
+  set<T = unknown>(key: string, value: T): void;
+}
+
+/** @todo Slot-based UI extension API — future implementation */
+export interface UIApi {}
+
+/** @todo External service integration API — future implementation */
+export interface IntegrationApi {}
+
+/** @todo Plugin memory / state persistence API — future implementation */
+export interface MemoryApi {}
+
+/** Aggregated API surface exposed to plugins via onLoad */
+export interface FormicAPI {
+  ui: UIApi;
+  tasks: TaskApi;
+  skills: SkillApi;
+  settings: SettingsApi;
+  integrations: IntegrationApi;
+  memory: MemoryApi;
+}
+
+/** Next-generation plugin contract */
+export interface FormicPlugin {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  onLoad(api: FormicAPI): void | Promise<void>;
+  onUnload?(): void | Promise<void>;
+}
+
 // ==================== Long-Term Memory Types ====================
 
 /** Type of memory: learned pattern, known pitfall, or user preference */
