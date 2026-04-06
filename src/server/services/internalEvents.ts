@@ -49,5 +49,8 @@ export const BEFORE_SKILL_LOAD = 'before-skill-load';
 /** Event name emitted when a plugin stage is registered in the pipeline */
 export const STAGE_REGISTERED = 'stage-registered';
 
+/** Event name emitted when a plugin stage is unregistered from the pipeline */
+export const STAGE_UNREGISTERED = 'stage-unregistered';
+
 /** Shared internal event emitter instance */
 export const internalEvents = new EventEmitter();

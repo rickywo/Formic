@@ -3,6 +3,9 @@ import path from 'node:path';
 import type { PluginManifest, PluginEntry, PluginPermission } from '../../types/index.js';
 import { getFormicDir } from '../utils/paths.js';
 import { getPluginConfig, setPluginConfig } from './configStore.js';
+import { unregisterStages } from './pipelineRegistry.js';
+import { unregisterSkillOverrides } from './skillReader.js';
+import { internalEvents, STAGE_UNREGISTERED, BOARD_UPDATE } from './internalEvents.js';
 
 /**
  * Plugin Manager Service
@@ -285,7 +288,8 @@ export async function loadPlugin(name: string): Promise<void> {
 }
 
 /**
- * Unload a plugin — clear its loaded module and reset status.
+ * Unload a plugin — clear its loaded module, clean up registered stages
+ * and skill overrides, and reset status.
  */
 export async function unloadPlugin(name: string): Promise<void> {
   const entry = registry.get(name);
@@ -295,10 +299,34 @@ export async function unloadPlugin(name: string): Promise<void> {
   }
 
   try {
+    // Clean up pipeline stages registered by this plugin
+    try {
+      const removedCount = unregisterStages(name);
+      if (removedCount > 0) {
+        console.warn(`[PluginManager] Removed ${removedCount} pipeline stage(s) for plugin: ${name}`);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[PluginManager] Failed to unregister stages for plugin '${name}': ${msg}`);
+    }
+
+    // Clean up skill overrides registered by this plugin
+    try {
+      unregisterSkillOverrides(name);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[PluginManager] Failed to unregister skill overrides for plugin '${name}': ${msg}`);
+    }
+
     entry.loadedModule = undefined;
     entry.status = 'discovered';
     entry.error = undefined;
-    console.warn(`[PluginManager] Unloaded plugin: ${name}`);
+
+    // Emit events so UI and other services react to the change
+    internalEvents.emit(STAGE_UNREGISTERED, { pluginName: name });
+    internalEvents.emit(BOARD_UPDATE);
+
+    console.warn(`[PluginManager] Cleaned up stages and skill overrides for plugin: ${name}`);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
     entry.status = 'error';
@@ -336,6 +364,7 @@ export async function enablePlugin(name: string): Promise<void> {
 
 /**
  * Disable a plugin and persist the state.
+ * Calls unloadPlugin() first to clean up stages and skill overrides.
  */
 export async function disablePlugin(name: string): Promise<void> {
   const entry = registry.get(name);
@@ -345,6 +374,9 @@ export async function disablePlugin(name: string): Promise<void> {
   }
 
   try {
+    // Unload first to clean up pipeline stages and skill overrides
+    await unloadPlugin(name);
+
     entry.status = 'disabled';
     entry.error = undefined;
     const existingConfig = await getPluginConfig(name);

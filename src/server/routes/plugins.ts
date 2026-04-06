@@ -225,8 +225,8 @@ export async function pluginRoutes(fastify: FastifyInstance): Promise<void> {
       return reply.status(404).send({ error: 'Plugin not found', statusCode: 404 });
     }
 
-    // Unload if loaded
-    if (entry.status === 'loaded') {
+    // Unload if loaded or enabled to clean up stages and skill overrides
+    if (entry.status === 'loaded' || entry.status === 'enabled') {
       await unloadPlugin(name);
     }
 
