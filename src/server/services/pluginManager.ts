@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { PluginManifest, PluginEntry, PluginPermission, FormicPlugin } from '../../types/index.js';
 import { getFormicDir } from '../utils/paths.js';
 import { getPluginConfig, setPluginConfig } from './configStore.js';
-import { createFormicAPI } from './pluginContext.js';
+import { createFormicAPI, cleanupPluginListeners } from './pluginContext.js';
 import { unregisterStages } from './pipelineRegistry.js';
 import { unregisterSkillOverrides } from './skillReader.js';
 import { internalEvents, STAGE_UNREGISTERED, BOARD_UPDATE } from './internalEvents.js';
@@ -365,6 +365,14 @@ export async function unloadPlugin(name: string): Promise<void> {
         const msg = err instanceof Error ? err.message : 'Unknown error';
         console.warn(`[PluginManager] Plugin '${name}' onUnload() failed: ${msg}`);
       }
+    }
+
+    // Clean up event subscriptions registered through the plugin's EventApi
+    try {
+      cleanupPluginListeners(name);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[PluginManager] Failed to cleanup event listeners for plugin '${name}': ${msg}`);
     }
 
     // Clean up pipeline stages registered by this plugin
