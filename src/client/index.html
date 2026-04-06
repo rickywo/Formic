@@ -6740,6 +6740,166 @@
       border-color: rgba(22, 163, 74, 0.3);
       color: #15803d;
     }
+
+    /* ============================================
+       Plugin Mount System
+       ============================================ */
+
+    .board-with-plugins {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .board-row {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Plugin Mount Containers */
+    .plugin-mount {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    }
+
+    .plugin-mount.active {
+      display: flex;
+    }
+
+    .plugin-mount-left-sidebar {
+      width: 280px;
+      min-width: 280px;
+      border-right: 1px solid var(--border-color);
+      padding: 16px;
+      background: var(--bg-secondary);
+    }
+
+    .plugin-mount-right-sidebar {
+      width: 280px;
+      min-width: 280px;
+      border-left: 1px solid var(--border-color);
+      padding: 16px;
+      background: var(--bg-secondary);
+    }
+
+    .plugin-mount-bottom-bar {
+      max-height: 200px;
+      border-top: 1px solid var(--border-color);
+      padding: 16px;
+      background: var(--bg-secondary);
+    }
+
+    .plugin-mount-settings-tab {
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Plugin Panel Wrapper */
+    .plugin-panel {
+      background: linear-gradient(180deg, var(--card-gradient-start) 0%, var(--card-gradient-end) 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .plugin-panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .plugin-panel-header:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .plugin-panel-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .plugin-panel-toggle {
+      font-size: 11px;
+      color: var(--text-secondary);
+      transition: transform 0.2s ease;
+    }
+
+    .plugin-panel.collapsed .plugin-panel-toggle {
+      transform: rotate(-90deg);
+    }
+
+    .plugin-panel.collapsed .plugin-panel-body {
+      display: none;
+    }
+
+    .plugin-panel-body {
+      padding: 12px 14px;
+    }
+
+    /* Plugin Board Widget */
+    .plugin-widget {
+      background: linear-gradient(180deg, var(--card-gradient-start) 0%, var(--card-gradient-end) 100%);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 8px;
+    }
+
+    .plugin-widget-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 10px;
+    }
+
+    /* Plugin Menu Item */
+    .plugin-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      cursor: pointer;
+      border-radius: 8px;
+      font-size: 14px;
+      color: var(--text-primary);
+      transition: background 0.15s ease;
+    }
+
+    .plugin-menu-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .plugin-menu-item-icon {
+      font-size: 16px;
+    }
+
+    /* Light theme overrides */
+    [data-theme="light"] .plugin-mount-left-sidebar,
+    [data-theme="light"] .plugin-mount-right-sidebar,
+    [data-theme="light"] .plugin-mount-bottom-bar {
+      background: var(--bg-secondary);
+    }
+
+    [data-theme="light"] .plugin-panel-header:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    [data-theme="light"] .plugin-menu-item:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
   </style>
 </head>
 <body>
@@ -7034,6 +7194,9 @@
     </div>
   </div>
 
+  <!-- Plugin Mount: Left Sidebar -->
+  <div id="plugin-mount-left-sidebar" class="plugin-mount plugin-mount-left-sidebar"></div>
+
   <main class="board">
     <div id="emergency-stop-alert" style="display:none;" class="emergency-stop-banner">
       <div class="emergency-stop-banner-content">
@@ -7096,6 +7259,12 @@
       <div class="tasks" id="done-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
   </main>
+
+  <!-- Plugin Mount: Right Sidebar -->
+  <div id="plugin-mount-right-sidebar" class="plugin-mount plugin-mount-right-sidebar"></div>
+
+  <!-- Plugin Mount: Bottom Bar -->
+  <div id="plugin-mount-bottom-bar" class="plugin-mount plugin-mount-bottom-bar"></div>
 
   <div class="terminal-panel" id="terminal-panel">
     <div class="terminal-header">
@@ -7745,6 +7914,9 @@
           <button class="btn btn-primary add-workspace-btn" onclick="addWorkspaceFromSettings()">+ Add</button>
         </div>
       </div>
+
+      <!-- Plugin Mount: Settings Tab -->
+      <div id="plugin-mount-settings-tab" class="plugin-mount plugin-mount-settings-tab"></div>
     </div>
   </div>
 
@@ -7757,6 +7929,435 @@
     let currentWs = null;
     let draggedTaskId = null;
     const BOOTSTRAP_TASK_ID = 't-bootstrap';
+
+    // ============================================
+    // Plugin Mount System — FormicPluginAPI
+    // ============================================
+
+    const _pluginRegistry = new Map();
+    const _pluginEventBus = new Map(); // eventName -> Set of {pluginName, callback}
+
+    const VALID_MOUNT_POSITIONS = ['left-sidebar', 'right-sidebar', 'bottom-bar', 'settings-tab'];
+    const VALID_EVENTS = ['board-updated', 'task-selected', 'theme-changed', 'settings-opened', 'settings-closed', 'plugins-loaded'];
+
+    /** Get or initialize a registry entry for a plugin */
+    function _getPluginEntry(pluginName) {
+      if (!_pluginRegistry.has(pluginName)) {
+        _pluginRegistry.set(pluginName, {
+          panels: [],
+          widgets: [],
+          menuItems: [],
+          eventSubscriptions: [],
+          scriptElement: null
+        });
+      }
+      return _pluginRegistry.get(pluginName);
+    }
+
+    /** Determine which plugin is calling based on the current executing script */
+    function _getCurrentPluginName() {
+      const scripts = document.querySelectorAll('script[data-plugin-name]');
+      for (const s of scripts) {
+        if (!s._loaded) return s.dataset.pluginName;
+      }
+      return '_unknown';
+    }
+
+    /** Show a mount container if it has content, hide if empty */
+    function _updateMountVisibility(position) {
+      const container = document.getElementById(`plugin-mount-${position}`);
+      if (!container) return;
+      if (container.children.length > 0) {
+        container.classList.add('active');
+      } else {
+        container.classList.remove('active');
+      }
+    }
+
+    /** Dispatch a plugin event to all subscribers */
+    function _dispatchPluginEvent(eventName, data) {
+      const subscribers = _pluginEventBus.get(eventName);
+      if (!subscribers) return;
+      for (const sub of subscribers) {
+        try {
+          sub.callback(data);
+        } catch (err) {
+          console.error(`[Plugin] Event handler error in '${sub.pluginName}' for '${eventName}':`, err);
+        }
+      }
+    }
+
+    window.FormicPluginAPI = {
+      /**
+       * Register a UI panel at a mount position.
+       * @param {string} position - One of: left-sidebar, right-sidebar, bottom-bar, settings-tab
+       * @param {{ id: string, title: string, icon?: string, render: function }} opts
+       */
+      addPanel(position, opts) {
+        if (!VALID_MOUNT_POSITIONS.includes(position)) {
+          console.error(`[Plugin] Invalid mount position: '${position}'. Valid: ${VALID_MOUNT_POSITIONS.join(', ')}`);
+          return;
+        }
+        const { id, title, icon, render } = opts || {};
+        if (!id || !render) {
+          console.error('[Plugin] addPanel requires id and render function');
+          return;
+        }
+        const pluginName = _getCurrentPluginName();
+        const container = document.getElementById(`plugin-mount-${position}`);
+        if (!container) return;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'plugin-panel';
+        wrapper.dataset.pluginName = pluginName;
+        wrapper.dataset.panelId = id;
+
+        const header = document.createElement('div');
+        header.className = 'plugin-panel-header';
+        header.innerHTML = `
+          <span class="plugin-panel-title">${icon ? `<span>${icon}</span>` : ''}${title || id}</span>
+          <span class="plugin-panel-toggle">▼</span>
+        `;
+        header.addEventListener('click', () => {
+          wrapper.classList.toggle('collapsed');
+        });
+
+        const body = document.createElement('div');
+        body.className = 'plugin-panel-body';
+
+        wrapper.appendChild(header);
+        wrapper.appendChild(body);
+
+        try {
+          render(body);
+        } catch (err) {
+          console.error(`[Plugin] Error in render() for panel '${id}' from '${pluginName}':`, err);
+          body.innerHTML = `<span style="color: var(--accent-red); font-size: 12px;">Plugin render error</span>`;
+        }
+
+        container.appendChild(wrapper);
+        _updateMountVisibility(position);
+
+        const entry = _getPluginEntry(pluginName);
+        entry.panels.push({ id, position, element: wrapper });
+      },
+
+      /**
+       * Add a widget to the board area.
+       * @param {{ id: string, title: string, render: function, position?: string }} opts
+       */
+      addBoardWidget(opts) {
+        const { id, title, render, position } = opts || {};
+        if (!id || !render) {
+          console.error('[Plugin] addBoardWidget requires id and render function');
+          return;
+        }
+        const pluginName = _getCurrentPluginName();
+        const boardEl = document.querySelector('main.board');
+        if (!boardEl) return;
+
+        const widget = document.createElement('div');
+        widget.className = 'plugin-widget';
+        widget.dataset.pluginName = pluginName;
+        widget.dataset.widgetId = id;
+
+        if (title) {
+          const titleEl = document.createElement('div');
+          titleEl.className = 'plugin-widget-title';
+          titleEl.textContent = title;
+          widget.appendChild(titleEl);
+        }
+
+        const body = document.createElement('div');
+        widget.appendChild(body);
+
+        try {
+          render(body);
+        } catch (err) {
+          console.error(`[Plugin] Error in render() for widget '${id}' from '${pluginName}':`, err);
+          body.innerHTML = `<span style="color: var(--accent-red); font-size: 12px;">Widget render error</span>`;
+        }
+
+        if (position === 'below') {
+          boardEl.parentNode.insertBefore(widget, boardEl.nextSibling);
+        } else {
+          boardEl.parentNode.insertBefore(widget, boardEl);
+        }
+
+        const entry = _getPluginEntry(pluginName);
+        entry.widgets.push({ id, element: widget });
+      },
+
+      /**
+       * Add a menu item to the settings panel.
+       * @param {{ label: string, icon?: string, onClick: function, section?: string }} opts
+       */
+      addMenuItem(opts) {
+        const { label, icon, onClick, section } = opts || {};
+        if (!label || !onClick) {
+          console.error('[Plugin] addMenuItem requires label and onClick');
+          return;
+        }
+        const pluginName = _getCurrentPluginName();
+
+        const item = document.createElement('div');
+        item.className = 'plugin-menu-item';
+        item.dataset.pluginName = pluginName;
+        item.innerHTML = `
+          ${icon ? `<span class="plugin-menu-item-icon">${icon}</span>` : ''}
+          <span>${label}</span>
+        `;
+        item.addEventListener('click', () => {
+          try {
+            onClick();
+          } catch (err) {
+            console.error(`[Plugin] Menu item click error in '${pluginName}':`, err);
+          }
+        });
+
+        const settingsContent = document.querySelector('.settings-content');
+        if (!settingsContent) return;
+
+        // Try to find matching section or append to plugin mount area in settings
+        if (section) {
+          const sections = settingsContent.querySelectorAll('.settings-section-title');
+          let targetSection = null;
+          for (const s of sections) {
+            if (s.textContent.trim().toLowerCase() === section.toLowerCase()) {
+              targetSection = s.parentElement;
+              break;
+            }
+          }
+          if (targetSection) {
+            targetSection.appendChild(item);
+          } else {
+            const mount = document.getElementById('plugin-mount-settings-tab');
+            if (mount) {
+              mount.appendChild(item);
+              _updateMountVisibility('settings-tab');
+            }
+          }
+        } else {
+          const mount = document.getElementById('plugin-mount-settings-tab');
+          if (mount) {
+            mount.appendChild(item);
+            _updateMountVisibility('settings-tab');
+          }
+        }
+
+        const entry = _getPluginEntry(pluginName);
+        entry.menuItems.push({ label, element: item });
+      },
+
+      /**
+       * Subscribe to a client-side event.
+       * @param {string} eventName
+       * @param {function} callback
+       * @returns {function} unsubscribe
+       */
+      onEvent(eventName, callback) {
+        if (!VALID_EVENTS.includes(eventName)) {
+          console.error(`[Plugin] Unknown event: '${eventName}'. Valid: ${VALID_EVENTS.join(', ')}`);
+          return () => {};
+        }
+        const pluginName = _getCurrentPluginName();
+        if (!_pluginEventBus.has(eventName)) {
+          _pluginEventBus.set(eventName, new Set());
+        }
+        const sub = { pluginName, callback };
+        _pluginEventBus.get(eventName).add(sub);
+
+        const entry = _getPluginEntry(pluginName);
+        entry.eventSubscriptions.push({ eventName, sub });
+
+        return () => {
+          const subs = _pluginEventBus.get(eventName);
+          if (subs) subs.delete(sub);
+        };
+      },
+
+      /**
+       * Get current board state (shallow clone).
+       * @returns {object}
+       */
+      getState() {
+        return Object.assign({}, board, {
+          tasks: board.tasks ? board.tasks.map(t => Object.assign({}, t)) : []
+        });
+      },
+
+      /**
+       * Get current theme.
+       * @returns {string}
+       */
+      getTheme() {
+        if (window.configStore && window.configStore.getSetting) {
+          return window.configStore.getSetting('theme') || 'dark';
+        }
+        return document.documentElement.hasAttribute('data-theme') ? 'light' : 'dark';
+      },
+
+      /** Shared utilities */
+      utils: {
+        /**
+         * Create a DOM element.
+         * @param {string} tag
+         * @param {object} attrs
+         * @param {Array} children
+         * @returns {HTMLElement}
+         */
+        createElement(tag, attrs, children) {
+          const el = document.createElement(tag);
+          if (attrs) {
+            for (const [key, val] of Object.entries(attrs)) {
+              if (key === 'style' && typeof val === 'object') {
+                Object.assign(el.style, val);
+              } else if (key === 'className') {
+                el.className = val;
+              } else if (key.startsWith('on') && typeof val === 'function') {
+                el.addEventListener(key.slice(2).toLowerCase(), val);
+              } else {
+                el.setAttribute(key, val);
+              }
+            }
+          }
+          if (children) {
+            for (const child of Array.isArray(children) ? children : [children]) {
+              if (typeof child === 'string') {
+                el.appendChild(document.createTextNode(child));
+              } else if (child instanceof Node) {
+                el.appendChild(child);
+              }
+            }
+          }
+          return el;
+        },
+
+        /**
+         * Show a toast notification.
+         * @param {string} message
+         * @param {string} type - 'success' or 'error'
+         */
+        showToast(message, type) {
+          if (typeof showToast === 'function') {
+            showToast(message, type || 'success');
+          }
+        },
+
+        /**
+         * Format an ISO date string.
+         * @param {string} isoString
+         * @returns {string}
+         */
+        formatDate(isoString) {
+          if (!isoString) return '';
+          try {
+            const d = new Date(isoString);
+            return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          } catch (e) {
+            return isoString;
+          }
+        }
+      }
+    };
+
+    /** Load enabled plugins from the server */
+    async function loadPlugins() {
+      try {
+        const res = await fetch('/api/plugins?enabled=true');
+        if (!res.ok) {
+          if (res.status !== 404) {
+            console.error(`[Plugin] Failed to fetch plugin list: ${res.status}`);
+          }
+          return;
+        }
+        const plugins = await res.json();
+        if (!Array.isArray(plugins)) return;
+
+        const loadPromises = [];
+        for (const plugin of plugins) {
+          if (plugin.enabled && plugin.hasClientEntry) {
+            loadPromises.push(_loadPluginScript(plugin.name));
+          }
+        }
+        await Promise.allSettled(loadPromises);
+        _dispatchPluginEvent('plugins-loaded', { plugins: plugins.map(p => p.name) });
+      } catch (err) {
+        // Plugin endpoint may not exist yet — silently ignore 404
+        if (!(err instanceof TypeError)) {
+          console.error('[Plugin] Error loading plugins:', err);
+        }
+      }
+    }
+
+    /** Load a single plugin script */
+    function _loadPluginScript(name) {
+      return new Promise((resolve) => {
+        const entry = _getPluginEntry(name);
+        const script = document.createElement('script');
+        script.src = `/api/plugins/${name}/client.js`;
+        script.dataset.pluginName = name;
+
+        script.onload = () => {
+          script._loaded = true;
+          resolve();
+        };
+        script.onerror = () => {
+          console.error(`[Plugin] Failed to load script: ${name}`);
+          script._loaded = true;
+          resolve();
+        };
+
+        entry.scriptElement = script;
+        document.head.appendChild(script);
+      });
+    }
+
+    /** Unload a plugin — remove DOM, events, script */
+    function unloadPlugin(name) {
+      const entry = _pluginRegistry.get(name);
+      if (!entry) return;
+
+      // Remove panels
+      for (const panel of entry.panels) {
+        if (panel.element && panel.element.parentNode) {
+          panel.element.parentNode.removeChild(panel.element);
+        }
+        if (panel.position) _updateMountVisibility(panel.position);
+      }
+
+      // Remove widgets
+      for (const widget of entry.widgets) {
+        if (widget.element && widget.element.parentNode) {
+          widget.element.parentNode.removeChild(widget.element);
+        }
+      }
+
+      // Remove menu items
+      for (const item of entry.menuItems) {
+        if (item.element && item.element.parentNode) {
+          item.element.parentNode.removeChild(item.element);
+        }
+      }
+      _updateMountVisibility('settings-tab');
+
+      // Unsubscribe events
+      for (const sub of entry.eventSubscriptions) {
+        const subs = _pluginEventBus.get(sub.eventName);
+        if (subs) subs.delete(sub.sub);
+      }
+
+      // Remove script tag
+      if (entry.scriptElement && entry.scriptElement.parentNode) {
+        entry.scriptElement.parentNode.removeChild(entry.scriptElement);
+      }
+
+      _pluginRegistry.delete(name);
+    }
+
+    // ============================================
+    // End Plugin Mount System
+    // ============================================
 
     // Theme Management (using configStore)
     function getStoredTheme() {
@@ -7821,6 +8422,8 @@
       if (terminal) {
         terminal.options.theme = getTerminalTheme();
       }
+
+      _dispatchPluginEvent('theme-changed', { preference, effectiveTheme });
     }
 
     function cycleTheme() {
@@ -8453,6 +9056,9 @@
 
       // Initialize project brief panel
       await initProjectBriefPanel();
+
+      // Load enabled plugins
+      await loadPlugins();
     }
 
     // API calls
@@ -8460,6 +9066,7 @@
       const res = await fetch('/api/board');
       board = await res.json();
       renderBoard();
+      _dispatchPluginEvent('board-updated', { board: window.FormicPluginAPI.getState() });
     }
 
     async function createTask(event) {
@@ -9017,6 +9624,8 @@
       const task = board.tasks.find(t => t.id === taskId);
       if (!task) return;
 
+      _dispatchPluginEvent('task-selected', { taskId, task: Object.assign({}, task) });
+
       // Populate basic info
       document.getElementById('detail-title').textContent = task.title;
       document.getElementById('detail-context').textContent = task.context;
@@ -9294,6 +9903,7 @@
       panel.classList.add('open');
       backdrop.classList.add('open');
       initializeSettingsPanel();
+      _dispatchPluginEvent('settings-opened', {});
     }
 
     function closeSettings() {
@@ -9303,6 +9913,7 @@
       backdrop.classList.remove('open');
       closeAllColorPickers();
       editingWorkspaceId = null;
+      _dispatchPluginEvent('settings-closed', {});
     }
 
     // ============================================
