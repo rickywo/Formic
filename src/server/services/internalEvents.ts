@@ -53,7 +53,7 @@ export const STAGE_REGISTERED = 'stage-registered';
 export const STAGE_UNREGISTERED = 'stage-unregistered';
 
 /** Event name emitted when a task is updated */
-export const TASK_UPDATED = 'task:updated';
+export const TASK_UPDATED = 'task-updated';
 
 /** Event name emitted when a task transitions between workflow stages */
 export const TASK_STAGE_CHANGED = 'task-stage-changed';
