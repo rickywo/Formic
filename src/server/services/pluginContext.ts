@@ -30,8 +30,6 @@ import type {
   SidebarPanelDefinition,
   ToolbarActionDefinition,
   MemoryEntry,
-  TaskPriority,
-  TaskType,
 } from '../../types/index.js';
 import { PluginPermissionError } from '../../types/index.js';
 import { loadBoard, getTask, createTask, updateTask } from './store.js';
@@ -43,7 +41,7 @@ import {
   TASK_UPDATED,
   TASK_COMPLETED,
   TASK_FAILED,
-  STAGE_CHANGED,
+  TASK_STAGE_CHANGED,
 } from './internalEvents.js';
 import { registerStage, getRegisteredStages } from './pipelineRegistry.js';
 import { registerSkillOverride, getAvailableSkills } from './skillReader.js';
@@ -329,40 +327,33 @@ function buildTaskApi(
   }
 
   return {
-    getTask(id: string): Task | undefined {
+    async getTask(id: string): Promise<Task | null> {
       requirePermission(pluginName, manifest, 'tasks:read');
       const task = cachedBoard.tasks.find(t => t.id === id);
-      return task ? structuredClone(task) : undefined;
+      return task ? structuredClone(task) : null;
     },
 
-    getAllTasks(): Task[] {
+    async getAllTasks(): Promise<Task[]> {
       requirePermission(pluginName, manifest, 'tasks:read');
       return structuredClone(cachedBoard.tasks);
     },
 
-    async createTask(
-      title: string,
-      context: string,
-      options?: { priority?: TaskPriority; type?: TaskType },
-    ): Promise<Task> {
+    async createTask(data: CreateTaskInput): Promise<Task> {
       requirePermission(pluginName, manifest, 'tasks:write');
-      const input: CreateTaskInput = {
-        title,
-        context,
-        priority: options?.priority,
-        type: options?.type,
-      };
-      const task = await createTask(input);
+      const task = await createTask(data);
       return structuredClone(task);
     },
 
     async updateTask(
       id: string,
-      updates: Partial<Pick<Task, 'title' | 'context' | 'priority'>>,
-    ): Promise<Task | null> {
+      data: Partial<Task>,
+    ): Promise<Task> {
       requirePermission(pluginName, manifest, 'tasks:write');
-      const result = await updateTask(id, updates);
-      return result ? structuredClone(result) : null;
+      const result = await updateTask(id, data);
+      if (!result) {
+        throw new Error(`Task "${id}" not found`);
+      }
+      return structuredClone(result);
     },
 
     onTaskCreated: createLifecycleHook<[Task]>(
@@ -398,7 +389,7 @@ function buildTaskApi(
     ),
 
     onStageChanged: createLifecycleHook<[Task, string, string]>(
-      STAGE_CHANGED,
+      TASK_STAGE_CHANGED,
       (handler) => (payload: unknown) => {
         const p = payload as { task: Task; fromStage: string; toStage: string };
         if (p.task) handler(structuredClone(p.task), p.fromStage, p.toStage);
@@ -411,7 +402,7 @@ const BUILTIN_TASK_TYPES = new Set(['standard', 'quick', 'goal']);
 
 function buildSkillApi(pluginName: string, manifest: PluginManifest): SkillApi {
   return {
-    register(stageName: string, content: string): void {
+    async register(stageName: string, content: string): Promise<void> {
       if (BUILTIN_STAGES_SET.has(stageName)) {
         requirePermission(pluginName, manifest, 'skills:override');
       } else {
@@ -425,7 +416,7 @@ function buildSkillApi(pluginName: string, manifest: PluginManifest): SkillApi {
       this.register(stageName, content);
     },
 
-    getAvailable(): string[] {
+    async getAvailable(): Promise<string[]> {
       const builtinSkills = getAvailableSkills();
       const registeredStages = getRegisteredStages();
       const pluginSkillNames = registeredStages
@@ -472,29 +463,15 @@ function buildSkillApi(pluginName: string, manifest: PluginManifest): SkillApi {
 
 function buildSettingsApi(pluginName: string, manifest: PluginManifest): SettingsApi {
   return {
-    get<T = unknown>(key: string, defaultValue?: T): T | undefined {
+    async get<T = unknown>(key: string, defaultValue?: T): Promise<T | undefined> {
       requirePermission(pluginName, manifest, 'config:read');
-      // getPluginSetting is async but SettingsApi.get is sync — use cached approach
-      // For sync access, we return the default and log a warning.
-      // TODO: Consider making SettingsApi async in a future iteration
-      let result: T | undefined = defaultValue;
-      getPluginSetting(pluginName, key)
-        .then(val => {
-          if (val !== undefined) {
-            result = val as T;
-          }
-        })
-        .catch((err: unknown) => {
-          console.error(`[PluginContext] Failed to get setting '${key}' for plugin '${pluginName}':`, err instanceof Error ? err.message : 'Unknown error');
-        });
-      return result;
+      const val = await getPluginSetting(pluginName, key);
+      return val !== undefined ? val as T : defaultValue;
     },
 
-    set<T = unknown>(key: string, value: T): void {
+    async set<T = unknown>(key: string, value: T): Promise<void> {
       requirePermission(pluginName, manifest, 'config:write');
-      setPluginSetting(pluginName, key, value).catch((err: unknown) => {
-        console.error(`[PluginContext] Failed to set setting '${key}' for plugin '${pluginName}':`, err instanceof Error ? err.message : 'Unknown error');
-      });
+      await setPluginSetting(pluginName, key, value);
     },
   };
 }

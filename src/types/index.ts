@@ -285,6 +285,8 @@ export interface WorkflowStageDefinition {
   displayName: string;
   /** Optional skill name to invoke during this stage */
   skillName?: string;
+  /** Optional custom handler function for this stage */
+  handler?: (taskId: string) => Promise<void>;
 }
 
 /** Defines a custom verification step that plugins can register */
@@ -297,16 +299,26 @@ export interface VerifierDefinition {
   pluginName: string;
   /** Optional description of what this verifier checks */
   description?: string;
-  /** Verification handler — receives task ID and docs path, returns pass/fail with message */
-  handler: (taskId: string, taskDocsPath: string) => Promise<{ passed: boolean; message: string }>;
+  /** Verification handler — receives task ID, returns pass/fail with message and optional details */
+  verify(taskId: string): Promise<VerifierResult>;
+}
+
+/** Result returned by a verifier's verify method */
+export interface VerifierResult {
+  /** Whether the verification passed */
+  passed: boolean;
+  /** Optional human-readable message */
+  message?: string;
+  /** Optional detailed output (e.g., test logs, diff) */
+  details?: string;
 }
 
 /** Task read/write access and lifecycle event hooks */
 export interface TaskApi {
-  getTask(id: string): Task | undefined;
-  getAllTasks(): Task[];
-  createTask(title: string, context: string, options?: { priority?: TaskPriority; type?: TaskType }): Promise<Task>;
-  updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'context' | 'priority'>>): Promise<Task | null>;
+  getTask(id: string): Promise<Task | null>;
+  getAllTasks(): Promise<Task[]>;
+  createTask(data: CreateTaskInput): Promise<Task>;
+  updateTask(id: string, data: Partial<Task>): Promise<Task>;
   onTaskCreated(handler: (task: Task) => void): Unsubscribe;
   onTaskUpdated(handler: (task: Task) => void): Unsubscribe;
   onTaskCompleted(handler: (task: Task) => void): Unsubscribe;
@@ -316,17 +328,17 @@ export interface TaskApi {
 
 /** Skill and workflow registration API */
 export interface SkillApi {
-  register(stageName: string, content: string): void;
+  register(stageName: string, content: string): Promise<void>;
   registerTaskType(definition: TaskTypeDefinition): void;
   registerVerifier(verifier: VerifierDefinition): void;
   registerSkillOverride(stageName: string, content: string): void;
-  getAvailable(): string[];
+  getAvailable(): Promise<string[]>;
 }
 
 /** Generic typed key-value settings API */
 export interface SettingsApi {
-  get<T = unknown>(key: string, defaultValue?: T): T | undefined;
-  set<T = unknown>(key: string, value: T): void;
+  get<T = unknown>(key: string, defaultValue?: T): Promise<T | undefined>;
+  set<T = unknown>(key: string, value: T): Promise<void>;
 }
 
 /** Plugin-scoped logger with prefixed output */
