@@ -62,6 +62,10 @@ import {
   runVerifiers as skillReaderRunVerifiers,
 } from './skillReader.js';
 import { getMemories, addMemory } from './memory.js';
+import {
+  registerPluginWebhook,
+  unregisterPluginWebhooks,
+} from './pluginWebhookRegistry.js';
 import type { VerifierDefinition as _VerifierDef } from '../../types/index.js';
 
 export { skillReaderGetVerifiers as getVerifiers, skillReaderRunVerifiers as runVerifiers };
@@ -541,10 +545,29 @@ function buildUIApi(logger: PluginLogger): UIApi {
   };
 }
 
-function buildIntegrationApi(logger: PluginLogger): IntegrationApi {
+function buildIntegrationApi(pluginName: string, manifest: PluginManifest, logger: PluginLogger): IntegrationApi {
+  return {
+    registerWebhook(path: string, handler: WebhookHandler): void {
+      requirePermission(pluginName, manifest, 'integrations:webhook');
+      registerPluginWebhook(pluginName, path, handler);
+    },
+    registerBotCommand(_command: BotCommandDefinition): void {
+      logger.warn('IntegrationApi.registerBotCommand() is not yet implemented');
+    },
+    async sendNotification(_message: string): Promise<void> {
+      logger.warn('IntegrationApi.sendNotification() is not yet implemented');
+    },
+  };
+}
+
+/**
+ * Build a stub IntegrationApi for the legacy PluginContext adapter.
+ * The adapter lacks pluginName/manifest context so registerWebhook logs a warning.
+ */
+function buildIntegrationApiStub(logger: PluginLogger): IntegrationApi {
   return {
     registerWebhook(_path: string, _handler: WebhookHandler): void {
-      logger.warn('IntegrationApi.registerWebhook() is not yet implemented');
+      logger.warn('IntegrationApi.registerWebhook() is not available via the legacy PluginContext adapter');
     },
     registerBotCommand(_command: BotCommandDefinition): void {
       logger.warn('IntegrationApi.registerBotCommand() is not yet implemented');
@@ -649,7 +672,7 @@ export async function createFormicAPI(
     events: buildEventApi(pluginName, manifest),
     logger,
     ui: buildUIApi(logger),
-    integrations: buildIntegrationApi(logger),
+    integrations: buildIntegrationApi(pluginName, manifest, logger),
     memory: buildMemoryApi(pluginName, manifest, logger),
   };
 
@@ -661,6 +684,7 @@ export async function createFormicAPI(
       unregisterSkillOverrides(pluginName);
       unregisterStages(pluginName);
       unregisterTaskTypes(pluginName);
+      unregisterPluginWebhooks(pluginName);
     },
   };
 }
@@ -760,7 +784,7 @@ export function pluginContextToFormicAPI(ctx: PluginContext): FormicAPI {
   };
 
   const ui: UIApi = buildUIApi(logger);
-  const integrations: IntegrationApi = buildIntegrationApi(logger);
+  const integrations: IntegrationApi = buildIntegrationApiStub(logger);
   const memory: MemoryApi = buildMemoryApiStub(logger);
 
   return { tasks, skills, settings, events, logger, ui, integrations, memory };

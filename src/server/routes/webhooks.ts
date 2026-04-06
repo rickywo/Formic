@@ -12,6 +12,7 @@ import {
 } from '../services/lineAdapter.js';
 import { getMessagingConfig } from '../services/messagingAdapter.js';
 import { getAllSessions } from '../services/messagingStore.js';
+import { dispatchPluginWebhook } from '../services/pluginWebhookRegistry.js';
 
 /**
  * Webhook Routes
@@ -19,6 +20,7 @@ import { getAllSessions } from '../services/messagingStore.js';
  * Provides HTTP endpoints for messaging platform webhooks.
  * - POST /api/webhooks/telegram - Telegram bot updates
  * - POST /api/webhooks/line - Line messaging events
+ * - POST /api/webhooks/:pluginName/:path - Dynamic plugin webhook dispatch
  * - GET /api/messaging/status - Check messaging configuration status
  * - POST /api/messaging/telegram/set-webhook - Set Telegram webhook URL
  */
@@ -217,5 +219,39 @@ export async function webhookRoutes(fastify: FastifyInstance): Promise<void> {
         lastActiveAt: s.lastActiveAt,
       })),
     });
+  });
+
+  // ==================== Dynamic Plugin Webhook Dispatch ====================
+
+  /**
+   * POST /api/webhooks/:pluginName/:path
+   * Dispatches inbound webhook requests to the registered plugin handler.
+   * Must be registered AFTER static routes (telegram, line) so they take priority.
+   */
+  fastify.post<{
+    Params: { pluginName: string; path: string };
+  }>('/api/webhooks/:pluginName/:path', async (request, reply) => {
+    const { pluginName, path } = request.params;
+
+    try {
+      const result = await dispatchPluginWebhook(
+        pluginName,
+        path,
+        request.body,
+        request.headers as Record<string, string>,
+      );
+
+      if (result === null) {
+        return reply.status(404).send({
+          error: `No webhook handler registered for ${pluginName}/${path}`,
+        });
+      }
+
+      return reply.status(result.status).send(result.body ?? { ok: true });
+    } catch (error) {
+      const err = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`[Webhooks] Plugin webhook dispatch error (${pluginName}/${path}):`, err);
+      return reply.status(500).send({ error: 'Webhook dispatch error' });
+    }
   });
 }

@@ -37,6 +37,7 @@ const ALLOWED_PERMISSIONS = new Set<PluginPermission>([
   'ui:panel',
   'workflow:extend',
   'skills:override',
+  'integrations:webhook',
 ]);
 
 /** In-memory plugin registry */
