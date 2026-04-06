@@ -100,7 +100,7 @@ async function scanExpiredLeases(): Promise<void> {
 }
 
 /**
- * Validate board.json integrity and trigger recovery on corruption.
+ * Validate board.json.0607.json integrity and trigger recovery on corruption.
  * Reads the file directly (bypassing loadBoard) to avoid recovery side effects on every tick.
  */
 async function checkBoardHealth(): Promise<void> {
@@ -108,7 +108,7 @@ async function checkBoardHealth(): Promise<void> {
     const boardPath = getBoardPath();
 
     if (!existsSync(boardPath)) {
-      console.warn('[BoardHealth] board.json does not exist — triggering recovery');
+      console.warn('[BoardHealth] board.json.0607.json does not exist — triggering recovery');
       await loadBoard();
       broadcastBoardUpdate();
       return;
@@ -119,14 +119,14 @@ async function checkBoardHealth(): Promise<void> {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      console.warn('[BoardHealth] board.json failed to parse — triggering recovery');
+      console.warn('[BoardHealth] board.json.0607.json failed to parse — triggering recovery');
       await loadBoard();
       broadcastBoardUpdate();
       return;
     }
 
     if (!validateBoard(parsed)) {
-      console.warn('[BoardHealth] board.json failed validation — triggering recovery');
+      console.warn('[BoardHealth] board.json.0607.json failed validation — triggering recovery');
       await loadBoard();
       broadcastBoardUpdate();
     }

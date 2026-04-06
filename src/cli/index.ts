@@ -130,7 +130,7 @@ async function initCommand(): Promise<void> {
   const tasksDir = path.join(formicDir, 'tasks');
   await mkdir(tasksDir, { recursive: true });
 
-  // Create initial board.json
+  // Create initial board.json.0607.json
   const projectName = path.basename(workspacePath);
   const board = {
     meta: {
@@ -141,7 +141,7 @@ async function initCommand(): Promise<void> {
     tasks: [],
   };
 
-  const boardPath = path.join(formicDir, 'board.json');
+  const boardPath = path.join(formicDir, 'board.json.0607.json');
   await writeFile(boardPath, JSON.stringify(board, null, 2), 'utf-8');
 
   console.log('\nFormic initialized successfully!');

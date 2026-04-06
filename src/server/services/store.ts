@@ -95,11 +95,11 @@ export function validateBoard(board: unknown): board is Board {
 }
 
 /**
- * Load the board from workspace/.formic/board.json
+ * Load the board from workspace/.formic/board.json.0607.json
  *
- * If board.json is corrupted or fails validation:
- * 1. Archives the corrupted file to .formic/board.json.corrupted.{timestamp}
- * 2. Attempts restoration from .formic/board.json.backup
+ * If board.json.0607.json is corrupted or fails validation:
+ * 1. Archives the corrupted file to .formic/board.json.0607.json.corrupted.{timestamp}
+ * 2. Attempts restoration from .formic/board.json.0607.json.backup
  * 3. Falls back to a fresh default board if no valid backup exists
  */
 export async function loadBoard(): Promise<Board> {
@@ -138,19 +138,19 @@ export async function loadBoard(): Promise<Board> {
     console.error(`[Store] board.json is corrupted (${errMsg}), archived to ${path.basename(archivePath)}`);
 
     // Attempt backup restoration
-    const backupPath = path.join(getFormicDir(), 'board.json.backup');
+    const backupPath = path.join(getFormicDir(), 'board.json.0607.json.backup');
     if (existsSync(backupPath)) {
       try {
         const backupData = await readFile(backupPath, 'utf-8');
         const backupParsed: unknown = JSON.parse(backupData);
 
         if (validateBoard(backupParsed)) {
-          console.warn('[Store] board.json corrupted — restored from backup');
+          console.warn('[Store] board.json.0607.json corrupted — restored from backup');
           await saveBoard(backupParsed);
           return backupParsed;
         }
 
-        console.warn('[Store] board.json.backup exists but failed validation');
+        console.warn('[Store] board.json.0607.json.backup exists but failed validation');
       } catch (backupErr) {
         console.warn(`[Store] board.json.backup is also corrupted: ${backupErr instanceof Error ? backupErr.message : 'Unknown error'}`);
       }
@@ -227,7 +227,7 @@ export async function getBoardWithBootstrap(): Promise<Board> {
 }
 
 /**
- * Save the board to workspace/.formic/board.json
+ * Save the board to workspace/.formic/board.json.0607.json
  * Uses atomic temp-file+rename, rolling backup, and async mutex.
  */
 export async function saveBoard(board: Board): Promise<void> {
@@ -254,7 +254,7 @@ async function saveBoardInternal(board: Board): Promise<void> {
   const tmpPath = boardPath + '.tmp';
   const backupPath = boardPath + '.backup';
 
-  // Rolling backup: copy current board.json → board.json.backup
+  // Rolling backup: copy current board.json.0607.json → board.json.0607.json.backup
   try {
     await copyFile(boardPath, backupPath);
   } catch (err) {

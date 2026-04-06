@@ -1,8 +1,10 @@
-import { readFile, readdir, stat } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { readFile, readdir, stat, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { promisify } from 'node:util';
 import type { PluginManifest, PluginEntry, PluginPermission, FormicPlugin } from '../../types/index.js';
 import { getFormicDir } from '../utils/paths.js';
-import { getPluginConfig, setPluginConfig } from './configStore.js';
+import { getPluginConfig, setPluginConfig, removePluginConfig } from './configStore.js';
 import { createFormicAPI, cleanupPluginListeners } from './pluginContext.js';
 import { unregisterStages, unregisterCustomTaskTypes, unregisterVerifiers } from './pipelineRegistry.js';
 import { unregisterSkillOverrides } from './skillReader.js';
@@ -39,6 +41,12 @@ const ALLOWED_PERMISSIONS = new Set<PluginPermission>([
 
 /** In-memory plugin registry */
 const registry = new Map<string, PluginEntry>();
+
+/** Promisified execFile for running npm commands */
+const execFileAsync = promisify(execFile);
+
+/** Timeout for npm install operations (60 seconds) */
+const NPM_INSTALL_TIMEOUT_MS = 60_000;
 
 // ==================== Semver Helpers ====================
 
@@ -606,6 +614,88 @@ export async function disablePlugin(name: string): Promise<void> {
     entry.status = 'error';
     entry.error = `Failed to disable: ${msg}`;
     console.warn(`[PluginManager] Failed to disable plugin '${name}': ${msg}`);
+  }
+}
+
+/**
+ * Install a plugin from npm into .formic/plugins/<pluginId>/ and activate it.
+ * Creates the target directory, runs `npm install --prefix`, then calls
+ * discoverPlugins() and loadPlugin() to register and activate.
+ * On failure, cleans up the partially-created directory before re-throwing.
+ */
+export async function installPluginFromNpm(packageName: string, pluginId: string): Promise<void> {
+  const targetDir = path.join(getFormicDir(), 'plugins', pluginId);
+  console.warn(`[PluginManager] Installing plugin '${pluginId}' from npm package '${packageName}' into ${targetDir}`);
+
+  try {
+    await mkdir(targetDir, { recursive: true });
+
+    await execFileAsync('npm', ['install', '--prefix', targetDir, packageName], {
+      timeout: NPM_INSTALL_TIMEOUT_MS,
+    });
+
+    console.warn(`[PluginManager] npm install completed for '${pluginId}', activating plugin`);
+
+    await discoverPlugins();
+    await loadPlugin(pluginId);
+
+    console.warn(`[PluginManager] Successfully installed and activated plugin '${pluginId}'`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.warn(`[PluginManager] Failed to install plugin '${pluginId}': ${msg}`);
+
+    // Clean up partially-created directory
+    try {
+      await rm(targetDir, { recursive: true, force: true });
+    } catch (cleanupErr) {
+      const cleanupMsg = cleanupErr instanceof Error ? cleanupErr.message : 'Unknown error';
+      console.warn(`[PluginManager] Failed to clean up directory after failed install for '${pluginId}': ${cleanupMsg}`);
+    }
+
+    throw err;
+  }
+}
+
+/**
+ * Fully uninstall a plugin — unload runtime state, remove persisted config,
+ * delete the plugin directory, and evict from the in-memory registry.
+ */
+export async function uninstallPlugin(pluginId: string): Promise<void> {
+  const entry = registry.get(pluginId);
+  if (!entry) {
+    console.warn(`[PluginManager] Cannot uninstall unknown plugin: ${pluginId}`);
+    return;
+  }
+
+  const pluginDir = entry.pluginDir;
+  if (!pluginDir) {
+    console.warn(`[PluginManager] Cannot uninstall plugin '${pluginId}': no pluginDir recorded`);
+    return;
+  }
+
+  console.warn(`[PluginManager] Uninstalling plugin '${pluginId}' from ${pluginDir}`);
+
+  try {
+    // 1. Unload runtime state (event listeners, pipeline stages, skill overrides)
+    await unloadPlugin(pluginId);
+
+    // 2. Remove persisted config
+    await removePluginConfig(pluginId);
+
+    // 3. Delete plugin directory
+    await rm(pluginDir, { recursive: true, force: true });
+
+    // 4. Evict from in-memory registry
+    registry.delete(pluginId);
+
+    // 5. Notify UI
+    internalEvents.emit(BOARD_UPDATE);
+
+    console.warn(`[PluginManager] Successfully uninstalled plugin '${pluginId}'`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.warn(`[PluginManager] Failed to uninstall plugin '${pluginId}': ${msg}`);
+    throw err;
   }
 }
 
