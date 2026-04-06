@@ -43,6 +43,9 @@ export const SERVER_STARTUP = 'server-startup';
 /** Event name emitted on graceful shutdown */
 export const SERVER_SHUTDOWN = 'server-shutdown';
 
+/** Event name emitted before a skill file is loaded (allows just-in-time override registration) */
+export const BEFORE_SKILL_LOAD = 'before-skill-load';
+
 /** Event name emitted when a plugin stage is registered in the pipeline */
 export const STAGE_REGISTERED = 'stage-registered';
 

@@ -3,10 +3,46 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { getSkillPath, skillExists, getSkillContent } from './skills.js';
 import { getWorkspacePath } from '../utils/paths.js';
-import type { Task } from '../../types/index.js';
-import { internalEvents, SKILL_LOADED } from './internalEvents.js';
+import type { Task, SkillOverride } from '../../types/index.js';
+import { internalEvents, SKILL_LOADED, BEFORE_SKILL_LOAD } from './internalEvents.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
+
+// ── Skill Override Registry ──────────────────────────────────────────────────
+
+const skillOverrides = new Map<string, SkillOverride>();
+
+/**
+ * Register a plugin's skill content override for a given stage name.
+ * Last-registered wins if multiple plugins override the same stage.
+ */
+export function registerSkillOverride(stageName: string, content: string, pluginName: string): void {
+  const existing = skillOverrides.get(stageName);
+  if (existing && existing.pluginName !== pluginName) {
+    console.warn(
+      `[SkillReader] Plugin '${pluginName}' is overriding skill '${stageName}' previously set by '${existing.pluginName}'`
+    );
+  }
+  skillOverrides.set(stageName, { stageName, content, pluginName });
+}
+
+/**
+ * Remove all skill overrides registered by a given plugin.
+ */
+export function unregisterSkillOverrides(pluginName: string): void {
+  for (const [stage, override] of skillOverrides) {
+    if (override.pluginName === pluginName) {
+      skillOverrides.delete(stage);
+    }
+  }
+}
+
+/**
+ * Return the override for a stage if one exists, or null.
+ */
+export function getSkillOverride(stageName: string): SkillOverride | null {
+  return skillOverrides.get(stageName) ?? null;
+}
 
 /**
  * Parse SKILL.md frontmatter and extract content
@@ -88,45 +124,57 @@ END OF GUIDELINES
 export async function loadSkillPrompt(
   skillName: string,
   task: Task
-): Promise<{ success: boolean; content: string; source: 'skill' | 'fallback' }> {
-  // Check if skill file exists
+): Promise<{ success: boolean; content: string; source: 'override' | 'filesystem' | 'fallback' }> {
+  // Allow plugins to register just-in-time overrides
+  internalEvents.emit(BEFORE_SKILL_LOAD, { skillName, taskId: task.id });
+
+  // Build variables for substitution (shared by override and filesystem paths)
+  const docsPath = path.join(getWorkspacePath(), task.docsPath);
+  const variables: Record<string, string> = {
+    TASK_ID: task.id,
+    TASK_TITLE: task.title,
+    TASK_CONTEXT: task.context,
+    TASK_DOCS_PATH: docsPath,
+  };
+
+  // Check for plugin override before hitting the filesystem
+  const override = getSkillOverride(skillName);
+  if (override) {
+    try {
+      const substitutedContent = substituteVariables(override.content, variables);
+      const guidelines = await loadProjectGuidelines();
+      const finalContent = guidelines + substitutedContent;
+
+      console.warn(`[SkillReader] Using override for skill '${skillName}' from plugin '${override.pluginName}'`);
+      internalEvents.emit(SKILL_LOADED, { skillName, taskId: task.id, source: 'override' as const });
+      return { success: true, content: finalContent, source: 'override' };
+    } catch (error) {
+      console.error(`[SkillReader] Error applying override for skill '${skillName}':`, error);
+      return { success: false, content: '', source: 'fallback' };
+    }
+  }
+
+  // Filesystem path — existing behavior
   if (!skillExists(skillName)) {
     console.warn(`[SkillReader] Skill '${skillName}' not found, using fallback`);
     return { success: false, content: '', source: 'fallback' };
   }
 
   try {
-    // Read skill file content
     const rawContent = await getSkillContent(skillName);
     if (!rawContent) {
       console.warn(`[SkillReader] Failed to read skill '${skillName}'`);
       return { success: false, content: '', source: 'fallback' };
     }
 
-    // Parse frontmatter and get body
     const { body } = parseSkillFile(rawContent);
-
-    // Build variables for substitution
-    const docsPath = path.join(getWorkspacePath(), task.docsPath);
-    const variables: Record<string, string> = {
-      TASK_ID: task.id,
-      TASK_TITLE: task.title,
-      TASK_CONTEXT: task.context,
-      TASK_DOCS_PATH: docsPath,
-    };
-
-    // Substitute variables in skill body
     const substitutedContent = substituteVariables(body, variables);
-
-    // Load and prepend guidelines
     const guidelines = await loadProjectGuidelines();
-
-    // Combine guidelines + skill content
     const finalContent = guidelines + substitutedContent;
 
-    console.log(`[SkillReader] Loaded skill '${skillName}' with variables substituted`);
-    internalEvents.emit(SKILL_LOADED, { skillName, taskId: task.id });
-    return { success: true, content: finalContent, source: 'skill' };
+    console.warn(`[SkillReader] Loaded skill '${skillName}' with variables substituted`);
+    internalEvents.emit(SKILL_LOADED, { skillName, taskId: task.id, source: 'filesystem' as const });
+    return { success: true, content: finalContent, source: 'filesystem' };
   } catch (error) {
     console.error(`[SkillReader] Error loading skill '${skillName}':`, error);
     return { success: false, content: '', source: 'fallback' };
