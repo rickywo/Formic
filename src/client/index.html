@@ -6823,6 +6823,46 @@
       gap: 8px;
     }
 
+    /* Slot containers — hidden when empty */
+    .plugin-slot:empty { display: none; }
+
+    .plugin-slot--sidebar {
+      min-width: 200px;
+      border-left: 1px solid var(--border-color);
+      padding: 12px;
+    }
+
+    .plugin-slot--dag {
+      width: 100%;
+      min-height: 200px;
+    }
+
+    .detail-body {
+      display: flex;
+      flex-direction: row;
+      gap: 0;
+    }
+
+    .detail-body > .detail-content {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .slot-kanban-card-badge {
+      display: inline-flex;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .slot-kanban-card-footer {
+      margin-top: 6px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 6px;
+      font-size: 11px;
+    }
+
+    .slot-kanban-card-footer:empty { display: none; }
+
     /* Plugin Panel Wrapper */
     .plugin-panel {
       background: linear-gradient(180deg, var(--card-gradient-start) 0%, var(--card-gradient-end) 100%);
@@ -7544,6 +7584,7 @@
       <button class="btn settings-btn" id="settings-btn" onclick="openSettings()" title="Settings">
         <span class="settings-icon">⚙</span>
       </button>
+      <div id="slot-toolbar-right" class="plugin-slot"></div>
     </div>
   </header>
 
@@ -7607,6 +7648,7 @@
       </div>
     </div>
     <div id="board-columns" class="board-columns"></div>
+    <div id="slot-dag-visualization" class="plugin-slot plugin-slot--dag"></div>
   </main>
 
   <!-- Plugin Mount: Right Sidebar -->
@@ -7632,44 +7674,49 @@
         <h2 id="detail-title">Task Details</h2>
         <button class="btn" onclick="closeDetailModal()">×</button>
       </div>
-      <div class="detail-content">
-        <div class="detail-section">
-          <label>Status</label>
-          <div class="detail-status">
-            <span class="status-badge" id="detail-status-badge"></span>
-            <span class="task-duration" id="detail-duration" style="display:none"></span>
-            <span class="workflow-indicator" id="detail-workflow"></span>
-          </div>
-        </div>
-        <div class="detail-section">
-          <label>Priority</label>
-          <span class="priority-badge" id="detail-priority"></span>
-        </div>
-        <div class="detail-section">
-          <label>Context / Prompt</label>
-          <pre class="detail-context" id="detail-context"></pre>
-        </div>
-        <div class="detail-section">
-          <label>Docs Path</label>
-          <code class="detail-path" id="detail-docs-path"></code>
-        </div>
-        <div class="detail-section" id="detail-subtasks-section">
-          <label>Subtasks Progress</label>
-          <div class="subtasks-progress">
-            <div class="progress-bar">
-              <div class="progress-fill" id="detail-progress-fill"></div>
+      <div class="detail-body">
+        <div class="detail-content">
+          <div class="detail-section">
+            <label>Status</label>
+            <div class="detail-status">
+              <span class="status-badge" id="detail-status-badge"></span>
+              <span class="task-duration" id="detail-duration" style="display:none"></span>
+              <span class="workflow-indicator" id="detail-workflow"></span>
             </div>
-            <span class="progress-text" id="detail-progress-text">0/0 (0%)</span>
+            <div id="slot-task-stage-panel" class="plugin-slot"></div>
           </div>
-          <div class="subtasks-list" id="detail-subtasks-list"></div>
-        </div>
-        <div class="detail-section" id="detail-children-section" style="display:none">
-          <label>Generated Tasks</label>
-          <div class="subtasks-progress">
-            <span class="progress-text" id="detail-children-stats"></span>
+          <div class="detail-section">
+            <label>Priority</label>
+            <span class="priority-badge" id="detail-priority"></span>
           </div>
-          <div class="subtasks-list" id="detail-children-list"></div>
+          <div class="detail-section">
+            <label>Context / Prompt</label>
+            <pre class="detail-context" id="detail-context"></pre>
+          </div>
+          <div class="detail-section">
+            <label>Docs Path</label>
+            <code class="detail-path" id="detail-docs-path"></code>
+          </div>
+          <div class="detail-section" id="detail-subtasks-section">
+            <label>Subtasks Progress</label>
+            <div class="subtasks-progress">
+              <div class="progress-bar">
+                <div class="progress-fill" id="detail-progress-fill"></div>
+              </div>
+              <span class="progress-text" id="detail-progress-text">0/0 (0%)</span>
+            </div>
+            <div class="subtasks-list" id="detail-subtasks-list"></div>
+          </div>
+          <div class="detail-section" id="detail-children-section" style="display:none">
+            <label>Generated Tasks</label>
+            <div class="subtasks-progress">
+              <span class="progress-text" id="detail-children-stats"></span>
+            </div>
+            <div class="subtasks-list" id="detail-children-list"></div>
+          </div>
+          <div id="slot-task-node-editor" class="plugin-slot"></div>
         </div>
+        <div id="slot-task-detail-sidebar" class="plugin-slot plugin-slot--sidebar"></div>
       </div>
       <div class="form-actions">
         <button class="btn" onclick="closeDetailModal()">Close</button>
@@ -8274,6 +8321,7 @@
 
       <!-- Plugin Mount: Settings Tab -->
       <div id="plugin-mount-settings-tab" class="plugin-mount plugin-mount-settings-tab"></div>
+      <div id="slot-settings-panel" class="plugin-slot"></div>
     </div>
   </div>
 
