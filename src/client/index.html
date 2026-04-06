@@ -8819,8 +8819,18 @@
     const _slotRegistry = new Map(); // slotId -> Array<{ pluginName, componentId, component, props }>
     const _pluginEventBus = new Map(); // eventName -> Set of {pluginName, callback}
 
+    // @deprecated Use window.FormicPluginAPI.registerSlot() for new plugins.
+    // Legacy mount positions are maintained for backward compatibility only.
+    // New plugins should use registerSlot(), registerSidebarPanel(), or registerToolbarAction() instead.
     const VALID_MOUNT_POSITIONS = ['left-sidebar', 'right-sidebar', 'bottom-bar', 'settings-tab'];
     const VALID_SLOTS = ['task-node-editor', 'task-stage-panel', 'dag-visualization', 'kanban-card-badge', 'kanban-card-footer', 'settings-panel', 'task-detail-sidebar', 'toolbar-right'];
+
+    /** Maps legacy addPanel() positions to their slot-system equivalents */
+    const SLOT_MAP = {
+      'right-sidebar': 'task-detail-sidebar',
+      'settings-tab': 'settings-panel'
+    };
+
     const VALID_EVENTS = ['board-updated', 'task-selected', 'theme-changed', 'settings-opened', 'settings-closed', 'plugins-loaded'];
 
     /** Get or initialize a registry entry for a plugin */
@@ -8940,16 +8950,61 @@
       addPanel(position, opts) {
         if (!VALID_MOUNT_POSITIONS.includes(position)) {
           console.error(`[Plugin] Invalid mount position: '${position}'. Valid: ${VALID_MOUNT_POSITIONS.join(', ')}`);
-          return;
+          return () => {};
         }
         const { id, title, icon, render } = opts || {};
         if (!id || !render) {
           console.error('[Plugin] addPanel requires id and render function');
-          return;
+          return () => {};
         }
         const pluginName = _getCurrentPluginName();
+
+        // Delegation: mapped positions use the slot system
+        const targetSlot = SLOT_MAP[position];
+        if (targetSlot) {
+          console.warn(`[Plugin] addPanel('${position}') is deprecated. Use registerSlot('${targetSlot}', component) instead.`);
+          // Wrap the legacy render(container) into the arity-2 (container, props) signature
+          // so _detectComponentType() classifies it as 'render-function'
+          const renderFn = function(container, _props) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'plugin-panel';
+            wrapper.dataset.pluginName = pluginName;
+            wrapper.dataset.panelId = id;
+
+            const header = document.createElement('div');
+            header.className = 'plugin-panel-header';
+            header.innerHTML = `
+              <span class="plugin-panel-title">${icon ? `<span>${icon}</span>` : ''}${title || id}</span>
+              <span class="plugin-panel-toggle">▼</span>
+            `;
+            header.addEventListener('click', () => {
+              wrapper.classList.toggle('collapsed');
+            });
+
+            const body = document.createElement('div');
+            body.className = 'plugin-panel-body';
+
+            wrapper.appendChild(header);
+            wrapper.appendChild(body);
+
+            try {
+              render(body);
+            } catch (err) {
+              console.error(`[Plugin] Error in render() for panel '${id}' from '${pluginName}':`, err);
+              body.innerHTML = `<span style="color: var(--accent-red); font-size: 12px;">Plugin render error</span>`;
+            }
+
+            container.appendChild(wrapper);
+          };
+          const unregister = window.FormicPluginAPI.registerSlot(targetSlot, renderFn);
+          const entry = _getPluginEntry(pluginName);
+          entry.panels.push({ id, position, element: null });
+          return unregister;
+        }
+
+        // Legacy DOM-mount logic for unmapped positions (left-sidebar, bottom-bar)
         const container = document.getElementById(`plugin-mount-${position}`);
-        if (!container) return;
+        if (!container) return () => {};
 
         const wrapper = document.createElement('div');
         wrapper.className = 'plugin-panel';
