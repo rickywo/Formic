@@ -43,7 +43,24 @@ export async function loadSubtasks(docsPath: string): Promise<SubtasksFile | nul
       return null;
     }
 
-    console.log(`[Subtasks] Loaded ${data.subtasks.length} subtasks`);
+    // Normalize invalid status values to prevent infinite execution loops
+    const VALID_STATUSES: Set<string> = new Set(['pending', 'in_progress', 'completed', 'skipped']);
+    const SYNONYM_MAP: Record<string, SubtaskStatus> = {
+      'done': 'completed',
+      'complete': 'completed',
+      'finished': 'completed',
+      'skip': 'skipped',
+    };
+
+    for (const subtask of data.subtasks) {
+      if (!VALID_STATUSES.has(subtask.status)) {
+        const normalized = SYNONYM_MAP[subtask.status] ?? 'pending';
+        console.warn(`[Subtasks] Normalizing invalid status "${subtask.status}" → "${normalized}" for subtask ${subtask.id}`);
+        subtask.status = normalized;
+      }
+    }
+
+    console.warn(`[Subtasks] Loaded ${data.subtasks.length} subtasks`);
     return data;
   } catch (error) {
     console.error('[Subtasks] Failed to load subtasks.json:', error);

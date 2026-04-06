@@ -57,6 +57,13 @@ export function setBoundPort(port: number): void {
   boundPort = port;
 }
 
+/**
+ * Returns the current bound port for constructing API URLs.
+ */
+export function getBoundPort(): number {
+  return boundPort;
+}
+
 // Store WebSocket connections per task
 const taskConnections = new Map<string, Set<WebSocket>>();
 
@@ -171,7 +178,7 @@ All code changes MUST comply with the project development guidelines provided ab
 
   const child = spawn(agentCommand, agentArgs, {
     cwd: getWorkspacePath(),
-    env: { ...process.env },
+    env: { ...process.env, FORMIC_API_URL: `http://localhost:${boundPort}`, FORMIC_TASK_ID: taskId },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 

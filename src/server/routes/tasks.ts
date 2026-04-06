@@ -385,8 +385,8 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     const { status } = request.body;
 
     // Validate status
-    if (!status || !['pending', 'in_progress', 'completed'].includes(status)) {
-      return reply.status(400).send({ error: 'Invalid status. Must be: pending, in_progress, or completed' });
+    if (!status || !['pending', 'in_progress', 'completed', 'skipped'].includes(status)) {
+      return reply.status(400).send({ error: 'Invalid status. Must be: pending, in_progress, completed, or skipped' });
     }
 
     const task = await getTask(id);

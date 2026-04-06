@@ -18,6 +18,7 @@ import {
   subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir, getTaskLogsDir } from '../utils/paths.js';
+import { getBoundPort } from './runner.js';
 import { createSafePoint } from '../utils/gitUtils.js';
 import type { LogMessage, Task, WorkflowStep, StageDescriptor } from '../../types/index.js';
 import path from 'node:path';
@@ -253,8 +254,10 @@ Ensure all implementation steps follow the project development guidelines above.
 /**
  * Build the prompt for the execute step (initial iteration)
  */
-function buildExecutePrompt(task: Task, guidelines: string): string {
+function buildExecutePrompt(task: Task, guidelines: string, apiBaseUrl?: string): string {
   const docsPath = path.join(getWorkspacePath(), task.docsPath);
+  const apiUrl = apiBaseUrl ?? '${FORMIC_API_URL}';
+  const taskId = task.id;
 
   return `${guidelines}
 Task: ${task.title}
@@ -266,9 +269,17 @@ IMPORTANT: Before implementing, read the task documentation at ${docsPath}/:
 
 Context: ${task.context}
 
-Follow the PLAN.md step by step. As you complete each subtask, update its status in subtasks.json to "completed".
+Follow the PLAN.md step by step. As you complete each subtask, update its status using the Formic API.
 
-IMPORTANT: For subtasks that require manual verification, interactive testing, or cannot be automated (e.g., "Test with different environment variables", "Verify manually", "Test in browser"), mark their status as "skipped" instead of leaving them pending. This indicates the subtask needs human verification during review.
+IMPORTANT: Do NOT edit subtasks.json directly. Use the Formic API to update subtask status:
+  curl -s -X PUT ${apiUrl}/api/tasks/${taskId}/subtasks/<SUBTASK_ID> \\
+    -H 'Content-Type: application/json' \\
+    -d '{"status": "completed"}'
+Valid status values: "pending", "in_progress", "completed", "skipped"
+The server validates the status — only these values are accepted.
+Environment variables FORMIC_API_URL and FORMIC_TASK_ID are available in your shell.
+
+IMPORTANT: For subtasks that require manual verification, interactive testing, or cannot be automated (e.g., "Test with different environment variables", "Verify manually", "Test in browser"), use the API to set their status to "skipped". This indicates the subtask needs human verification during review.
 
 All code changes MUST comply with the project development guidelines provided above.`;
 }
@@ -281,9 +292,12 @@ function buildIterativeExecutePrompt(
   task: Task,
   guidelines: string,
   iteration: number,
-  incompleteSubtasksInfo: string
+  incompleteSubtasksInfo: string,
+  apiBaseUrl?: string
 ): string {
   const docsPath = path.join(getWorkspacePath(), task.docsPath);
+  const apiUrl = apiBaseUrl ?? '${FORMIC_API_URL}';
+  const taskId = task.id;
 
   return `${guidelines}
 Task: ${task.title}
@@ -299,9 +313,17 @@ Task documentation is at ${docsPath}/:
 
 Context: ${task.context}
 
-Please continue working on the incomplete subtasks listed above. As you complete each one, update its status in subtasks.json to "completed".
+Please continue working on the incomplete subtasks listed above. As you complete each one, update its status using the Formic API.
 
-IMPORTANT: If a subtask requires manual verification, interactive testing, or cannot be automated (e.g., requires different environment variables, needs a running server, requires human verification), mark its status as "skipped" in subtasks.json. Do not leave them pending if you cannot complete them.
+IMPORTANT: Do NOT edit subtasks.json directly. Use the Formic API to update subtask status:
+  curl -s -X PUT ${apiUrl}/api/tasks/${taskId}/subtasks/<SUBTASK_ID> \\
+    -H 'Content-Type: application/json' \\
+    -d '{"status": "completed"}'
+Valid status values: "pending", "in_progress", "completed", "skipped"
+The server validates the status — only these values are accepted.
+Environment variables FORMIC_API_URL and FORMIC_TASK_ID are available in your shell.
+
+IMPORTANT: If a subtask requires manual verification, interactive testing, or cannot be automated (e.g., requires different environment variables, needs a running server, requires human verification), use the API to set its status to "skipped". Do not leave them pending if you cannot complete them.
 
 All code changes MUST comply with the project development guidelines provided above.`;
 }
@@ -652,14 +674,14 @@ async function executeWithIterativeLoop(
     let prompt: string;
     if (iteration === 1) {
       // First iteration uses standard execute prompt
-      prompt = buildExecutePrompt(task, guidelines);
+      prompt = buildExecutePrompt(task, guidelines, `http://localhost:${getBoundPort()}`);
     } else {
       // Subsequent iterations include feedback about incomplete subtasks
       const subtasks = await loadSubtasks(task.docsPath);
       const incompleteInfo = subtasks
         ? formatIncompleteSubtasksForPrompt(subtasks)
         : 'Unable to load subtasks.json - please check the file exists and is valid JSON.';
-      prompt = buildIterativeExecutePrompt(task, guidelines, iteration, incompleteInfo);
+      prompt = buildIterativeExecutePrompt(task, guidelines, iteration, incompleteInfo, `http://localhost:${getBoundPort()}`);
     }
 
     // Run this iteration
@@ -1570,7 +1592,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       }
       case 'execute': {
         const guidelines = await loadProjectGuidelines();
-        prompt = buildExecutePrompt(currentTask, guidelines);
+        prompt = buildExecutePrompt(currentTask, guidelines, `http://localhost:${getBoundPort()}`);
         status = 'running';
         break;
       }
