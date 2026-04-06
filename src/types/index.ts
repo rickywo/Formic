@@ -268,7 +268,7 @@ export interface TaskTypeDefinition {
   /** Optional icon identifier */
   icon?: string;
   /** Ordered workflow stages for this task type */
-  workflow: WorkflowStageDefinition[];
+  workflow: StageDescriptor[];
   /** Optional skill prompt content */
   skillPrompt?: string;
 }
@@ -289,18 +289,20 @@ export interface VerifierDefinition {
   id: string;
   /** Human-readable name */
   name: string;
+  /** Name of the plugin that registered this verifier */
+  pluginName: string;
   /** Optional description of what this verifier checks */
   description?: string;
-  /** Verification handler — returns pass/fail with optional message */
-  handler: (task: Task) => Promise<{ passed: boolean; message?: string }>;
+  /** Verification handler — receives task ID and docs path, returns pass/fail with message */
+  handler: (taskId: string, taskDocsPath: string) => Promise<{ passed: boolean; message: string }>;
 }
 
 /** Task read/write access and lifecycle event hooks */
 export interface TaskApi {
   getTask(id: string): Task | undefined;
   getAllTasks(): Task[];
-  createTask(title: string, context: string, options?: { priority?: string; type?: string }): Promise<Task>;
-  updateTask(id: string, updates: Partial<Task>): Promise<void>;
+  createTask(title: string, context: string, options?: { priority?: TaskPriority; type?: TaskType }): Promise<Task>;
+  updateTask(id: string, updates: Partial<Pick<Task, 'title' | 'context' | 'priority'>>): Promise<Task | null>;
   onTaskCreated(handler: (task: Task) => void): Unsubscribe;
   onTaskUpdated(handler: (task: Task) => void): Unsubscribe;
   onTaskCompleted(handler: (task: Task) => void): Unsubscribe;
@@ -310,6 +312,7 @@ export interface TaskApi {
 
 /** Skill and workflow registration API */
 export interface SkillApi {
+  register(stageName: string, content: string): void;
   registerTaskType(definition: TaskTypeDefinition): void;
   registerVerifier(verifier: VerifierDefinition): void;
   registerSkillOverride(stageName: string, content: string): void;
@@ -322,14 +325,59 @@ export interface SettingsApi {
   set<T = unknown>(key: string, value: T): void;
 }
 
+/** Plugin-scoped logger with prefixed output */
+export interface PluginLogger {
+  info(message: string, ...args: unknown[]): void;
+  warn(message: string, ...args: unknown[]): void;
+  error(message: string, ...args: unknown[]): void;
+}
+
+/** Event subscription and unsubscription API */
+export interface EventApi {
+  on(event: string, handler: (...args: unknown[]) => void): Unsubscribe;
+  off(event: string, handler: (...args: unknown[]) => void): void;
+}
+
+/** Definition for a sidebar panel extension */
+export interface SidebarPanelDefinition {
+  id: string;
+  title: string;
+  icon?: string;
+  mountPoint: string;
+}
+
+/** Definition for a toolbar action extension */
+export interface ToolbarActionDefinition {
+  id: string;
+  label: string;
+  icon?: string;
+  onClick: () => void;
+}
+
+/** Named UI extension slots */
+export type UISlot = 'sidebar' | 'toolbar' | 'card-badge' | 'detail-tab';
+
 /** @todo Slot-based UI extension API — future implementation */
-export interface UIApi {}
+export interface UIApi {
+  /** TODO: Register a sidebar panel extension */
+  registerSidebarPanel(panel: SidebarPanelDefinition): Unsubscribe;
+  /** TODO: Register a toolbar action extension */
+  registerToolbarAction(action: ToolbarActionDefinition): Unsubscribe;
+}
 
 /** @todo External service integration API — future implementation */
-export interface IntegrationApi {}
+export interface IntegrationApi {
+  /** TODO: Register an external integration */
+  register(name: string, config: Record<string, unknown>): void;
+}
 
 /** @todo Plugin memory / state persistence API — future implementation */
-export interface MemoryApi {}
+export interface MemoryApi {
+  /** TODO: Retrieve relevant memory entries by tags */
+  getRelevant(tags: string[]): Promise<MemoryEntry[]>;
+  /** TODO: Add a new memory entry */
+  add(entry: Omit<MemoryEntry, 'id' | 'created_at'>): Promise<MemoryEntry>;
+}
 
 /** Aggregated API surface exposed to plugins via onLoad */
 export interface FormicAPI {
@@ -339,6 +387,8 @@ export interface FormicAPI {
   settings: SettingsApi;
   integrations: IntegrationApi;
   memory: MemoryApi;
+  logger: PluginLogger;
+  events: EventApi;
 }
 
 /** Next-generation plugin contract */
@@ -347,8 +397,8 @@ export interface FormicPlugin {
   name: string;
   version: string;
   description?: string;
-  onLoad(api: FormicAPI): void | Promise<void>;
-  onUnload?(): void | Promise<void>;
+  onLoad(api: FormicAPI): Promise<void>;
+  onUnload(): Promise<void>;
 }
 
 // ==================== Long-Term Memory Types ====================
