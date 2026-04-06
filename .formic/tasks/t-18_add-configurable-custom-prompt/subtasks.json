@@ -1,0 +1,54 @@
+{
+  "version": "1.0",
+  "taskId": "t-18",
+  "title": "Add configurable custom prompt support to unit-test plugin",
+  "createdAt": "2026-04-06T01:49:17.913Z",
+  "updatedAt": "2026-04-06T01:49:17.913Z",
+  "subtasks": [
+    {
+      "id": "1",
+      "content": "Add `customPrompt` setting (type `string`, default `\"\"`, textarea) and `promptMode` setting (type `string`, default `\"append\"`, enum `[\"append\", \"replace\"]`) to `.formic/plugins/unit-test/manifest.json` under the existing `settings` object",
+      "status": "completed"
+    },
+    {
+      "id": "2",
+      "content": "Extend `loadFormicServices()` in `.formic/plugins/unit-test/server.js` to also dynamically import `configStore.js` (alongside `pipelineRegistry.js` and `skillReader.js`) and return it as part of the services object",
+      "status": "completed"
+    },
+    {
+      "id": "3",
+      "content": "Add a `resolvePrompt(configStore)` async helper function in `server.js` that: (1) reads `customPrompt` via `configStore.getPluginSetting('unit-test', 'customPrompt')`, (2) reads `promptMode` via `configStore.getPluginSetting('unit-test', 'promptMode')`, (3) returns the built-in `SKILL_CONTENT` when `customPrompt` is empty/undefined, (4) returns `SKILL_CONTENT + '\\n\\n' + customPrompt` for `append` mode, (5) returns only `customPrompt` for `replace` mode",
+      "status": "completed"
+    },
+    {
+      "id": "4",
+      "content": "Update the `unitTestPlugin(fastify)` function in `server.js` to call `resolvePrompt(configStore)` and pass the resolved content to `skill.registerSkillOverride('unit-test', resolvedContent, 'unit-test')` instead of the hardcoded `SKILL_CONTENT`",
+      "status": "completed"
+    },
+    {
+      "id": "5",
+      "content": "Verify edge case handling: (a) empty string `customPrompt` with `append` mode → uses default, (b) empty string `customPrompt` with `replace` mode → uses default, (c) non-empty `customPrompt` with `append` → concatenates, (d) non-empty `customPrompt` with `replace` → uses only custom, (e) undefined/missing settings → falls back to defaults",
+      "status": "completed"
+    },
+    {
+      "id": "6",
+      "content": "Ensure template variables `$TASK_TITLE`, `$TASK_ID`, and `$TASK_DOCS_PATH` are preserved in all output paths (they are resolved at runtime by the workflow engine, so the plugin must not pre-resolve them)",
+      "status": "completed"
+    },
+    {
+      "id": "7",
+      "content": "Add inline JSDoc comment on `resolvePrompt()` documenting the merge logic and supported template variables for future maintainers",
+      "status": "completed"
+    },
+    {
+      "id": "8",
+      "content": "Run `npm run build` and verify no TypeScript or lint errors are introduced by the changes",
+      "status": "completed"
+    },
+    {
+      "id": "9",
+      "content": "Manually verify the Settings UI renders `customPrompt` as a textarea and `promptMode` as a dropdown with `append` and `replace` options when the unit-test plugin settings panel is opened",
+      "status": "skipped"
+    }
+  ]
+}

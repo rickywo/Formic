@@ -1,0 +1,33 @@
+{
+  "name": "unit-test",
+  "version": "1.0.0",
+  "description": "Adds a unit-test pipeline stage after execute that generates comprehensive unit tests for code changes",
+  "author": "Formic Team",
+  "minFormicVersion": "0.7.0",
+  "permissions": ["workflow:extend", "tasks:read", "events:subscribe"],
+  "serverEntry": "server.js",
+  "settings": {
+    "testFramework": {
+      "type": "string",
+      "default": "auto",
+      "description": "Preferred test framework (auto, jest, vitest, mocha, pytest). Auto-detect from project config."
+    },
+    "coverageThreshold": {
+      "type": "number",
+      "default": 80,
+      "description": "Minimum code coverage percentage target for generated tests"
+    },
+    "customPrompt": {
+      "type": "string",
+      "default": "",
+      "description": "Custom prompt or additional instructions for the unit-test skill. Supports template variables: $TASK_TITLE, $TASK_ID, $TASK_DOCS_PATH. Leave empty to use the built-in prompt.",
+      "textarea": true
+    },
+    "promptMode": {
+      "type": "string",
+      "default": "append",
+      "enum": ["append", "replace"],
+      "description": "How to apply the custom prompt: 'append' adds it after the default prompt, 'replace' uses it instead of the default prompt."
+    }
+  }
+}
