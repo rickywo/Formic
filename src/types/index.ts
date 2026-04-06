@@ -966,3 +966,59 @@ export interface LineImageMessage {
   /** URL of the preview image (max 1MB) */
   previewImageUrl: string;
 }
+
+// ==================== Plugin Marketplace Types ====================
+
+/** A single entry from the community plugin registry */
+export interface RegistryEntry {
+  /** Unique plugin identifier, e.g. 'com.acme.gantt-view' */
+  id: string;
+  /** Human-readable plugin name */
+  name: string;
+  /** Short description of the plugin */
+  description: string;
+  /** Plugin author name or organisation */
+  author: string;
+  /** npm package name, e.g. '@acme/formic-gantt-view' */
+  npm: string;
+  /** Latest published version available in the registry */
+  version: string;
+  /** Searchable tags for categorisation */
+  tags: string[];
+  /** Whether the plugin has been verified by the Formic team */
+  verified: boolean;
+}
+
+/** Query parameters for filtering the plugin registry */
+export interface MarketplaceFilter {
+  /** Free-text search against name and description */
+  query?: string;
+  /** Restrict results to entries that match all provided tags */
+  tags?: string[];
+  /** When true, return only verified plugins */
+  verified?: boolean;
+  /** 1-based page number for pagination */
+  page?: number;
+  /** Number of results per page */
+  pageSize?: number;
+}
+
+/** Represents an available update for an installed plugin */
+export interface MarketplaceUpdate {
+  /** Local plugin identifier (matches installed plugin name) */
+  pluginId: string;
+  /** Currently installed version */
+  installedVersion: string;
+  /** Latest version available in the registry */
+  latestVersion: string;
+  /** Full registry listing for the updated plugin */
+  registryEntry: RegistryEntry;
+}
+
+/** Request body for installing a plugin from the marketplace */
+export interface MarketplaceInstallRequest {
+  /** RegistryEntry.id of the plugin to install */
+  id: string;
+  /** When true, user has confirmed the unverified-plugin warning */
+  confirmed?: boolean;
+}
