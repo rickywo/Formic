@@ -324,7 +324,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
 
   board.tasks.push(task);
   await saveBoard(board);
-  internalEvents.emit(TASK_CREATED, { task });
+  internalEvents.emit(TASK_CREATED, { task: structuredClone(task) });
   return task;
 }
 
@@ -351,11 +351,11 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
 
   await saveBoard(board);
 
-  internalEvents.emit(TASK_UPDATED, { task: board.tasks[taskIndex] });
+  internalEvents.emit(TASK_UPDATED, { task: structuredClone(board.tasks[taskIndex]) });
 
   // Emit STAGE_CHANGED when status changed via updateTask (e.g., user-approval path)
   if (input.status && input.status !== previousStatus) {
-    internalEvents.emit(STAGE_CHANGED, { task: board.tasks[taskIndex], fromStage: previousStatus, toStage: input.status });
+    internalEvents.emit(STAGE_CHANGED, { task: structuredClone(board.tasks[taskIndex]), fromStage: previousStatus, toStage: input.status });
   }
 
   // Post-transition hook: unblock sibling tasks when status transitions to 'review' or 'done'.
@@ -479,10 +479,10 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
 
   await saveBoard(board);
 
-  internalEvents.emit(TASK_UPDATED, { task: board.tasks[taskIndex], previousStatus });
+  internalEvents.emit(TASK_UPDATED, { task: structuredClone(board.tasks[taskIndex]), previousStatus });
 
   if (previousStatus !== status) {
-    internalEvents.emit(STAGE_CHANGED, { task: board.tasks[taskIndex], fromStage: previousStatus, toStage: status });
+    internalEvents.emit(STAGE_CHANGED, { task: structuredClone(board.tasks[taskIndex]), fromStage: previousStatus, toStage: status });
   }
 
   // Structured status transition log
@@ -558,7 +558,7 @@ export async function queueTask(taskId: string): Promise<Task | null> {
   };
 
   await saveBoard(board);
-  internalEvents.emit(TASK_QUEUED, { task: board.tasks[taskIndex], previousStatus: task.status });
+  internalEvents.emit(TASK_QUEUED, { task: structuredClone(board.tasks[taskIndex]), previousStatus: task.status });
   return board.tasks[taskIndex];
 }
 

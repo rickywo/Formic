@@ -1372,7 +1372,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
       await updateWorkflowStep(taskId, 'complete');
       await updateTaskStatus(taskId, 'review', null, 'workflow.executeQuickTask.success');
       broadcastTaskCompleted(taskId);
-      internalEvents.emit(TASK_COMPLETED, taskId);
+      { const completedTask = await getTask(taskId); internalEvents.emit(TASK_COMPLETED, { task: completedTask ? structuredClone(completedTask) : { id: taskId } }); }
       void runReflectionStep(taskId);
       void triggerToolForge(taskId);
       broadcastToTask(taskId, {
@@ -1469,7 +1469,7 @@ export async function executeSingleStep(
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.all_complete');
           broadcastTaskCompleted(taskId);
-          internalEvents.emit(TASK_COMPLETED, taskId);
+          { const completedTask = await getTask(taskId); internalEvents.emit(TASK_COMPLETED, { task: completedTask ? structuredClone(completedTask) : { id: taskId } }); }
           void runReflectionStep(taskId);
           void triggerToolForge(taskId);
         } else if (result.success && !result.allComplete) {
@@ -1478,7 +1478,7 @@ export async function executeSingleStep(
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.max_iterations');
           broadcastTaskCompleted(taskId);
-          internalEvents.emit(TASK_COMPLETED, taskId);
+          { const completedTask = await getTask(taskId); internalEvents.emit(TASK_COMPLETED, { task: completedTask ? structuredClone(completedTask) : { id: taskId } }); }
           void runReflectionStep(taskId);
           void triggerToolForge(taskId);
         } else {
@@ -1755,7 +1755,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
               return;
             }
 
-            internalEvents.emit(BEFORE_EXECUTE, { taskId, task: currentTask });
+            internalEvents.emit(BEFORE_EXECUTE, { taskId, task: structuredClone(currentTask) });
             await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeFullWorkflow.execute_start');
             await updateWorkflowStep(taskId, 'execute');
 
@@ -1777,8 +1777,8 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
             }
 
             if (!executeResult.success) {
-              internalEvents.emit(AFTER_EXECUTE, { taskId, task: currentTask, success: false });
-              internalEvents.emit(TASK_FAILED, { taskId, task: currentTask, error: 'Full workflow execution failed' });
+              internalEvents.emit(AFTER_EXECUTE, { taskId, task: structuredClone(currentTask), success: false });
+              internalEvents.emit(TASK_FAILED, { taskId, task: structuredClone(currentTask), error: 'Full workflow execution failed' });
               const latestTask = await getTask(taskId);
               if (latestTask && latestTask.status === 'running') {
                 await incrementRetryCount(taskId, 'workflow.executeFullWorkflow.execute_failed');
@@ -1789,7 +1789,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
               return;
             }
 
-            internalEvents.emit(AFTER_EXECUTE, { taskId, task: currentTask, success: true });
+            internalEvents.emit(AFTER_EXECUTE, { taskId, task: structuredClone(currentTask), success: true });
             break;
           }
 
@@ -1827,7 +1827,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       await updateWorkflowStep(taskId, 'complete');
       await updateTaskStatus(taskId, 'review', null, 'workflow.executeFullWorkflow.verified');
       broadcastTaskCompleted(taskId);
-      internalEvents.emit(TASK_COMPLETED, taskId);
+      { const completedTask = await getTask(taskId); internalEvents.emit(TASK_COMPLETED, { task: completedTask ? structuredClone(completedTask) : { id: taskId } }); }
       void runReflectionStep(taskId);
       void triggerToolForge(taskId);
     } finally {
@@ -1924,7 +1924,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
       }
 
       try {
-        internalEvents.emit(BEFORE_EXECUTE, { taskId, task: taskForExecution });
+        internalEvents.emit(BEFORE_EXECUTE, { taskId, task: structuredClone(taskForExecution) });
         await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeFromDeclare.execute_start');
         await updateWorkflowStep(taskId, 'execute');
 
@@ -1945,7 +1945,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
         }
 
         if (executeResult.success) {
-          internalEvents.emit(AFTER_EXECUTE, { taskId, task: taskForExecution, success: true });
+          internalEvents.emit(AFTER_EXECUTE, { taskId, task: structuredClone(taskForExecution), success: true });
           const latestTask = await getTask(taskId);
           if (latestTask && latestTask.status === 'running') {
             const verifyResult = await executeVerifyStep(taskId);
@@ -1955,7 +1955,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
               await updateWorkflowStep(taskId, 'complete');
               await updateTaskStatus(taskId, 'review', null, 'workflow.executeFromDeclare.verified');
               broadcastTaskCompleted(taskId);
-              internalEvents.emit(TASK_COMPLETED, taskId);
+              { const completedTask = await getTask(taskId); internalEvents.emit(TASK_COMPLETED, { task: completedTask ? structuredClone(completedTask) : { id: taskId } }); }
               void runReflectionStep(taskId);
               void triggerToolForge(taskId);
             }
@@ -1963,8 +1963,8 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
             console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
           }
         } else {
-          internalEvents.emit(AFTER_EXECUTE, { taskId, task: taskForExecution, success: false });
-          internalEvents.emit(TASK_FAILED, { taskId, task: taskForExecution, error: 'Execution failed after declare' });
+          internalEvents.emit(AFTER_EXECUTE, { taskId, task: structuredClone(taskForExecution), success: false });
+          internalEvents.emit(TASK_FAILED, { taskId, task: structuredClone(taskForExecution), error: 'Execution failed after declare' });
           const latestTask = await getTask(taskId);
           if (latestTask && latestTask.status === 'running') {
             await incrementRetryCount(taskId, 'workflow.executeFromDeclare.execute_failed');
@@ -2190,7 +2190,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
                 await updateWorkflowStep(taskId, 'complete');
                 await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.no_output');
                 broadcastTaskCompleted(taskId);
-                internalEvents.emit(TASK_COMPLETED, taskId);
+                { const completedTask = await getTask(taskId); internalEvents.emit(TASK_COMPLETED, { task: completedTask ? structuredClone(completedTask) : { id: taskId } }); }
                 void runReflectionStep(taskId);
                 void triggerToolForge(taskId);
                 broadcastBoardUpdate();
@@ -2324,7 +2324,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
                 await updateWorkflowStep(taskId, 'complete');
                 await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.dag_complete');
                 broadcastTaskCompleted(taskId);
-                internalEvents.emit(TASK_COMPLETED, taskId);
+                { const completedTask = await getTask(taskId); internalEvents.emit(TASK_COMPLETED, { task: completedTask ? structuredClone(completedTask) : { id: taskId } }); }
                 void runReflectionStep(taskId);
                 void triggerToolForge(taskId);
 
@@ -2348,7 +2348,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
                 await updateWorkflowStep(taskId, 'complete');
                 await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.flat_complete');
                 broadcastTaskCompleted(taskId);
-                internalEvents.emit(TASK_COMPLETED, taskId);
+                { const completedTask = await getTask(taskId); internalEvents.emit(TASK_COMPLETED, { task: completedTask ? structuredClone(completedTask) : { id: taskId } }); }
                 void runReflectionStep(taskId);
                 void triggerToolForge(taskId);
 
@@ -2374,7 +2374,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
               await updateWorkflowStep(taskId, 'complete');
               await updateTaskStatus(taskId, 'review', null, 'workflow.runArchitectStep.parse_error');
               broadcastTaskCompleted(taskId);
-              internalEvents.emit(TASK_COMPLETED, taskId);
+              { const completedTask = await getTask(taskId); internalEvents.emit(TASK_COMPLETED, { task: completedTask ? structuredClone(completedTask) : { id: taskId } }); }
               void runReflectionStep(taskId);
               void triggerToolForge(taskId);
               broadcastBoardUpdate();
