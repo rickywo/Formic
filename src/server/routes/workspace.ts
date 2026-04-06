@@ -79,7 +79,7 @@ function calculateTaskCounts(tasks: Array<{ status: TaskStatus }>): TaskCounts {
 
   for (const task of tasks) {
     if (task.status in counts) {
-      counts[task.status]++;
+      counts[task.status as keyof TaskCounts]++;
     }
   }
 

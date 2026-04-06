@@ -1,6 +1,6 @@
-export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'declaring' | 'running' | 'architecting' | 'verifying' | 'review' | 'done' | 'blocked';
+export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'declaring' | 'running' | 'architecting' | 'verifying' | 'review' | 'done' | 'blocked' | (string & {});
 export type TaskPriority = 'low' | 'medium' | 'high';
-export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' | 'verify' | 'architect' | 'complete';
+export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' | 'verify' | 'architect' | 'complete' | (string & {});
 export type TaskType = 'standard' | 'quick' | 'goal';
 
 export interface WorkflowLogs {
@@ -9,6 +9,7 @@ export interface WorkflowLogs {
   execute?: string | string[];
   verify?: string | string[];
   architect?: string | string[];
+  [key: string]: string | string[] | undefined;
 }
 
 // ==================== Lease-Based Concurrency Types ====================
@@ -98,7 +99,9 @@ export type PluginPermission =
   | 'fs:workspace'
   | 'process:info'
   | 'events:subscribe'
-  | 'ui:panel';
+  | 'ui:panel'
+  | 'workflow:extend'
+  | 'skills:override';
 
 /** Error thrown when a plugin attempts an action it lacks permission for */
 export class PluginPermissionError extends Error {
@@ -180,6 +183,59 @@ export interface PluginEntry {
   loadedModule?: unknown;
   /** Absolute path to the plugin directory */
   pluginDir: string;
+}
+
+// ==================== Configurable Pipeline Types ====================
+
+/** Describes a single pipeline stage in the workflow */
+export interface StageDescriptor {
+  /** Unique stage identifier (e.g., 'brief', 'plan', 'lint') */
+  name: string;
+  /** Human-readable label for board UI */
+  displayName: string;
+  /** Skill to load (maps to skills/{skillName}/SKILL.md or plugin-provided content) */
+  skillName: string;
+  /** The TaskStatus value to set when this stage is active */
+  taskStatus: string;
+  /** The WorkflowStep value for this stage */
+  workflowStep: string;
+  /** Whether this stage is core or plugin-contributed */
+  source: 'builtin' | 'plugin';
+  /** Which plugin registered this stage (if source is 'plugin') */
+  pluginName?: string;
+  /** Position in the pipeline sequence */
+  order: number;
+  /** Optional custom handler identifier */
+  handler?: string;
+}
+
+/** Input type for plugins registering a custom stage */
+export interface StageRegistration {
+  /** Unique stage name */
+  name: string;
+  /** Human-readable label */
+  displayName: string;
+  /** Insert after this existing stage name */
+  after: string;
+  /** Inline skill prompt content */
+  skillContent?: string;
+  /** Path to skill file */
+  skillPath?: string;
+  /** Custom execution handler */
+  handler?: (taskId: string) => Promise<void>;
+}
+
+/** Ordered array of StageDescriptor objects representing the full pipeline */
+export type WorkflowPipeline = StageDescriptor[];
+
+/** Plugin skill override registration */
+export interface SkillOverride {
+  /** Stage name to override */
+  stageName: string;
+  /** Override skill content */
+  content: string;
+  /** Plugin that registered this override */
+  pluginName: string;
 }
 
 /** Persisted plugin configuration (enabled state + user settings) */
