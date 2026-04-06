@@ -190,10 +190,23 @@ The server will automatically detect this format and create the task via the For
 ## Current Board State
 
 **Project:** Formic
-**Repository:** /Users/rickywo/WebstormProjects/Formic
+**Repository:** /Users/WTHX38/WebstormProjects/Formic
+
+### Todo
+  - [t-2] Build Activity Monitor Plugin for Formic
+
+### Running
+  - [t-6] Implement client-side plugin mount system in vanilla JS
 
 ### Review
-  - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
+  - [t-1] !Implement Obsidian-style Plugin System for Formic
+  - [t-3] !Create plugin manifest validator and loader service
+  - [t-4] !Implement plugin hook system and PluginContext API
+  - [t-5] Create plugin management REST API routes
+  - [t-7] Add CLI subcommands for plugin management
+
+### Done
+  - [t-bootstrap] !Setup AI Development Guidelines
 
 ## Formic Workflow
 
