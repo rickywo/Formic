@@ -43,5 +43,8 @@ export const SERVER_STARTUP = 'server-startup';
 /** Event name emitted on graceful shutdown */
 export const SERVER_SHUTDOWN = 'server-shutdown';
 
+/** Event name emitted when a plugin stage is registered in the pipeline */
+export const STAGE_REGISTERED = 'stage-registered';
+
 /** Shared internal event emitter instance */
 export const internalEvents = new EventEmitter();

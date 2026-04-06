@@ -1,9 +1,0 @@
-{
-  "name": "broken-test",
-  "version": "1.0.0",
-  "description": "Deliberately broken plugin for testing error isolation",
-  "author": "Formic Team",
-  "minFormicVersion": "0.7.0",
-  "permissions": ["tasks:read"],
-  "serverEntry": "server.js"
-}
