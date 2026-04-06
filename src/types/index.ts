@@ -1,7 +1,7 @@
 export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'declaring' | 'running' | 'architecting' | 'verifying' | 'review' | 'done' | 'blocked' | (string & {});
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' | 'verify' | 'architect' | 'complete' | (string & {});
-export type TaskType = 'standard' | 'quick' | 'goal';
+export type TaskType = 'standard' | 'quick' | 'goal' | (string & {});
 
 export interface WorkflowLogs {
   brief?: string | string[];
@@ -116,7 +116,10 @@ export class PluginPermissionError extends Error {
   }
 }
 
-/** Sandboxed context object provided to plugins */
+/**
+ * Sandboxed context object provided to plugins.
+ * @deprecated Use FormicAPI instead. PluginContext will be removed in a future version.
+ */
 export interface PluginContext {
   board: {
     getTasks(): Promise<Task[]>;

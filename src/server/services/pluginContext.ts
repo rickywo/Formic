@@ -46,7 +46,7 @@ import {
 import {
   registerStage,
   getRegisteredStages,
-  registerTaskType as pipelineRegisterTaskType,
+  registerCustomTaskType as pipelineRegisterTaskType,
   unregisterTaskTypes,
   unregisterStages,
 } from './pipelineRegistry.js';
@@ -90,7 +90,9 @@ function requirePermission(pluginName: string, manifest: PluginManifest, permiss
 /**
  * Create a sandboxed PluginContext for the given plugin.
  * Methods are permission-gated based on the plugin's manifest.
+ * @deprecated Use createFormicAPI() instead. This function will be removed in a future version.
  */
+// Use FormicAPI via createFormicAPI() instead
 export function createPluginContext(pluginName: string, manifest: PluginManifest): PluginContext {
   // Logger is always available regardless of permissions
   const logger = {
@@ -586,4 +588,105 @@ export async function createFormicAPI(
       unregisterTaskTypes(pluginName);
     },
   };
+}
+
+/**
+ * Adapter that wraps a legacy flat PluginContext into the hierarchical FormicAPI shape.
+ * Enables legacy plugins to interoperate with code expecting a FormicAPI.
+ *
+ * Note: TaskApi lifecycle hooks (onTaskCreated, etc.) are not available via PluginContext
+ * and return no-op unsubscribe functions. SkillApi.registerTaskType and registerVerifier
+ * are also unavailable and log a warning when called.
+ */
+export function pluginContextToFormicAPI(ctx: PluginContext): FormicAPI {
+  const logger: PluginLogger = {
+    info(message: string, ...args: unknown[]): void {
+      ctx.logger.info(message, ...args);
+    },
+    warn(message: string, ...args: unknown[]): void {
+      ctx.logger.warn(message, ...args);
+    },
+    error(message: string, ...args: unknown[]): void {
+      ctx.logger.error(message, ...args);
+    },
+  };
+
+  const tasks: TaskApi = {
+    async getTask(id: string): Promise<Task | null> {
+      return ctx.board.getTask(id);
+    },
+    async getAllTasks(): Promise<Task[]> {
+      return ctx.board.getTasks();
+    },
+    async createTask(data: CreateTaskInput): Promise<Task> {
+      return ctx.tasks.create(data);
+    },
+    async updateTask(id: string, data: Partial<Task>): Promise<Task> {
+      return ctx.tasks.update(id, data);
+    },
+    onTaskCreated(_handler: (task: Task) => void): Unsubscribe {
+      logger.warn('onTaskCreated() is not available via the legacy PluginContext adapter');
+      return () => {};
+    },
+    onTaskUpdated(_handler: (task: Task) => void): Unsubscribe {
+      logger.warn('onTaskUpdated() is not available via the legacy PluginContext adapter');
+      return () => {};
+    },
+    onTaskCompleted(_handler: (task: Task) => void): Unsubscribe {
+      logger.warn('onTaskCompleted() is not available via the legacy PluginContext adapter');
+      return () => {};
+    },
+    onTaskFailed(_handler: (task: Task, error: string) => void): Unsubscribe {
+      logger.warn('onTaskFailed() is not available via the legacy PluginContext adapter');
+      return () => {};
+    },
+    onStageChanged(_handler: (task: Task, fromStage: string, toStage: string) => void): Unsubscribe {
+      logger.warn('onStageChanged() is not available via the legacy PluginContext adapter');
+      return () => {};
+    },
+  };
+
+  const skills: SkillApi = {
+    async register(stageName: string, content: string): Promise<void> {
+      return ctx.skills.register(stageName, content);
+    },
+    registerSkillOverride(stageName: string, content: string): void {
+      void ctx.skills.register(stageName, content);
+    },
+    async getAvailable(): Promise<string[]> {
+      return ctx.skills.getAvailable();
+    },
+    registerTaskType(_definition: TaskTypeDefinition): void {
+      logger.warn('registerTaskType() is not available via the legacy PluginContext adapter');
+    },
+    registerVerifier(_verifier: VerifierDefinition): void {
+      logger.warn('registerVerifier() is not available via the legacy PluginContext adapter');
+    },
+  };
+
+  const settings: SettingsApi = {
+    async get<T = unknown>(key: string, defaultValue?: T): Promise<T | undefined> {
+      const val = await ctx.config.get(key);
+      return val !== undefined ? val as T : defaultValue;
+    },
+    async set<T = unknown>(key: string, value: T): Promise<void> {
+      return ctx.config.set(key, value);
+    },
+  };
+
+  const events: EventApi = {
+    on(event: string, handler: (...args: unknown[]) => void): Unsubscribe {
+      ctx.events.on(event, handler);
+      return () => ctx.events.off(event, handler);
+    },
+    off(event: string, handler: (...args: unknown[]) => void): void {
+      ctx.events.off(event, handler);
+    },
+  };
+
+  const ui: UIApi = buildUIApi(logger);
+  const integrations: IntegrationApi = buildIntegrationApi(logger);
+  const memory: MemoryApi = buildMemoryApi(logger);
+
+  return { tasks, skills, settings, events, logger, ui, integrations, memory };
 }

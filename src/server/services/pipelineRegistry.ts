@@ -8,6 +8,12 @@
 
 import type { StageDescriptor, StageRegistration, WorkflowPipeline, TaskType, TaskTypeDefinition } from '../../types/index.js';
 import { internalEvents, STAGE_REGISTERED, TASK_TYPE_REGISTERED } from './internalEvents.js';
+export {
+  registerVerifier,
+  unregisterVerifiers,
+  getRegisteredVerifiers,
+  runVerifiers,
+} from './skillReader.js';
 
 // ==================== Default Pipeline Definitions ====================
 
@@ -245,6 +251,12 @@ export function unregisterTaskTypes(pluginName: string): number {
   }
   return count;
 }
+
+/** Canonical alias for registerTaskType, as specified in the requirements. */
+export const registerCustomTaskType = registerTaskType;
+
+/** Canonical alias for unregisterTaskTypes, as specified in the requirements. */
+export const unregisterCustomTaskTypes = unregisterTaskTypes;
 
 /**
  * Returns all registered custom task types.

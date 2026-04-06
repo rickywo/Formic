@@ -4,8 +4,8 @@ import type { PluginManifest, PluginEntry, PluginPermission, FormicPlugin } from
 import { getFormicDir } from '../utils/paths.js';
 import { getPluginConfig, setPluginConfig } from './configStore.js';
 import { createFormicAPI, cleanupPluginListeners } from './pluginContext.js';
-import { unregisterStages, unregisterTaskTypes } from './pipelineRegistry.js';
-import { unregisterSkillOverrides, unregisterVerifiers } from './skillReader.js';
+import { unregisterStages, unregisterCustomTaskTypes, unregisterVerifiers } from './pipelineRegistry.js';
+import { unregisterSkillOverrides } from './skillReader.js';
 import { internalEvents, STAGE_UNREGISTERED, BOARD_UPDATE } from './internalEvents.js';
 
 /**
@@ -512,7 +512,7 @@ export async function unloadPlugin(name: string): Promise<void> {
 
     // Clean up custom task types registered by this plugin
     try {
-      const removedTypes = unregisterTaskTypes(name);
+      const removedTypes = unregisterCustomTaskTypes(name);
       if (removedTypes > 0) {
         console.warn(`[PluginManager] Removed ${removedTypes} custom task type(s) for plugin: ${name}`);
       }

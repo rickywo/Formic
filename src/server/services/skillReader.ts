@@ -53,6 +53,9 @@ export function getVerifiers(): VerifierDefinition[] {
   return [...verifierRegistry.values()].map(({ registeredByPlugin: _reg, ...def }) => def);
 }
 
+/** Canonical alias for getVerifiers, as specified in the SkillApi requirements. */
+export const getRegisteredVerifiers = getVerifiers;
+
 /**
  * Execute all registered verifiers against the given task ID.
  * Errors are caught per-verifier so one failure doesn't block others.
