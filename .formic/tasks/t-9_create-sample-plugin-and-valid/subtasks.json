@@ -1,0 +1,69 @@
+{
+  "version": "1.0",
+  "taskId": "t-9",
+  "title": "Create sample plugin and validate end-to-end plugin system",
+  "createdAt": "2026-04-06T00:27:05.411Z",
+  "updatedAt": "2026-04-06T00:30:00.000Z",
+  "subtasks": [
+    {
+      "id": "1",
+      "content": "Create `.formic/plugins/hello-world/manifest.json` with name `hello-world`, version `1.0.0`, description, permissions (`tasks:read`, `events:subscribe`, `config:read`, `ui:panel`), serverEntry `server.js`, clientEntry `client.js`, and settings schema (`greeting` as string with default `Hello from Formic!`, `showTaskCount` as boolean with default `true`)",
+      "status": "completed"
+    },
+    {
+      "id": "2",
+      "content": "Create `.formic/plugins/hello-world/server.js` as an ESM module exporting a default Fastify plugin function. Register `GET /hello` route (scoped under `/api/plugins/hello-world/` by pluginManager) that reads the `greeting` setting via PluginContext config API and returns `{ greeting, timestamp }`. Subscribe to internal events via `ctx.events.on()` and log task creation events using `ctx.logger`.",
+      "status": "completed"
+    },
+    {
+      "id": "3",
+      "content": "Create `.formic/plugins/hello-world/client.js` using the IIFE pattern for classic `<script>` loading. Call `window.FormicPluginAPI.addPanel('right-sidebar', { id: 'hello-world-panel', title: 'Hello World', render })` to mount a UI panel. The render function should display the configurable greeting, show a live task count from `FormicPluginAPI.getState()`, and subscribe to `board-updated` events via `FormicPluginAPI.onEvent()` to update the count in real time. Style using Tailwind utility classes consistent with Formic's dark theme.",
+      "status": "completed"
+    },
+    {
+      "id": "4",
+      "content": "Create `.formic/plugins/hello-world/README.md` documenting the plugin's purpose, features (server route, client panel, event subscription, configurable settings), directory structure, and usage instructions for plugin authors to use as a reference template.",
+      "status": "completed"
+    },
+    {
+      "id": "5",
+      "content": "Create `.formic/plugins/broken-test/manifest.json` with name `broken-test`, version `1.0.0`, description indicating it is a deliberate error-testing plugin, serverEntry `server.js`, and minimal permissions (`tasks:read`).",
+      "status": "completed"
+    },
+    {
+      "id": "6",
+      "content": "Create `.formic/plugins/broken-test/server.js` as an ESM module whose default export function deliberately throws an Error (`throw new Error('Intentional plugin error for testing')`) during Fastify plugin registration. This exercises the pluginManager error-isolation path and must result in `status: 'error'` without crashing the server.",
+      "status": "completed"
+    },
+    {
+      "id": "7",
+      "content": "Create `docs/plugins.md` — a comprehensive plugin development guide covering: (1) Plugin directory structure and file conventions, (2) manifest.json schema with all fields and allowed permissions, (3) Server-side PluginContext API reference (board, tasks, config, events, logger, http, process), (4) Client-side FormicPluginAPI reference (addPanel, addBoardWidget, addMenuItem, onEvent, getState, getTheme, utils), (5) Permission model and enforcement, (6) Step-by-step hello-world walkthrough with code excerpts from the sample plugin.",
+      "status": "completed"
+    },
+    {
+      "id": "8",
+      "content": "Verify the Formic server starts without errors with both plugins present in `.formic/plugins/`. Confirm no startup crashes and that core functionality (board, tasks, assistant, workflow) remains fully operational.",
+      "status": "skipped"
+    },
+    {
+      "id": "9",
+      "content": "Verify `GET /api/plugins` returns both plugins: `hello-world` with `status: 'enabled'` (or `loaded`) and `enabled: true`, and `broken-test` with `status: 'error'` and a non-null `error` field describing the intentional failure.",
+      "status": "skipped"
+    },
+    {
+      "id": "10",
+      "content": "Verify `GET /api/plugins/hello-world/hello` returns a JSON response with the configured greeting string and a timestamp, confirming the scoped server route registered correctly via PluginContext.",
+      "status": "skipped"
+    },
+    {
+      "id": "11",
+      "content": "Verify `GET /api/plugins/hello-world/settings` returns settings with manifest defaults (`greeting: 'Hello from Formic!'`, `showTaskCount: true`) and that `PUT /api/plugins/hello-world/settings` successfully updates and persists a new greeting value.",
+      "status": "skipped"
+    },
+    {
+      "id": "12",
+      "content": "Run `npx tsc --noEmit` to confirm no TypeScript compilation errors were introduced. Run `npm run build` to verify the production build succeeds cleanly.",
+      "status": "completed"
+    }
+  ]
+}

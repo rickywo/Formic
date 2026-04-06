@@ -1,0 +1,14 @@
+{
+  "name": "hello-world",
+  "version": "1.0.0",
+  "description": "A sample plugin demonstrating the Formic plugin system",
+  "author": "Formic Team",
+  "minFormicVersion": "0.7.0",
+  "permissions": ["tasks:read", "events:subscribe", "ui:panel", "config:read"],
+  "serverEntry": "server.js",
+  "clientEntry": "client.js",
+  "settings": {
+    "greeting": { "type": "string", "default": "Hello from Formic!", "description": "Custom greeting text" },
+    "showTaskCount": { "type": "boolean", "default": true, "description": "Show task count in panel" }
+  }
+}
