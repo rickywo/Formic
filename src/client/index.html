@@ -437,6 +437,12 @@
       border: 1px solid rgba(124, 58, 237, 0.15);
     }
 
+    [data-theme="light"] .status-unit-testing {
+      background: rgba(124, 58, 237, 0.1);
+      color: #6d28d9;
+      border: 1px solid rgba(124, 58, 237, 0.15);
+    }
+
     [data-theme="light"] .task-type-option label {
       background: rgba(0, 0, 0, 0.03);
       border-color: rgba(0, 0, 0, 0.08);
@@ -3154,6 +3160,12 @@
     }
 
     .status-verifying {
+      background-color: rgba(167, 139, 250, 0.2);
+      color: #a78bfa;
+      border: 1px solid rgba(167, 139, 250, 0.1);
+    }
+
+    .status-unit-testing {
       background-color: rgba(167, 139, 250, 0.2);
       color: #a78bfa;
       border: 1px solid rgba(167, 139, 250, 0.1);
@@ -9408,6 +9420,28 @@
       return stages && stages.some(s => s.source === 'plugin');
     }
 
+    /**
+     * Returns dynamic workflow steps from cached pipelineStages for standard tasks.
+     * Falls back to classic ['brief', 'plan', 'execute'] when no plugin stages exist.
+     */
+    function getWorkflowStepsFromPipeline(stages) {
+      if (!stages || !hasPluginStages(stages)) {
+        return [
+          { name: 'brief', displayName: 'Brief' },
+          { name: 'plan', displayName: 'Plan' },
+          { name: 'execute', displayName: 'Execute' },
+        ];
+      }
+      // Filter to workflow-relevant stages: builtin brief/plan/execute + all plugin stages
+      // Exclude builtin verify (it runs silently, not shown as a workflow step on cards)
+      return stages
+        .filter(s => {
+          if (s.source === 'plugin') return true;
+          return ['brief', 'plan', 'execute'].includes(s.workflowStep || s.name);
+        })
+        .map(s => ({ name: s.workflowStep || s.name, displayName: s.displayName || s.name }));
+    }
+
     // Column descriptor metadata for meta-columns (non-pipeline)
     const META_COLUMNS = {
       todo: { id: 'todo', displayName: 'Todo', subtitle: 'Add tasks, then queue them for execution', source: 'builtin' },
@@ -9758,8 +9792,8 @@
             : escapeHtml(task.context);
 
           // Build workflow step indicator for active workflow tasks
-          const workflowSteps = ['brief', 'plan', 'execute'];
-          const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
+          const workflowSteps = getWorkflowStepsFromPipeline(pipelineStages);
+          const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'unit-testing';
           const workflowStep = task.workflowStep || 'pending';
           const isQuickTask = task.type === 'quick';
           const isGoalTask = task.type === 'goal';
@@ -9783,25 +9817,22 @@
               </div>
             `;
           } else if (!isQuickTask && !isGoalTask && (isWorkflowActive || (workflowStep !== 'pending' && workflowStep !== 'complete'))) {
-            // Standard tasks show all 3 steps
+            // Standard tasks show all pipeline steps dynamically
             // When task is in todo (not actively running), show steps as completed (muted) instead of active
+            const stepNames = workflowSteps.map(s => s.name);
             const stepClasses = workflowSteps.map(step => {
               if (!isWorkflowActive) {
-                // Task is not actively running (e.g., todo with preserved workflowStep)
-                // Show all steps up to and including the current workflowStep as completed (muted)
-                if (workflowSteps.indexOf(step) <= workflowSteps.indexOf(workflowStep)) return 'completed';
+                if (stepNames.indexOf(step.name) <= stepNames.indexOf(workflowStep)) return 'completed';
                 return '';
               }
-              if (workflowStep === step) return 'active';
-              if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep)) return 'completed';
+              if (workflowStep === step.name) return 'active';
+              if (stepNames.indexOf(step.name) < stepNames.indexOf(workflowStep)) return 'completed';
               if (workflowStep === 'complete') return 'completed';
               return '';
             });
             workflowIndicator = `
               <div class="workflow-indicator">
-                <span class="workflow-step ${stepClasses[0]}">Brief</span>
-                <span class="workflow-step ${stepClasses[1]}">Plan</span>
-                <span class="workflow-step ${stepClasses[2]}">Execute</span>
+                ${workflowSteps.map((step, i) => `<span class="workflow-step ${stepClasses[i]}">${escapeHtml(step.displayName)}</span>`).join('\n                ')}
               </div>
             `;
           }
@@ -9818,10 +9849,12 @@
             statusBadge = '<span class="status-badge status-architecting">Architecting</span>';
           } else if (task.status === 'verifying') {
             statusBadge = '<span class="status-badge status-verifying">Verifying</span>';
+          } else if (task.status === 'unit-testing') {
+            statusBadge = '<span class="status-badge status-unit-testing">Unit Testing</span>';
           }
 
           // Check if task is in any running state
-          const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying';
+          const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying' || task.status === 'unit-testing';
 
           // Build progress bar HTML
           const progress = task.progress || 0;
@@ -10152,24 +10185,24 @@
 
       // Workflow indicator
       const workflowEl = document.getElementById('detail-workflow');
-      const workflowSteps = ['brief', 'plan', 'execute'];
+      const workflowSteps = getWorkflowStepsFromPipeline(pipelineStages);
       const workflowStep = task.workflowStep || 'pending';
-      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
+      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'unit-testing';
       if (task.type === 'goal' && (workflowStep === 'architect' || workflowStep === 'complete')) {
         // Goal tasks show only Architect step
         const architectClass = (workflowStep === 'architect' && isDetailWorkflowActive) ? 'active' : 'completed';
         workflowEl.innerHTML = `<span class="workflow-step ${architectClass}">Architect</span>`;
       } else if (workflowStep !== 'pending') {
+        const stepNames = workflowSteps.map(s => s.name);
         workflowEl.innerHTML = workflowSteps.map(step => {
           let cls = 'workflow-step';
           if (!isDetailWorkflowActive) {
-            // Task is not actively running — show steps as completed (muted), no active pulse
-            if (workflowSteps.indexOf(step) <= workflowSteps.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
+            if (stepNames.indexOf(step.name) <= stepNames.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
           } else {
-            if (workflowStep === step) cls += ' active';
-            else if (workflowSteps.indexOf(step) < workflowSteps.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
+            if (workflowStep === step.name) cls += ' active';
+            else if (stepNames.indexOf(step.name) < stepNames.indexOf(workflowStep) || workflowStep === 'complete') cls += ' completed';
           }
-          return `<span class="${cls}">${step.charAt(0).toUpperCase() + step.slice(1)}</span>`;
+          return `<span class="${cls}">${escapeHtml(step.displayName)}</span>`;
         }).join('');
       } else {
         workflowEl.innerHTML = '';
@@ -10177,7 +10210,7 @@
 
       // Run button visibility
       const runBtn = document.getElementById('detail-run-btn');
-      const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying';
+      const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying' || task.status === 'unit-testing';
       runBtn.textContent = task.status === 'queued' ? 'Run Now' : 'Run Task';
 
       // Load subtasks
@@ -11950,7 +11983,7 @@
       const actionsContainer = document.getElementById('mobile-sheet-actions');
       let actionsHtml = '';
 
-      const isRunning = ['running', 'briefing', 'planning', 'architecting', 'verifying'].includes(task.status);
+      const isRunning = ['running', 'briefing', 'planning', 'architecting', 'verifying', 'unit-testing'].includes(task.status);
 
       if (task.status === 'todo') {
         actionsHtml = `
