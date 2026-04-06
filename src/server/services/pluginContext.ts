@@ -61,6 +61,7 @@ import {
   getVerifiers as skillReaderGetVerifiers,
   runVerifiers as skillReaderRunVerifiers,
 } from './skillReader.js';
+import { getMemories, addMemory } from './memory.js';
 import type { VerifierDefinition as _VerifierDef } from '../../types/index.js';
 
 export { skillReaderGetVerifiers as getVerifiers, skillReaderRunVerifiers as runVerifiers };
@@ -554,14 +555,69 @@ function buildIntegrationApi(logger: PluginLogger): IntegrationApi {
   };
 }
 
-function buildMemoryApi(logger: PluginLogger): MemoryApi {
+function buildMemoryApi(pluginName: string, manifest: PluginManifest, logger: PluginLogger): MemoryApi {
+  return {
+    async getLessons(filter?: { tags?: string[] }): Promise<MemoryEntry[]> {
+      requirePermission(pluginName, manifest, 'memory:read');
+      const entries = await getMemories();
+      if (filter?.tags && filter.tags.length > 0) {
+        const filterTags = new Set(filter.tags);
+        return entries.filter(entry =>
+          entry.relevance_tags.some(tag => filterTags.has(tag)),
+        );
+      }
+      return entries;
+    },
+
+    async addLesson(lesson: Omit<MemoryEntry, 'id' | 'created_at'>): Promise<MemoryEntry> {
+      requirePermission(pluginName, manifest, 'memory:write');
+      return addMemory(lesson);
+    },
+
+    onReflection(handler: (task: Task, lessons: MemoryEntry[]) => void): Unsubscribe {
+      requirePermission(pluginName, manifest, 'memory:read');
+
+      const wrappedHandler = async (payload: unknown): Promise<void> => {
+        try {
+          const p = payload as { task: Task };
+          if (!p.task) return;
+          const reflectionIds = p.task.reflectionMemories;
+          if (!reflectionIds || reflectionIds.length === 0) return;
+          const allEntries = await getMemories();
+          const idSet = new Set(reflectionIds);
+          const matchingLessons = allEntries.filter(entry => idSet.has(entry.id));
+          handler(structuredClone(p.task), matchingLessons);
+        } catch (err) {
+          console.warn('[PluginContext] Error in onReflection handler:', err instanceof Error ? err.message : 'Unknown error');
+        }
+      };
+
+      // Cast to the expected handler signature for internalEvents compatibility
+      const eventHandler = wrappedHandler as (...args: unknown[]) => void;
+      internalEvents.on(TASK_COMPLETED, eventHandler);
+      trackListener(pluginName, TASK_COMPLETED, eventHandler);
+
+      const unsub: Unsubscribe = () => {
+        internalEvents.off(TASK_COMPLETED, eventHandler);
+        untrackListener(pluginName, TASK_COMPLETED, eventHandler);
+      };
+      return unsub;
+    },
+  };
+}
+
+/**
+ * Build a stub MemoryApi for the legacy PluginContext adapter.
+ * The adapter lacks pluginName/manifest context so methods log warnings.
+ */
+function buildMemoryApiStub(logger: PluginLogger): MemoryApi {
   return {
     async getLessons(_filter?: { tags?: string[] }): Promise<MemoryEntry[]> {
-      logger.warn('MemoryApi.getLessons() is not yet implemented');
+      logger.warn('MemoryApi.getLessons() is not available via the legacy PluginContext adapter');
       return [];
     },
     async addLesson(lesson: Omit<MemoryEntry, 'id' | 'created_at'>): Promise<MemoryEntry> {
-      logger.warn('MemoryApi.addLesson() is not yet implemented');
+      logger.warn('MemoryApi.addLesson() is not available via the legacy PluginContext adapter');
       return {
         ...lesson,
         id: `mem-${Date.now()}`,
@@ -569,7 +625,7 @@ function buildMemoryApi(logger: PluginLogger): MemoryApi {
       };
     },
     onReflection(_handler: (task: Task, lessons: MemoryEntry[]) => void): Unsubscribe {
-      logger.warn('MemoryApi.onReflection() is not yet implemented');
+      logger.warn('MemoryApi.onReflection() is not available via the legacy PluginContext adapter');
       return () => {};
     },
   };
@@ -594,7 +650,7 @@ export async function createFormicAPI(
     logger,
     ui: buildUIApi(logger),
     integrations: buildIntegrationApi(logger),
-    memory: buildMemoryApi(logger),
+    memory: buildMemoryApi(pluginName, manifest, logger),
   };
 
   return {
@@ -705,7 +761,7 @@ export function pluginContextToFormicAPI(ctx: PluginContext): FormicAPI {
 
   const ui: UIApi = buildUIApi(logger);
   const integrations: IntegrationApi = buildIntegrationApi(logger);
-  const memory: MemoryApi = buildMemoryApi(logger);
+  const memory: MemoryApi = buildMemoryApiStub(logger);
 
   return { tasks, skills, settings, events, logger, ui, integrations, memory };
 }
