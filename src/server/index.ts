@@ -154,7 +154,7 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
         if (entry.status !== 'disabled' && entry.status !== 'error' && entry.manifest.serverEntry) {
           await loadPlugin(pluginName);
           const updated = pluginRegistry.get(pluginName);
-          if (updated?.loadedModule && typeof (updated.loadedModule as Record<string, unknown>).default === 'function') {
+          if (updated?.loadedModule && updated.format !== 'class' && typeof (updated.loadedModule as Record<string, unknown>).default === 'function') {
             const pluginFn = (updated.loadedModule as Record<string, unknown>).default as
               (instance: FastifyInstance, opts: Record<string, unknown>) => Promise<void>;
             await fastify.register(pluginFn, { prefix: `/api/plugins/${pluginName}` });

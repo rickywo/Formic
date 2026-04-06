@@ -199,12 +199,6 @@ The server will automatically detect this format and create the task via the For
   - [t-26] Build plugin marketplace with community registry and manager UI
   - [t-27] -Create @rickywo/formic-sdk package and plugin development tooling
 
-### Queued
-  - [t-32] Implement registerTaskType and registerVerifier in SkillApi and pipeline
-  - [t-38] Implement registerTaskType and registerVerifier in SkillApi with pipeline integration
-  - [t-39] -Add deprecation path from PluginContext to FormicAPI and update existing plugin references
-  - [t-41] !Define FormicPlugin interface and FormicAPI type system in types/index.ts
-
 ### Review
   - [t-1] !Implement Obsidian-style Plugin System for Formic
   - [t-3] !Create plugin manifest validator and loader service
@@ -231,11 +225,22 @@ The server will automatically detect this format and create the task via the For
   - [t-29] !Add missing task lifecycle events and ensure all events fire correctly
   - [t-30] Restructure PluginContext factory into FormicAPI with sub-API namespaces
   - [t-31] Update pluginManager to support class-based FormicPlugin loading
+  - [t-32] Implement registerTaskType and registerVerifier in SkillApi and pipeline
+  - [t-33] -Verify full build passes and backward compatibility with existing plugins
   - [t-34] !Define FormicPlugin interface and FormicAPI type hierarchy in the type system
   - [t-35] !Add granular task lifecycle events to internalEvents and emit them from store and workflow
   - [t-36] !Implement FormicAPI factory function with all sub-API implementations
   - [t-37] Update pluginManager to support class-based FormicPlugin lifecycle with backward compatibility
+  - [t-38] Implement registerTaskType and registerVerifier in SkillApi with pipeline integration
+  - [t-39] -Add deprecation path from PluginContext to FormicAPI and update existing plugin references
+  - [t-40] -Verify end-to-end plugin API alignment with build validation and integration check
+  - [t-41] !Define FormicPlugin interface and FormicAPI type system in types/index.ts
   - [t-42] !Add granular task lifecycle events to internalEvents and wire them into store.ts
+  - [t-43] Restructure pluginContext.ts to produce FormicAPI with TaskApi lifecycle hooks and SettingsApi
+  - [t-44] Update pluginManager.ts to support class-based FormicPlugin loading alongside manifest plugins
+  - [t-45] Implement SkillApi registerTaskType and registerVerifier in pluginContext and pipelineRegistry
+  - [t-46] -Create a class-based example plugin and verify hello-world backward compatibility
+  - [t-47] -Verify build, type-check, and integration test the complete plugin API surface
 
 ### Done
   - [t-bootstrap] !Setup AI Development Guidelines
