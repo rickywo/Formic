@@ -6826,6 +6826,14 @@
     /* Slot containers — hidden when empty */
     .plugin-slot:empty { display: none; }
 
+    .plugin-slot-component { display: contents; }
+
+    .plugin-slot-error {
+      color: var(--accent-red, #ef4444);
+      font-size: 12px;
+      padding: 4px;
+    }
+
     .plugin-slot--sidebar {
       min-width: 200px;
       border-left: 1px solid var(--border-color);
@@ -8340,9 +8348,11 @@
     // ============================================
 
     const _pluginRegistry = new Map();
+    const _slotRegistry = new Map(); // slotId -> Array<{ pluginName, componentId, component, props }>
     const _pluginEventBus = new Map(); // eventName -> Set of {pluginName, callback}
 
     const VALID_MOUNT_POSITIONS = ['left-sidebar', 'right-sidebar', 'bottom-bar', 'settings-tab'];
+    const VALID_SLOTS = ['task-node-editor', 'task-stage-panel', 'dag-visualization', 'kanban-card-badge', 'kanban-card-footer', 'settings-panel', 'task-detail-sidebar', 'toolbar-right'];
     const VALID_EVENTS = ['board-updated', 'task-selected', 'theme-changed', 'settings-opened', 'settings-closed', 'plugins-loaded'];
 
     /** Get or initialize a registry entry for a plugin */
@@ -8390,6 +8400,67 @@
           console.error(`[Plugin] Event handler error in '${sub.pluginName}' for '${eventName}':`, err);
         }
       }
+    }
+
+    // ============================================
+    // Slot Renderer Engine
+    // ============================================
+
+    /** Detect whether a value is a React component, render function, web component tag, or unknown */
+    function _detectComponentType(component) {
+      if (typeof component === 'string') return 'web-component';
+      if (component.$$typeof || (component.prototype && component.prototype.render)) return 'react-class';
+      if (typeof component === 'function') {
+        // render functions take (container, props) — arity >= 2; React functional components take (props)
+        if (component.length >= 2) return 'render-function';
+        return 'react-functional';
+      }
+      return 'unknown';
+    }
+
+    /** Render a single component entry into a wrapper div with error isolation */
+    function _renderComponent(component, container, props) {
+      try {
+        const type = _detectComponentType(component);
+        if (type === 'render-function') {
+          component(container, props);
+        } else if (type === 'react-functional' || type === 'react-class') {
+          if (window.React && window.ReactDOM) {
+            const element = window.React.createElement(component, props);
+            window.ReactDOM.render(element, container);
+          } else {
+            console.warn('[Plugin] React not loaded; cannot render React component into slot');
+          }
+        } else if (type === 'web-component') {
+          const el = document.createElement(component);
+          Object.entries(props || {}).forEach(([k, v]) => { el[k] = v; });
+          container.appendChild(el);
+        }
+      } catch (err) {
+        console.error('[Plugin] SlotRenderer error:', err);
+        container.innerHTML = '<span class="plugin-slot-error">&#9888; Plugin error</span>';
+      }
+    }
+
+    /** Render all registered components for a slot into a host element */
+    function renderSlot(slotId, hostElement, props) {
+      if (!hostElement) return;
+      hostElement.innerHTML = '';
+      const entries = _slotRegistry.get(slotId) || [];
+      entries.forEach(entry => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'plugin-slot-component';
+        hostElement.appendChild(wrapper);
+        _renderComponent(entry.component, wrapper, props != null ? props : entry.props);
+      });
+    }
+
+    /** Re-render all static slot containers when registry changes */
+    function _renderStaticSlots() {
+      VALID_SLOTS.forEach(slotId => {
+        const el = document.getElementById(`slot-${slotId}`);
+        if (el) renderSlot(slotId, el, {});
+      });
     }
 
     window.FormicPluginAPI = {
@@ -8664,6 +8735,37 @@
           }
         }
       }
+    };
+
+    // Extend FormicPluginAPI with slot registration and rendering methods
+    window.FormicPluginAPI.registerSlot = function(slotId, component, opts) {
+      if (!VALID_SLOTS.includes(slotId)) {
+        console.error(`[Plugin] Invalid slot ID: '${slotId}'. Valid slots: ${VALID_SLOTS.join(', ')}`);
+        return () => {};
+      }
+      const componentId = slotId + '-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+      const pluginName = _getCurrentPluginName();
+      if (!_slotRegistry.has(slotId)) _slotRegistry.set(slotId, []);
+      _slotRegistry.get(slotId).push({ pluginName, componentId, component, props: (opts && opts.props) || {} });
+      _renderStaticSlots();
+      return () => window.FormicPluginAPI.unregisterSlot(slotId, componentId);
+    };
+
+    window.FormicPluginAPI.unregisterSlot = function(slotId, componentId) {
+      const entries = _slotRegistry.get(slotId);
+      if (entries) {
+        const filtered = entries.filter(e => e.componentId !== componentId);
+        _slotRegistry.set(slotId, filtered);
+      }
+      _renderStaticSlots();
+    };
+
+    window.FormicPluginAPI.registerSidebarPanel = function(component, opts) {
+      return window.FormicPluginAPI.registerSlot('task-detail-sidebar', component, opts);
+    };
+
+    window.FormicPluginAPI.registerToolbarAction = function(component, opts) {
+      return window.FormicPluginAPI.registerSlot('toolbar-right', component, opts);
     };
 
     /** Load enabled plugins from the server */
