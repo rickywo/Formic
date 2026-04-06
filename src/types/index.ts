@@ -147,6 +147,14 @@ export interface PluginContext {
     uptime(): number;
     memoryUsage(): NodeJS.MemoryUsage;
   };
+  workflow: {
+    registerStage(config: StageRegistration): Promise<void>;
+    getStages(): Promise<StageDescriptor[]>;
+  };
+  skills: {
+    register(stageName: string, content: string): Promise<void>;
+    getAvailable(): Promise<string[]>;
+  };
 }
 
 /** Manifest schema for a plugin's manifest.json */

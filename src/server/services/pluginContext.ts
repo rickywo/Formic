@@ -13,11 +13,15 @@ import type {
   Task,
   CreateTaskInput,
   Board,
+  StageRegistration,
+  StageDescriptor,
 } from '../../types/index.js';
 import { PluginPermissionError } from '../../types/index.js';
 import { loadBoard, getTask, createTask, updateTask } from './store.js';
 import { getPluginSetting, setPluginSetting } from './configStore.js';
 import { internalEvents, BOARD_UPDATE } from './internalEvents.js';
+import { registerStage, getRegisteredStages } from './pipelineRegistry.js';
+import { registerSkillOverride, getAvailableSkills } from './skillReader.js';
 
 /**
  * Check if a plugin has a specific permission.
@@ -132,6 +136,73 @@ export function createPluginContext(pluginName: string, manifest: PluginManifest
     },
   };
 
+  const BUILTIN_STAGES = new Set(['brief', 'plan', 'declare', 'execute', 'verify', 'architect']);
+
+  const workflow = {
+    async registerStage(config: StageRegistration): Promise<void> {
+      requirePermission(pluginName, manifest, 'workflow:extend');
+
+      // Validate input
+      if (!config.name || typeof config.name !== 'string' || config.name.trim().length === 0) {
+        throw new Error('Stage registration requires a non-empty "name"');
+      }
+      if (!config.after || typeof config.after !== 'string') {
+        throw new Error('Stage registration requires a valid "after" stage reference');
+      }
+      if (!config.skillContent && !config.skillPath && !config.handler) {
+        throw new Error('Stage registration requires at least one of "skillContent", "skillPath", or "handler"');
+      }
+
+      // Validate that 'after' references an existing stage
+      const existingStages = getRegisteredStages();
+      const anchorExists = existingStages.some(s => s.name === config.after);
+      if (!anchorExists) {
+        throw new Error(`Anchor stage "${config.after}" does not exist`);
+      }
+
+      registerStage(config, pluginName);
+
+      // If skillContent is provided, also register it as a skill override
+      if (config.skillContent) {
+        registerSkillOverride(config.name, config.skillContent, pluginName);
+      }
+
+      console.warn(`[PluginContext] Plugin '${pluginName}' registered workflow stage '${config.name}'`);
+    },
+
+    async getStages(): Promise<StageDescriptor[]> {
+      requirePermission(pluginName, manifest, 'workflow:extend');
+      return structuredClone(getRegisteredStages());
+    },
+  };
+
+  const skills = {
+    async register(stageName: string, content: string): Promise<void> {
+      if (BUILTIN_STAGES.has(stageName)) {
+        requirePermission(pluginName, manifest, 'skills:override');
+      } else {
+        requirePermission(pluginName, manifest, 'workflow:extend');
+      }
+
+      registerSkillOverride(stageName, content, pluginName);
+      console.warn(`[PluginContext] Plugin '${pluginName}' registered skill override for '${stageName}'`);
+    },
+
+    async getAvailable(): Promise<string[]> {
+      requirePermission(pluginName, manifest, 'tasks:read');
+
+      const builtinSkills = getAvailableSkills();
+      const registeredStages = getRegisteredStages();
+      const pluginSkillNames = registeredStages
+        .filter(s => s.source === 'plugin')
+        .map(s => s.name);
+
+      // Combine and deduplicate
+      const allSkills = new Set([...builtinSkills, ...pluginSkillNames]);
+      return [...allSkills];
+    },
+  };
+
   return {
     board,
     tasks,
@@ -140,5 +211,7 @@ export function createPluginContext(pluginName: string, manifest: PluginManifest
     logger,
     http,
     process: processCtx,
+    workflow,
+    skills,
   };
 }

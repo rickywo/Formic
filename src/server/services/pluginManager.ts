@@ -29,6 +29,8 @@ const ALLOWED_PERMISSIONS = new Set<PluginPermission>([
   'process:info',
   'events:subscribe',
   'ui:panel',
+  'workflow:extend',
+  'skills:override',
 ]);
 
 /** In-memory plugin registry */
