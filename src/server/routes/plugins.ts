@@ -159,10 +159,16 @@ export async function pluginRoutes(fastify: FastifyInstance): Promise<void> {
 
     const persistedConfig = await getPluginConfig(name);
 
-    // Merge manifest defaults with persisted settings
-    const manifestDefaults = entry.manifest.settings ?? {};
+    // Extract default values from manifest schema, then overlay persisted settings
+    const manifestSchema = entry.manifest.settings ?? {};
+    const defaults: Record<string, unknown> = {};
+    for (const [key, schemaDef] of Object.entries(manifestSchema)) {
+      if (schemaDef && typeof schemaDef === 'object' && 'default' in (schemaDef as Record<string, unknown>)) {
+        defaults[key] = (schemaDef as Record<string, unknown>).default;
+      }
+    }
     const persisted = persistedConfig?.settings ?? {};
-    const merged: Record<string, unknown> = { ...manifestDefaults, ...persisted };
+    const merged: Record<string, unknown> = { ...defaults, ...persisted };
 
     return reply.send({
       settings: maskSecrets(merged, entry.manifest.settings),

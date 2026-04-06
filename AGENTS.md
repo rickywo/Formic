@@ -195,6 +195,9 @@ The server will automatically detect this format and create the task via the For
 ### Todo
   - [t-2] Build Activity Monitor Plugin for Formic
 
+### Declaring
+  - [t-19] !Add unit-test stage to card workflow indicator and kanban board
+
 ### Review
   - [t-1] !Implement Obsidian-style Plugin System for Formic
   - [t-3] !Create plugin manifest validator and loader service
