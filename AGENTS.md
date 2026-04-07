@@ -195,9 +195,6 @@ The server will automatically detect this format and create the task via the For
 ### Todo
   - [t-2] Build Activity Monitor Plugin for Formic
 
-### Briefing
-  - [t-69] -Create comprehensive plugin development documentation and API reference
-
 ### Review
   - [t-1] !Implement Obsidian-style Plugin System for Formic
   - [t-3] !Create plugin manifest validator and loader service
@@ -265,9 +262,11 @@ The server will automatically detect this format and create the task via the For
   - [t-66] Implement formic-sdk create-plugin scaffold CLI command
   - [t-67] Add --plugins flag to formic start for local plugin development loading
   - [t-68] Implement hot-reload for plugins loaded via --plugins dev mode
+  - [t-69] -Create comprehensive plugin development documentation and API reference
   - [t-70] -Verify end-to-end SDK workflow: scaffold, build, install, and load a plugin
   - [t-71] !Fix declare step re-running on resume and execute agent confusion with declared-files.json
   - [t-73] !Fix declare step re-running on resume and execute agent confusion with declared-files.json
+  - [t-74] !Fix stale stoppedWorkflows flag causing tasks to silently abort at pipeline start
 
 ### Done
   - [t-bootstrap] !Setup AI Development Guidelines
