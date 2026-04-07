@@ -1,0 +1,20 @@
+{
+  "name": "formic-plugin-{{name}}",
+  "version": "1.0.0",
+  "description": "{{description}}",
+  "author": "{{author}}",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "devDependencies": {
+    "@rickywo/formic-sdk": "^1.0.0",
+    "typescript": "^5.5.3"
+  }
+}

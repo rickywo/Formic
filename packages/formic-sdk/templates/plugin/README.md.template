@@ -1,0 +1,64 @@
+# formic-plugin-{{name}}
+
+{{description}}
+
+## Development
+
+### Prerequisites
+
+- Node.js >= 20
+- A running [Formic](https://github.com/rickywo/formic) instance
+
+### Setup
+
+```bash
+npm install
+```
+
+### Build
+
+```bash
+npm run build
+```
+
+### Watch mode
+
+```bash
+npm run dev
+```
+
+## Installation
+
+Copy the built plugin into your Formic workspace:
+
+```bash
+cp -r . /path/to/your/project/.formic/plugins/{{name}}
+```
+
+Then restart the Formic server. The plugin will be loaded automatically.
+
+## Plugin Structure
+
+- `src/index.ts` — Main plugin class implementing `FormicPlugin`
+- `manifest.json` — Plugin metadata and permissions
+- `tsconfig.json` — TypeScript configuration
+- `package.json` — Node.js package configuration
+
+## API Reference
+
+The `FormicAPI` object passed to `onLoad()` provides:
+
+- `api.tasks` — Read and create tasks
+- `api.events` — Subscribe to task lifecycle events
+- `api.settings` — Read and write plugin settings
+- `api.skills` — Register custom task types and verifiers
+- `api.ui` — Register UI panels and actions
+- `api.logger` — Prefixed logging (info, warn, error)
+- `api.integrations` — Register webhooks and bot commands
+- `api.memory` — Store and retrieve plugin memory entries
+
+For full type definitions, see the `@rickywo/formic-sdk` package.
+
+## License
+
+MIT

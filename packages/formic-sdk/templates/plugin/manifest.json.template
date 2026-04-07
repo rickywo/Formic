@@ -1,0 +1,11 @@
+{
+  "name": "{{name}}",
+  "version": "1.0.0",
+  "description": "{{description}}",
+  "author": "{{author}}",
+  "permissions": [
+    "tasks:read",
+    "events:subscribe"
+  ],
+  "serverEntry": "dist/index.js"
+}

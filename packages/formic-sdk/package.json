@@ -13,10 +13,11 @@
     "formic-sdk": "./dist/cli/create-plugin.js"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "templates/"
   ],
   "scripts": {
-    "build": "tsc"
+    "build": "tsc -p tsconfig.build.json"
   },
   "keywords": [
     "formic",

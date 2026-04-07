@@ -1,0 +1,21 @@
+import type { FormicPlugin, FormicAPI } from '@rickywo/formic-sdk';
+
+export default class {{Name}}Plugin implements FormicPlugin {
+  id = '{{name}}';
+  name = '{{Name}}';
+  version = '1.0.0';
+  description = '{{description}}';
+
+  async onLoad(api: FormicAPI): Promise<void> {
+    api.logger.info('{{Name}} plugin loaded');
+
+    // TODO: Add your plugin logic here
+    // Examples:
+    //   api.events.on('task:created', (task) => { ... });
+    //   api.tasks.getAll().then(tasks => { ... });
+  }
+
+  async onUnload(): Promise<void> {
+    // TODO: Clean up resources, unsubscribe from events, etc.
+  }
+}
