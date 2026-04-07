@@ -1308,6 +1308,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
   if (activeWorkflows.has(taskId)) {
     throw new Error('A workflow is already running for this task');
   }
+  stoppedWorkflows.delete(taskId); // Clear any stale stop flag from a previous workflow
 
   console.log(`[Workflow] Starting quick task execution for ${taskId}`);
 
@@ -1443,12 +1444,7 @@ export async function executeSingleStep(
   if (activeWorkflows.has(taskId)) {
     throw new Error('A workflow step is already running for this task');
   }
-
-  // Abort if stop was requested before this step begins
-  if (stoppedWorkflows.has(taskId)) {
-    stoppedWorkflows.delete(taskId);
-    return { success: false, pid: 0 };
-  }
+  stoppedWorkflows.delete(taskId); // Clear any stale stop flag from a previous workflow
 
   // Build prompt based on step - try skill file first, fallback to hardcoded
   let prompt: string;
