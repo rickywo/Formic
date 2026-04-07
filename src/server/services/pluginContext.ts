@@ -434,6 +434,15 @@ function buildSkillApi(pluginName: string, manifest: PluginManifest): SkillApi {
       console.warn(`[PluginContext] Plugin '${pluginName}' registered skill override for '${stageName}'`);
     },
 
+    async registerStage(config: StageRegistration): Promise<void> {
+      requirePermission(pluginName, manifest, 'workflow:extend');
+      registerStage(config, pluginName);
+      if (config.skillContent) {
+        registerSkillOverride(config.name, config.skillContent, pluginName);
+      }
+      console.warn(`[PluginContext] Plugin '${pluginName}' registered stage '${config.name}'`);
+    },
+
     registerSkillOverride(stageName: string, content: string): void {
       this.register(stageName, content);
     },
@@ -826,6 +835,9 @@ export function pluginContextToFormicAPI(ctx: PluginContext): FormicAPI {
   const skills: SkillApi = {
     async register(stageName: string, content: string): Promise<void> {
       return ctx.skills.register(stageName, content);
+    },
+    async registerStage(config: StageRegistration): Promise<void> {
+      return ctx.workflow.registerStage(config);
     },
     registerSkillOverride(stageName: string, content: string): void {
       void ctx.skills.register(stageName, content);

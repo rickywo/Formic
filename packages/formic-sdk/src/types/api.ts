@@ -2,7 +2,7 @@
 
 import type { Task, CreateTaskInput } from './task.js';
 import type { UISlot, ComponentType, RenderFunction, SidebarPanelDefinition, ToolbarActionDefinition } from './ui.js';
-import type { TaskTypeDefinition, VerifierDefinition } from './pipeline.js';
+import type { TaskTypeDefinition, VerifierDefinition, StageRegistration } from './pipeline.js';
 import type { MemoryEntry } from './memory.js';
 import type { WebhookHandler, BotCommandDefinition } from './integrations.js';
 import type { Unsubscribe } from './plugin.js';
@@ -23,6 +23,8 @@ export interface TaskApi {
 /** Skill and workflow registration API */
 export interface SkillApi {
   register(stageName: string, content: string): Promise<void>;
+  /** Register a new pipeline stage contributed by this plugin */
+  registerStage(config: StageRegistration): Promise<void>;
   registerTaskType(definition: TaskTypeDefinition): void;
   registerVerifier(verifier: VerifierDefinition): void;
   registerSkillOverride(stageName: string, content: string): void;

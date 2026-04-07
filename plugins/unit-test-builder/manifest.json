@@ -1,0 +1,19 @@
+{
+  "name": "unit-test-builder",
+  "version": "1.0.0",
+  "description": "Configures the unit-test pipeline stage with a configurable coverage threshold and custom skill prompt",
+  "author": "Formic",
+  "permissions": [
+    "workflow:extend",
+    "skills:override",
+    "config:read",
+    "config:write",
+    "tasks:read",
+    "ui:panel"
+  ],
+  "serverEntry": "dist/index.js",
+  "settings": {
+    "coverageThreshold": 80,
+    "unitTestPrompt": ""
+  }
+}

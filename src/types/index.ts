@@ -338,6 +338,8 @@ export interface TaskApi {
 /** Skill and workflow registration API */
 export interface SkillApi {
   register(stageName: string, content: string): Promise<void>;
+  /** Register a new pipeline stage contributed by this plugin */
+  registerStage(config: StageRegistration): Promise<void>;
   registerTaskType(definition: TaskTypeDefinition): void;
   registerVerifier(verifier: VerifierDefinition): void;
   registerSkillOverride(stageName: string, content: string): void;
