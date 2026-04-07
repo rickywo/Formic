@@ -151,7 +151,7 @@ async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<v
 
 /**
  * Append logs to a per-task, per-step log file on disk.
- * Stores only the file path reference in board.json.0607.json (not the log content).
+ * Stores only the file path reference in board.json (not the log content).
  */
 async function appendWorkflowLogs(taskId: string, step: string, logs: string[]): Promise<void> {
   if (logs.length === 0) return;
@@ -165,7 +165,7 @@ async function appendWorkflowLogs(taskId: string, step: string, logs: string[]):
   const content = logs.join('\n') + '\n';
   await appendFile(logFilePath, content, 'utf-8');
 
-  // Store the relative log file path in board.json.0607.json (not the log content)
+  // Store the relative log file path in board.json (not the log content)
   const board = await loadBoard();
   const task = board.tasks.find(t => t.id === taskId);
   if (task) {
@@ -266,6 +266,7 @@ IMPORTANT: Before implementing, read the task documentation at ${docsPath}/:
 - README.md: Feature specification
 - PLAN.md: Implementation steps
 - subtasks.json: Structured subtask list (update status as you complete items)
+- Ignore declared-files.json — it is for internal use only and not part of your task.
 
 Context: ${task.context}
 
@@ -310,6 +311,7 @@ Task documentation is at ${docsPath}/:
 - README.md: Feature specification
 - PLAN.md: Implementation steps
 - subtasks.json: Structured subtask list
+- Ignore declared-files.json — it is for internal use only and not part of your task.
 
 Context: ${task.context}
 
@@ -381,29 +383,37 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
   });
 
   let declareSuccess: boolean;
-  try {
-    const skillResult = await loadSkillPrompt('declare', task);
-    if (!skillResult.success) {
-      console.log('[Workflow] Declare skill not found, skipping declaration');
-      declareSuccess = true;
-    } else {
-      let pidPromise: Promise<void> | undefined;
-      const resultPromise = new Promise<boolean>((resolve) => {
-        const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', skillResult.content, (success) => {
-          resolve(success);
-        });
-        pidPromise = pidPersisted;
 
-        if (child.pid) {
-          activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
-        }
-      });
-      // Await PID persistence so board.json.0607.json has the correct PID while the process runs
-      if (pidPromise) await pidPromise;
-      declareSuccess = await resultPromise;
+  // Skip re-running the declare agent if declared-files.json already exists (e.g. on resume)
+  const existingDeclared = await loadDeclaredFiles(task.docsPath);
+  if (existingDeclared) {
+    console.log(`[Workflow] declared-files.json already exists for task ${taskId}, skipping declare agent`);
+    declareSuccess = true;
+  } else {
+    try {
+      const skillResult = await loadSkillPrompt('declare', task);
+      if (!skillResult.success) {
+        console.log('[Workflow] Declare skill not found, skipping declaration');
+        declareSuccess = true;
+      } else {
+        let pidPromise: Promise<void> | undefined;
+        const resultPromise = new Promise<boolean>((resolve) => {
+          const { child, pidPersisted } = runWorkflowStep(taskId, 'declare', skillResult.content, (success) => {
+            resolve(success);
+          });
+          pidPromise = pidPersisted;
+
+          if (child.pid) {
+            activeWorkflows.set(taskId, { process: child, currentStep: 'declare' });
+          }
+        });
+        // Await PID persistence so board.json has the correct PID while the process runs
+        if (pidPromise) await pidPromise;
+        declareSuccess = await resultPromise;
+      }
+    } catch {
+      declareSuccess = true; // Skip on error — backwards compatible
     }
-  } catch {
-    declareSuccess = true; // Skip on error — backwards compatible
   }
 
   activeWorkflows.delete(taskId);
@@ -468,7 +478,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
  * Run a single workflow step.
  *
  * Returns the child process and a `pidPersisted` promise that resolves once the
- * child's PID has been written to board.json.0607.json via `updateTaskStatus`.  Callers
+ * child's PID has been written to board.json via `updateTaskStatus`.  Callers
  * should `await pidPersisted` before proceeding so the PID is visible in the
  * API and cannot be lost to a concurrent board write.
  */
@@ -490,7 +500,7 @@ function runWorkflowStep(
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 
-  // Persist child.pid to board.json.0607.json so the OS process is identifiable for running tasks.
+  // Persist child.pid to board.json so the OS process is identifiable for running tasks.
   // We read the task's current status and re-write it together with the PID in a single
   // updateTaskStatus call so the PID is set atomically with the status field.
   // Callers must `await pidPersisted` before proceeding to ensure the PID write completes
@@ -615,7 +625,7 @@ async function runExecuteIteration(
     }
   });
 
-  // Await PID persistence so board.json.0607.json has the correct PID before the process completes
+  // Await PID persistence so board.json has the correct PID before the process completes
   if (pidPromise) {
     await pidPromise;
   }
@@ -854,7 +864,7 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
     return { success: false, stderrLines: [message] };
   }
 
-  // Persist verifier PID to board.json.0607.json using updateTaskStatus for atomic status+PID writes.
+  // Persist verifier PID to board.json using updateTaskStatus for atomic status+PID writes.
   if (child.pid) {
     const currentTask = await getTask(taskId);
     if (currentTask) {
@@ -1556,7 +1566,7 @@ export async function executeSingleStep(
     }
   });
 
-  // Await PID persistence so board.json.0607.json has the correct PID before the process completes
+  // Await PID persistence so board.json has the correct PID before the process completes
   if (pidPromise) await pidPromise;
 
   return resultPromise;
@@ -1648,7 +1658,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       }
     });
 
-    // Await PID persistence so board.json.0607.json has the correct PID before the process completes
+    // Await PID persistence so board.json has the correct PID before the process completes
     if (pidPromise) await pidPromise;
 
     return resultPromise;
@@ -2181,7 +2191,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
               }
             });
 
-            // Await PID persistence so board.json.0607.json has the correct PID before the process completes
+            // Await PID persistence so board.json has the correct PID before the process completes
             if (pidPromise) await pidPromise;
 
             const success = await resultPromise;

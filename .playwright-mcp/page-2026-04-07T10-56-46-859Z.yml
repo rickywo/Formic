@@ -1,0 +1,527 @@
+- generic [active] [ref=e1]:
+  - generic:
+    - generic:
+      - generic:
+        - heading "Task Title" [level=2]
+        - generic:
+          - generic: todo
+          - generic: medium
+        - generic: Task context goes here...
+  - generic:
+    - generic:
+      - generic:
+        - heading "Workspaces" [level=3]
+      - button "+ Add Workspace":
+        - generic: +
+        - generic: Add Workspace
+  - banner:
+    - button "Loading... ▼" [ref=e4] [cursor=pointer]:
+      - generic [ref=e6]: Loading...
+      - generic [ref=e7]: ▼
+    - generic [ref=e8]:
+      - generic "Loading usage..." [ref=e9]:
+        - generic [ref=e10]: ⚡
+        - generic [ref=e11]: —
+      - button "☾ Dark" [ref=e12] [cursor=pointer]:
+        - generic [ref=e13]: ☾
+        - generic [ref=e14]: Dark
+      - button "?" [ref=e15] [cursor=pointer]:
+        - generic [ref=e16]: "?"
+      - button "⚙" [ref=e17] [cursor=pointer]:
+        - generic [ref=e18]: ⚙
+  - generic [ref=e20]:
+    - generic [ref=e22]: Loading...
+    - button "Hide" [ref=e23] [cursor=pointer]
+  - main [ref=e24]:
+    - generic [ref=e26]:
+      - generic [ref=e27]: Todo
+      - generic [ref=e28]: "0"
+      - generic [ref=e29]: Add tasks, then queue them for execution
+    - generic [ref=e32]:
+      - generic [ref=e33]: Queued
+      - generic [ref=e34]: "0"
+      - generic [ref=e35]: Picked up automatically by AI agents
+    - generic [ref=e38]:
+      - generic [ref=e39]: Running
+      - generic [ref=e40]: "0"
+      - generic [ref=e41]: AI agent is actively working
+    - generic [ref=e44]:
+      - generic [ref=e45]: Verifying
+      - generic [ref=e46]: "0"
+      - generic [ref=e47]: AI is reviewing its own output
+    - generic [ref=e50]:
+      - generic [ref=e51]: Review
+      - generic [ref=e52]: "0"
+      - generic [ref=e53]: Awaiting your approval
+    - generic [ref=e56]:
+      - generic [ref=e57]: Done
+      - generic [ref=e58]: "0"
+      - generic [ref=e59]: Completed and approved
+  - button "AI Assistant (⌘K)" [ref=e61] [cursor=pointer]:
+    - img [ref=e62]
+  - generic [ref=e64]:
+    - generic [ref=e65]:
+      - generic [ref=e66]:
+        - generic [ref=e67]: 📖
+        - generic [ref=e68]: Formic User Guide
+      - button "×" [ref=e69] [cursor=pointer]
+    - generic [ref=e70]:
+      - navigation [ref=e71]:
+        - button "Getting Started" [ref=e72] [cursor=pointer]
+        - button "Task Types" [ref=e73] [cursor=pointer]
+        - button "Workflow Stages" [ref=e74] [cursor=pointer]
+        - button "AI Assistant" [ref=e75] [cursor=pointer]
+        - button "Concurrency" [ref=e76] [cursor=pointer]
+        - button "Self-Healing QA" [ref=e77] [cursor=pointer]
+        - button "Goal Tasks & DAG" [ref=e78] [cursor=pointer]
+        - button "Keyboard Shortcuts" [ref=e79] [cursor=pointer]
+        - button "Settings" [ref=e80] [cursor=pointer]
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - heading "Getting Started" [level=2] [ref=e83]
+          - paragraph [ref=e84]: Formic is an AI-powered task manager that autonomously executes coding tasks using AI agents. Each task is processed through a defined workflow — from brief, to plan, to execution — with full concurrency support and self-healing QA.
+          - heading "Board Layout" [level=3] [ref=e85]
+          - paragraph [ref=e86]:
+            - text: The kanban board shows tasks across all workflow stages as columns. Use the header buttons to manage settings, switch themes, and access this guide. The floating
+            - strong [ref=e87]: AI Assistant
+            - text: button (bottom-right) opens a chat panel for brainstorming and task creation.
+          - heading "Adding Your First Task" [level=3] [ref=e88]
+          - list [ref=e89]:
+            - listitem [ref=e90]:
+              - text: Click the
+              - strong [ref=e91]: + New Task
+              - text: button in any column header (or the board header).
+            - listitem [ref=e92]: Enter a short action-oriented title and a description with requirements and context.
+            - listitem [ref=e93]:
+              - text: "Choose a task type:"
+              - strong [ref=e94]: Standard
+              - text: ","
+              - strong [ref=e95]: Quick
+              - text: ", or"
+              - strong [ref=e96]: Goal
+              - text: .
+            - listitem [ref=e97]:
+              - text: "Set priority:"
+              - strong [ref=e98]: High
+              - text: ","
+              - strong [ref=e99]: Medium
+              - text: ", or"
+              - strong [ref=e100]: Low
+              - text: .
+          - heading "Running a Task" [level=3] [ref=e101]
+          - list [ref=e102]:
+            - listitem [ref=e103]:
+              - text: Tasks in
+              - strong [ref=e104]: Todo
+              - text: must be queued manually — open the task and click
+              - strong [ref=e105]: Queue
+              - text: .
+            - listitem [ref=e106]: Once queued, the system picks it up automatically based on priority and concurrency limits.
+            - listitem [ref=e107]: "Monitor progress as the task moves through: Queued → Briefing → Planning → Running → Review."
+            - listitem [ref=e108]:
+              - text: When a task reaches
+              - strong [ref=e109]: Review
+              - text: ", inspect the changes and move it to"
+              - strong [ref=e110]: Done
+              - text: to approve.
+          - heading "Learn More" [level=3] [ref=e111]
+          - paragraph [ref=e112]:
+            - text: "Explore the other sections in this guide:"
+            - emphasis [ref=e113]: Task Types
+            - text: for choosing the right type,
+            - emphasis [ref=e114]: Workflow Stages
+            - text: for understanding each column, and
+            - emphasis [ref=e115]: Concurrency
+            - text: for how parallel execution works.
+        - generic [ref=e116]:
+          - heading "Task Types" [level=2] [ref=e117]
+          - paragraph [ref=e118]: Formic supports three task types, each with a different workflow suited to the complexity of the work.
+          - generic [ref=e119]:
+            - generic [ref=e120]:
+              - generic [ref=e121]: Standard
+              - paragraph [ref=e122]: "Full workflow: Brief → Plan → Declare → Run. The AI generates a feature spec (README.md), creates an implementation plan (PLAN.md + subtasks.json), declares file leases for concurrency, then executes the implementation."
+              - paragraph [ref=e123]:
+                - strong [ref=e124]: "Best for:"
+                - text: new features, refactors, complex bug fixes — any work that benefits from up-front planning.
+            - generic [ref=e125]:
+              - generic [ref=e126]: Quick
+              - paragraph [ref=e127]: Single-step execution — skips briefing and planning, goes directly from Queued to Running. Faster but with no spec or plan document generated.
+              - paragraph [ref=e128]:
+                - strong [ref=e129]: "Best for:"
+                - text: typo fixes, small one-liner changes, documentation updates, or tasks where the description is already complete.
+            - generic [ref=e130]:
+              - generic [ref=e131]: Goal
+              - paragraph [ref=e132]: High-level objective — the Architect skill decomposes it into 3–8 child tasks with a dependency graph (DAG). Each child task then runs independently through its own standard or quick workflow.
+              - paragraph [ref=e133]:
+                - strong [ref=e134]: "Best for:"
+                - text: large epics, multi-file features, or any goal that is too broad for a single task to implement safely.
+          - heading "Workflow Comparison" [level=3] [ref=e135]
+          - generic [ref=e136]:
+            - generic [ref=e137]:
+              - generic [ref=e138]: Standard
+              - generic [ref=e139]: Queued → Briefing → Planning → Declaring → Running → Review
+            - generic [ref=e140]:
+              - generic [ref=e141]: Quick
+              - generic [ref=e142]: Queued → Running → Review
+            - generic [ref=e143]:
+              - generic [ref=e144]: Goal
+              - generic [ref=e145]: Queued → Architecting → Done (children run separately)
+        - generic [ref=e146]:
+          - heading "Workflow Stages" [level=2] [ref=e147]
+          - paragraph [ref=e148]: Each kanban column represents a workflow stage. Tasks progress left-to-right as they are processed.
+          - table [ref=e149]:
+            - rowgroup [ref=e150]:
+              - row "Stage Description" [ref=e151]:
+                - columnheader "Stage" [ref=e152]
+                - columnheader "Description" [ref=e153]
+            - rowgroup [ref=e154]:
+              - row "Todo Task created, not yet queued. Awaits manual queuing." [ref=e155]:
+                - cell "Todo" [ref=e156]:
+                  - code [ref=e157]: Todo
+                - cell "Task created, not yet queued. Awaits manual queuing." [ref=e158]
+              - row "Queued In the priority queue. Will be picked up when a worker slot is available." [ref=e159]:
+                - cell "Queued" [ref=e160]:
+                  - code [ref=e161]: Queued
+                - cell "In the priority queue. Will be picked up when a worker slot is available." [ref=e162]
+              - row "Briefing AI is generating the feature specification document (README.md)." [ref=e163]:
+                - cell "Briefing" [ref=e164]:
+                  - code [ref=e165]: Briefing
+                - cell "AI is generating the feature specification document (README.md)." [ref=e166]
+              - row "Planning AI is creating PLAN.md and a structured subtasks.json file." [ref=e167]:
+                - cell "Planning" [ref=e168]:
+                  - code [ref=e169]: Planning
+                - cell "AI is creating PLAN.md and a structured subtasks.json file." [ref=e170]
+              - row "Declaring Task declares which files it will modify (exclusive leases) or read (shared leases) for concurrency control." [ref=e171]:
+                - cell "Declaring" [ref=e172]:
+                  - code [ref=e173]: Declaring
+                - cell "Task declares which files it will modify (exclusive leases) or read (shared leases) for concurrency control." [ref=e174]
+              - row "Running AI agent is actively executing the implementation." [ref=e175]:
+                - cell "Running" [ref=e176]:
+                  - code [ref=e177]: Running
+                - cell "AI agent is actively executing the implementation." [ref=e178]
+              - row "Architecting Goal task is being decomposed into child tasks by the Architect skill." [ref=e179]:
+                - cell "Architecting" [ref=e180]:
+                  - code [ref=e181]: Architecting
+                - cell "Goal task is being decomposed into child tasks by the Architect skill." [ref=e182]
+              - row "Verifying Self-healing QA loop is running checks on the completed implementation." [ref=e183]:
+                - cell "Verifying" [ref=e184]:
+                  - code [ref=e185]: Verifying
+                - cell "Self-healing QA loop is running checks on the completed implementation." [ref=e186]
+              - row "Review Implementation complete. Awaiting human inspection and approval." [ref=e187]:
+                - cell "Review" [ref=e188]:
+                  - code [ref=e189]: Review
+                - cell "Implementation complete. Awaiting human inspection and approval." [ref=e190]
+              - row "Done Approved and complete." [ref=e191]:
+                - cell "Done" [ref=e192]:
+                  - code [ref=e193]: Done
+                - cell "Approved and complete." [ref=e194]
+              - row "Blocked Task is waiting on one or more dependency tasks to complete first." [ref=e195]:
+                - cell "Blocked" [ref=e196]:
+                  - code [ref=e197]: Blocked
+                - cell "Task is waiting on one or more dependency tasks to complete first." [ref=e198]
+          - heading "Progressing Tasks" [level=3] [ref=e199]
+          - list [ref=e200]:
+            - listitem [ref=e201]:
+              - text: Tasks in
+              - strong [ref=e202]: Todo
+              - text: must be queued manually via the task card menu or the task detail view.
+            - listitem [ref=e203]:
+              - text: Tasks in
+              - strong [ref=e204]: Review
+              - text: must be approved by a human — move them to
+              - strong [ref=e205]: Done
+              - text: after inspecting the changes.
+            - listitem [ref=e206]: All other transitions are handled automatically by the Formic server and AI agents.
+        - generic [ref=e207]:
+          - heading "AI Assistant" [level=2] [ref=e208]
+          - paragraph [ref=e209]: The AI Assistant is a chat panel in the bottom-right corner of the board. It is context-aware — it knows your current codebase and board state — and can help with brainstorming, task creation, and answering questions.
+          - heading "Opening and Closing" [level=3] [ref=e210]
+          - list [ref=e211]:
+            - listitem [ref=e212]: Click the floating chat icon (💬) in the bottom-right to open the assistant panel.
+            - listitem [ref=e213]: Click it again, or press Escape, to close the panel.
+            - listitem [ref=e214]: The panel can be expanded to a larger view for longer conversations.
+          - heading "What the Assistant Can Help With" [level=3] [ref=e215]
+          - list [ref=e216]:
+            - listitem [ref=e217]:
+              - strong [ref=e218]: "Brainstorm features:"
+              - text: Describe a problem; the assistant will suggest approaches and trade-offs.
+            - listitem [ref=e219]:
+              - strong [ref=e220]: "Create tasks:"
+              - text: Ask it to create a task — it will output a structured
+              - code [ref=e221]: task-create
+              - text: block that the server automatically processes into a new task.
+            - listitem [ref=e222]:
+              - strong [ref=e223]: "Explore the codebase:"
+              - text: Ask questions about architecture, find files, understand patterns.
+            - listitem [ref=e224]:
+              - strong [ref=e225]: "Refine requirements:"
+              - text: Describe a rough idea and let the assistant turn it into a detailed task description.
+          - heading "Creating Tasks via Chat" [level=3] [ref=e226]
+          - paragraph [ref=e227]:
+            - text: The assistant creates tasks by outputting a
+            - code [ref=e228]: task-create
+            - text: "code block in the chat:"
+          - generic [ref=e229]: "```task-create { \"title\": \"Add login page\", \"context\": \"...\", \"priority\": \"medium\", \"type\": \"standard\" } ```"
+          - paragraph [ref=e230]:
+            - text: The Formic server detects this block and automatically calls
+            - code [ref=e231]: POST /api/tasks
+            - text: to create the task on the board.
+        - generic [ref=e232]:
+          - heading "Lease-Based Concurrency" [level=2] [ref=e233]
+          - paragraph [ref=e234]:
+            - text: Formic can run multiple tasks in parallel. To prevent conflicting writes, it uses a
+            - strong [ref=e235]: file lease system
+            - text: managed by
+            - code [ref=e236]: leaseManager.ts
+            - text: .
+          - heading "File Declaration" [level=3] [ref=e237]
+          - paragraph [ref=e238]:
+            - text: During the
+            - strong [ref=e239]: Declaring
+            - text: "stage, a task explicitly declares which files it will touch:"
+          - list [ref=e240]:
+            - listitem [ref=e241]:
+              - strong [ref=e242]: Exclusive leases
+              - text: — files the task will write to. Only one task can hold an exclusive lease on a file at a time.
+            - listitem [ref=e243]:
+              - strong [ref=e244]: Shared leases
+              - text: — files the task will only read. Multiple tasks can hold shared leases on the same file simultaneously.
+          - heading "Task Yielding" [level=3] [ref=e245]
+          - paragraph [ref=e246]:
+            - text: When a task requests an exclusive lease on a file that is already held exclusively by another running task, it
+            - strong [ref=e247]: yields
+            - text: — it pauses and re-queues itself to wait. Once the conflicting lease is released, the yielded task is picked up again automatically.
+          - heading "Optimistic Concurrency for Shared Files" [level=3] [ref=e248]
+          - paragraph [ref=e249]:
+            - text: "Shared-lease files use optimistic concurrency: conflicts are detected at merge time via"
+            - code [ref=e250]: git hash-object
+            - text: collision detection. If two tasks read the same file and both modify it, the second to merge will detect the collision and trigger a resolution step.
+          - heading "Lease Expiration & Watchdog" [level=3] [ref=e251]
+          - paragraph [ref=e252]: "Leases expire after a configurable duration (default: 5 minutes). A background watchdog process periodically cleans up expired leases to prevent deadlocks if a task crashes without releasing its leases."
+        - generic [ref=e253]:
+          - heading "Self-Healing QA Loop" [level=2] [ref=e254]
+          - paragraph [ref=e255]:
+            - text: After a task finishes execution, Formic optionally runs a
+            - strong [ref=e256]: Verifier
+            - text: step that checks the implementation before it reaches Review. If verification fails, a
+            - strong [ref=e257]: Critic
+            - text: automatically creates a fix task.
+          - heading "Verifier Step" [level=3] [ref=e258]
+          - list [ref=e259]:
+            - listitem [ref=e260]: Runs automatically after the Running stage when self-healing is enabled.
+            - listitem [ref=e261]: Checks that the implementation meets the acceptance criteria defined in the task's brief.
+            - listitem [ref=e262]:
+              - text: The task enters the
+              - strong [ref=e263]: Verifying
+              - text: stage during this check.
+          - heading "Critic & Auto-Fix" [level=3] [ref=e264]
+          - list [ref=e265]:
+            - listitem [ref=e266]: If verification fails, the Critic skill generates a detailed fix task describing exactly what went wrong and what needs to be corrected.
+            - listitem [ref=e267]:
+              - text: The fix task is automatically created with a
+              - strong [ref=e268]: high priority override
+              - text: and is queued immediately.
+            - listitem [ref=e269]: The fix task runs through its own workflow (usually Quick type) and is linked back to the original task.
+          - heading "Result" [level=3] [ref=e270]
+          - paragraph [ref=e271]:
+            - text: Tasks that pass verification move to
+            - strong [ref=e272]: Review
+            - text: as normal. Tasks that fail have their fix tasks run first; once the fix is complete and verified, the original task proceeds to Review.
+        - generic [ref=e273]:
+          - heading "Goal Tasks & DAG Decomposition" [level=2] [ref=e274]
+          - paragraph [ref=e275]:
+            - text: A
+            - strong [ref=e276]: Goal
+            - text: task represents a high-level objective. Instead of running code directly, a Goal task triggers the Architect skill, which breaks it into 3–8 concrete child tasks with a dependency graph (DAG).
+          - heading "End-to-End Flow" [level=3] [ref=e277]
+          - list [ref=e278]:
+            - listitem [ref=e279]: Create a Goal task with a high-level objective (e.g., "Add user authentication").
+            - listitem [ref=e280]:
+              - text: Queue it — it enters the
+              - strong [ref=e281]: Architecting
+              - text: stage.
+            - listitem [ref=e282]:
+              - text: The Architect analyzes the codebase and decomposes the goal into child tasks, each with a
+              - code [ref=e283]: depends_on
+              - text: list.
+            - listitem [ref=e284]:
+              - text: Child tasks appear on the board linked via
+              - code [ref=e285]: parentGoalId
+              - text: . Tasks with no dependencies are queued immediately; dependent tasks are
+              - strong [ref=e286]: Blocked
+              - text: .
+            - listitem [ref=e287]: As child tasks complete, their dependents are automatically unblocked and queued.
+            - listitem [ref=e288]:
+              - text: The Goal task itself moves to
+              - strong [ref=e289]: Done
+              - text: once created — its progress is tracked through its children.
+          - heading "DAG Relationships" [level=3] [ref=e290]
+          - list [ref=e291]:
+            - listitem [ref=e292]:
+              - text: Each child task may declare
+              - code [ref=e293]: "depends_on: [\"sibling-task-id\", ...]"
+              - text: in the architect output.
+            - listitem [ref=e294]: Blocked tasks display a dependency indicator on their card showing which tasks they are waiting for.
+            - listitem [ref=e295]: Automatic unblocking runs whenever a task reaches review or done — Formic checks all blocked tasks and unblocks those whose dependencies have all completed execution.
+          - heading "Viewing Child Tasks" [level=3] [ref=e296]
+          - paragraph [ref=e297]:
+            - text: Child tasks appear as regular task cards on the board. Open any child task to see its
+            - code [ref=e298]: parentGoalId
+            - text: link, which takes you back to the original Goal task.
+        - generic [ref=e299]:
+          - heading "Keyboard Shortcuts" [level=2] [ref=e300]
+          - table [ref=e301]:
+            - rowgroup [ref=e302]:
+              - row "Shortcut Action" [ref=e303]:
+                - columnheader "Shortcut" [ref=e304]
+                - columnheader "Action" [ref=e305]
+            - rowgroup [ref=e306]:
+              - row "Escape Close the active panel (Help, Settings, AI Assistant, modals)" [ref=e307]:
+                - cell "Escape" [ref=e308]
+                - cell "Close the active panel (Help, Settings, AI Assistant, modals)" [ref=e309]
+              - row "Enter Send message in the AI Assistant chat input" [ref=e310]:
+                - cell "Enter" [ref=e311]
+                - cell "Send message in the AI Assistant chat input" [ref=e312]
+              - row "Shift+Enter Insert newline in the AI Assistant chat input" [ref=e313]:
+                - cell "Shift+Enter" [ref=e314]
+                - cell "Insert newline in the AI Assistant chat input" [ref=e315]
+          - heading "Tips" [level=3] [ref=e316]
+          - list [ref=e317]:
+            - listitem [ref=e318]: Only one panel (Help or Settings or AI Assistant) is active at a time — Escape always closes the topmost one.
+            - listitem [ref=e319]: Dragging a task card to a different column manually overrides the automated workflow for manual triage.
+        - generic [ref=e320]:
+          - heading "Settings" [level=2] [ref=e321]
+          - paragraph [ref=e322]:
+            - text: Open Settings via the
+            - strong [ref=e323]: ⚙
+            - text: button in the header. Changes take effect immediately and are persisted in the browser's local storage.
+          - heading "General" [level=3] [ref=e324]
+          - list [ref=e325]:
+            - listitem [ref=e326]:
+              - strong [ref=e327]: Theme
+              - text: — Choose
+              - emphasis [ref=e328]: Dark
+              - text: ","
+              - emphasis [ref=e329]: Light
+              - text: ", or"
+              - emphasis [ref=e330]: Auto
+              - text: (follows the OS preference). The active theme is highlighted in the selector.
+            - listitem [ref=e331]:
+              - strong [ref=e332]: Notifications
+              - text: — Toggle browser notifications for task state changes (e.g., a task entering Review). Requires browser permission on first enable.
+          - heading "Execution" [level=3] [ref=e333]
+          - list [ref=e334]:
+            - listitem [ref=e335]:
+              - strong [ref=e336]: Max Concurrent Sessions
+              - text: — How many AI agent sessions can run in parallel. Increase this to process more tasks simultaneously. The default is 1 (sequential). Higher values require more system resources.
+          - heading "Workspaces" [level=3] [ref=e337]
+          - list [ref=e338]:
+            - listitem [ref=e339]:
+              - text: Formic can manage tasks across multiple code repositories. Add a workspace by pasting an absolute path to a local repository and clicking
+              - strong [ref=e340]: + Add
+              - text: .
+            - listitem [ref=e341]: Each workspace has a color-coded label for quick identification on task cards.
+            - listitem [ref=e342]: Remove a workspace with the trash icon. This does not delete any files — it only removes the workspace from Formic's list.
+            - listitem [ref=e343]: The active workspace (shown in the board header) determines which repository tasks are executed against.
+  - generic [ref=e344]:
+    - generic [ref=e345]:
+      - generic [ref=e346]:
+        - generic [ref=e347]: ⚙️
+        - generic [ref=e348]: Settings
+      - button "×" [ref=e349] [cursor=pointer]
+    - generic [ref=e350]:
+      - generic [ref=e351]:
+        - generic [ref=e352]: General
+        - generic [ref=e353]:
+          - generic [ref=e354]: Theme
+          - generic [ref=e355]:
+            - button "☾ Dark" [ref=e356] [cursor=pointer]:
+              - generic [ref=e357]: ☾
+              - generic [ref=e358]: Dark
+            - button "☀ Light" [ref=e359] [cursor=pointer]:
+              - generic [ref=e360]: ☀
+              - generic [ref=e361]: Light
+            - button "⚙ Auto" [ref=e362] [cursor=pointer]:
+              - generic [ref=e363]: ⚙
+              - generic [ref=e364]: Auto
+        - generic [ref=e365]:
+          - generic [ref=e366]: Notifications
+          - generic [ref=e367]:
+            - checkbox
+      - generic [ref=e369]:
+        - generic [ref=e370]: Execution
+        - generic [ref=e371]:
+          - generic [ref=e372]: Max Concurrent Tasks
+          - generic [ref=e373]:
+            - button "−" [ref=e374] [cursor=pointer]
+            - generic [ref=e375]: "1"
+            - button "+" [ref=e376] [cursor=pointer]
+        - generic [ref=e377]:
+          - generic [ref=e378]:
+            - generic [ref=e379]: Max Execute Iterations
+            - generic [ref=e380]: Retry loops per task (1–20)
+          - generic [ref=e381]:
+            - button "−" [ref=e382] [cursor=pointer]
+            - generic [ref=e383]: "5"
+            - button "+" [ref=e384] [cursor=pointer]
+        - generic [ref=e385]:
+          - generic [ref=e386]:
+            - generic [ref=e387]: Step Timeout
+            - generic [ref=e388]: Maximum time allowed per execution step
+          - generic [ref=e389]:
+            - spinbutton [ref=e390]
+            - generic [ref=e391]: min
+        - generic [ref=e392]:
+          - generic [ref=e393]:
+            - generic [ref=e394]: Verify Command
+            - generic [ref=e395]: e.g. npm test (empty = disabled)
+          - textbox "npm test" [ref=e396]
+        - generic [ref=e397]:
+          - generic [ref=e398]:
+            - generic [ref=e399]: Run Verifier After Execution
+            - generic [ref=e400]: When ON, runs the verify command after each task. Requires a Verify Command to be set.
+          - generic [ref=e401]:
+            - checkbox
+      - generic [ref=e403]:
+        - generic [ref=e404]: Queue & Concurrency
+        - generic [ref=e405]:
+          - generic [ref=e406]:
+            - generic [ref=e407]: Queue Poll Interval
+            - generic [ref=e408]: How often to check the task queue for new work
+          - generic [ref=e409]:
+            - spinbutton [ref=e410]
+            - generic [ref=e411]: sec
+        - generic [ref=e412]:
+          - generic [ref=e413]:
+            - generic [ref=e414]: Max Yield Count
+            - generic [ref=e415]: Before skipping a lease-blocked task (1–500)
+          - generic [ref=e416]:
+            - button "−" [ref=e417] [cursor=pointer]
+            - generic [ref=e418]: "50"
+            - button "+" [ref=e419] [cursor=pointer]
+      - generic [ref=e420]:
+        - generic [ref=e421]: Lease Management
+        - generic [ref=e422]:
+          - generic [ref=e423]:
+            - generic [ref=e424]: Lease Duration
+            - generic [ref=e425]: How long a file lease stays active before expiring
+          - generic [ref=e426]:
+            - spinbutton [ref=e427]
+            - generic [ref=e428]: min
+        - generic [ref=e429]:
+          - generic [ref=e430]:
+            - generic [ref=e431]: Watchdog Interval
+            - generic [ref=e432]: How often expired leases are scanned and cleaned up
+          - generic [ref=e433]:
+            - spinbutton [ref=e434]
+            - generic [ref=e435]: sec
+      - generic [ref=e437]:
+        - generic [ref=e438]:
+          - generic [ref=e439]: Engine Configuration
+          - generic [ref=e440]: Restore Execution, Queue & Concurrency, and Lease Management to defaults
+        - button "Reset to Defaults" [ref=e441] [cursor=pointer]
+      - generic [ref=e442]:
+        - generic [ref=e443]: Workspaces
+        - generic [ref=e444]:
+          - textbox "Enter workspace path..." [ref=e445]
+          - button "+ Add" [ref=e446] [cursor=pointer]

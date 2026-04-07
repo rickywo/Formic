@@ -74,10 +74,10 @@ export function getFormicDir(): string {
 }
 
 /**
- * Get the board.json.0607.json file path
+ * Get the board.json file path
  */
 export function getBoardPath(): string {
-  return path.join(getFormicDir(), 'board.json.0607.json');
+  return path.join(getFormicDir(), 'board.json');
 }
 
 /**
@@ -95,7 +95,7 @@ export function getTaskDocsPath(id: string, slug: string): string {
 }
 
 /**
- * Get the relative docsPath (for storing in board.json.0607.json)
+ * Get the relative docsPath (for storing in board.json)
  */
 export function getRelativeDocsPath(id: string, slug: string): string {
   return `.formic/tasks/${id}_${slug}`;

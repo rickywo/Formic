@@ -192,58 +192,7 @@ The server will automatically detect this format and create the task via the For
 **Project:** Formic
 **Repository:** /Users/WTHX38/WebstormProjects/Formic
 
-### Todo
-  - [t-2] Build Activity Monitor Plugin for Formic
-  - [t-24] !Implement React-compatible slot-based UI injection system
-  - [t-25] Implement IntegrationApi and MemoryApi for plugin system
-  - [t-26] Build plugin marketplace with community registry and manager UI
-  - [t-27] -Create @rickywo/formic-sdk package and plugin development tooling
-
-### Review
-  - [t-1] !Implement Obsidian-style Plugin System for Formic
-  - [t-3] !Create plugin manifest validator and loader service
-  - [t-4] !Implement plugin hook system and PluginContext API
-  - [t-5] Create plugin management REST API routes
-  - [t-6] Implement client-side plugin mount system in vanilla JS
-  - [t-7] Add CLI subcommands for plugin management
-  - [t-8] Add plugin management tab to settings UI
-  - [t-9] -Create sample plugin and validate end-to-end plugin system
-  - [t-10] Make task workflow pipeline configurable and allow plugins to register custom stages with custom skills
-  - [t-11] !Add pipeline, stage descriptor, and permission types to the type system
-  - [t-12] !Refactor hardcoded workflow into a configurable pipeline engine
-  - [t-13] !Add skill override and interception system to skillReader
-  - [t-14] Add workflow and skills registration APIs to PluginContext
-  - [t-15] Implement plugin stage cleanup on unload and disable
-  - [t-16] Update board UI to render columns dynamically from pipeline stages
-  - [t-17] -Verify configurable pipeline with integration tests and build validation
-  - [t-18] Add configurable custom prompt support to unit-test plugin
-  - [t-19] !Add unit-test stage to card workflow indicator and kanban board
-  - [t-20] !Fix [object Object] rendering in plugin settings GET endpoint
-  - [t-22] !Enforce API-driven subtask status updates to prevent invalid status values
-  - [t-23] !Align plugin interface and API surface with architecture spec
-  - [t-28] !Define FormicPlugin, FormicAPI, and all sub-API type interfaces
-  - [t-29] !Add missing task lifecycle events and ensure all events fire correctly
-  - [t-30] Restructure PluginContext factory into FormicAPI with sub-API namespaces
-  - [t-31] Update pluginManager to support class-based FormicPlugin loading
-  - [t-32] Implement registerTaskType and registerVerifier in SkillApi and pipeline
-  - [t-33] -Verify full build passes and backward compatibility with existing plugins
-  - [t-34] !Define FormicPlugin interface and FormicAPI type hierarchy in the type system
-  - [t-35] !Add granular task lifecycle events to internalEvents and emit them from store and workflow
-  - [t-36] !Implement FormicAPI factory function with all sub-API implementations
-  - [t-37] Update pluginManager to support class-based FormicPlugin lifecycle with backward compatibility
-  - [t-38] Implement registerTaskType and registerVerifier in SkillApi with pipeline integration
-  - [t-39] -Add deprecation path from PluginContext to FormicAPI and update existing plugin references
-  - [t-40] -Verify end-to-end plugin API alignment with build validation and integration check
-  - [t-41] !Define FormicPlugin interface and FormicAPI type system in types/index.ts
-  - [t-42] !Add granular task lifecycle events to internalEvents and wire them into store.ts
-  - [t-43] Restructure pluginContext.ts to produce FormicAPI with TaskApi lifecycle hooks and SettingsApi
-  - [t-44] Update pluginManager.ts to support class-based FormicPlugin loading alongside manifest plugins
-  - [t-45] Implement SkillApi registerTaskType and registerVerifier in pluginContext and pipelineRegistry
-  - [t-46] -Create a class-based example plugin and verify hello-world backward compatibility
-  - [t-47] -Verify build, type-check, and integration test the complete plugin API surface
-
-### Done
-  - [t-bootstrap] !Setup AI Development Guidelines
+No tasks on the board yet.
 
 ## Formic Workflow
 

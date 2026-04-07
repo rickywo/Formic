@@ -17,7 +17,7 @@ async function ensureTasksDir(): Promise<void> {
 
 /**
  * Create a task documentation folder with template files
- * Returns the relative docsPath for storing in board.json.0607.json
+ * Returns the relative docsPath for storing in board.json
  */
 export async function createTaskDocsFolder(
   taskId: string,
