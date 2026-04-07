@@ -1,0 +1,33 @@
+{
+  "name": "@rickywo/formic-sdk",
+  "version": "1.0.0",
+  "description": "TypeScript type definitions for building Formic plugins",
+  "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "bin": {
+    "formic-sdk": "./dist/cli/create-plugin.js"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "formic",
+    "plugin",
+    "sdk",
+    "types",
+    "typescript"
+  ],
+  "author": "rickywo",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.5.3"
+  }
+}
