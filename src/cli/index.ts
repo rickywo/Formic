@@ -88,12 +88,14 @@ Commands:
 
 Options:
   -p, --port <n>    Port to run the server on (default: 8000)
+  --plugins <path>  Load additional plugins from a local directory
   -h, --help        Show this help message
   -v, --version     Show version number
 
 Examples:
   formic start                   Start server on default port (8000)
   formic start --port 3000       Start server on port 3000
+  formic start --plugins ./my-plugin  Load plugins from a local directory
   formic init                    Pre-initialize .formic/ directory (optional)
 
 Environment Variables:
@@ -156,7 +158,7 @@ async function initCommand(): Promise<void> {
 /**
  * Start the Formic server
  */
-async function startCommand(port?: number): Promise<void> {
+async function startCommand(port?: number, pluginsPath?: string): Promise<void> {
   const workspacePath = process.cwd();
 
   // Load .env file from workspace
@@ -173,15 +175,17 @@ async function startCommand(port?: number): Promise<void> {
   await startServer({
     port,
     workspacePath,
+    pluginsPath,
   });
 }
 
 /**
  * Parse command line arguments
  */
-function parseArgs(args: string[]): { command: string; port?: number } {
+function parseArgs(args: string[]): { command: string; port?: number; pluginsPath?: string } {
   let command = '';
   let port: number | undefined;
+  let pluginsPath: string | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -209,13 +213,24 @@ function parseArgs(args: string[]): { command: string; port?: number } {
       continue;
     }
 
+    if (arg === '--plugins') {
+      const pluginsValue = args[i + 1];
+      if (!pluginsValue || pluginsValue.startsWith('-')) {
+        console.error('Error: --plugins requires a path');
+        process.exit(1);
+      }
+      pluginsPath = pluginsValue;
+      i++; // Skip next argument
+      continue;
+    }
+
     // First non-flag argument is the command
     if (!arg.startsWith('-') && !command) {
       command = arg;
     }
   }
 
-  return { command, port };
+  return { command, port, pluginsPath };
 }
 
 /**
@@ -231,7 +246,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { command, port } = parseArgs(args);
+  const { command, port, pluginsPath } = parseArgs(args);
 
   switch (command) {
     case 'help':
@@ -249,7 +264,7 @@ async function main(): Promise<void> {
       break;
 
     case 'start':
-      await startCommand(port);
+      await startCommand(port, pluginsPath);
       break;
 
     case 'plugin': {

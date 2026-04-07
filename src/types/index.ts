@@ -815,6 +815,8 @@ export interface ServerOptions {
   host?: string;
   /** Workspace directory path (default: process.cwd()) */
   workspacePath?: string;
+  /** Additional plugins directory for local development (loaded alongside .formic/plugins/) */
+  pluginsPath?: string;
 }
 
 // ==================== Messaging Integration Types ====================

@@ -193,20 +193,104 @@ function isClassPlugin(mod: unknown): boolean {
 /**
  * Scan .formic/plugins/ for subdirectories containing manifest.json,
  * validate each manifest, and populate the in-memory registry.
+ * Optionally scans an additional plugins directory for local development.
  * Returns the registry map.
  */
-export async function discoverPlugins(): Promise<Map<string, PluginEntry>> {
+export async function discoverPlugins(additionalPluginsDir?: string): Promise<Map<string, PluginEntry>> {
   const pluginsDir = path.join(getFormicDir(), 'plugins');
 
   // Clear existing registry
   registry.clear();
 
+  // Scan the default .formic/plugins/ directory
+  await scanPluginsDirectory(pluginsDir);
+
+  // Scan the additional plugins directory if provided
+  if (additionalPluginsDir) {
+    const resolvedPath = path.resolve(additionalPluginsDir);
+    console.warn(`[PluginManager] Scanning additional plugins directory: ${resolvedPath}`);
+
+    try {
+      const dirStat = await stat(resolvedPath);
+      if (!dirStat.isDirectory()) {
+        console.warn(`[PluginManager] Additional plugins path is not a directory: ${resolvedPath}`);
+      } else {
+        // Check if this is a single plugin directory (has manifest.json or package.json at root)
+        let isSinglePlugin = false;
+        try {
+          await stat(path.join(resolvedPath, 'manifest.json'));
+          isSinglePlugin = true;
+        } catch {
+          try {
+            await stat(path.join(resolvedPath, 'package.json'));
+            isSinglePlugin = true;
+          } catch {
+            // Neither manifest.json nor package.json — treat as multi-plugin parent directory
+          }
+        }
+
+        if (isSinglePlugin) {
+          // Treat the path itself as a single plugin directory
+          console.warn(`[PluginManager] Detected single plugin at: ${resolvedPath}`);
+          await scanSinglePluginDirectory(resolvedPath);
+        } else {
+          // Treat as a directory containing multiple plugin subdirectories
+          await scanPluginsDirectory(resolvedPath);
+        }
+      }
+    } catch {
+      console.warn(`[PluginManager] Additional plugins path does not exist or is inaccessible: ${resolvedPath}`);
+    }
+  }
+
+  console.warn(`[PluginManager] Discovered ${registry.size} plugin(s)`);
+  return registry;
+}
+
+/**
+ * Scan a single plugin directory and register it in the registry.
+ * Used when --plugins points directly to a plugin (containing manifest.json or package.json).
+ */
+async function scanSinglePluginDirectory(pluginDir: string): Promise<void> {
+  const entry = path.basename(pluginDir);
+
+  try {
+    const manifestPath = path.join(pluginDir, 'manifest.json');
+    let manifestData: string | null = null;
+    try {
+      manifestData = await readFile(manifestPath, 'utf-8');
+    } catch {
+      // No manifest.json — fall back to package.json-based detection
+    }
+
+    if (manifestData === null) {
+      await registerPackageJsonPlugin(pluginDir, entry);
+      return;
+    }
+
+    await registerManifestPlugin(pluginDir, entry, manifestData);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    console.warn(`[PluginManager] Error discovering plugin in ${pluginDir}: ${msg}`);
+    registry.set(entry, {
+      manifest: { name: entry, version: '0.0.0' },
+      status: 'error',
+      error: msg,
+      pluginDir,
+    });
+  }
+}
+
+/**
+ * Scan a directory containing plugin subdirectories and register each one.
+ */
+async function scanPluginsDirectory(pluginsDir: string): Promise<void> {
   let entries: string[];
   try {
     entries = await readdir(pluginsDir);
   } catch {
-    // plugins/ directory doesn't exist — not an error, just no plugins
-    return registry;
+    // Directory doesn't exist — not an error, just no plugins here
+    return;
   }
 
   for (const entry of entries) {
@@ -225,145 +309,11 @@ export async function discoverPlugins(): Promise<Map<string, PluginEntry>> {
       }
 
       if (manifestData === null) {
-        // Package.json fallback: detect class-based plugins
-        try {
-          const pkgPath = path.join(pluginDir, 'package.json');
-          let pkgData: string;
-          try {
-            pkgData = await readFile(pkgPath, 'utf-8');
-          } catch {
-            // No package.json either — skip silently
-            continue;
-          }
-
-          let pkg: unknown;
-          try {
-            pkg = JSON.parse(pkgData);
-          } catch {
-            console.warn(`[PluginManager] Malformed JSON in ${pkgPath}`);
-            registry.set(entry, {
-              manifest: { name: entry, version: '0.0.0' },
-              status: 'error',
-              error: 'Malformed JSON in package.json',
-              pluginDir,
-            });
-            continue;
-          }
-
-          const pkgObj = pkg as Record<string, unknown>;
-
-          if (typeof pkgObj.name !== 'string' || pkgObj.name.length === 0) {
-            console.warn(`[PluginManager] package.json in ${pluginDir}: 'name' must be a non-empty string`);
-            registry.set(entry, {
-              manifest: { name: entry, version: '0.0.0' },
-              status: 'error',
-              error: 'package.json missing valid name field',
-              pluginDir,
-            });
-            continue;
-          }
-
-          if (typeof pkgObj.version !== 'string' || pkgObj.version.length === 0) {
-            console.warn(`[PluginManager] package.json in ${pluginDir}: 'version' must be a non-empty string`);
-            registry.set(entry, {
-              manifest: { name: pkgObj.name, version: '0.0.0' },
-              status: 'error',
-              error: 'package.json missing valid version field',
-              pluginDir,
-            });
-            continue;
-          }
-
-          // Resolve entry point from main or exports
-          let serverEntry = 'index.js';
-          if (typeof pkgObj.main === 'string' && pkgObj.main.length > 0) {
-            serverEntry = pkgObj.main;
-          } else if (pkgObj.exports && typeof pkgObj.exports === 'object' && !Array.isArray(pkgObj.exports)) {
-            const exportsObj = pkgObj.exports as Record<string, unknown>;
-            const defaultExport = exportsObj['.'] ?? exportsObj['default'];
-            if (typeof defaultExport === 'string') {
-              serverEntry = defaultExport;
-            }
-          }
-
-          const synthesizedManifest: PluginManifest = {
-            name: pkgObj.name,
-            version: pkgObj.version,
-            description: typeof pkgObj.description === 'string' ? pkgObj.description : undefined,
-            permissions: [],
-            serverEntry,
-          };
-
-          const persistedConfig = await getPluginConfig(pkgObj.name);
-          let pkgStatus: PluginEntry['status'] = 'discovered';
-          if (persistedConfig) {
-            pkgStatus = persistedConfig.enabled ? 'discovered' : 'disabled';
-          } else {
-            await setPluginConfig(pkgObj.name, { enabled: true, settings: {} });
-          }
-
-          registry.set(pkgObj.name, {
-            manifest: synthesizedManifest,
-            status: pkgStatus,
-            format: 'class',
-            pluginDir,
-          });
-        } catch (pkgError) {
-          const pkgMsg = pkgError instanceof Error ? pkgError.message : 'Unknown error';
-          console.warn(`[PluginManager] Error reading package.json in ${pluginDir}: ${pkgMsg}`);
-          registry.set(entry, {
-            manifest: { name: entry, version: '0.0.0' },
-            status: 'error',
-            error: pkgMsg,
-            pluginDir,
-          });
-        }
+        await registerPackageJsonPlugin(pluginDir, entry);
         continue;
       }
 
-      let raw: unknown;
-      try {
-        raw = JSON.parse(manifestData);
-      } catch {
-        console.warn(`[PluginManager] Malformed JSON in ${manifestPath}`);
-        registry.set(entry, {
-          manifest: { name: entry, version: '0.0.0' },
-          status: 'error',
-          error: 'Malformed JSON in manifest.json',
-          pluginDir,
-        });
-        continue;
-      }
-
-      const manifest = validateManifest(raw, pluginDir);
-      if (!manifest) {
-        registry.set(entry, {
-          manifest: { name: entry, version: '0.0.0' },
-          status: 'error',
-          error: 'Manifest validation failed',
-          pluginDir,
-        });
-        continue;
-      }
-
-      // Check persisted config for enabled/disabled state
-      const persistedConfig = await getPluginConfig(manifest.name);
-      let status: PluginEntry['status'] = 'discovered';
-      if (persistedConfig) {
-        status = persistedConfig.enabled ? 'discovered' : 'disabled';
-      } else {
-        // First discovery — persist default config with manifest settings defaults
-        await setPluginConfig(manifest.name, {
-          enabled: true,
-          settings: manifest.settings ? { ...manifest.settings } : {},
-        });
-      }
-
-      registry.set(manifest.name, {
-        manifest,
-        status,
-        pluginDir,
-      });
+      await registerManifestPlugin(pluginDir, entry, manifestData);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Unknown error';
       console.warn(`[PluginManager] Error discovering plugin in ${pluginDir}: ${msg}`);
@@ -375,9 +325,153 @@ export async function discoverPlugins(): Promise<Map<string, PluginEntry>> {
       });
     }
   }
+}
 
-  console.warn(`[PluginManager] Discovered ${registry.size} plugin(s)`);
-  return registry;
+/**
+ * Register a plugin from a directory containing package.json (class-based plugin).
+ */
+async function registerPackageJsonPlugin(pluginDir: string, entry: string): Promise<void> {
+  try {
+    const pkgPath = path.join(pluginDir, 'package.json');
+    let pkgData: string;
+    try {
+      pkgData = await readFile(pkgPath, 'utf-8');
+    } catch {
+      // No package.json either — skip silently
+      return;
+    }
+
+    let pkg: unknown;
+    try {
+      pkg = JSON.parse(pkgData);
+    } catch {
+      console.warn(`[PluginManager] Malformed JSON in ${pkgPath}`);
+      registry.set(entry, {
+        manifest: { name: entry, version: '0.0.0' },
+        status: 'error',
+        error: 'Malformed JSON in package.json',
+        pluginDir,
+      });
+      return;
+    }
+
+    const pkgObj = pkg as Record<string, unknown>;
+
+    if (typeof pkgObj.name !== 'string' || pkgObj.name.length === 0) {
+      console.warn(`[PluginManager] package.json in ${pluginDir}: 'name' must be a non-empty string`);
+      registry.set(entry, {
+        manifest: { name: entry, version: '0.0.0' },
+        status: 'error',
+        error: 'package.json missing valid name field',
+        pluginDir,
+      });
+      return;
+    }
+
+    if (typeof pkgObj.version !== 'string' || pkgObj.version.length === 0) {
+      console.warn(`[PluginManager] package.json in ${pluginDir}: 'version' must be a non-empty string`);
+      registry.set(entry, {
+        manifest: { name: pkgObj.name, version: '0.0.0' },
+        status: 'error',
+        error: 'package.json missing valid version field',
+        pluginDir,
+      });
+      return;
+    }
+
+    // Resolve entry point from main or exports
+    let serverEntry = 'index.js';
+    if (typeof pkgObj.main === 'string' && pkgObj.main.length > 0) {
+      serverEntry = pkgObj.main;
+    } else if (pkgObj.exports && typeof pkgObj.exports === 'object' && !Array.isArray(pkgObj.exports)) {
+      const exportsObj = pkgObj.exports as Record<string, unknown>;
+      const defaultExport = exportsObj['.'] ?? exportsObj['default'];
+      if (typeof defaultExport === 'string') {
+        serverEntry = defaultExport;
+      }
+    }
+
+    const synthesizedManifest: PluginManifest = {
+      name: pkgObj.name,
+      version: pkgObj.version,
+      description: typeof pkgObj.description === 'string' ? pkgObj.description : undefined,
+      permissions: [],
+      serverEntry,
+    };
+
+    const persistedConfig = await getPluginConfig(pkgObj.name);
+    let pkgStatus: PluginEntry['status'] = 'discovered';
+    if (persistedConfig) {
+      pkgStatus = persistedConfig.enabled ? 'discovered' : 'disabled';
+    } else {
+      await setPluginConfig(pkgObj.name, { enabled: true, settings: {} });
+    }
+
+    registry.set(pkgObj.name, {
+      manifest: synthesizedManifest,
+      status: pkgStatus,
+      format: 'class',
+      pluginDir,
+    });
+  } catch (pkgError) {
+    const pkgMsg = pkgError instanceof Error ? pkgError.message : 'Unknown error';
+    console.warn(`[PluginManager] Error reading package.json in ${pluginDir}: ${pkgMsg}`);
+    registry.set(entry, {
+      manifest: { name: entry, version: '0.0.0' },
+      status: 'error',
+      error: pkgMsg,
+      pluginDir,
+    });
+  }
+}
+
+/**
+ * Register a plugin from a directory containing manifest.json.
+ */
+async function registerManifestPlugin(pluginDir: string, entry: string, manifestData: string): Promise<void> {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(manifestData);
+  } catch {
+    console.warn(`[PluginManager] Malformed JSON in ${path.join(pluginDir, 'manifest.json')}`);
+    registry.set(entry, {
+      manifest: { name: entry, version: '0.0.0' },
+      status: 'error',
+      error: 'Malformed JSON in manifest.json',
+      pluginDir,
+    });
+    return;
+  }
+
+  const manifest = validateManifest(raw, pluginDir);
+  if (!manifest) {
+    registry.set(entry, {
+      manifest: { name: entry, version: '0.0.0' },
+      status: 'error',
+      error: 'Manifest validation failed',
+      pluginDir,
+    });
+    return;
+  }
+
+  // Check persisted config for enabled/disabled state
+  const persistedConfig = await getPluginConfig(manifest.name);
+  let status: PluginEntry['status'] = 'discovered';
+  if (persistedConfig) {
+    status = persistedConfig.enabled ? 'discovered' : 'disabled';
+  } else {
+    // First discovery — persist default config with manifest settings defaults
+    await setPluginConfig(manifest.name, {
+      enabled: true,
+      settings: manifest.settings ? { ...manifest.settings } : {},
+    });
+  }
+
+  registry.set(manifest.name, {
+    manifest,
+    status,
+    pluginDir,
+  });
 }
 
 /**

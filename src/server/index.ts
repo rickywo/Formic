@@ -150,7 +150,7 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
 
     // Discover and load enabled server-side plugins before accepting traffic
     try {
-      await discoverPlugins();
+      await discoverPlugins(options.pluginsPath);
       const pluginRegistry = getPlugins();
       for (const [pluginName, entry] of pluginRegistry) {
         if (entry.status !== 'disabled' && entry.status !== 'error' && entry.manifest.serverEntry) {
