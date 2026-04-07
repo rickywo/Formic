@@ -40,6 +40,9 @@ const ALLOWED_PERMISSIONS = new Set<PluginPermission>([
   'workflow:extend',
   'skills:override',
   'integrations:webhook',
+  'integrations:notify',
+  'memory:read',
+  'memory:write',
 ]);
 
 /** In-memory plugin registry */
