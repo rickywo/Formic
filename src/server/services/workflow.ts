@@ -1588,6 +1588,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
   if (activeWorkflows.has(taskId)) {
     throw new Error('A workflow is already running for this task');
   }
+  stoppedWorkflows.delete(taskId); // Clear any stale stop flag from a previous workflow
 
   // Helper to run brief/plan steps sequentially
   const runStep = async (step: 'brief' | 'plan' | 'execute'): Promise<boolean> => {
