@@ -1882,6 +1882,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
  * Skips brief and plan steps, jumping directly to declare + acquire leases and then execute.
  */
 export async function executeFromDeclare(taskId: string): Promise<void> {
+  stoppedWorkflows.delete(taskId); // Clear any stale stop flag from a previous workflow
   // Change status to 'declaring' immediately so the queue processor cannot re-dispatch this task
   // before the async IIFE begins (mirrors the 'briefing' guard in executeFullWorkflow).
   await updateTaskStatus(taskId, 'declaring', undefined, 'workflow.executeFromDeclare.init');
