@@ -30,7 +30,7 @@ import { getMessagingConfig } from './services/messagingAdapter.js';
 import { initializeStatusCache } from './services/messagingNotifier.js';
 import type { ServerOptions } from '../types/index.js';
 import { setBoundPort } from './services/runner.js';
-import { discoverPlugins, getPlugins, loadPlugin } from './services/pluginManager.js';
+import { discoverPlugins, getPlugins, loadPlugin, watchPluginDir } from './services/pluginManager.js';
 import { internalEvents, SERVER_STARTUP, SERVER_SHUTDOWN } from './services/internalEvents.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -166,6 +166,11 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     } catch (pluginErr) {
       console.warn('[Server] Plugin discovery/loading failed (non-fatal):',
         pluginErr instanceof Error ? pluginErr.message : 'Unknown error');
+    }
+
+    // Start watching --plugins directory for hot-reload in dev mode
+    if (options.pluginsPath) {
+      watchPluginDir(options.pluginsPath);
     }
 
     await fastify.listen({ port, host });

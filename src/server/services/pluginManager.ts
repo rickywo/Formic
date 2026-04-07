@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process';
+import { watch } from 'node:fs';
+import type { FSWatcher } from 'node:fs';
 import { readFile, readdir, stat, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -10,7 +12,7 @@ import { unregisterStages, unregisterCustomTaskTypes, unregisterVerifiers } from
 import { unregisterSkillOverrides } from './skillReader.js';
 import { unregisterPluginWebhooks } from './pluginWebhookRegistry.js';
 import { unregisterBotCommands } from './pluginBotCommands.js';
-import { internalEvents, STAGE_UNREGISTERED, BOARD_UPDATE } from './internalEvents.js';
+import { internalEvents, STAGE_UNREGISTERED, BOARD_UPDATE, SERVER_SHUTDOWN } from './internalEvents.js';
 
 /**
  * Plugin Manager Service
@@ -53,6 +55,20 @@ const execFileAsync = promisify(execFile);
 
 /** Timeout for npm install operations (60 seconds) */
 const NPM_INSTALL_TIMEOUT_MS = 60_000;
+
+// ==================== Hot-Reload Watcher State ====================
+
+/** Debounce window in milliseconds for file change events */
+const DEBOUNCE_MS = 500;
+
+/** Active file system watcher for --plugins directory, or null when not watching */
+let pluginWatcher: FSWatcher | null = null;
+
+/** Per-plugin debounce timers keyed by plugin name */
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+/** Whether ESM cache busting is enabled for dynamic imports */
+let cacheBustEnabled = false;
 
 // ==================== Semver Helpers ====================
 
@@ -186,6 +202,53 @@ function isClassPlugin(mod: unknown): boolean {
   const proto = defaultExport.prototype as Record<string, unknown> | undefined;
   if (!proto || typeof proto !== 'object') return false;
   return typeof proto.onLoad === 'function' && typeof proto.onUnload === 'function';
+}
+
+// ==================== Hot-Reload Helpers ====================
+
+/**
+ * Resolve a changed file path to the name of the plugin that owns it.
+ * Iterates the registry and checks if the changed path starts with the plugin's directory.
+ * Returns null if no matching plugin is found.
+ */
+function resolvePluginNameFromPath(changedPath: string): string | null {
+  for (const [name, entry] of registry) {
+    if (entry.pluginDir && changedPath.startsWith(entry.pluginDir)) {
+      return name;
+    }
+  }
+  return null;
+}
+
+/**
+ * Reload a single plugin by name — unload, then re-load with ESM cache busting.
+ * Only class-based plugins are hot-reloaded; legacy-format plugins log a warning.
+ */
+async function reloadPlugin(name: string): Promise<void> {
+  const entry = registry.get(name);
+  if (!entry) {
+    console.warn(`[PluginManager] Cannot reload unknown plugin: ${name}`);
+    return;
+  }
+
+  if (entry.format === 'legacy') {
+    console.warn(`[PluginManager] Plugin '${name}' uses legacy format — hot-reload is not supported. Restart the server to apply changes.`);
+    return;
+  }
+
+  console.warn(`[PluginManager] Change detected in '${name}', reloading...`);
+
+  try {
+    await unloadPlugin(name);
+    cacheBustEnabled = true;
+    await loadPlugin(name);
+    cacheBustEnabled = false;
+    console.warn(`[PluginManager] Plugin '${name}' reloaded successfully`);
+  } catch (err) {
+    cacheBustEnabled = false;
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.warn(`[PluginManager] Failed to reload plugin '${name}': ${msg}`);
+  }
 }
 
 // ==================== Lifecycle Functions ====================
@@ -493,7 +556,8 @@ export async function loadPlugin(name: string): Promise<void> {
   try {
     if (entry.manifest.serverEntry) {
       const entryPath = path.resolve(entry.pluginDir, entry.manifest.serverEntry);
-      const mod = await import(entryPath);
+      const importUrl = cacheBustEnabled ? `${entryPath}?t=${Date.now()}` : entryPath;
+      const mod = await import(importUrl);
 
       if (isClassPlugin(mod)) {
         // Class-based plugin loading
@@ -833,4 +897,93 @@ export function getPlugins(): Map<string, PluginEntry> {
  */
 export function getPlugin(name: string): PluginEntry | undefined {
   return registry.get(name);
+}
+
+// ==================== Hot-Reload File Watcher ====================
+
+/** File extensions eligible for triggering a hot-reload */
+const WATCHED_EXTENSIONS = new Set(['.ts', '.js', '.json']);
+
+/**
+ * Start watching the --plugins directory for file changes and automatically
+ * reload affected class-based plugins. Only files with .ts, .js, or .json
+ * extensions trigger a reload. Changes are debounced per-plugin with a 500ms window.
+ *
+ * Legacy-format plugins are not hot-reloaded; a warning is logged instead.
+ * The watcher is stopped automatically on SERVER_SHUTDOWN.
+ */
+export function watchPluginDir(pluginsDirPath: string): void {
+  const resolvedPath = path.resolve(pluginsDirPath);
+
+  // Prevent duplicate watchers
+  if (pluginWatcher) {
+    console.warn(`[PluginManager] Already watching for plugin changes, stopping previous watcher`);
+    stopWatchingPlugins();
+  }
+
+  try {
+    pluginWatcher = watch(resolvedPath, { recursive: true }, (_eventType, filename) => {
+      if (!filename) return;
+
+      // Filter by file extension
+      const ext = path.extname(filename);
+      if (!WATCHED_EXTENSIONS.has(ext)) return;
+
+      // Resolve the full path of the changed file
+      const fullPath = path.resolve(resolvedPath, filename);
+
+      // Determine which plugin owns this file
+      const pluginName = resolvePluginNameFromPath(fullPath);
+      if (!pluginName) return;
+
+      // Clear any existing debounce timer for this plugin
+      const existingTimer = debounceTimers.get(pluginName);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      // Set a new debounce timer
+      const timer = setTimeout(() => {
+        debounceTimers.delete(pluginName);
+        reloadPlugin(pluginName).catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : 'Unknown error';
+          console.warn(`[PluginManager] Unhandled error reloading plugin '${pluginName}': ${msg}`);
+        });
+      }, DEBOUNCE_MS);
+
+      debounceTimers.set(pluginName, timer);
+    });
+
+    pluginWatcher.on('error', (err: Error) => {
+      console.warn(`[PluginManager] File watcher error: ${err.message}`);
+    });
+
+    // Stop watching on graceful server shutdown
+    internalEvents.on(SERVER_SHUTDOWN, () => {
+      stopWatchingPlugins();
+    });
+
+    console.warn(`[PluginManager] Watching ${resolvedPath} for changes...`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    console.warn(`[PluginManager] Failed to start file watcher: ${msg}`);
+  }
+}
+
+/**
+ * Stop the file watcher and clear all pending debounce timers.
+ * Safe to call even if no watcher is active (no-op).
+ */
+export function stopWatchingPlugins(): void {
+  if (pluginWatcher) {
+    pluginWatcher.close();
+    pluginWatcher = null;
+    console.warn(`[PluginManager] Stopped watching for plugin changes`);
+  }
+
+  // Clear all pending debounce timers
+  for (const timer of debounceTimers.values()) {
+    clearTimeout(timer);
+  }
+  debounceTimers.clear();
 }
