@@ -267,6 +267,7 @@ The server will automatically detect this format and create the task via the For
   - [t-71] !Fix declare step re-running on resume and execute agent confusion with declared-files.json
   - [t-73] !Fix declare step re-running on resume and execute agent confusion with declared-files.json
   - [t-74] !Fix stale stoppedWorkflows flag causing tasks to silently abort at pipeline start
+  - [t-75] Build unit-test-builder plugin using formic-sdk
 
 ### Done
   - [t-bootstrap] !Setup AI Development Guidelines
