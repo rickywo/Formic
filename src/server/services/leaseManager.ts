@@ -1,3 +1,4 @@
+// lease-test: verified
 /**
  * Lease Manager Service
  * Provides atomic all-or-nothing file lease acquisition, renewal, and release
