@@ -344,6 +344,18 @@ export function unregisterStages(pluginName: string): number {
     pluginHandlers.delete(stage.name);
   }
   pluginStages.delete(pluginName);
+
+  // Remove plugin-contributed statuses that are no longer referenced by any remaining stage
+  const remainingStatuses = new Set<string>(
+    [...pluginStages.values()].flatMap(ss => ss.map(s => s.taskStatus))
+  );
+  for (const stage of stages) {
+    if (!remainingStatuses.has(stage.taskStatus)) {
+      const idx = VALID_TASK_STATUSES.indexOf(stage.taskStatus);
+      if (idx !== -1) VALID_TASK_STATUSES.splice(idx, 1);
+    }
+  }
+
   console.warn(`[Pipeline] Unregistered ${count} stage(s) from plugin '${pluginName}'`);
   return count;
 }
