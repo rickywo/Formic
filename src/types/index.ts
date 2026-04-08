@@ -9,6 +9,7 @@ export interface WorkflowLogs {
   execute?: string | string[];
   verify?: string | string[];
   architect?: string | string[];
+  current?: string;
   [key: string]: string | string[] | undefined;
 }
 

@@ -6,11 +6,24 @@ import { registerConnection, unregisterConnection } from '../services/runner.js'
 import { registerWorkflowConnection, unregisterWorkflowConnection } from '../services/workflow.js';
 import { registerTaskConnection, unregisterTaskConnection } from '../services/boardNotifier.js';
 import { getTask } from '../services/store.js';
-import { getTaskLogsDir } from '../utils/paths.js';
+import { getTaskLogsDir, getTaskLogPath } from '../utils/paths.js';
 
 const CANONICAL_STEP_ORDER = ['brief', 'plan', 'declare', 'execute', 'verify', 'architect'];
 
 async function loadDiskLogs(taskId: string): Promise<string | null> {
+  // Prefer unified task.log when it exists
+  try {
+    const content = await readFile(getTaskLogPath(taskId), 'utf-8');
+    if (content.trim().length > 0) {
+      return content;
+    }
+  } catch (err: unknown) {
+    if (!(err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT')) {
+      throw err;
+    }
+  }
+
+  // Fallback: per-step directory scan for tasks created before this change
   const logsDir = getTaskLogsDir(taskId);
 
   let files: string[];

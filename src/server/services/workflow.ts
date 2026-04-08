@@ -17,7 +17,7 @@ import {
   formatIncompleteSubtasksForPrompt,
   subtasksExist,
 } from './subtasks.js';
-import { getWorkspacePath, getFormicDir, getTaskLogsDir } from '../utils/paths.js';
+import { getWorkspacePath, getFormicDir, getTaskLogsDir, getTaskLogPath } from '../utils/paths.js';
 import { getBoundPort } from './runner.js';
 import { createSafePoint } from '../utils/gitUtils.js';
 import type { LogMessage, Task, WorkflowStep, StageDescriptor } from '../../types/index.js';
@@ -150,8 +150,9 @@ async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<v
 }
 
 /**
- * Append logs to a per-task, per-step log file on disk.
- * Stores only the file path reference in board.json (not the log content).
+ * Append logs to a single unified task.log file on disk.
+ * Prepends a step separator header on first write for each step.
+ * Stores the unified log path reference in board.json.
  */
 async function appendWorkflowLogs(taskId: string, step: string, logs: string[]): Promise<void> {
   if (logs.length === 0) return;
@@ -160,20 +161,31 @@ async function appendWorkflowLogs(taskId: string, step: string, logs: string[]):
   const taskLogsDir = getTaskLogsDir(taskId);
   await mkdir(taskLogsDir, { recursive: true });
 
-  // Append log lines to {step}.log file
-  const logFilePath = path.join(taskLogsDir, `${step}.log`);
-  const content = logs.join('\n') + '\n';
+  // Read existing task.log to check if a header for this step already exists
+  const logFilePath = getTaskLogPath(taskId);
+  const stepHeader = `========== ${step.toUpperCase()} STEP ==========`;
+  let existingContent = '';
+  try {
+    existingContent = await readFile(logFilePath, 'utf-8');
+  } catch (err: unknown) {
+    if (!(err instanceof Error && 'code' in err && (err as NodeJS.ErrnoException).code === 'ENOENT')) {
+      throw err;
+    }
+  }
+
+  const needsHeader = !existingContent.includes(stepHeader);
+  const prefix = needsHeader ? `\n${stepHeader}\n` : '';
+  const content = prefix + logs.join('\n') + '\n';
   await appendFile(logFilePath, content, 'utf-8');
 
-  // Store the relative log file path in board.json (not the log content)
+  // Store the unified log path reference in board.json
   const board = await loadBoard();
   const task = board.tasks.find(t => t.id === taskId);
   if (task) {
     if (!task.workflowLogs) {
       task.workflowLogs = {};
     }
-    // Store relative path so it's portable across machines
-    task.workflowLogs[step] = `.formic/logs/${taskId}/${step}.log`;
+    task.workflowLogs.current = `.formic/logs/${taskId}/task.log`;
     await saveBoard(board);
   }
 }

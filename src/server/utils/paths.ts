@@ -116,6 +116,13 @@ export function getTaskLogsDir(taskId: string): string {
 }
 
 /**
+ * Get the unified task log file path: .formic/logs/{taskId}/task.log
+ */
+export function getTaskLogPath(taskId: string): string {
+  return path.join(getTaskLogsDir(taskId), 'task.log');
+}
+
+/**
  * Get the .claude/skills directory path inside workspace
  * This is the standard location for project-level skills (compatible with both Claude and Copilot)
  */
