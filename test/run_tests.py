@@ -47,6 +47,10 @@ def main():
 
     # Define baseline test suites (always run)
     test_suites = [
+        ("Slug Utility Unit Tests", "test_slugify.py"),
+        ("Output Parser Unit Tests", "test_output_parser.py"),
+        ("Prioritizer Unit Tests", "test_prioritizer_unit.py"),
+        ("Paths Utility Unit Tests", "test_paths.py"),
         ("API Tests", "test_api.py"),
         ("Concurrency Tests", "test_concurrency.py"),
         ("Lease Enhancement Tests", "test_lease_enhancements.py"),

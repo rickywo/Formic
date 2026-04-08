@@ -10131,25 +10131,28 @@
 
     /**
      * Builds the ordered column descriptor array from pipeline stages.
-     * When no plugin stages exist, returns the classic 6-column layout.
-     * When plugins add stages, each pipeline stage gets its own column.
+     * Built-in stages (briefing, planning, declaring, running, architecting, verifying)
+     * are always collapsed into the classic Running/Verifying columns.
+     * Only plugin-contributed stages get their own extra columns.
      */
     function buildColumns(stages) {
       const columns = [META_COLUMNS.todo, META_COLUMNS.queued];
 
-      if (!stages || !hasPluginStages(stages)) {
-        // Classic collapsed layout
-        columns.push(...CLASSIC_PIPELINE_COLUMNS);
-      } else {
-        // Expanded layout: each stage gets its own column
+      // Always include the classic running/verifying columns for built-in stages
+      columns.push(...CLASSIC_PIPELINE_COLUMNS);
+
+      // Add a dedicated column only for plugin-contributed stages
+      if (stages && hasPluginStages(stages)) {
         for (const stage of stages) {
-          columns.push({
-            id: stage.taskStatus || stage.name,
-            displayName: stage.displayName,
-            subtitle: stage.source === 'plugin' ? `From plugin: ${stage.pluginName || 'unknown'}` : '',
-            source: stage.source,
-            pluginName: stage.pluginName || null,
-          });
+          if (stage.source === 'plugin') {
+            columns.push({
+              id: stage.taskStatus || stage.name,
+              displayName: stage.displayName,
+              subtitle: `From plugin: ${stage.pluginName || 'unknown'}`,
+              source: stage.source,
+              pluginName: stage.pluginName || null,
+            });
+          }
         }
       }
 
@@ -10389,18 +10392,19 @@
 
       // Build status-to-column mapping dynamically
       const statusToColumnMap = {};
-      if (!hasPluginStages(pipelineStages)) {
-        // Classic collapsed layout: all active pipeline statuses → 'running', verify → 'verifying'
-        statusToColumnMap['briefing'] = 'running';
-        statusToColumnMap['planning'] = 'running';
-        statusToColumnMap['declaring'] = 'running';
-        statusToColumnMap['running'] = 'running';
-        statusToColumnMap['architecting'] = 'running';
-        statusToColumnMap['verifying'] = 'verifying';
-      } else {
-        // Expanded layout: each pipeline stage's taskStatus maps to its own column
+      // Core built-in statuses always collapse to running/verifying
+      statusToColumnMap['briefing'] = 'running';
+      statusToColumnMap['planning'] = 'running';
+      statusToColumnMap['declaring'] = 'running';
+      statusToColumnMap['running'] = 'running';
+      statusToColumnMap['architecting'] = 'running';
+      statusToColumnMap['verifying'] = 'verifying';
+      // Plugin stages get their own dedicated column
+      if (hasPluginStages(pipelineStages)) {
         for (const stage of pipelineStages) {
-          statusToColumnMap[stage.taskStatus] = stage.taskStatus;
+          if (stage.source === 'plugin') {
+            statusToColumnMap[stage.taskStatus] = stage.taskStatus;
+          }
         }
       }
       statusToColumnMap['blocked'] = 'queued';
@@ -12855,16 +12859,18 @@
 
       // Build status-to-column mapping (same logic as desktop)
       const mobileStatusToColumn = {};
-      if (!hasPluginStages(pipelineStages)) {
-        mobileStatusToColumn['briefing'] = 'running';
-        mobileStatusToColumn['planning'] = 'running';
-        mobileStatusToColumn['declaring'] = 'running';
-        mobileStatusToColumn['running'] = 'running';
-        mobileStatusToColumn['architecting'] = 'running';
-        mobileStatusToColumn['verifying'] = 'verifying';
-      } else {
+      // Core built-in statuses always collapse to running/verifying
+      mobileStatusToColumn['briefing'] = 'running';
+      mobileStatusToColumn['planning'] = 'running';
+      mobileStatusToColumn['declaring'] = 'running';
+      mobileStatusToColumn['running'] = 'running';
+      mobileStatusToColumn['architecting'] = 'running';
+      mobileStatusToColumn['verifying'] = 'verifying';
+      if (hasPluginStages(pipelineStages)) {
         for (const stage of pipelineStages) {
-          mobileStatusToColumn[stage.taskStatus] = stage.taskStatus;
+          if (stage.source === 'plugin') {
+            mobileStatusToColumn[stage.taskStatus] = stage.taskStatus;
+          }
         }
       }
       mobileStatusToColumn['blocked'] = 'queued';
