@@ -8,6 +8,7 @@
 
 import type { StageDescriptor, StageRegistration, WorkflowPipeline, TaskType, TaskTypeDefinition } from '../../types/index.js';
 import { internalEvents, STAGE_REGISTERED, TASK_TYPE_REGISTERED } from './internalEvents.js';
+import { VALID_TASK_STATUSES } from './store.js';
 export {
   registerVerifier,
   unregisterVerifiers,
