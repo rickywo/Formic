@@ -15,3 +15,21 @@ export function generateSlug(title: string): string {
     .replace(/^-|-$/g, '')         // Remove leading/trailing hyphens
     .slice(0, 30);                 // Truncate to 30 chars
 }
+
+/**
+ * Convert an arbitrary string into a URL-friendly slug (no truncation)
+ * - Lowercase all characters
+ * - Replace whitespace with hyphens
+ * - Strip non-alphanumeric, non-hyphen characters
+ * - Collapse consecutive hyphens
+ * - Trim leading/trailing hyphens
+ */
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}

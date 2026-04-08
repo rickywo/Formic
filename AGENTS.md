@@ -194,6 +194,10 @@ The server will automatically detect this format and create the task via the For
 
 ### Todo
   - [t-2] Build Activity Monitor Plugin for Formic
+  - [t-76] Verify unit-test-builder plugin end-to-end
+
+### Running
+  - [t-77] -Add a slugify utility function with unit tests
 
 ### Review
   - [t-1] !Implement Obsidian-style Plugin System for Formic
