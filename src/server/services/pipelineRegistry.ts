@@ -319,6 +319,11 @@ export function registerStage(registration: StageRegistration, pluginName: strin
   }
   pluginStages.get(pluginName)!.push(descriptor);
 
+  // Allow the custom taskStatus to pass board validation
+  if (!VALID_TASK_STATUSES.includes(descriptor.taskStatus)) {
+    VALID_TASK_STATUSES.push(descriptor.taskStatus);
+  }
+
   console.warn(`[Pipeline] Registered stage '${registration.name}' from plugin '${pluginName}' after '${registration.after}'`);
   internalEvents.emit(STAGE_REGISTERED, { stageName: registration.name, pluginName });
 
