@@ -194,6 +194,7 @@ The server will automatically detect this format and create the task via the For
 
 ### Review
   - [t-1] Merge per-step task log files into a single task.log file
+  - [t-2] !Add a test comment to leaseManager.ts to verify lease blocking
 
 ## Formic Workflow
 
