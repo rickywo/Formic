@@ -63,3 +63,40 @@ export const TASK_TYPE_REGISTERED = 'task-type-registered';
 
 /** Shared internal event emitter instance */
 export const internalEvents = new EventEmitter();
+
+/**
+ * Task stopper callback: stops the process(es) executing a task and resolves
+ * true once the stop has been carried out, false if the task could not be stopped.
+ */
+export type TaskStopper = (taskId: string) => Promise<boolean>;
+
+/** Injected task stopper — registered by workflow.ts at module init */
+let taskStopper: TaskStopper | null = null;
+
+/**
+ * Register the task stopper callback. Used by workflow.ts to expose its
+ * stop capability to lower-level services (e.g., leaseManager) without
+ * creating a circular import.
+ */
+export function registerTaskStopper(fn: TaskStopper): void {
+  taskStopper = fn;
+}
+
+/**
+ * Request that a task's running process be stopped via the registered stopper.
+ * Returns false when no stopper is registered or the stopper fails — callers
+ * MUST treat false as "the task may still be running" and refuse any action
+ * that assumes the process is dead (e.g., force-releasing its file leases).
+ */
+export async function requestTaskStop(taskId: string): Promise<boolean> {
+  if (!taskStopper) {
+    console.warn(`[InternalEvents] No task stopper registered — cannot stop task ${taskId}`);
+    return false;
+  }
+  try {
+    return await taskStopper(taskId);
+  } catch (err) {
+    console.error(`[InternalEvents] Task stopper failed for ${taskId}:`, err instanceof Error ? err.message : 'Unknown error');
+    return false;
+  }
+}

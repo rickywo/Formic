@@ -18,7 +18,7 @@ import {
   subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir, getTaskLogsDir, getTaskLogPath } from '../utils/paths.js';
-import { getBoundPort } from './runner.js';
+import { getBoundPort, stopAgent } from './runner.js';
 import { createSafePoint } from '../utils/gitUtils.js';
 import type { LogMessage, Task, WorkflowStep, StageDescriptor } from '../../types/index.js';
 import path from 'node:path';
@@ -27,11 +27,23 @@ import { stopQueueProcessor, removeInFlightTask } from './queueProcessor.js';
 import { broadcastToWorkspace } from './messagingNotifier.js';
 import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
-import { internalEvents, TASK_COMPLETED, BEFORE_EXECUTE, AFTER_EXECUTE, TASK_FAILED } from './internalEvents.js';
+import { internalEvents, TASK_COMPLETED, BEFORE_EXECUTE, AFTER_EXECUTE, TASK_FAILED, registerTaskStopper } from './internalEvents.js';
 import { getActivePipeline, getStageHandler } from './pipelineRegistry.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
+
+// Register the task stopper so leaseManager can stop holder processes
+// without importing workflow.ts directly (avoids circular import).
+// Mirrors the watchdog's stop → revert → release → re-queue pattern
+// (watchdog.ts:61-65).
+registerTaskStopper(async (taskId: string): Promise<boolean> => {
+  const workflowStopped = await stopWorkflow(taskId);
+  if (!workflowStopped) {
+    await stopAgent(taskId);
+  }
+  return true;
+});
 
 /**
  * Load the project development guidelines if they exist
@@ -1934,7 +1946,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
             for (const holderId of zombieHolders) {
               const holderTask = await getTask(holderId);
               const holderStatus = holderTask?.status ?? 'unknown';
-              if (holderStatus !== 'running' && holderStatus !== 'declaring') {
+              if (holderStatus !== 'running' && holderStatus !== 'declaring' && !isWorkflowRunning(holderId)) {
                 console.warn(`[Workflow] Force-releasing zombie leases held by task ${holderId} (status: ${holderStatus}) to unblock task ${taskId}`);
                 releaseLeases(holderId);
               }

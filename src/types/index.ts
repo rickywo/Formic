@@ -28,7 +28,6 @@ export interface FileLease {
   acquiredAt: string;
   expiresAt: string;
   leaseType: 'exclusive' | 'shared';
-  yieldSignal?: boolean;
 }
 
 /** Persisted lease store snapshot written to .formic/leases.json */

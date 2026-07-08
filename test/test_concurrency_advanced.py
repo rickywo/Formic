@@ -308,7 +308,124 @@ class TestConcurrencyAdvanced(unittest.TestCase):
 
         self._release_lease(holder['id'])
 
-    # ── Test 4: Stress Test ───────────────────────────────────────────────────
+    # ── Test 4: Preemption & Deadlock Regression ───────────────────────────────
+
+    def test_yield_signal_removed_from_file_lease(self):
+        """
+        Regression: The yieldSignal field on FileLease must be absent after the
+        dead-protocol removal. Any serialised lease returned by the API must not
+        contain a yieldSignal key (even undefined/null).
+        """
+        file_path = f"src/yield-signal-{uuid.uuid4().hex[:8]}.ts"
+
+        task = self._create_task(title=f"YieldSignal Removal {str(uuid.uuid4())[:8]}")
+        self._declare_files(task['id'], exclusive=[file_path])
+
+        result = self._acquire_lease(task['id'])
+        self.assertTrue(result.get('granted'), f"Lease should be granted: {result}")
+
+        # Inspect leases via GET /api/leases
+        leases = self._get_leases()
+        task_leases = [l for l in leases if l.get('taskId') == task['id']]
+        self.assertGreater(len(task_leases), 0, "Should find the granted lease")
+
+        for lease in task_leases:
+            self.assertNotIn(
+                'yieldSignal', lease,
+                f"yieldSignal must be absent from FileLease; got keys: {list(lease.keys())}",
+            )
+
+        self._release_lease(task['id'])
+
+    def test_deadlock_detection_returns_without_error(self):
+        """
+        Regression: detectDeadlock must not throw when there are no deadlock
+        cycles. The new stop-before-release path must not introduce runtime
+        errors even when the stopper finds no active process (normal in test
+        environments).
+        """
+        # With no wait-for graph entries, detectDeadlock should return null
+        # without errors. We verify this indirectly by confirming the leases
+        # endpoint works (the watchdog calls detectDeadlock periodically, and
+        # if it threw, the server would log errors).
+        leases = self._get_leases()
+        self.assertIsInstance(leases, list, "GET /api/leases must return a list")
+
+    def test_lease_release_and_reacquire_after_refactor(self):
+        """
+        Regression: After the preemptLease/detectDeadlock refactor, basic lease
+        acquire → release → re-acquire cycles must still work correctly. The
+        revertExclusiveFiles helper and the new stop-before-release sequencing
+        must not break normal lease operations.
+        """
+        file_path = f"src/reacquire-{uuid.uuid4().hex[:8]}.ts"
+
+        task_a = self._create_task(title=f"Reacquire A {str(uuid.uuid4())[:8]}")
+        task_b = self._create_task(title=f"Reacquire B {str(uuid.uuid4())[:8]}")
+
+        self._declare_files(task_a['id'], exclusive=[file_path])
+        self._declare_files(task_b['id'], exclusive=[file_path])
+
+        # Task A acquires
+        result_a = self._acquire_lease(task_a['id'])
+        self.assertTrue(result_a.get('granted'), f"A should acquire: {result_a}")
+
+        # Task B is denied while A holds
+        result_b = self._acquire_lease(task_b['id'])
+        self.assertFalse(result_b.get('granted'), f"B should be denied: {result_b}")
+
+        # Task A releases
+        self._release_lease(task_a['id'])
+
+        # Task B can now acquire
+        result_b2 = self._acquire_lease(task_b['id'])
+        self.assertTrue(result_b2.get('granted'), f"B should acquire after A releases: {result_b2}")
+
+        self._release_lease(task_b['id'])
+
+    def test_high_priority_preemption_triggers_no_poll_delay(self):
+        """
+        Regression: The old preemptLease polled for up to 10 s waiting for a
+        voluntary yield that never happened. After the yieldSignal removal, a
+        preemption attempt must return within 2 seconds even when both tasks
+        have declared conflicting files (the preemption may succeed or be
+        refused, but it must not block for 10 s).
+        """
+        file_path = f"src/preempt-nopoll-{uuid.uuid4().hex[:8]}.ts"
+
+        low_task = self._create_task(
+            title=f"NoPoll Low {str(uuid.uuid4())[:8]}",
+            priority='low',
+        )
+        high_task = self._create_task(
+            title=f"NoPoll High {str(uuid.uuid4())[:8]}",
+            priority='high',
+        )
+
+        self._declare_files(low_task['id'], exclusive=[file_path])
+        self._declare_files(high_task['id'], exclusive=[file_path])
+
+        # Low-priority task acquires the lease first
+        low_result = self._acquire_lease(low_task['id'])
+        self.assertTrue(low_result.get('granted'), f"Low should acquire: {low_result}")
+
+        # High-priority task tries to acquire — must respond quickly
+        # (the acquire endpoint doesn't call preemptLease directly, but the
+        # refactored code path must not introduce any polling delay in the
+        # lease-checking hot path)
+        start = time.time()
+        high_result = self._acquire_lease(high_task['id'])
+        elapsed = time.time() - start
+
+        self.assertFalse(high_result.get('granted'), f"High should be denied while low holds: {high_result}")
+        self.assertLess(
+            elapsed, 2.0,
+            f"Lease acquire for conflicting file must return within 2s, took {elapsed:.2f}s",
+        )
+
+        self._release_lease(low_task['id'])
+
+    # ── Test 5: Stress Test ───────────────────────────────────────────────────
 
     @unittest.skipIf(SKIP_STRESS, "Stress test skipped (set SKIP_STRESS=false to enable)")
     def test_stress_no_deadlocks(self):

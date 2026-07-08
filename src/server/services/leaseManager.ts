@@ -11,10 +11,10 @@ import { promisify } from 'node:util';
 import { writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { FileLease, LeaseRequest, LeaseResult, FileConflict, LeaseStoreSnapshot } from '../../types/index.js';
-import { getFormicDir } from '../utils/paths.js';
+import { getFormicDir, getWorkspacePath } from '../utils/paths.js';
 import { getTask, updateTaskStatus } from './store.js';
 import { broadcastLeaseReleased } from './boardNotifier.js';
-import { internalEvents, LEASE_RELEASED, LEASE_ACQUIRED } from './internalEvents.js';
+import { internalEvents, LEASE_RELEASED, LEASE_ACQUIRED, requestTaskStop } from './internalEvents.js';
 
 const execAsync = promisify(exec);
 
@@ -63,12 +63,20 @@ export function acquireLeases(request: LeaseRequest): LeaseResult {
     }
   }
 
+  // Check for conflicts on shared files against exclusive leases
+  for (const filePath of sharedFiles) {
+    const existing = leaseStore.get(filePath);
+    if (existing && existing.taskId !== taskId && existing.leaseType === 'exclusive') {
+      conflictingFiles.push(filePath);
+    }
+  }
+
   if (conflictingFiles.length > 0) {
-    console.log(`[LeaseManager] Lease denied for task ${taskId}: conflicts on ${conflictingFiles.join(', ')}`);
+    console.warn(`[LeaseManager] Lease denied for task ${taskId}: conflicts on ${conflictingFiles.join(', ')}`);
     return { granted: false, leases: [], conflictingFiles };
   }
 
-  // Grant all leases atomically
+  // Grant all leases atomically — all conflict checks passed
   const grantedLeases: FileLease[] = [];
 
   for (const filePath of exclusiveFiles) {
@@ -81,19 +89,6 @@ export function acquireLeases(request: LeaseRequest): LeaseResult {
     };
     leaseStore.set(filePath, lease);
     grantedLeases.push(lease);
-  }
-
-  // Check for conflicts on shared files against exclusive leases
-  for (const filePath of sharedFiles) {
-    const existing = leaseStore.get(filePath);
-    if (existing && existing.taskId !== taskId && existing.leaseType === 'exclusive') {
-      conflictingFiles.push(filePath);
-    }
-  }
-
-  if (conflictingFiles.length > 0) {
-    console.log(`[LeaseManager] Lease denied for task ${taskId}: conflicts on ${conflictingFiles.join(', ')}`);
-    return { granted: false, leases: [], conflictingFiles };
   }
 
   for (const filePath of sharedFiles) {
@@ -109,7 +104,7 @@ export function acquireLeases(request: LeaseRequest): LeaseResult {
     grantedLeases.push(lease);
   }
 
-  console.log(`[LeaseManager] Leases granted for task ${taskId}: ${exclusiveFiles.length} exclusive, ${sharedFiles.length} shared`);
+  console.warn(`[LeaseManager] Leases granted for task ${taskId}: ${exclusiveFiles.length} exclusive, ${sharedFiles.length} shared`);
   internalEvents.emit(LEASE_ACQUIRED, { taskId, leases: grantedLeases });
   persistLeases().catch(e => console.warn('[LeaseManager] persist error:', e));
   return { granted: true, leases: grantedLeases, conflictingFiles: [] };
@@ -131,7 +126,7 @@ export function releaseLeases(taskId: string): void {
     }
   }
   if (released > 0) {
-    console.log(`[LeaseManager] Released ${released} lease(s) for task ${taskId}`);
+    console.warn(`[LeaseManager] Released ${released} lease(s) for task ${taskId}`);
     broadcastLeaseReleased(taskId, releasedFiles);
     internalEvents.emit(LEASE_RELEASED, taskId, releasedFiles);
   }
@@ -160,7 +155,7 @@ export function renewLeases(taskId: string, durationMs?: number): boolean {
   }
 
   if (renewed > 0) {
-    console.log(`[LeaseManager] Renewed ${renewed} lease(s) for task ${taskId}`);
+    console.warn(`[LeaseManager] Renewed ${renewed} lease(s) for task ${taskId}`);
     return true;
   }
   return false;
@@ -258,7 +253,7 @@ export async function recordFileHashes(taskId: string, filePaths: string[], cwd:
   }
 
   fileHashStore.set(taskId, hashes);
-  console.log(`[LeaseManager] Recorded ${hashes.size} file hash(es) for task ${taskId}`);
+  console.warn(`[LeaseManager] Recorded ${hashes.size} file hash(es) for task ${taskId}`);
   return hashes;
 }
 
@@ -295,7 +290,7 @@ export async function detectCollisions(taskId: string, cwd: string): Promise<Fil
   }
 
   if (conflicts.length > 0) {
-    console.log(`[LeaseManager] Detected ${conflicts.length} collision(s) for task ${taskId}`);
+    console.warn(`[LeaseManager] Detected ${conflicts.length} collision(s) for task ${taskId}`);
   }
 
   return conflicts;
@@ -351,23 +346,41 @@ export async function restoreLeases(): Promise<void> {
         restored++;
       }
     }
-    console.log(`[LeaseManager] Restored ${restored} non-expired lease(s) from disk`);
+    console.warn(`[LeaseManager] Restored ${restored} non-expired lease(s) from disk`);
   } catch (err) {
     // File not found on first startup is expected
     const message = err instanceof Error ? err.message : 'Unknown error';
     if (!message.includes('ENOENT')) {
       console.warn('[LeaseManager] Failed to restore leases:', message);
     } else {
-      console.log('[LeaseManager] No leases.json found — starting with empty lease store');
+      console.warn('[LeaseManager] No leases.json found — starting with empty lease store');
     }
   }
 }
 
 /**
+ * Revert uncommitted changes on a task's exclusively-leased files after its
+ * process has been stopped, so a half-written state is never handed to the
+ * next lease holder (mirrors the watchdog's expired-lease path).
+ */
+async function revertExclusiveFiles(taskId: string, files: string[]): Promise<void> {
+  if (files.length === 0) return;
+  try {
+    const fileList = files.map(f => `"${f}"`).join(' ');
+    await execAsync(`git checkout -- ${fileList}`, { cwd: getWorkspacePath() });
+    console.warn(`[LeaseManager] Reverted uncommitted changes on ${files.length} leased file(s) for task ${taskId}`);
+  } catch (err) {
+    console.warn(`[LeaseManager] Failed to revert leased files for task ${taskId}:`, err instanceof Error ? err.message : 'Unknown error');
+  }
+}
+
+/**
  * Attempt to preempt an exclusive lease held by a lower-priority task.
- * Sets yieldSignal on the holder's lease and polls for voluntary release.
- * Force-releases after a 10 s timeout if the holder does not yield.
- * Returns true if preemption succeeded, false if not applicable.
+ * The holder's process is stopped BEFORE its leases are released; if the
+ * holder cannot be stopped, the preemption is refused — a lease must never
+ * be handed to a new task while the previous holder may still be writing.
+ * Returns true if the file was freed, false if preemption was not applicable
+ * or was refused.
  */
 export async function preemptLease(highPriorityTaskId: string, targetFilePath: string): Promise<boolean> {
   const holderLease = leaseStore.get(targetFilePath);
@@ -392,38 +405,48 @@ export async function preemptLease(highPriorityTaskId: string, targetFilePath: s
     return false;
   }
 
-  // Signal the holder to yield voluntarily
-  holderLease.yieldSignal = true;
-  console.log(`[LeaseManager] Sent yield signal to task ${holderId} for file ${targetFilePath}`);
-
-  // Poll every 500 ms for up to 10 s
-  const POLL_INTERVAL_MS = 500;
-  const MAX_WAIT_MS = 10000;
-  const deadline = Date.now() + MAX_WAIT_MS;
-
-  await new Promise<void>(resolve => {
-    const poll = setInterval(() => {
-      if (!leaseStore.has(targetFilePath) || Date.now() >= deadline) {
-        clearInterval(poll);
-        resolve();
-      }
-    }, POLL_INTERVAL_MS);
-  });
-
-  if (leaseStore.has(targetFilePath)) {
-    // Holder did not release voluntarily — force-release
-    releaseLeases(holderId);
-    console.warn(`[LeaseManager] Force-preempted lease on ${targetFilePath} from task ${holderId}`);
-  } else {
-    console.log(`[LeaseManager] Task ${holderId} voluntarily released ${targetFilePath} after yield signal`);
+  // The lease may have vanished while task lookups were awaited — distinguish
+  // expiry from voluntary release rather than misattributing either.
+  const leaseBeforeStop = leaseStore.get(targetFilePath);
+  if (!leaseBeforeStop || leaseBeforeStop.taskId !== holderId) {
+    if (new Date(holderLease.expiresAt).getTime() <= Date.now()) {
+      console.warn(`[LeaseManager] Lease on ${targetFilePath} expired before preemption of task ${holderId} — no stop needed`);
+    } else {
+      console.warn(`[LeaseManager] Lease on ${targetFilePath} was released before preemption of task ${holderId} — no stop needed`);
+    }
+    return !leaseBeforeStop;
   }
+
+  // Capture the holder's exclusive files before stopping so they can be reverted
+  const holderExclusiveFiles = getLeasesByTask(holderId)
+    .filter(l => l.leaseType === 'exclusive')
+    .map(l => l.filePath);
+
+  // Stop the holder's process BEFORE touching its leases
+  const stopped = await requestTaskStop(holderId);
+  if (!stopped) {
+    console.warn(`[LeaseManager] Preemption of ${targetFilePath} refused: holder task ${holderId} could not be stopped`);
+    return false;
+  }
+
+  // Holder is stopped: revert its half-written files, release, and re-queue.
+  // The stop transition sets resumeFromStep for tasks past planning; the
+  // 'queued' transition below preserves that marker.
+  await revertExclusiveFiles(holderId, holderExclusiveFiles);
+  releaseLeases(holderId);
+  clearWait(holderId);
+  await updateTaskStatus(holderId, 'queued', null, 'leaseManager.preemption');
+  console.warn(`[LeaseManager] Preempted lease on ${targetFilePath}: stopped, reverted, and re-queued task ${holderId}`);
 
   return true;
 }
 
 /**
  * Detect and resolve deadlock cycles in the wait-for graph.
- * Resolves each cycle by re-queuing the lowest-priority task in the cycle.
+ * Resolves each cycle by stopping the lowest-priority task in the cycle,
+ * reverting its leased files, releasing its leases, and re-queuing it.
+ * If the victim cannot be stopped, resolution for that cycle is skipped this
+ * tick (the watchdog re-runs detection every interval).
  * Returns the detected cycle arrays, or null if no cycles were found.
  */
 export async function detectDeadlock(): Promise<string[][] | null> {
@@ -485,10 +508,24 @@ export async function detectDeadlock(): Promise<string[][] | null> {
       }
     }
 
+    // Capture the victim's exclusive files before stopping so they can be reverted
+    const victimExclusiveFiles = getLeasesByTask(victimId)
+      .filter(l => l.leaseType === 'exclusive')
+      .map(l => l.filePath);
+
+    // Stop the victim's process BEFORE releasing its leases; skip this cycle
+    // if it cannot be stopped — never free files under a possibly-live writer
+    const stopped = await requestTaskStop(victimId);
+    if (!stopped) {
+      console.warn(`[LeaseManager] Deadlock victim ${victimId} could not be stopped — skipping resolution this tick`);
+      continue;
+    }
+
+    await revertExclusiveFiles(victimId, victimExclusiveFiles);
     releaseLeases(victimId);
     clearWait(victimId);
     await updateTaskStatus(victimId, 'queued', null, 'leaseManager.deadlock_resolution');
-    console.warn(`[LeaseManager] Deadlock resolved: aborted task ${victimId}`);
+    console.warn(`[LeaseManager] Deadlock resolved: stopped, reverted, and re-queued task ${victimId}`);
   }
 
   return cycles;

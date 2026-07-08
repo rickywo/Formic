@@ -247,6 +247,58 @@ def test_lease_enhancements():
         if task_id_b:
             cleanup_task(task_id_b)
 
+    # ── Test 5: AcquireLeases atomicity — denied request must not leak exclusive leases ──
+    print("\n=== Test 5: AcquireLeases atomicity — denied request leaves no phantom leases ===")
+    task_id_a = None
+    task_id_b = None
+    try:
+        unique = str(uuid.uuid4())[:8]
+        file_f = f"src/atomicity_f_{unique}.ts"
+        file_g = f"src/atomicity_g_{unique}.ts"
+
+        task_id_a = create_test_task(f"{unique}_a", priority='medium')
+        task_id_b = create_test_task(f"{unique}_b", priority='medium')
+        set_declared_files(task_id_a, exclusive=[file_f], shared=[])
+        set_declared_files(task_id_b, exclusive=[file_g], shared=[file_f])
+
+        # Task A acquires exclusive on F first
+        acq_a = requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/acquire")
+        acq_a.raise_for_status()
+        if not acq_a.json().get('granted'):
+            raise RuntimeError("Task A lease not granted during atomicity test setup")
+
+        # Task B requests exclusive [G] + shared [F] — should be denied
+        # because F is held exclusively by A (shared cannot coexist with exclusive)
+        acq_b = requests.post(f"{BASE_URL}/api/tasks/{task_id_b}/lease/acquire")
+        acq_b.raise_for_status()
+        b_result = acq_b.json()
+
+        # Verify B was denied
+        if b_result.get('granted'):
+            print(f"✗ Task B was unexpectedly granted: {b_result}")
+            results.append(("AcquireLeases atomicity", "FAIL"))
+        else:
+            # Verify no phantom lease on G leaked into the store
+            leases_resp = requests.get(f"{BASE_URL}/api/leases")
+            all_leases = leases_resp.json()
+            g_leases = [l for l in all_leases if l['filePath'] == file_g]
+
+            if len(g_leases) == 0:
+                print(f"✓ Task B denied AND no phantom lease on G in store (atomicity preserved)")
+                results.append(("AcquireLeases atomicity", "PASS"))
+            else:
+                print(f"✗ ATOMICITY LEAK: {len(g_leases)} phantom lease(s) on G found: {g_leases}")
+                print(f"  All leases currently in store: {[l['filePath'] for l in all_leases]}")
+                results.append(("AcquireLeases atomicity", "FAIL"))
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        results.append(("AcquireLeases atomicity", "FAIL"))
+    finally:
+        if task_id_a:
+            cleanup_task(task_id_a)
+        if task_id_b:
+            cleanup_task(task_id_b)
+
     # ── Print summary ──
     print("\n" + "=" * 60)
     print("LEASE ENHANCEMENT TEST RESULTS")
