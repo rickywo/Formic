@@ -20,6 +20,18 @@ const execAsync = promisify(exec);
 
 import { engineConfig } from './engineConfig.js';
 
+/** Active-task predicate: returns true when a task has a live workflow process. */
+let isTaskActive: ((taskId: string) => boolean) | null = null;
+
+/**
+ * Register the active-task predicate callback. Used by workflow.ts to expose
+ * its activeWorkflows knowledge to leaseManager so expiry checks can protect
+ * leases held by tasks with live child processes.
+ */
+export function registerActiveTaskPredicate(fn: (taskId: string) => boolean): void {
+  isTaskActive = fn;
+}
+
 /** In-memory lease store: filePath → FileLease */
 const leaseStore = new Map<string, FileLease>();
 
@@ -137,12 +149,11 @@ export function releaseLeases(taskId: string): void {
 }
 
 /**
- * Renew all leases for a task by extending their expiration
+ * Renew all leases for a task by extending their expiration.
+ * No longer calls cleanExpiredLeases — expiry-driven cleanup is exclusively
+ * handled by acquireLeases (the mutation entry point) and the watchdog.
  */
 export function renewLeases(taskId: string, durationMs?: number): boolean {
-  // Clean expired leases before renewing to avoid extending zombie leases
-  cleanExpiredLeases();
-
   const extension = durationMs ?? engineConfig.leaseDurationMs;
   const newExpiresAt = new Date(Date.now() + extension).toISOString();
   let renewed = 0;
@@ -175,46 +186,92 @@ export function getLeasesByTask(taskId: string): FileLease[] {
 }
 
 /**
- * Get all active leases
+ * Get all active leases, filtering out expired leases whose holder is not active.
+ * This is a read-only operation — no mutation, no events, no persistence.
  */
 export function getAllLeases(): FileLease[] {
-  cleanExpiredLeases();
-  return Array.from(leaseStore.values());
+  const now = Date.now();
+  return Array.from(leaseStore.values()).filter(lease => {
+    if (new Date(lease.expiresAt).getTime() > now) return true;
+    // Expired but holder is active — still considered leased
+    return isTaskActive ? isTaskActive(lease.taskId) : false;
+  });
 }
 
 /**
- * Check if a file is currently leased (optionally excluding a specific task)
+ * Check if a file is currently leased (optionally excluding a specific task).
+ * Expired leases whose holder is not active are treated as not leased.
+ * This is a read-only operation — no mutation, no events, no persistence.
  */
 export function isFileLeased(filePath: string, excludeTaskId?: string): boolean {
-  cleanExpiredLeases();
+  const now = Date.now();
   const lease = leaseStore.get(filePath);
   if (!lease) return false;
   if (excludeTaskId && lease.taskId === excludeTaskId) return false;
+  // Expired and holder not active — treat as free
+  if (new Date(lease.expiresAt).getTime() <= now && !(isTaskActive && isTaskActive(lease.taskId))) {
+    return false;
+  }
   return true;
 }
 
 /**
  * Get the task ID that holds an exclusive lease on a file, or null if none.
+ * Expired leases whose holder is not active are treated as not held.
  * Used to identify zombie lease holders.
+ * This is a read-only operation — no mutation, no events, no persistence.
  */
 export function getExclusiveLeaseHolder(filePath: string): string | null {
-  cleanExpiredLeases();
+  const now = Date.now();
   const lease = leaseStore.get(filePath);
-  if (lease && lease.leaseType === 'exclusive') {
-    return lease.taskId;
+  if (!lease || lease.leaseType !== 'exclusive') return null;
+  // Expired and holder not active — treat as not held
+  if (new Date(lease.expiresAt).getTime() <= now && !(isTaskActive && isTaskActive(lease.taskId))) {
+    return null;
   }
-  return null;
+  return lease.taskId;
 }
 
 /**
- * Clean up expired leases from the store
+ * Clean up expired leases from the store.
+ *
+ * Expired leases whose holder has a live workflow process are renewed in-place
+ * (mirrors the watchdog's active-task guard). Leases whose holder is NOT active
+ * are genuinely freed: deleted from the store, broadcast via boardNotifier,
+ * emitted via internalEvents (LEASE_RELEASED), and persisted to leases.json.
  */
 function cleanExpiredLeases(): void {
   const now = Date.now();
+  const releasedExclusiveByTask = new Map<string, string[]>();
+
   for (const [key, lease] of leaseStore.entries()) {
     if (new Date(lease.expiresAt).getTime() <= now) {
-      leaseStore.delete(key);
+      if (isTaskActive && isTaskActive(lease.taskId)) {
+        // Active task: renew in-place instead of deleting
+        const newExpiresAt = new Date(now + engineConfig.leaseDurationMs).toISOString();
+        lease.expiresAt = newExpiresAt;
+        console.warn(`[LeaseManager] Renewed expired lease for active task ${lease.taskId} on ${lease.filePath}`);
+      } else {
+        // Not active: genuinely free the lease
+        if (lease.leaseType === 'exclusive') {
+          const files = releasedExclusiveByTask.get(lease.taskId) || [];
+          files.push(lease.filePath);
+          releasedExclusiveByTask.set(lease.taskId, files);
+        }
+        leaseStore.delete(key);
+      }
     }
+  }
+
+  // Emit LEASE_RELEASED and broadcast for genuinely freed leases
+  for (const [taskId, files] of releasedExclusiveByTask) {
+    console.warn(`[LeaseManager] Expired leases freed for inactive task ${taskId}: ${files.join(', ')}`);
+    broadcastLeaseReleased(taskId, files);
+    internalEvents.emit(LEASE_RELEASED, taskId, files);
+  }
+
+  if (releasedExclusiveByTask.size > 0) {
+    persistLeases().catch(e => console.warn('[LeaseManager] persist error:', e));
   }
 }
 

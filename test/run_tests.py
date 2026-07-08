@@ -55,6 +55,7 @@ def main():
         ("Concurrency Tests", "test_concurrency.py"),
         ("Lease Enhancement Tests", "test_lease_enhancements.py"),
         ("Self-Healing QA Tests", "test_selfhealing.py"),
+        ("Concurrency Daily Tests", "test_concurrency_daily.py"),
         ("Tool Forging Tests", "test_tool_forging.py"),
         ("UI Tests (Playwright)", "test_formic.py"),
     ]

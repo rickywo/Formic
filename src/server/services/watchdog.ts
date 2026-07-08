@@ -48,11 +48,11 @@ async function scanExpiredLeases(): Promise<void> {
 
     try {
       // Guard: if the task is still actively running (has a live workflow process),
-      // renew its leases instead of killing it. This prevents the watchdog from
-      // disrupting long-running execute iterations.
+      // renew its leases instead of killing it. Uses the same active-task predicate
+      // that cleanExpiredLeases uses, so both expiry paths share a single policy.
+      // We still fetch the task for logging — the predicate alone is authoritative.
       const task = await getTask(taskId);
-      const activeStates = new Set(['running', 'briefing', 'planning', 'declaring', 'architecting', 'verifying']);
-      if (task && activeStates.has(task.status) && isWorkflowRunning(taskId)) {
+      if (task && isWorkflowRunning(taskId)) {
         console.warn(`[Watchdog] Task ${taskId} is actively ${task.status} with live process — renewing leases instead of killing`);
         renewLeases(taskId);
         continue;

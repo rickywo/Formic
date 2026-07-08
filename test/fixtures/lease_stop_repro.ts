@@ -19,12 +19,19 @@
  * Prints a single JSON result object as the final stdout line.
  */
 
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { setWorkspacePath, getWorkspacePath } from '../../src/server/utils/paths.js';
 import {
   acquireLeases,
   preemptLease,
   detectDeadlock,
   getLeasesByTask,
   recordWait,
+  releaseLeases,
+  recordFileHashes,
+  detectCollisions,
+  clearWait,
 } from '../../src/server/services/leaseManager.js';
 import { createTask, getTask, loadBoard, saveBoard } from '../../src/server/services/store.js';
 import type { Task } from '../../src/types/index.js';
@@ -132,11 +139,208 @@ async function runDeadlock(stopSucceeds: boolean): Promise<Record<string, unknow
   };
 }
 
+async function runPreemptEqualPriority(): Promise<Record<string, unknown>> {
+  const stopCalls: StopCall[] = [];
+  const stopperRegistered = await registerStubStopper(true, stopCalls);
+
+  // Both tasks have equal priority (medium) → preemptLease should refuse
+  const holder = await createTask({ title: 'Repro equal-pri holder', context: 'lease stop repro', priority: 'medium', type: 'standard' });
+  const requester = await createTask({ title: 'Repro equal-pri requester', context: 'lease stop repro', priority: 'medium', type: 'standard' });
+
+  const file = `src/repro-equalpri-${Date.now()}.ts`;
+  const acquired = acquireLeases({ taskId: holder.id, exclusiveFiles: [file], sharedFiles: [] });
+
+  const preemptResult = await preemptLease(requester.id, file);
+
+  const holderCalls = stopCalls.filter(c => c.taskId === holder.id);
+  return {
+    scenario: 'preempt-equal-priority',
+    stopperRegistered,
+    leaseGranted: acquired.granted,
+    preemptResult,
+    stopperCalledForHolder: holderCalls.length > 0,
+    holderLeasesAfter: getLeasesByTask(holder.id).length,
+  };
+}
+
+async function runDeadlock3Task(): Promise<Record<string, unknown>> {
+  const stopCalls: StopCall[] = [];
+  const stopperRegistered = await registerStubStopper(true, stopCalls);
+
+  // A→B→C→A cycle: 3 tasks in a circular wait
+  const taskA = await createTask({ title: 'Deadlock3 A', context: 'lease stop repro', priority: 'low', type: 'standard' });
+  const taskB = await createTask({ title: 'Deadlock3 B', context: 'lease stop repro', priority: 'medium', type: 'standard' });
+  const taskC = await createTask({ title: 'Deadlock3 C', context: 'lease stop repro', priority: 'high', type: 'standard' });
+
+  const fileX = `src/dl3-x-${Date.now()}.ts`;
+  const fileY = `src/dl3-y-${Date.now()}.ts`;
+  const fileZ = `src/dl3-z-${Date.now()}.ts`;
+
+  // A holds X, B holds Y, C holds Z
+  acquireLeases({ taskId: taskA.id, exclusiveFiles: [fileX], sharedFiles: [] });
+  acquireLeases({ taskId: taskB.id, exclusiveFiles: [fileY], sharedFiles: [] });
+  acquireLeases({ taskId: taskC.id, exclusiveFiles: [fileZ], sharedFiles: [] });
+
+  // Circular waits: A waits on Y (held by B), B waits on Z (held by C), C waits on X (held by A)
+  recordWait(taskA.id, fileY);
+  recordWait(taskB.id, fileZ);
+  recordWait(taskC.id, fileX);
+
+  const cycles = await detectDeadlock();
+
+  // The lowest-priority victim is task A (low)
+  const aAfter = await getTask(taskA.id);
+  const aCalls = stopCalls.filter(c => c.taskId === taskA.id);
+  return {
+    scenario: 'deadlock-3task',
+    stopperRegistered,
+    cyclesDetected: cycles ? cycles.length : 0,
+    victimId: aCalls.length > 0 ? taskA.id : null,
+    stopperCalled: aCalls.length > 0,
+    victimStatusAfter: aAfter?.status ?? 'missing',
+    victimLeasesAfter: getLeasesByTask(taskA.id).length,
+  };
+}
+
+async function runDeadlockNoPhantom(): Promise<Record<string, unknown>> {
+  // No wait-for entries → detectDeadlock should return null (no phantom resolution)
+  // First verify the waitForMap is clear, then call detectDeadlock
+  const cycles = await detectDeadlock();
+  return {
+    scenario: 'deadlock-no-phantom',
+    cyclesDetected: cycles ? cycles.length : 0,
+    phantomResolution: cycles !== null,
+  };
+}
+
+async function runDeadlockShared(): Promise<Record<string, unknown>> {
+  const stopCalls: StopCall[] = [];
+  const stopperRegistered = await registerStubStopper(true, stopCalls);
+
+  // Cycle involving shared leases:
+  // A holds exclusive on F1, wants shared on F2
+  // B holds exclusive on F2, wants exclusive on F1
+  const taskA = await createTask({ title: 'DeadlockShared A', context: 'lease stop repro', priority: 'low', type: 'standard' });
+  const taskB = await createTask({ title: 'DeadlockShared B', context: 'lease stop repro', priority: 'high', type: 'standard' });
+
+  const fileF1 = `src/dlshared-f1-${Date.now()}.ts`;
+  const fileF2 = `src/dlshared-f2-${Date.now()}.ts`;
+
+  acquireLeases({ taskId: taskA.id, exclusiveFiles: [fileF1], sharedFiles: [fileF2] });
+  acquireLeases({ taskId: taskB.id, exclusiveFiles: [fileF2], sharedFiles: [] });
+
+  // A waits on F2 (held exclusively by B) → B holds F2 exclusively, so A's shared
+  // request on F2 would conflict. B waits on F1 (held by A).
+  recordWait(taskA.id, fileF2);
+  recordWait(taskB.id, fileF1);
+
+  const cycles = await detectDeadlock();
+
+  // Lowest-priority victim is task A
+  const aAfter = await getTask(taskA.id);
+  const aCalls = stopCalls.filter(c => c.taskId === taskA.id);
+  return {
+    scenario: 'deadlock-shared',
+    stopperRegistered,
+    cyclesDetected: cycles ? cycles.length : 0,
+    stopperCalled: aCalls.length > 0,
+    victimStatusAfter: aAfter?.status ?? 'missing',
+  };
+}
+
+async function runCollisionDetect(): Promise<Record<string, unknown>> {
+  // Create two tasks sharing a file; one mutates it → collision detected
+  const workspace = getWorkspacePath();
+  const testFile = `src/collision-fixture-${Date.now()}.ts`;
+  const fullPath = path.join(workspace, testFile);
+
+  // Ensure directory and write original content
+  const dir = path.dirname(fullPath);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  const originalContent = `// collision fixture original ${Date.now()}\n`;
+  writeFileSync(fullPath, originalContent, 'utf-8');
+
+  try {
+    const taskA = await createTask({ title: 'Collision A', context: 'collision fixture', priority: 'medium', type: 'standard' });
+    const taskB = await createTask({ title: 'Collision B', context: 'collision fixture', priority: 'medium', type: 'standard' });
+
+    // Both share the same file
+    acquireLeases({ taskId: taskA.id, exclusiveFiles: [], sharedFiles: [testFile] });
+    acquireLeases({ taskId: taskB.id, exclusiveFiles: [], sharedFiles: [testFile] });
+
+    // Record hashes for both tasks
+    await recordFileHashes(taskA.id, [testFile], workspace);
+    await recordFileHashes(taskB.id, [testFile], workspace);
+
+    // Task A mutates the file
+    const mutatedContent = `// collision fixture mutated by A ${Date.now()}\n`;
+    writeFileSync(fullPath, mutatedContent, 'utf-8');
+
+    // Detect collisions for task B (should find that the file changed)
+    const collisionsB = await detectCollisions(taskB.id, workspace);
+    // Detect collisions for task A (A mutated it, so A's hash also doesn't match)
+    const collisionsA = await detectCollisions(taskA.id, workspace);
+
+    return {
+      scenario: 'collision-detect',
+      filePath: testFile,
+      collisionsForB: collisionsB.length,
+      collisionsForA: collisionsA.length,
+      collisionDetected: collisionsB.length > 0,
+      bCollisionFile: collisionsB.length > 0 ? collisionsB[0].filePath : null,
+    };
+  } finally {
+    // Cleanup test file
+    try { const fs = await import('node:fs'); fs.unlinkSync(fullPath); } catch {}
+  }
+}
+
+async function runCollisionNoFalsePositive(): Promise<Record<string, unknown>> {
+  // Two tasks share a file; neither modifies it → no collision
+  const workspace = getWorkspacePath();
+  const testFile = `src/collision-nofp-${Date.now()}.ts`;
+  const fullPath = path.join(workspace, testFile);
+
+  const dir = path.dirname(fullPath);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  const content = `// no-false-positive fixture ${Date.now()}\n`;
+  writeFileSync(fullPath, content, 'utf-8');
+
+  try {
+    const taskA = await createTask({ title: 'NoFP A', context: 'collision fixture', priority: 'medium', type: 'standard' });
+    const taskB = await createTask({ title: 'NoFP B', context: 'collision fixture', priority: 'medium', type: 'standard' });
+
+    acquireLeases({ taskId: taskA.id, exclusiveFiles: [], sharedFiles: [testFile] });
+    acquireLeases({ taskId: taskB.id, exclusiveFiles: [], sharedFiles: [testFile] });
+
+    await recordFileHashes(taskA.id, [testFile], workspace);
+    await recordFileHashes(taskB.id, [testFile], workspace);
+
+    // Neither modifies the file → no collision
+    const collisionsB = await detectCollisions(taskB.id, workspace);
+    const collisionsA = await detectCollisions(taskA.id, workspace);
+
+    return {
+      scenario: 'collision-no-false-positive',
+      filePath: testFile,
+      collisionsForB: collisionsB.length,
+      collisionsForA: collisionsA.length,
+      falsePositive: collisionsB.length > 0 || collisionsA.length > 0,
+    };
+  } finally {
+    try { const fs = await import('node:fs'); fs.unlinkSync(fullPath); } catch {}
+  }
+}
+
 async function main(): Promise<void> {
   if (!process.env.WORKSPACE_PATH || process.env.WORKSPACE_PATH === './workspace') {
     console.error('[Repro] Refusing to run: WORKSPACE_PATH must point to an isolated scratch directory');
     process.exit(2);
   }
+
+  // Apply the workspace path so store.ts, leaseManager.ts etc. target the
+  // isolated scratch directory rather than the server's live workspace.
+  setWorkspacePath(process.env.WORKSPACE_PATH);
 
   const scenario = process.argv[2];
   let result: Record<string, unknown>;
@@ -147,11 +351,29 @@ async function main(): Promise<void> {
     case 'preempt-refuse':
       result = await runPreempt(false);
       break;
+    case 'preempt-equal-priority':
+      result = await runPreemptEqualPriority();
+      break;
     case 'deadlock':
       result = await runDeadlock(true);
       break;
     case 'deadlock-refuse':
       result = await runDeadlock(false);
+      break;
+    case 'deadlock-3task':
+      result = await runDeadlock3Task();
+      break;
+    case 'deadlock-shared':
+      result = await runDeadlockShared();
+      break;
+    case 'deadlock-no-phantom':
+      result = await runDeadlockNoPhantom();
+      break;
+    case 'collision-detect':
+      result = await runCollisionDetect();
+      break;
+    case 'collision-no-false-positive':
+      result = await runCollisionNoFalsePositive();
       break;
     default:
       console.error(`[Repro] Unknown scenario: ${scenario ?? '(none)'}`);

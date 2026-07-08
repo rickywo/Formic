@@ -9,7 +9,7 @@ import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask,
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt, runVerifiers } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
-import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder } from './leaseManager.js';
+import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder, registerActiveTaskPredicate } from './leaseManager.js';
 import {
   loadSubtasks,
   isAllComplete,
@@ -44,6 +44,12 @@ registerTaskStopper(async (taskId: string): Promise<boolean> => {
   }
   return true;
 });
+
+// Register the active-task predicate so leaseManager can check whether a task
+// has a live workflow process before dropping its expired leases. This is the
+// single source of truth for "is this task active" shared by cleanExpiredLeases
+// and the watchdog.
+registerActiveTaskPredicate((taskId: string) => activeWorkflows.has(taskId));
 
 /**
  * Load the project development guidelines if they exist
@@ -674,14 +680,6 @@ async function executeWithIterativeLoop(
   let stalledIterations = 0;
   const STALL_THRESHOLD = 2; // Stop after 2 iterations with no progress
 
-  // Periodic lease renewal timer — renews every 2 minutes to prevent
-  // watchdog from expiring leases during long-running execute iterations
-  const LEASE_RENEWAL_INTERVAL_MS = 2 * 60 * 1000;
-  const leaseRenewalTimer = setInterval(() => {
-    renewLeases(taskId);
-    console.log(`[Workflow] Periodic lease renewal for task ${taskId}`);
-  }, LEASE_RENEWAL_INTERVAL_MS);
-
   // Broadcast start of iterative execution
   broadcastToTask(taskId, {
     type: 'stdout',
@@ -693,9 +691,6 @@ async function executeWithIterativeLoop(
 
   while (iteration <= engineConfig.maxExecuteIterations && !allComplete) {
     console.log(`[Workflow] Execute iteration ${iteration}/${engineConfig.maxExecuteIterations} for task ${taskId}`);
-
-    // Renew leases at the start of each iteration to prevent watchdog timeout
-    renewLeases(taskId);
 
     // Broadcast iteration start
     broadcastToTask(taskId, {
@@ -812,7 +807,9 @@ async function executeWithIterativeLoop(
   return { success: true, iterations: iteration - 1, allComplete };
 
   } finally {
-    clearInterval(leaseRenewalTimer);
+    // No-op finally — lease renewal is now managed by the outer scope
+    // (executeFullWorkflow / executeFromDeclare) which covers the full
+    // lease-holding lifetime including verify and critic retries.
   }
 }
 
@@ -1698,6 +1695,8 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
   // Run stages sequentially from the pipeline
   (async () => {
     let leasesHeld = false;
+    let leaseRenewalTimer: ReturnType<typeof setInterval> | null = null;
+    const LEASE_RENEWAL_INTERVAL_MS = 2 * 60 * 1000;
     try {
       // Create a git safe-point commit before execution for rollback support.
       // Guard against duplicate commits on re-entry (e.g. if resumeFromStep was
@@ -1803,6 +1802,14 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
               return;
             }
             leasesHeld = true;
+            // Start periodic lease renewal timer — covers the full lease-holding
+            // lifetime (execute iterations, verify step, critic retries, collision
+            // detection). Previously this was only inside executeWithIterativeLoop
+            // and did not protect verify/critic phases.
+            leaseRenewalTimer = setInterval(() => {
+              renewLeases(taskId);
+              console.log(`[Workflow] Periodic lease renewal for task ${taskId}`);
+            }, LEASE_RENEWAL_INTERVAL_MS);
             break;
           }
 
@@ -1891,6 +1898,8 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       void runReflectionStep(taskId);
       void triggerToolForge(taskId);
     } finally {
+      // Stop the periodic lease renewal timer before releasing leases.
+      if (leaseRenewalTimer !== null) clearInterval(leaseRenewalTimer);
       // Ensure leases are always released, even on unexpected exceptions.
       // Safe to call even if leases were already released (no-op in that case).
       if (leasesHeld) releaseLeases(taskId);
@@ -1912,6 +1921,8 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
   await updateTaskStatus(taskId, 'declaring', undefined, 'workflow.executeFromDeclare.init');
 
   (async () => {
+    let leaseRenewalTimer: ReturnType<typeof setInterval> | null = null;
+    const LEASE_RENEWAL_INTERVAL_MS = 2 * 60 * 1000;
     try {
       const currentTask = await getTask(taskId);
       if (!currentTask) {
@@ -1968,6 +1979,15 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
         boardTask.resumeFromStep = undefined;
         await saveBoard(boardAfterLease);
       }
+
+      // Start periodic lease renewal timer — covers the full lease-holding
+      // lifetime (execute iterations, verify step, critic retries, collision
+      // detection). Previously this was only inside executeWithIterativeLoop
+      // and did not protect verify/critic phases.
+      leaseRenewalTimer = setInterval(() => {
+        renewLeases(taskId);
+        console.log(`[Workflow] Periodic lease renewal for task ${taskId}`);
+      }, LEASE_RENEWAL_INTERVAL_MS);
 
       // Abort if stop was requested between declare and execute
       if (stoppedWorkflows.has(taskId)) {
@@ -2035,6 +2055,8 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
           }
         }
       } finally {
+        // Stop lease renewal timer before releasing leases
+        if (leaseRenewalTimer !== null) clearInterval(leaseRenewalTimer);
         releaseLeases(taskId);
       }
     } finally {
