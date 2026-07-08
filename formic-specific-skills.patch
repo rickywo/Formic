@@ -1,0 +1,437 @@
+Index: .claude/skills/task-craft/SKILL.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/skills/task-craft/SKILL.md b/.claude/skills/task-craft/SKILL.md
+new file mode 100644
+--- /dev/null	(date 1783485764661)
++++ b/.claude/skills/task-craft/SKILL.md	(date 1783485764661)
+@@ -0,0 +1,86 @@
++---
++name: task-craft
++description: Author a high-quality Formic task with duplicate detection, a structured context template, and built-in verification requirements. Use whenever creating or refining a Formic task.
++---
++
++# Task Craft — Formic Task Authoring Protocol
++
++You are crafting a Formic task. A well-crafted task is the single highest-leverage
++artifact in this workflow: vague contexts produced the t-71/t-72/t-73 fix-chain and
++three duplicate decompositions of the same plugin-API epic (t-28–33, t-34–40, t-41–47).
++Follow every step below before outputting a `task-create` block.
++
++## Step 1 — Duplicate check (MANDATORY, do this first)
++
++Before drafting anything, check whether this work already exists or was already done:
++
++1. Search open tasks on the board (Todo / Queued / Review columns in the board state).
++2. Search historical task directories:
++   ```bash
++   ls .formic/tasks/ | grep -i "<2-3 keywords from the request>"
++   ```
++3. Search recent commits:
++   ```bash
++   git log --oneline -30 | grep -i "<keyword>"
++   ```
++
++If a similar task exists **open**: propose updating/re-running it instead of creating a new one.
++If similar work was **already completed**: verify in the code whether the request is actually
++still needed, and tell the user what you found before creating anything.
++
++## Step 2 — Assess complexity and recommend a type
++
++- `quick` — 1–2 files, no design decisions (typos, comments, config tweaks)
++- `standard` — 2–10 files, needs a plan (features, investigated bug fixes, refactors)
++- `goal` — 10+ files or cross-cutting (architect decomposes into 3–8 children)
++
++For `goal` tasks add this line to the context so the architect does not re-create
++existing children: *"Before decomposing, list `.formic/tasks/` and skip any child
++whose scope is already covered by an existing task or committed code."*
++
++State the recommendation with one-line justification before outputting the task.
++
++## Step 3 — Write the context using this template
++
++Every task context MUST contain these five sections:
++
++```
++## Why
++<The problem or motivation. 1-3 sentences. For bugs: observed symptom + how to reproduce.>
++
++## What
++<Concrete requirements. Numbered list. Each item independently checkable.>
++
++## Files
++<Best-guess files to modify (exclusive) and files only read (shared). This feeds the
++declare stage and lease system — be specific, e.g. src/server/services/workflow.ts.>
++
++## Acceptance criteria
++<Numbered, binary pass/fail statements. "Works correctly" is NOT a criterion;
++"GET /api/tasks/:id returns 404 for unknown id" is.>
++
++## Verification
++Before reporting completion, run the quality-gate checklist:
++1. `git diff --stat` is non-empty and touches only declared files
++2. `npx tsc --noEmit` passes
++3. <task-specific test command, e.g. python test/run_tests.py or npx playwright test>
++4. Scan the diff for forbidden practices (no `any`, no `require()`, no missing `.js`
++   extensions on relative imports, no `console.log`, no sync fs, no empty catch)
++Report the actual command outputs as evidence — do not claim completion without them.
++```
++
++## Step 4 — Special rules for bug-fix tasks
++
++If the task fixes a bug, the context must ALSO require (this prevents fix-chains):
++- **Reproduce first**: demonstrate the failure before changing code.
++- **Root cause, not symptom**: state the mechanism ("declare re-runs because
++  `executeDeclareAndAcquireLeases` never checks for an existing declared-files.json"),
++  not the symptom ("declare runs twice").
++- **Sibling scan**: search for other call sites with the same defect pattern.
++- **Regression test**: add a test that fails without the fix.
++
++## Step 5 — Output
++
++Present the recommendation + task in the standard `task-create` code block.
++Priority: `high` only when the bug blocks other queued tasks or corrupts data
++(e.g. board.json corruption); otherwise `medium`.
+Index: .claude/skills/task-review/SKILL.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/skills/task-review/SKILL.md b/.claude/skills/task-review/SKILL.md
+new file mode 100644
+--- /dev/null	(date 1783485819633)
++++ b/.claude/skills/task-review/SKILL.md	(date 1783485819633)
+@@ -0,0 +1,65 @@
++---
++name: task-review
++description: Evidence-based review of Formic tasks in the Review column. Verifies the work actually landed against acceptance criteria and issues APPROVE or RE-RUN verdicts. Supports batch mode for clearing review backlogs.
++---
++
++# Task Review — Evidence-Based Review Column Triage
++
++Review is Formic's chronic bottleneck: a previous epoch ended with 67 of 68 tasks stuck
++in Review. This skill produces a decisive, evidence-backed verdict per task so the human
++only has to confirm, not investigate.
++
++**Usage:** review a single task (`/task-review t-2`) or the whole column (`/task-review batch`).
++
++## Per-task procedure
++
++### 1. Load the task's own artifacts — beware stale data
++- Task docs: `.formic/tasks/<id>_<slug>/` — read `README.md` (acceptance criteria),
++  `PLAN.md`, `declared-files.json`, and `QUALITY.md` if present.
++- **ID-collision warning:** board resets restart numbering, so multiple directories can
++  share one bare id (e.g. two `t-3_*` dirs). Match on the **slug**, not just the id.
++- Logs: prefer the merged `.formic/logs/<id>/task.log`; per-step files (`execute.log`
++  etc.) may be stale leftovers from an earlier epoch — check that paths mentioned inside
++  the log match this task's slug before trusting it.
++
++### 2. Locate the actual changes
++```bash
++git log --oneline --all | grep -i "<task-id>"        # auto-save: before task <id>
++git diff <commit-before>..<commit-after> --stat
++```
++The window between "auto-save: before task t-N" and the next task's auto-save commit
++approximates t-N's changes. Inspect the diff itself, not just the stat.
++
++### 3. Verify against acceptance criteria
++For each criterion in the task context / README.md, record PASS/FAIL with evidence
++(file:line in the diff, test output, or a command you ran). Additionally check:
++- Diff is non-empty for a code task (history includes "complete" claims with +0 −0)
++- `npx tsc --noEmit` passes on the current tree
++- No forbidden practices introduced (`any`, `require()`, missing `.js` extensions,
++  `console.log`, sync fs, empty catch)
++- For non-code tasks (docs, Confluence, config): open the produced artifact and confirm
++  it exists and matches the request — do not trust the agent summary.
++
++### 4. Verdict
++
++- **APPROVE** — all criteria PASS. State this plainly with the evidence table.
++- **RE-RUN** — one or more criteria FAIL. Draft the exact re-run context: quote the
++  failing criteria, the evidence of failure, and (if diagnosable) the suspected cause,
++  so the re-run doesn't repeat the mistake. If it's a defect rather than incomplete
++  work, recommend a new fix task using the root-cause-fix protocol instead of a re-run.
++
++You are read-only: report verdicts to the user; they click Approve/Re-run on the board.
++
++## Batch mode
++
++1. List every task in the Review column from the board state.
++2. Run the per-task procedure on each (oldest first).
++3. Output a summary table first, details after:
++
++| Task | Title | Verdict | Blocking issue (if RE-RUN) |
++|------|-------|---------|----------------------------|
++| t-1  | Merge per-step logs | APPROVE | — |
++| t-2  | ... | RE-RUN | criterion 3 failed: no regression test |
++
++4. End with the one-line action list for the human ("Approve t-1, t-3; re-run t-2 with
++   the context below").
+Index: .claude/skills/quality-gate/SKILL.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/skills/quality-gate/SKILL.md b/.claude/skills/quality-gate/SKILL.md
+new file mode 100644
+--- /dev/null	(date 1783485781925)
++++ b/.claude/skills/quality-gate/SKILL.md	(date 1783485781925)
+@@ -0,0 +1,87 @@
++---
++name: quality-gate
++description: End-of-execution verification gate for Formic tasks. Proves the work landed with real evidence (diff, build, tests, forbidden-practice scan) and writes QUALITY.md. Run before reporting any task complete.
++---
++
++# Quality Gate — Evidence-Based Completion Check
++
++**Task Title:** $TASK_TITLE
++**Task Documentation:** $TASK_DOCS_PATH
++
++You are the final gate before this task is reported complete. Task history shows agents
++reporting "all subtasks completed" with **+0 −0 code changes**, and 7 separate follow-up
++"verify" tasks created because execution ended with claims instead of evidence. Your job
++is to make completion claims impossible without proof.
++
++## Rules
++
++- **Never fabricate a pass.** If a check fails, report the failure verbatim and either fix
++  it or mark the task incomplete. A truthful failure is a success of this gate.
++- Every check below must be backed by actual command output, not a summary of what you
++  expect the output to be.
++
++## Checks
++
++### 1. The diff is real and scoped
++```bash
++git diff --stat HEAD
++git status --porcelain
++```
++- FAIL if the combined diff is empty for a task that requires code changes.
++- FAIL if files were modified that are neither in `$TASK_DOCS_PATH/declared-files.json`
++  (exclusive list) nor obviously required (explain any exceptions).
++
++### 2. Types and build
++```bash
++npx tsc --noEmit
++```
++- Must exit 0. If the task touched build config or entry points, also run `npm run build`.
++
++### 3. Tests
++- If the server API changed: `python test/run_tests.py` (requires the dev server running —
++  start it with `npm run dev` in the background if needed).
++- If UI behavior changed: `npx playwright test` (or the relevant spec only).
++- If a test suite cannot be run in this environment, say so explicitly — do not imply it passed.
++
++### 4. Forbidden-practice scan (on the diff only)
++```bash
++git diff HEAD -U0 | grep -nE '^\+' | grep -vE '^\+\+\+' | grep -nE \
++  '(: any\b|<any>|as any|require\(|console\.log\(|readFileSync|writeFileSync|existsSync)'
++```
++Also manually verify in the diff:
++- Relative imports include the `.js` extension
++- No empty `catch {}` blocks; every catch logs with a `[ServiceName]` prefix or re-throws
++- No `TODO:`/`FIXME:` comments were deleted
++- No new dependencies added to package.json
++
++### 5. Acceptance criteria
++Read the acceptance criteria from `$TASK_DOCS_PATH/README.md` (or the task context).
++For each criterion, record PASS/FAIL with one line of evidence (command output,
++file:line reference, or test name).
++
++## Output — write QUALITY.md
++
++Write the results to `$TASK_DOCS_PATH/QUALITY.md`:
++
++```markdown
++# Quality Gate — <task title>
++Date: <date>   Verdict: PASS | FAIL
++
++| # | Check | Result | Evidence |
++|---|-------|--------|----------|
++| 1 | Diff non-empty & scoped | PASS | 3 files, +42 −7, matches declared-files |
++| 2 | tsc --noEmit | PASS | exit 0 |
++| 3 | Tests | PASS | run_tests.py: 24 passed |
++| 4 | Forbidden practices | PASS | scan clean |
++| 5 | Acceptance criteria | PASS | 4/4 (see below) |
++
++## Acceptance criteria detail
++1. <criterion> — PASS — <evidence>
++...
++
++## Notes / deviations
++<anything the reviewer should know>
++```
++
++Then include the verdict table in your handoff summary. If the verdict is FAIL,
++the handoff must open with `QUALITY GATE FAILED:` and the failing checks.
+Index: .claude/skills/board-hygiene/SKILL.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/skills/board-hygiene/SKILL.md b/.claude/skills/board-hygiene/SKILL.md
+new file mode 100644
+--- /dev/null	(date 1783485844856)
++++ b/.claude/skills/board-hygiene/SKILL.md	(date 1783485844856)
+@@ -0,0 +1,84 @@
++---
++name: board-hygiene
++description: Audit .formic/ state health — task-ID collisions across board epochs, stale logs, corrupted board.json files, duplicate open tasks, and review-column aging. Run periodically or after a board reset.
++---
++
++# Board Hygiene — .formic State Audit
++
++Formic's board can be reset, which restarts task numbering at t-1 while `.formic/tasks/`
++and `.formic/logs/` keep old directories keyed by the same bare `t-N`. Observed damage:
++`logs/t-2/execute.log` containing output from an unrelated earlier t-2, duplicate dirs
++for t-3/t-72/t-75/t-bootstrap, and 7 `board.json.corrupted.*` files. This skill detects
++and reports that rot. You are read-only — output findings and a cleanup task, do not delete.
++
++## Audit steps
++
++### 1. Live board vs. task directories (ID collisions)
++```bash
++python3 - <<'EOF'
++import json, os, re, collections
++board = json.load(open('.formic/board.json'))
++tasks = board['tasks']
++live = {t['id']: t for t in (tasks.values() if isinstance(tasks, dict) else tasks)}
++dirs = collections.defaultdict(list)
++for d in os.listdir('.formic/tasks'):
++    m = re.match(r'(t-[\w]+)_(.*)', d)
++    if m: dirs[m.group(1)].append(d)
++print("== IDs with multiple task dirs (epoch collisions) ==")
++for tid, ds in sorted(dirs.items()):
++    if len(ds) > 1: print(tid, '->', ds)
++print("\n== Live tasks and their matching dir ==")
++for tid, t in live.items():
++    matches = dirs.get(tid, [])
++    print(tid, t.get('status'), '| dirs:', matches or 'MISSING')
++print("\n== Orphaned dirs (no live task) ==")
++orphans = [d for tid, ds in dirs.items() if tid not in live for d in ds]
++print(len(orphans), 'orphaned task dirs')
++EOF
++```
++
++### 2. Stale / cross-contaminated logs
++For each live task id, check `.formic/logs/<id>/`:
++- Per-step files (`brief.log`, `plan.log`, `execute.log`) that reference a **different
++  slug** than the live task's docsPath are stale leftovers — flag them.
++- The merged `task.log` is authoritative for runs after the log-merge feature (t-1).
++- Log dirs with no live task are orphans.
++
++### 3. Corrupted and backup board files
++```bash
++ls -la .formic/board.json* 
++```
++Flag every `board.json.corrupted.*` and stale `board.json.backup`. Multiple corruption
++files indicate a persistence bug — if new ones appear after the last known fix, recommend
++a `root-cause-fix` task, not just cleanup.
++
++### 4. Duplicate / near-duplicate open tasks
++Compare titles of all Todo/Queued/Review tasks pairwise (normalized keywords). The
++plugin epoch produced three near-identical decomposition waves (t-28–33 / t-34–40 /
++t-41–47) — catching this early saves the most agent time of any check here.
++
++### 5. Review-column aging
++For each Review task, report how long it has sat there (task `updatedAt` vs today) and
++whether it has a `QUALITY.md`. If more than ~5 tasks are in Review, recommend running
++`/task-review batch`.
++
++### 6. Tools registry
++```bash
++ls .formic/tools | wc -l
++```
++Check for duplicated commands across tool entries (same command registered under
++multiple names) and report counts.
++
++## Output
++
++1. A findings report ordered by severity: data-loss risks (corruption) → active
++   contamination (ID collisions on live tasks) → waste (duplicates) → clutter (orphans).
++2. A ready-to-create Formic cleanup task (via task-craft) whose context lists the exact
++   move/archive commands, e.g.:
++   ```bash
++   mkdir -p .formic/archive/<today>
++   mv .formic/tasks/<orphan-dir> .formic/logs/<orphan-id> .formic/board.json.corrupted.* .formic/archive/<today>/
++   ```
++   Archive, never delete — old docs are the only record of past epochs.
++3. If ID collisions on **live** tasks were found, recommend a `standard` task to make
++   Formic key task/log directories by epoch or full slug instead of bare `t-N`.
+Index: .claude/skills/root-cause-fix/SKILL.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/.claude/skills/root-cause-fix/SKILL.md b/.claude/skills/root-cause-fix/SKILL.md
+new file mode 100644
+--- /dev/null	(date 1783485802790)
++++ b/.claude/skills/root-cause-fix/SKILL.md	(date 1783485802790)
+@@ -0,0 +1,65 @@
++---
++name: root-cause-fix
++description: Disciplined bug-fix protocol for Formic fix tasks — reproduce, root-cause, sibling scan, regression test. Use for any task whose title starts with Fix or that addresses a defect.
++---
++
++# Root-Cause Fix — Bug Fix Protocol
++
++**Task Title:** $TASK_TITLE
++**Task Context:** $TASK_CONTEXT
++**Task Documentation:** $TASK_DOCS_PATH
++
++This project's history shows the cost of symptom-patching: the "declare step re-running
++on resume" bug took **three consecutive tasks** (t-71, t-72, t-73) to actually fix, with
++follow-on defects (t-74, t-78) leaking from the same area. Follow this protocol so one
++fix task means one fixed bug.
++
++## Phase 1 — Reproduce (before touching any code)
++
++1. Restate the observed symptom from the task context in one sentence.
++2. Reproduce it: run the failing command, hit the API route, or write a minimal script
++   that demonstrates the wrong behavior. Capture the output.
++3. If you cannot reproduce it, STOP and investigate why — check logs in
++   `.formic/logs/<task-id>/task.log`, git history of the affected file
++   (`git log -p --follow -- <file>`), and recent auto-save commits.
++   Do not "fix" what you cannot observe; report findings instead.
++
++## Phase 2 — Root cause
++
++4. Trace the mechanism from symptom to cause. Write it as a causal chain:
++   *"X happens because function A does B, which leaves state C, so when D runs it E."*
++5. Distinguish the **defect** (wrong code) from the **trigger** (conditions exposing it).
++   The fix must remove the defect, not just avoid the trigger.
++6. Ask: could this defect corrupt persisted state (`.formic/board.json`, `leases.json`,
++   task docs)? If yes, also check whether existing state is already corrupted and needs
++   repair or migration.
++
++## Phase 3 — Sibling scan
++
++7. Search the codebase for the same defect pattern elsewhere:
++   ```bash
++   grep -rn "<pattern that characterizes the defect>" src/
++   ```
++   Example: if the bug was a missing existence check before re-running a step, check every
++   other workflow step for the same missing check. Fix in-scope siblings; list
++   out-of-scope ones in the handoff so they become their own task.
++
++## Phase 4 — Fix + regression test
++
++8. Implement the minimal fix that removes the defect. No drive-by refactors.
++9. Add a regression test that **fails without the fix and passes with it**:
++   - API-level behavior → add a test in `test/` (Python unittest + requests)
++   - UI behavior → add/extend a Playwright spec in `e2e/`
++   - If neither harness can express it, write a reproduction script and include its
++     before/after output in the handoff.
++10. Re-run the reproduction from Phase 1 and show it now behaves correctly.
++
++## Phase 5 — Verify and hand off
++
++11. Run the full quality-gate checklist (diff scoped, `npx tsc --noEmit`, tests,
++    forbidden-practice scan) and write `$TASK_DOCS_PATH/QUALITY.md`.
++12. The handoff summary MUST contain:
++    - **Root cause:** the causal chain from step 4
++    - **Fix:** files:lines changed and why this removes the defect
++    - **Regression test:** name/location and proof it fails without the fix
++    - **Siblings:** other occurrences found and their disposition
