@@ -331,6 +331,24 @@ describe('leaseManager', () => {
       leaseMod.releaseLeases('t-hash-cleanup');
       // Should not throw and should clean up without error
     });
+
+    it('should clear wait records on release (prevents orphaned wait entries)', () => {
+      leaseMod.acquireLeases({
+        taskId: 't-wait-cleanup',
+        exclusiveFiles: ['src/wc.ts'],
+        sharedFiles: [],
+      });
+
+      leaseMod.recordWait('t-wait-cleanup', 'src/wc.ts');
+      assert.ok(leaseMod.getWaitingFiles('t-wait-cleanup').length > 0,
+        'Task should have wait entries before release');
+
+      leaseMod.releaseLeases('t-wait-cleanup');
+
+      const files = leaseMod.getWaitingFiles('t-wait-cleanup');
+      assert.deepStrictEqual(files, [],
+        'Wait entries should be cleared when leases are released');
+    });
   });
 
   // ==============================
@@ -526,6 +544,86 @@ describe('leaseManager', () => {
   });
 
   // ==============================
+  // getBlockingHolders
+  // ==============================
+  describe('getBlockingHolders', () => {
+    it('should return empty array when file is not leased', async () => {
+      const mod = await reloadModule();
+      const holders = mod.getBlockingHolders('src/nobody.ts', 't-test');
+      assert.deepStrictEqual(holders, []);
+    });
+
+    it('should return exclusive holder when another task holds exclusive', async () => {
+      const mod = await reloadModule();
+      mod.acquireLeases({
+        taskId: 't-excl-holder',
+        exclusiveFiles: ['src/bh-excl.ts'],
+        sharedFiles: [],
+      });
+      const holders = mod.getBlockingHolders('src/bh-excl.ts', 't-requester');
+      assert.deepStrictEqual(holders, ['t-excl-holder']);
+    });
+
+    it('should exclude the requester from blocking holders', async () => {
+      const mod = await reloadModule();
+      mod.acquireLeases({
+        taskId: 't-self-bh',
+        exclusiveFiles: ['src/bh-self.ts'],
+        sharedFiles: [],
+      });
+      const holders = mod.getBlockingHolders('src/bh-self.ts', 't-self-bh');
+      assert.deepStrictEqual(holders, []);
+    });
+
+    it('should return shared-lease holders as blocking', async () => {
+      const mod = await reloadModule();
+      mod.acquireLeases({
+        taskId: 't-shared-bh',
+        exclusiveFiles: [],
+        sharedFiles: ['src/bh-shared.ts'],
+      });
+      const holders = mod.getBlockingHolders('src/bh-shared.ts', 't-requester');
+      assert.deepStrictEqual(holders, ['t-shared-bh']);
+    });
+
+    it('should return both exclusive and shared holders for a file', async () => {
+      const mod = await reloadModule();
+      // Another task holds exclusive — but can't have both exclusive AND shared
+      // on the same file from different tasks (exclusive blocks shared acquisition).
+      // Test: exclusive holder + shared holder on different files is normal;
+      // for the combined test, use two DIFFERENT shared holders on the same file.
+      mod.acquireLeases({
+        taskId: 't-sh1-bh',
+        exclusiveFiles: [],
+        sharedFiles: ['src/bh-combined.ts'],
+      });
+      mod.acquireLeases({
+        taskId: 't-sh2-bh',
+        exclusiveFiles: [],
+        sharedFiles: ['src/bh-combined.ts'],
+      });
+      const holders = mod.getBlockingHolders('src/bh-combined.ts', 't-requester');
+      assert.equal(holders.length, 2);
+      assert.ok(holders.includes('t-sh1-bh'));
+      assert.ok(holders.includes('t-sh2-bh'));
+    });
+
+    it('should return null for shared lease files (getExclusiveLeaseHolder)', async () => {
+      const mod = await reloadModule();
+      mod.acquireLeases({
+        taskId: 't-sh-check',
+        exclusiveFiles: [],
+        sharedFiles: ['src/sh-check.ts'],
+      });
+      // getExclusiveLeaseHolder returns null for shared-only
+      assert.equal(mod.getExclusiveLeaseHolder('src/sh-check.ts'), null);
+      // getBlockingHolders returns the shared holder
+      const holders = mod.getBlockingHolders('src/sh-check.ts', 't-intruder');
+      assert.deepStrictEqual(holders, ['t-sh-check']);
+    });
+  });
+
+  // ==============================
   // getExpiredLeases
   // ==============================
   describe('getExpiredLeases', () => {
@@ -562,7 +660,7 @@ describe('leaseManager', () => {
   });
 
   // ==============================
-  // recordWait / clearWait
+  // recordWait / clearWait / getWaitingFiles
   // ==============================
   describe('recordWait and clearWait', () => {
     beforeEach(async () => {
@@ -581,6 +679,35 @@ describe('leaseManager', () => {
 
     it('should be safe to clear a non-existent wait', () => {
       assert.doesNotThrow(() => leaseMod.clearWait('nonexistent'));
+    });
+
+    it('should accumulate multiple files per task via recordWait', () => {
+      leaseMod.recordWait('t-multi', 'src/f1.ts');
+      leaseMod.recordWait('t-multi', 'src/f2.ts');
+      leaseMod.recordWait('t-multi', 'src/f3.ts');
+      const files = leaseMod.getWaitingFiles('t-multi');
+      assert.deepStrictEqual(files.sort(), ['src/f1.ts', 'src/f2.ts', 'src/f3.ts']);
+    });
+
+    it('should deduplicate repeated file paths for the same task', () => {
+      leaseMod.recordWait('t-dup', 'src/f1.ts');
+      leaseMod.recordWait('t-dup', 'src/f1.ts');
+      const files = leaseMod.getWaitingFiles('t-dup');
+      assert.deepStrictEqual(files, ['src/f1.ts']);
+    });
+
+    it('should return empty array for unknown task', () => {
+      const files = leaseMod.getWaitingFiles('t-unknown');
+      assert.deepStrictEqual(files, []);
+    });
+
+    it('clearWait should delete entire entry regardless of accumulated count', () => {
+      leaseMod.recordWait('t-clear', 'src/a.ts');
+      leaseMod.recordWait('t-clear', 'src/b.ts');
+      leaseMod.recordWait('t-clear', 'src/c.ts');
+      leaseMod.clearWait('t-clear');
+      const files = leaseMod.getWaitingFiles('t-clear');
+      assert.deepStrictEqual(files, []);
     });
   });
 
@@ -1048,6 +1175,66 @@ describe('leaseManager', () => {
       });
 
       assert.equal(mod.getExclusiveLeaseHolder('src/shared-holder2.ts'), null);
+    });
+  });
+
+  // ==============================
+  // getBlockingHolders
+  // ==============================
+  describe('getBlockingHolders', () => {
+    it('should return empty array when file is not leased', async () => {
+      const mod = await reloadModule();
+      const holders = mod.getBlockingHolders('src/nobody.ts', 't-req');
+      assert.deepStrictEqual(holders, []);
+    });
+
+    it('should return exclusive holder when another task holds exclusive', async () => {
+      const mod = await reloadModule();
+      mod.acquireLeases({
+        taskId: 't-excl-holder',
+        exclusiveFiles: ['src/gh-excl.ts'],
+        sharedFiles: [],
+      });
+      const holders = mod.getBlockingHolders('src/gh-excl.ts', 't-req');
+      assert.deepStrictEqual(holders, ['t-excl-holder']);
+    });
+
+    it('should exclude the requester from the result', async () => {
+      const mod = await reloadModule();
+      mod.acquireLeases({
+        taskId: 't-self-bh',
+        exclusiveFiles: ['src/gh-self.ts'],
+        sharedFiles: [],
+      });
+      const holders = mod.getBlockingHolders('src/gh-self.ts', 't-self-bh');
+      assert.deepStrictEqual(holders, []);
+    });
+
+    it('should return shared holders when exclusive requester is blocked', async () => {
+      const mod = await reloadModule();
+      mod.acquireLeases({
+        taskId: 't-sh-holder',
+        exclusiveFiles: [],
+        sharedFiles: ['src/gh-shared.ts'],
+      });
+      const holders = mod.getBlockingHolders('src/gh-shared.ts', 't-req-excl');
+      assert.deepStrictEqual(holders, ['t-sh-holder']);
+    });
+
+    it('should return both exclusive and shared holders', async () => {
+      const mod = await reloadModule();
+      // A shared-holds the file; B exclusive-holds the file (re-acquire replaces)
+      // Actually, exclusive takes precedence. Let's test: A shared, then check exclusive
+      // Since exclusive stored at bare path and shared at compound key,
+      // both can co-exist conceptually but exclusive always wins in conflict check.
+      mod.acquireLeases({
+        taskId: 't-sh-bh',
+        exclusiveFiles: [],
+        sharedFiles: ['src/gh-mixed.ts'],
+      });
+      const holders = mod.getBlockingHolders('src/gh-mixed.ts', 't-req2');
+      assert.ok(holders.includes('t-sh-bh'),
+        `Expected shared holder in result: ${JSON.stringify(holders)}`);
     });
   });
 

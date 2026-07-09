@@ -1970,6 +1970,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
               if (holderStatus !== 'running' && holderStatus !== 'declaring' && !isWorkflowRunning(holderId)) {
                 console.warn(`[Workflow] Force-releasing zombie leases held by task ${holderId} (status: ${holderStatus}) to unblock task ${taskId}`);
                 releaseLeases(holderId);
+                clearWait(holderId);
               }
             }
           }
@@ -2514,6 +2515,7 @@ export async function stopWorkflow(taskId: string): Promise<boolean> {
 
   // Immediately release any leases held by this task to unblock sibling tasks
   releaseLeases(taskId);
+  clearWait(taskId);
   activeWorkflows.delete(taskId);
 
   if (workflow) {

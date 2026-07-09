@@ -41,6 +41,12 @@ const fileHashStore = new Map<string, Map<string, string>>();
 /** Wait-for map: taskId → Set of filePaths the task is waiting to acquire */
 const waitForMap = new Map<string, Set<string>>();
 
+/** Timestamps for wait-for entries: taskId → epoch ms when the wait was first recorded */
+const waitTimestamps = new Map<string, number>();
+
+/** Max age (ms) of a wait-for record before it is considered stale and pruned. */
+const MAX_STALE_WAIT_MS = 30 * 60 * 1000; // 30 minutes
+
 /** Priority rank for comparison: higher number = higher priority */
 const PRIORITY_RANK: Record<string, number> = { low: 0, medium: 1, high: 2 };
 
@@ -191,7 +197,10 @@ export function releaseLeases(taskId: string): void {
     internalEvents.emit(LEASE_RELEASED, taskId, releasedFiles);
   }
 
-  // Clean up file hash records
+  // Clean up wait records and file hash records — releasing leases means the
+  // task is no longer waiting, regardless of the caller path (preemption,
+  // deadlock resolution, stop, completion, deletion).
+  clearWait(taskId);
   fileHashStore.delete(taskId);
   persistLeases().catch(e => console.warn('[LeaseManager] persist error:', e));
 }
@@ -476,6 +485,9 @@ export function recordWait(taskId: string, filePath: string): void {
     waitForMap.set(taskId, entry);
   }
   entry.add(filePath);
+  // Refresh the timestamp on every call so actively-denied tasks are
+  // never mistaken for stale entries during age-based pruning.
+  waitTimestamps.set(taskId, Date.now());
 }
 
 /**
@@ -483,6 +495,7 @@ export function recordWait(taskId: string, filePath: string): void {
  */
 export function clearWait(taskId: string): void {
   waitForMap.delete(taskId);
+  waitTimestamps.delete(taskId);
 }
 
 /**
@@ -652,6 +665,20 @@ export async function preemptLease(highPriorityTaskId: string, targetFilePath: s
  * Returns the detected cycle arrays, or null if no cycles were found.
  */
 export async function detectDeadlock(): Promise<string[][] | null> {
+  if (waitForMap.size === 0) return null;
+
+  // Prune stale wait records that have outlived their lease by the expiry
+  // threshold. This is a safety net for leak paths (e.g. task deletion) that
+  // release leases but fail to call clearWait. Without pruning, stale records
+  // could form phantom edges if a later task acquires a lease on the same file.
+  const now = Date.now();
+  for (const [taskId, ts] of waitTimestamps.entries()) {
+    if (now - ts > MAX_STALE_WAIT_MS) {
+      waitForMap.delete(taskId);
+      waitTimestamps.delete(taskId);
+    }
+  }
+
   if (waitForMap.size === 0) return null;
 
   // Build task-to-blockers wait-for graph: waiting task → Set of all blocking
