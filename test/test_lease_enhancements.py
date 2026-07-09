@@ -779,6 +779,83 @@ def test_lease_enhancements():
         if task_id_b:
             cleanup_task(task_id_b)
 
+    # ── Test 15: Declared-path validation — malicious paths never become leases ──
+    print("\n=== Test 15: Declared-path validation — malicious paths rejected ===")
+    task_id = None
+    sane_task_id = None
+    try:
+        unique = str(uuid.uuid4())[:8]
+        malicious_paths = [
+            "/etc/passwd",                        # absolute path
+            "../../etc/passwd",                   # workspace escape via ..
+            f"src/x$(touch pwned_{unique}).ts",   # shell command substitution
+            "src/`id`.ts",                        # backtick substitution
+            "src/a\";rm -rf /\".ts",              # quote breakout
+        ]
+
+        failures = []
+        for mal in malicious_paths:
+            task_id = create_test_task(f"{unique}_mal", priority='medium')
+            set_declared_files(task_id, exclusive=[mal])
+
+            acq = requests.post(f"{BASE_URL}/api/tasks/{task_id}/lease/acquire")
+            acq.raise_for_status()
+            data = acq.json()
+
+            if data.get('granted'):
+                failures.append(f"granted lease on malicious path: {mal!r}")
+            else:
+                # The malicious path must not appear as any active lease key
+                leases = requests.get(f"{BASE_URL}/api/leases").json()
+                lease_paths = [l.get('filePath') for l in leases]
+                if mal in lease_paths:
+                    failures.append(f"malicious path appears in active leases: {mal!r}")
+
+            cleanup_task(task_id)
+            task_id = None
+
+        # A declaration mixing valid and invalid paths is rejected whole
+        # (fail closed — no partial lease set)
+        task_id = create_test_task(f"{unique}_mixed", priority='medium')
+        valid_file = f"src/valid_mixed_{unique}.ts"
+        set_declared_files(task_id, exclusive=[valid_file, "../../etc/shadow"])
+        acq = requests.post(f"{BASE_URL}/api/tasks/{task_id}/lease/acquire")
+        acq.raise_for_status()
+        if acq.json().get('granted'):
+            failures.append("mixed valid+invalid declaration was granted")
+        else:
+            leases = requests.get(f"{BASE_URL}/api/leases").json()
+            if valid_file in [l.get('filePath') for l in leases]:
+                failures.append("partial lease granted from a rejected declaration")
+        cleanup_task(task_id)
+        task_id = None
+
+        # Sanity: a normal relative path is still granted
+        sane_task_id = create_test_task(f"{unique}_sane", priority='medium')
+        sane_file = f"src/valid_path_{unique}.ts"
+        set_declared_files(sane_task_id, exclusive=[sane_file])
+        acq = requests.post(f"{BASE_URL}/api/tasks/{sane_task_id}/lease/acquire")
+        acq.raise_for_status()
+        if not acq.json().get('granted'):
+            failures.append(f"valid path was wrongly rejected: {sane_file!r}")
+
+        if failures:
+            for f in failures:
+                print(f"✗ {f}")
+            results.append(("Declared-path validation", "FAIL"))
+        else:
+            print(f"✓ All {len(malicious_paths)} malicious paths rejected; mixed declaration failed closed; valid path still granted")
+            results.append(("Declared-path validation", "PASS"))
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        import traceback; traceback.print_exc()
+        results.append(("Declared-path validation", "FAIL"))
+    finally:
+        if task_id:
+            cleanup_task(task_id)
+        if sane_task_id:
+            cleanup_task(sane_task_id)
+
     # ── Print summary ──
     print("\n" + "=" * 60)
     print("LEASE ENHANCEMENT TEST RESULTS")

@@ -156,7 +156,7 @@ async function processQueue(): Promise<void> {
         }
 
         const reason = `lease-conflict:${conflictingFile}`;
-        console.log(`[QueueProcessor] Task ${nextTask.id} yielding — ${reason} (backoff ${nextBackoff}ms)`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} yielding — ${reason} (backoff ${nextBackoff}ms)`);
         try {
           await updateTask(nextTask.id, updates);
         } catch (err) {
@@ -166,7 +166,7 @@ async function processQueue(): Promise<void> {
         continue;
       }
 
-      console.log(`[QueueProcessor] Starting task ${nextTask.id}: ${nextTask.title}`);
+      console.warn(`[QueueProcessor] Starting task ${nextTask.id}: ${nextTask.title}`);
 
       // Clear any stale backoff state for this task before dispatching
       clearTaskBackoff(nextTask.id);
@@ -183,13 +183,13 @@ async function processQueue(): Promise<void> {
 
       // Check task type and execute appropriate workflow
       if (nextTask.type === 'quick') {
-        console.log(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
         await executeQuickTask(nextTask.id);
       } else if (nextTask.type === 'goal') {
-        console.log(`[QueueProcessor] Task ${nextTask.id} is a goal task - running architect decomposition`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} is a goal task - running architect decomposition`);
         await executeGoalWorkflow(nextTask.id);
       } else if (freshTask?.resumeFromStep === 'declare' || freshTask?.resumeFromStep === 'execute') {
-        console.log(`[QueueProcessor] Task ${nextTask.id} resuming from ${freshTask.resumeFromStep} step (skipping brief/plan)`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} resuming from ${freshTask.resumeFromStep} step (skipping brief/plan)`);
         await executeFromDeclare(nextTask.id);
       } else {
         await executeFullWorkflow(nextTask.id);
@@ -218,7 +218,7 @@ export function wakeQueueProcessor(): void {
   if (!QUEUE_ENABLED || isProcessing) {
     return;
   }
-  console.log('[QueueProcessor] Woken by event');
+  console.warn('[QueueProcessor] Woken by event');
   void processQueue();
 }
 
@@ -276,7 +276,7 @@ function handleLeaseReleased(_releasingTaskId: string, releasedFiles: string[]):
   }
 
   if (cleared > 0) {
-    console.log(`[QueueProcessor] LEASE_RELEASED: cleared backoff for ${cleared} task(s) across ${releasedFiles.length} file(s)`);
+    console.warn(`[QueueProcessor] LEASE_RELEASED: cleared backoff for ${cleared} task(s) across ${releasedFiles.length} file(s)`);
   }
 
   // Wake the queue processor after clearing backoffs so blocked tasks get a chance
@@ -297,16 +297,16 @@ function schedulePoll(): void {
  */
 export function startQueueProcessor(): void {
   if (!QUEUE_ENABLED) {
-    console.log('[QueueProcessor] Queue processing is disabled (QUEUE_ENABLED=false)');
+    console.warn('[QueueProcessor] Queue processing is disabled (QUEUE_ENABLED=false)');
     return;
   }
 
   if (pollTimeoutId !== null) {
-    console.log('[QueueProcessor] Queue processor already running');
+    console.warn('[QueueProcessor] Queue processor already running');
     return;
   }
 
-  console.log(`[QueueProcessor] Starting queue processor (poll: ${engineConfig.queuePollIntervalMs}ms, max concurrent: ${engineConfig.maxConcurrentTasks})`);
+  console.warn(`[QueueProcessor] Starting queue processor (poll: ${engineConfig.queuePollIntervalMs}ms, max concurrent: ${engineConfig.maxConcurrentTasks})`);
 
   // Subscribe to internal wake events
   internalEvents.on(TASK_COMPLETED, wakeQueueProcessor);
@@ -331,7 +331,7 @@ export function stopQueueProcessor(): void {
     internalEvents.off(TASK_COMPLETED, wakeQueueProcessor);
     internalEvents.off(LEASE_RELEASED, handleLeaseReleased);
 
-    console.log('[QueueProcessor] Queue processor stopped');
+    console.warn('[QueueProcessor] Queue processor stopped');
   }
 }
 
@@ -340,7 +340,7 @@ export function stopQueueProcessor(): void {
  */
 export function pauseQueueProcessor(): void {
   stopQueueProcessor();
-  console.log('[QueueProcessor] Queue paused by kill switch');
+  console.warn('[QueueProcessor] Queue paused by kill switch');
 }
 
 /**

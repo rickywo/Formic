@@ -8,6 +8,11 @@
 
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, rm, readFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+
+import { getWorkspacePath, setWorkspacePath } from '../../src/server/utils/paths.js';
 
 // Dynamically reload the module for test isolation.
 // The leaseStore/Map globals inside leaseManager are singletons within a
@@ -1259,6 +1264,137 @@ describe('leaseManager', () => {
   });
 
   // ==============================
+  // getWaitingFiles — multi-file wait record accessor
+  // ==============================
+  describe('getWaitingFiles', () => {
+    it('should return all files accumulated for a task via recordWait', async () => {
+      const mod = await reloadModule();
+      mod.recordWait('t-mw', 'src/file1.ts');
+      mod.recordWait('t-mw', 'src/file2.ts');
+      mod.recordWait('t-mw', 'src/file3.ts');
+
+      const files = mod.getWaitingFiles('t-mw');
+      assert.equal(files.length, 3,
+        `Expected 3 waiting files, got ${files.length}: ${JSON.stringify(files)}`);
+      assert.ok(files.includes('src/file1.ts'));
+      assert.ok(files.includes('src/file2.ts'));
+      assert.ok(files.includes('src/file3.ts'));
+    });
+
+    it('should return empty array for unknown task', async () => {
+      const mod = await reloadModule();
+      const files = mod.getWaitingFiles('nonexistent');
+      assert.deepStrictEqual(files, []);
+    });
+  });
+
+  // ==============================
+  // detectDeadlock — shared-holder cycle
+  // ==============================
+  describe('detectDeadlock shared-holder cycle', () => {
+    it('should detect cycle where one task holds shared lease blocking exclusive request', async () => {
+      const mod = await reloadModule();
+
+      // A holds exclusive on F1. B holds SHARED on F2.
+      // A wants exclusive on F2 → blocked by B's shared lease.
+      // B wants exclusive on F1 → blocked by A's exclusive lease.
+      // Cycle: A → F2(B) → B → F1(A) → A
+      mod.acquireLeases({
+        taskId: 't-sh-A',
+        exclusiveFiles: ['src/sh-f1.ts'],
+        sharedFiles: [],
+      });
+      mod.acquireLeases({
+        taskId: 't-sh-B',
+        exclusiveFiles: [],
+        sharedFiles: ['src/sh-f2.ts'],
+      });
+
+      mod.recordWait('t-sh-A', 'src/sh-f2.ts');
+      mod.recordWait('t-sh-B', 'src/sh-f1.ts');
+
+      const cycles = await mod.detectDeadlock();
+      assert.ok(cycles !== null,
+        `Should detect deadlock cycle with shared holder, got ${JSON.stringify(cycles)}`);
+      assert.ok(cycles!.length >= 1,
+        `Expected at least 1 cycle, got ${cycles?.length ?? 0}`);
+    });
+  });
+
+  // ==============================
+  // detectDeadlock — multi-file cycle (second contested file)
+  // ==============================
+  describe('detectDeadlock multi-file cycle', () => {
+    it('should detect cycle formed via second contested file of each task', async () => {
+      const mod = await reloadModule();
+
+      // Task A holds exclusive on F1. Task B holds exclusive on F2.
+      // Task A waits on [free-unheld.ts, F2] — F2 (held by B) is the SECOND waited file.
+      // Task B waits on [free-unheld2.ts, F1] — F1 (held by A) is the SECOND waited file.
+      // If only conflictingFiles[0] is recorded, no cycle edge is visible.
+      mod.acquireLeases({
+        taskId: 't-mf-A',
+        exclusiveFiles: ['src/mf-f1.ts'],
+        sharedFiles: [],
+      });
+      mod.acquireLeases({
+        taskId: 't-mf-B',
+        exclusiveFiles: ['src/mf-f2.ts'],
+        sharedFiles: [],
+      });
+
+      // Record waits for ALL conflicting files (simulating the fix)
+      mod.recordWait('t-mf-A', 'src/mf-free1.ts');
+      mod.recordWait('t-mf-A', 'src/mf-f2.ts');
+      mod.recordWait('t-mf-B', 'src/mf-free2.ts');
+      mod.recordWait('t-mf-B', 'src/mf-f1.ts');
+
+      const cycles = await mod.detectDeadlock();
+      assert.ok(cycles !== null,
+        `Should detect cycle via second contested file, got ${JSON.stringify(cycles)}`);
+      assert.ok(cycles!.length >= 1,
+        `Expected at least 1 cycle, got ${cycles?.length ?? 0}`);
+    });
+  });
+
+  // ==============================
+  // detectDeadlock — multi-out-edge no phantom
+  // ==============================
+  describe('detectDeadlock multi-out-edge no phantom', () => {
+    it('should not produce phantom cycles when task waits on multiple holders', async () => {
+      const mod = await reloadModule();
+
+      // A holds F1, B holds F2, C holds F3.
+      // Task D waits on F1 (held by A) and F2 (held by B).
+      // A waits on F3 (held by C).  C waits on nothing.
+      // There is NO cycle: D→A→C (no back edge), D→B (no back edge).
+      mod.acquireLeases({
+        taskId: 't-np-A',
+        exclusiveFiles: ['src/np-f1.ts'],
+        sharedFiles: [],
+      });
+      mod.acquireLeases({
+        taskId: 't-np-B',
+        exclusiveFiles: ['src/np-f2.ts'],
+        sharedFiles: [],
+      });
+      mod.acquireLeases({
+        taskId: 't-np-C',
+        exclusiveFiles: ['src/np-f3.ts'],
+        sharedFiles: [],
+      });
+
+      mod.recordWait('t-np-D', 'src/np-f1.ts'); // held by A
+      mod.recordWait('t-np-D', 'src/np-f2.ts'); // held by B
+      mod.recordWait('t-np-A', 'src/np-f3.ts'); // held by C (A→C chain, no cycle)
+
+      const cycles = await mod.detectDeadlock();
+      assert.equal(cycles, null,
+        `No phantom cycle expected, got ${JSON.stringify(cycles)}`);
+    });
+  });
+
+  // ==============================
   // persistLeases — concurrent calls
   // ==============================
   describe('persistLeases concurrency', () => {
@@ -1280,6 +1416,138 @@ describe('leaseManager', () => {
       const failures = results.filter(r => r.status === 'rejected');
       assert.equal(failures.length, 0,
         `Expected 0 rejections from concurrent persistLeases, got ${failures.length}`);
+    });
+  });
+
+  // ==============================
+  // persistLeases — atomicity under overlapping calls
+  // ==============================
+  describe('persistLeases atomicity under overlapping calls', () => {
+    let originalWorkspace: string;
+    let tmpWorkspace: string;
+
+    beforeEach(async () => {
+      originalWorkspace = getWorkspacePath();
+      tmpWorkspace = await mkdtemp(path.join(os.tmpdir(), 'formic-lease-test-'));
+      await mkdir(path.join(tmpWorkspace, '.formic'), { recursive: true });
+      setWorkspacePath(tmpWorkspace);
+    });
+
+    afterEach(async () => {
+      setWorkspacePath(originalWorkspace);
+      await rm(tmpWorkspace, { recursive: true, force: true });
+    });
+
+    it('N overlapping persist calls always yield parseable JSON matching the final store state', async () => {
+      const mod = await reloadModule();
+      const N = 40;
+      const persists: Promise<void>[] = [];
+
+      // Grow the store while firing overlapping persists: each call snapshots a
+      // progressively larger store, so unserialized writes completing out of
+      // order (or interleaving) leave a stale or torn leases.json behind.
+      for (let i = 0; i < N; i++) {
+        mod.acquireLeases({
+          taskId: `t-overlap-${i}`,
+          exclusiveFiles: [`src/overlap-${i}.ts`],
+          sharedFiles: [],
+        });
+        persists.push(mod.persistLeases());
+      }
+      await Promise.all(persists);
+
+      const raw = await readFile(path.join(tmpWorkspace, '.formic', 'leases.json'), 'utf-8');
+      // Must always be parseable — a torn/interleaved write fails here
+      const snapshot = JSON.parse(raw) as { leases: Array<{ key: string; lease: { filePath: string } }> };
+
+      // Must reflect the FINAL store state — a stale snapshot written last fails here
+      const persistedPaths = new Set(snapshot.leases.map(entry => entry.lease.filePath));
+      for (let i = 0; i < N; i++) {
+        assert.ok(persistedPaths.has(`src/overlap-${i}.ts`),
+          `leases.json is stale: missing src/overlap-${i}.ts (has ${persistedPaths.size}/${N} leases)`);
+      }
+      assert.equal(snapshot.leases.length, mod.getAllLeases().length,
+        'leases.json entry count must match the in-memory store');
+    });
+  });
+
+  // ==============================
+  // findInvalidDeclaredPaths — declared-path validation
+  // ==============================
+  describe('findInvalidDeclaredPaths', () => {
+    it('accepts normal workspace-relative paths', async () => {
+      const mod = await reloadModule();
+      const invalid = mod.findInvalidDeclaredPaths([
+        'src/server/services/leaseManager.ts',
+        'test/unit/leaseManager.test.ts',
+        'README.md',
+      ]);
+      assert.deepStrictEqual(invalid, []);
+    });
+
+    it('rejects absolute paths', async () => {
+      const mod = await reloadModule();
+      const invalid = mod.findInvalidDeclaredPaths(['/etc/passwd', 'src/ok.ts']);
+      assert.deepStrictEqual(invalid, ['/etc/passwd']);
+    });
+
+    it('rejects .. traversal escaping the workspace', async () => {
+      const mod = await reloadModule();
+      const invalid = mod.findInvalidDeclaredPaths(['../../etc/passwd', 'src/../../../etc/shadow']);
+      assert.equal(invalid.length, 2);
+    });
+
+    it('rejects shell metacharacter payloads', async () => {
+      const mod = await reloadModule();
+      const payloads = [
+        'src/x$(touch pwned).ts',
+        'src/`id`.ts',
+        'src/a";rm -rf /".ts',
+        "src/a';id'.ts",
+        'src/a|b.ts',
+        'src/a&b.ts',
+      ];
+      const invalid = mod.findInvalidDeclaredPaths(payloads);
+      assert.equal(invalid.length, payloads.length,
+        `All shell payloads must be rejected, got: ${JSON.stringify(invalid)}`);
+    });
+
+    it('rejects empty and whitespace-only paths', async () => {
+      const mod = await reloadModule();
+      const invalid = mod.findInvalidDeclaredPaths(['', '   ']);
+      assert.equal(invalid.length, 2);
+    });
+  });
+
+  // ==============================
+  // acquireLeases — invalid declared paths never become lease keys
+  // ==============================
+  describe('acquireLeases with invalid declared paths', () => {
+    it('denies the request and creates no lease keys', async () => {
+      const mod = await reloadModule();
+      const result = mod.acquireLeases({
+        taskId: 't-evil',
+        exclusiveFiles: ['../../etc/passwd', 'src/x$(touch pwned).ts'],
+        sharedFiles: ['/etc/shadow'],
+      });
+
+      assert.equal(result.granted, false);
+      assert.equal(result.leases.length, 0);
+      assert.equal(mod.getAllLeases().length, 0,
+        'No lease keys may be created from invalid declared paths');
+    });
+
+    it('is all-or-nothing: valid paths alongside invalid ones are not leased', async () => {
+      const mod = await reloadModule();
+      const result = mod.acquireLeases({
+        taskId: 't-mixed-evil',
+        exclusiveFiles: ['src/legit.ts', 'src/x`touch pwned`.ts'],
+        sharedFiles: [],
+      });
+
+      assert.equal(result.granted, false);
+      assert.equal(mod.isFileLeased('src/legit.ts'), false,
+        'Valid path must not be leased when the declaration contains invalid paths');
     });
   });
 

@@ -6,9 +6,9 @@
  * Includes priority preemption, deadlock detection, and disk persistence.
  */
 
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { writeFile, readFile } from 'node:fs/promises';
+import { writeFile, readFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import type { FileLease, LeaseRequest, LeaseResult, FileConflict, LeaseStoreSnapshot } from '../../types/index.js';
 import { getFormicDir, getWorkspacePath } from '../utils/paths.js';
@@ -16,7 +16,7 @@ import { getTask, updateTaskStatus } from './store.js';
 import { broadcastLeaseReleased } from './boardNotifier.js';
 import { internalEvents, LEASE_RELEASED, LEASE_ACQUIRED, requestTaskStop } from './internalEvents.js';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 import { engineConfig } from './engineConfig.js';
 
@@ -38,11 +38,49 @@ const leaseStore = new Map<string, FileLease>();
 /** Recorded file hashes for collision detection: taskId → Map<filePath, hash> */
 const fileHashStore = new Map<string, Map<string, string>>();
 
-/** Wait-for map: taskId → filePath the task is waiting to acquire */
-const waitForMap = new Map<string, string>();
+/** Wait-for map: taskId → Set of filePaths the task is waiting to acquire */
+const waitForMap = new Map<string, Set<string>>();
 
 /** Priority rank for comparison: higher number = higher priority */
 const PRIORITY_RANK: Record<string, number> = { low: 0, medium: 1, high: 2 };
+
+/**
+ * Shell metacharacters and control characters that must never appear in a
+ * declared file path. Paths are passed to execFile as argv (never a shell),
+ * but rejecting these at the boundary keeps hostile payloads out of lease
+ * keys, logs, and any downstream consumer.
+ */
+const UNSAFE_PATH_CHARS = /[`$"';&|<>(){}*?~\\\n\r\t\0]/;
+
+/**
+ * Validate declared file paths against the workspace boundary.
+ * A path is invalid if it is empty, contains shell metacharacters or control
+ * characters, is absolute, or resolves outside the workspace root (`..`
+ * traversal). Returns the invalid paths (empty array = all valid).
+ */
+export function findInvalidDeclaredPaths(filePaths: string[]): string[] {
+  const workspaceRoot = path.resolve(getWorkspacePath());
+  const invalid: string[] = [];
+  for (const filePath of filePaths) {
+    if (typeof filePath !== 'string' || filePath.trim() === '') {
+      invalid.push(filePath);
+      continue;
+    }
+    if (UNSAFE_PATH_CHARS.test(filePath)) {
+      invalid.push(filePath);
+      continue;
+    }
+    if (path.isAbsolute(filePath) || /^[A-Za-z]:[\\/]/.test(filePath)) {
+      invalid.push(filePath);
+      continue;
+    }
+    const resolved = path.resolve(workspaceRoot, filePath);
+    if (!resolved.startsWith(workspaceRoot + path.sep)) {
+      invalid.push(filePath);
+    }
+  }
+  return invalid;
+}
 
 /**
  * Acquire file leases atomically (all-or-nothing).
@@ -54,6 +92,16 @@ export function acquireLeases(request: LeaseRequest): LeaseResult {
   const durationMs = request.leaseDurationMs ?? engineConfig.leaseDurationMs;
   const now = new Date();
   const expiresAt = new Date(now.getTime() + durationMs);
+
+  // Defense in depth: reject the whole request if any declared path is invalid
+  // (absolute, workspace-escaping, or shell-metacharacter payload). The primary
+  // boundary is loadDeclaredFiles in workflow.ts; this guard covers direct API
+  // callers so hostile paths never become lease keys.
+  const invalidPaths = findInvalidDeclaredPaths([...exclusiveFiles, ...sharedFiles]);
+  if (invalidPaths.length > 0) {
+    console.warn(`[LeaseManager] Lease denied for task ${taskId}: invalid declared path(s): ${invalidPaths.join(', ')}`);
+    return { granted: false, leases: [], conflictingFiles: invalidPaths };
+  }
 
   // Clean expired leases before checking
   cleanExpiredLeases();
@@ -265,6 +313,37 @@ export function getExclusiveLeaseHolder(filePath: string): string | null {
 }
 
 /**
+ * Get every task ID that blocks the given file from being acquired exclusively
+ * by requesterTaskId. Returns the bare-path exclusive holder plus all shared
+ * holders found via `${filePath}::` compound-key scan, excluding the
+ * requester itself. Edge semantics are consistent with the conflict rules in
+ * acquireLeases (shared holders block exclusive requests; exclusive holders
+ * block everything).
+ *
+ * This is a read-only operation — no mutation, no events, no persistence.
+ */
+export function getBlockingHolders(filePath: string, requesterTaskId: string): string[] {
+  const holders: string[] = [];
+
+  // Exclusive holder (bare-path key)
+  const exclusive = leaseStore.get(filePath);
+  if (exclusive && exclusive.taskId !== requesterTaskId) {
+    holders.push(exclusive.taskId);
+  }
+
+  // Shared holders (compound keys: filePath::taskId)
+  for (const [key, lease] of leaseStore.entries()) {
+    if (key.startsWith(`${filePath}::`) && lease.taskId !== requesterTaskId) {
+      if (!holders.includes(lease.taskId)) {
+        holders.push(lease.taskId);
+      }
+    }
+  }
+
+  return holders;
+}
+
+/**
  * Clean up expired leases from the store.
  *
  * Expired leases whose holder has a live workflow process are renewed in-place
@@ -330,7 +409,7 @@ export async function recordFileHashes(taskId: string, filePaths: string[], cwd:
 
   for (const filePath of filePaths) {
     try {
-      const { stdout } = await execAsync(`git hash-object "${filePath}"`, { cwd });
+      const { stdout } = await execFileAsync('git', ['hash-object', filePath], { cwd });
       const hash = stdout.trim();
       if (hash) {
         hashes.set(filePath, hash);
@@ -359,7 +438,7 @@ export async function detectCollisions(taskId: string, cwd: string): Promise<Fil
 
   for (const [filePath, expectedHash] of baseHashes.entries()) {
     try {
-      const { stdout } = await execAsync(`git hash-object "${filePath}"`, { cwd });
+      const { stdout } = await execFileAsync('git', ['hash-object', filePath], { cwd });
       const actualHash = stdout.trim();
       if (actualHash && actualHash !== expectedHash) {
         conflicts.push({
@@ -387,10 +466,16 @@ export async function detectCollisions(taskId: string, cwd: string): Promise<Fil
 
 /**
  * Register that a task is waiting to acquire a lease on a file.
+ * Accumulates multiple files per task — each call adds to the task's set.
  * Used to build the wait-for graph for deadlock detection.
  */
 export function recordWait(taskId: string, filePath: string): void {
-  waitForMap.set(taskId, filePath);
+  let entry = waitForMap.get(taskId);
+  if (!entry) {
+    entry = new Set<string>();
+    waitForMap.set(taskId, entry);
+  }
+  entry.add(filePath);
 }
 
 /**
@@ -401,21 +486,50 @@ export function clearWait(taskId: string): void {
 }
 
 /**
- * Persist the current leaseStore to .formic/leases.json.
- * Fire-and-forget — callers should .catch() the returned promise.
+ * Read-only accessor: returns the file paths a task is currently waiting on,
+ * or an empty array if the task has no wait record.
  */
-export async function persistLeases(): Promise<void> {
+export function getWaitingFiles(taskId: string): string[] {
+  const entry = waitForMap.get(taskId);
+  return entry ? Array.from(entry) : [];
+}
+
+/** In-flight promise chain serializing persistLeases writes within this process. */
+let persistChain: Promise<void> = Promise.resolve();
+
+/**
+ * Write the current leaseStore snapshot atomically: temp file in the same
+ * directory, then rename over leases.json (same pattern as configStore.ts).
+ * The snapshot is taken at write time so the last write in the chain always
+ * reflects the final store state.
+ */
+async function writeLeaseSnapshot(): Promise<void> {
   try {
     const snapshot: LeaseStoreSnapshot = {
       version: '1.0',
       savedAt: new Date().toISOString(),
       leases: Array.from(leaseStore.entries()).map(([key, lease]) => ({ key, lease })),
     };
-    const leasesPath = path.join(getFormicDir(), 'leases.json');
-    await writeFile(leasesPath, JSON.stringify(snapshot, null, 2), 'utf-8');
+    const formicDir = getFormicDir();
+    const leasesPath = path.join(formicDir, 'leases.json');
+    const tmpPath = path.join(formicDir, '.leases.json.tmp');
+    await writeFile(tmpPath, JSON.stringify(snapshot, null, 2), 'utf-8');
+    await rename(tmpPath, leasesPath);
   } catch (err) {
     console.warn('[LeaseManager] Failed to persist leases:', err instanceof Error ? err.message : 'Unknown error');
   }
+}
+
+/**
+ * Persist the current leaseStore to .formic/leases.json.
+ * Fire-and-forget — callers should .catch() the returned promise.
+ * Concurrent calls are serialized through an in-flight promise chain so
+ * writes never interleave in-process (a second server process sharing
+ * .formic/ is NOT protected — cross-process locking is out of scope).
+ */
+export function persistLeases(): Promise<void> {
+  persistChain = persistChain.then(() => writeLeaseSnapshot());
+  return persistChain;
 }
 
 /**
@@ -455,8 +569,7 @@ export async function restoreLeases(): Promise<void> {
 async function revertExclusiveFiles(taskId: string, files: string[]): Promise<void> {
   if (files.length === 0) return;
   try {
-    const fileList = files.map(f => `"${f}"`).join(' ');
-    await execAsync(`git checkout -- ${fileList}`, { cwd: getWorkspacePath() });
+    await execFileAsync('git', ['checkout', '--', ...files], { cwd: getWorkspacePath() });
     console.warn(`[LeaseManager] Reverted uncommitted changes on ${files.length} leased file(s) for task ${taskId}`);
   } catch (err) {
     console.warn(`[LeaseManager] Failed to revert leased files for task ${taskId}:`, err instanceof Error ? err.message : 'Unknown error');
@@ -541,41 +654,77 @@ export async function preemptLease(highPriorityTaskId: string, targetFilePath: s
 export async function detectDeadlock(): Promise<string[][] | null> {
   if (waitForMap.size === 0) return null;
 
-  // Build task-to-task wait-for graph: waiting task → holding task
-  const waitGraph = new Map<string, string>();
-  for (const [waitingTaskId, filePath] of waitForMap.entries()) {
-    const holderLease = leaseStore.get(filePath);
-    if (holderLease && holderLease.taskId !== waitingTaskId) {
-      waitGraph.set(waitingTaskId, holderLease.taskId);
+  // Build task-to-blockers wait-for graph: waiting task → Set of all blocking
+  // holders across every file the task is waiting on.  Each waited file is
+  // resolved via getBlockingHolders so shared-lease holders contribute edges
+  // and every conflicting file from a multi-file denial is represented.
+  const waitGraph = new Map<string, Set<string>>();
+  for (const [waitingTaskId, waitedFiles] of waitForMap.entries()) {
+    const blockers = new Set<string>();
+    for (const filePath of waitedFiles) {
+      for (const holderId of getBlockingHolders(filePath, waitingTaskId)) {
+        blockers.add(holderId);
+      }
+    }
+    if (blockers.size > 0) {
+      waitGraph.set(waitingTaskId, blockers);
     }
   }
 
   if (waitGraph.size === 0) return null;
 
-  // DFS-based cycle detection on a functional graph (each node has ≤1 outgoing edge)
+  // Iterative DFS with white/gray/black coloring for general directed graphs
+  // where a node may have multiple outgoing edges.  A gray→gray back edge
+  // indicates a cycle; the explicit DFS stack is used to extract the cycle
+  // path.  Black-node skipping avoids duplicate cycle reports.
+  const WHITE = 0; // unvisited
+  const GRAY = 1;  // in current DFS path
+  const BLACK = 2; // fully explored
+  const color = new Map<string, number>();
   const cycles: string[][] = [];
-  const visited = new Set<string>();
 
   for (const startNode of waitGraph.keys()) {
-    if (visited.has(startNode)) continue;
+    if ((color.get(startNode) ?? WHITE) !== WHITE) continue;
 
+    // Explicit DFS stack: { node, neighbors (snapshotted), next index }
+    type Frame = { node: string; neighbors: string[]; idx: number };
+    const stack: Frame[] = [];
     const path: string[] = [];
-    const pathSet = new Set<string>();
-    let current: string | undefined = startNode;
 
-    while (current !== undefined && !visited.has(current)) {
-      if (pathSet.has(current)) {
-        const cycleStart = path.indexOf(current);
-        cycles.push(path.slice(cycleStart));
-        break;
+    const seedNeighbors = Array.from(waitGraph.get(startNode) ?? new Set<string>());
+    stack.push({ node: startNode, neighbors: seedNeighbors, idx: 0 });
+    color.set(startNode, GRAY);
+    path.push(startNode);
+
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1];
+
+      if (frame.idx >= frame.neighbors.length) {
+        // All neighbors explored — mark black and backtrack
+        color.set(frame.node, BLACK);
+        stack.pop();
+        path.pop();
+        continue;
       }
-      path.push(current);
-      pathSet.add(current);
-      current = waitGraph.get(current);
-    }
 
-    for (const node of path) {
-      visited.add(node);
+      const neighbor = frame.neighbors[frame.idx];
+      frame.idx += 1;
+
+      const neighborColor = color.get(neighbor) ?? WHITE;
+      if (neighborColor === GRAY) {
+        // Back edge to a node still on the current path → cycle found
+        const cycleStart = path.indexOf(neighbor);
+        if (cycleStart !== -1) {
+          cycles.push([...path.slice(cycleStart)]);
+        }
+      } else if (neighborColor === WHITE) {
+        // Push neighbor onto the DFS stack
+        const nbrList = Array.from(waitGraph.get(neighbor) ?? new Set<string>());
+        stack.push({ node: neighbor, neighbors: nbrList, idx: 0 });
+        color.set(neighbor, GRAY);
+        path.push(neighbor);
+      }
+      // BLACK: skip — node is already fully explored
     }
   }
 

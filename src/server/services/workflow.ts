@@ -9,7 +9,7 @@ import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask,
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt, runVerifiers } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
-import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder, registerActiveTaskPredicate } from './leaseManager.js';
+import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder, registerActiveTaskPredicate, findInvalidDeclaredPaths } from './leaseManager.js';
 import {
   loadSubtasks,
   isAllComplete,
@@ -377,7 +377,12 @@ All code changes MUST comply with the project development guidelines provided ab
 }
 
 /**
- * Load declared files from the task's declared-files.json
+ * Load declared files from the task's declared-files.json.
+ * This is the single entry boundary for agent-declared paths: absolute paths,
+ * workspace-escaping `..` resolutions, and shell-metacharacter payloads are
+ * rejected here, before any path reaches a lease key, shell, or git operation.
+ * Fails closed — any invalid path invalidates the whole declaration (null)
+ * rather than silently filtering, so a task never runs with a partial lease set.
  */
 async function loadDeclaredFiles(docsPath: string): Promise<{ exclusive: string[]; shared: string[] } | null> {
   const filePath = path.join(getWorkspacePath(), docsPath, 'declared-files.json');
@@ -387,10 +392,14 @@ async function loadDeclaredFiles(docsPath: string): Promise<{ exclusive: string[
     }
     const content = await readFile(filePath, 'utf-8');
     const parsed = JSON.parse(content) as { exclusive?: string[]; shared?: string[] };
-    return {
-      exclusive: parsed.exclusive || [],
-      shared: parsed.shared || [],
-    };
+    const exclusive = parsed.exclusive || [];
+    const shared = parsed.shared || [];
+    const invalidPaths = findInvalidDeclaredPaths([...exclusive, ...shared]);
+    if (invalidPaths.length > 0) {
+      console.warn(`[Workflow] Rejected declared-files.json for ${docsPath}: invalid declared path(s): ${invalidPaths.join(', ')}`);
+      return null;
+    }
+    return { exclusive, shared };
   } catch (error) {
     console.warn('[Workflow] Failed to load declared-files.json:', error);
     return null;
@@ -484,9 +493,10 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
         timestamp: new Date().toISOString(),
       });
       if (leaseResult.conflictingFiles.length > 0) {
-        const blockedOnFile = leaseResult.conflictingFiles[0];
-        recordWait(taskId, blockedOnFile);
-        await preemptLease(taskId, blockedOnFile);
+        for (const blockedOnFile of leaseResult.conflictingFiles) {
+          recordWait(taskId, blockedOnFile);
+        }
+        await preemptLease(taskId, leaseResult.conflictingFiles[0]);
       }
       return false;
     }
