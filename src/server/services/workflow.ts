@@ -479,7 +479,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
     }
 
     // Attempt to acquire leases
-    const leaseResult = acquireLeases({
+    const leaseResult = await acquireLeases({
       taskId,
       exclusiveFiles: declaredFiles.exclusive,
       sharedFiles: declaredFiles.shared,

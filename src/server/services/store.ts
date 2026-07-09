@@ -388,6 +388,7 @@ export async function deleteTask(taskId: string, preserveHistory: boolean = fals
   // Release any leases held by this task (defensive - task may be in declaring or queued-after-yield state)
   try {
     releaseLeases(taskId);
+    clearWait(taskId);
   } catch (err) {
     console.warn('[Store] Failed to release leases during task deletion:', err instanceof Error ? err.message : 'Unknown error');
   }

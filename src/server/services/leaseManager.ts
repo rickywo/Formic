@@ -18,7 +18,7 @@ import { internalEvents, LEASE_RELEASED, LEASE_ACQUIRED, requestTaskStop } from 
 
 const execFileAsync = promisify(execFile);
 
-import { engineConfig } from './engineConfig.js';
+import { engineConfig, getLiveLeaseDurationMs } from './engineConfig.js';
 
 /** Active-task predicate: returns true when a task has a live workflow process. */
 let isTaskActive: ((taskId: string) => boolean) | null = null;
@@ -93,9 +93,9 @@ export function findInvalidDeclaredPaths(filePaths: string[]): string[] {
  * If any exclusive file is already leased by another task, the entire request is denied.
  * Shared files are not exclusively locked.
  */
-export function acquireLeases(request: LeaseRequest): LeaseResult {
+export async function acquireLeases(request: LeaseRequest): Promise<LeaseResult> {
   const { taskId, exclusiveFiles, sharedFiles } = request;
-  const durationMs = request.leaseDurationMs ?? engineConfig.leaseDurationMs;
+  const durationMs = request.leaseDurationMs ?? await getLiveLeaseDurationMs();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + durationMs);
 
@@ -110,7 +110,7 @@ export function acquireLeases(request: LeaseRequest): LeaseResult {
   }
 
   // Clean expired leases before checking
-  cleanExpiredLeases();
+  await cleanExpiredLeases();
 
   // Check for conflicts on exclusive files
   const conflictingFiles: string[] = [];
@@ -210,8 +210,8 @@ export function releaseLeases(taskId: string): void {
  * No longer calls cleanExpiredLeases — expiry-driven cleanup is exclusively
  * handled by acquireLeases (the mutation entry point) and the watchdog.
  */
-export function renewLeases(taskId: string, durationMs?: number): boolean {
-  const extension = durationMs ?? engineConfig.leaseDurationMs;
+export async function renewLeases(taskId: string, durationMs?: number): Promise<boolean> {
+  const extension = durationMs ?? await getLiveLeaseDurationMs();
   const newExpiresAt = new Date(Date.now() + extension).toISOString();
   let renewed = 0;
 
@@ -284,9 +284,9 @@ export function isFileLeased(filePath: string, excludeTaskId?: string): boolean 
  * Expired leases are cleaned before checking, matching acquireLeases behaviour.
  * Returns true if there IS a conflict (i.e., the task would be denied).
  */
-export function wouldConflict(filePath: string, taskId: string): boolean {
+export async function wouldConflict(filePath: string, taskId: string): Promise<boolean> {
   // Clean expired leases before checking (consistent with acquireLeases)
-  cleanExpiredLeases();
+  await cleanExpiredLeases();
 
   // Check exclusive holder
   const exclusive = leaseStore.get(filePath);
@@ -360,15 +360,16 @@ export function getBlockingHolders(filePath: string, requesterTaskId: string): s
  * are genuinely freed: deleted from the store, broadcast via boardNotifier,
  * emitted via internalEvents (LEASE_RELEASED), and persisted to leases.json.
  */
-function cleanExpiredLeases(): void {
+async function cleanExpiredLeases(): Promise<void> {
   const now = Date.now();
   const releasedExclusiveByTask = new Map<string, string[]>();
+  const liveDurationMs = await getLiveLeaseDurationMs();
 
   for (const [key, lease] of leaseStore.entries()) {
     if (new Date(lease.expiresAt).getTime() <= now) {
       if (isTaskActive && isTaskActive(lease.taskId)) {
         // Active task: renew in-place instead of deleting
-        const newExpiresAt = new Date(now + engineConfig.leaseDurationMs).toISOString();
+        const newExpiresAt = new Date(now + liveDurationMs).toISOString();
         lease.expiresAt = newExpiresAt;
         console.warn(`[LeaseManager] Renewed expired lease for active task ${lease.taskId} on ${lease.filePath}`);
       } else {

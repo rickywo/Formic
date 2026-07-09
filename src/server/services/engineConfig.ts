@@ -32,6 +32,17 @@ export const engineConfig: EngineConfig = {
   maxExecutionRetries: 3,
 };
 
+/**
+ * Read the live leaseDurationMs value directly from the persisted config,
+ * bypassing the in-memory engineConfig singleton. Callers that need the
+ * currently-configured duration (not the possibly-stale startup default)
+ * should await this instead of reading engineConfig.leaseDurationMs.
+ */
+export async function getLiveLeaseDurationMs(): Promise<number> {
+  const config = await loadConfig();
+  return config.settings.leaseDurationMs ?? 300000;
+}
+
 export async function refreshEngineConfig(): Promise<void> {
   const config = await loadConfig();
   const s = config.settings;
