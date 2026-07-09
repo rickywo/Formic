@@ -1816,8 +1816,8 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
             // lifetime (execute iterations, verify step, critic retries, collision
             // detection). Previously this was only inside executeWithIterativeLoop
             // and did not protect verify/critic phases.
-            leaseRenewalTimer = setInterval(() => {
-              renewLeases(taskId);
+            leaseRenewalTimer = setInterval(async () => {
+              await renewLeases(taskId);
               console.log(`[Workflow] Periodic lease renewal for task ${taskId}`);
             }, LEASE_RENEWAL_INTERVAL_MS);
             break;
@@ -1995,8 +1995,8 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
       // lifetime (execute iterations, verify step, critic retries, collision
       // detection). Previously this was only inside executeWithIterativeLoop
       // and did not protect verify/critic phases.
-      leaseRenewalTimer = setInterval(() => {
-        renewLeases(taskId);
+      leaseRenewalTimer = setInterval(async () => {
+        await renewLeases(taskId);
         console.log(`[Workflow] Periodic lease renewal for task ${taskId}`);
       }, LEASE_RENEWAL_INTERVAL_MS);
 

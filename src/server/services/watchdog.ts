@@ -54,7 +54,7 @@ async function scanExpiredLeases(): Promise<void> {
       const task = await getTask(taskId);
       if (task && isWorkflowRunning(taskId)) {
         console.warn(`[Watchdog] Task ${taskId} is actively ${task.status} with live process — renewing leases instead of killing`);
-        renewLeases(taskId);
+        await renewLeases(taskId);
         continue;
       }
 

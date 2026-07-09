@@ -130,7 +130,7 @@ async function processQueue(): Promise<void> {
       const exclusiveFiles = nextTask.declaredFiles?.exclusive ?? [];
       let conflictingFile: string | null = null;
       for (const filePath of exclusiveFiles) {
-        if (wouldConflict(filePath, nextTask.id)) {
+        if (await wouldConflict(filePath, nextTask.id)) {
           conflictingFile = filePath;
           break;
         }

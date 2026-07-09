@@ -460,7 +460,7 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     if (!task.declaredFiles) {
       return reply.status(400).send({ error: 'Task has no declared files' });
     }
-    const result = acquireLeases({
+    const result = await acquireLeases({
       taskId: id,
       exclusiveFiles: task.declaredFiles.exclusive,
       sharedFiles: task.declaredFiles.shared,
@@ -486,7 +486,7 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     if (!task) {
       return reply.status(404).send({ error: 'Task not found' });
     }
-    const renewed = renewLeases(id);
+    const renewed = await renewLeases(id);
     if (!renewed) {
       return reply.status(400).send({ error: 'No active leases found for this task' });
     }
