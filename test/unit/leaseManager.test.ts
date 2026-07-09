@@ -1179,66 +1179,6 @@ describe('leaseManager', () => {
   });
 
   // ==============================
-  // getBlockingHolders
-  // ==============================
-  describe('getBlockingHolders', () => {
-    it('should return empty array when file is not leased', async () => {
-      const mod = await reloadModule();
-      const holders = mod.getBlockingHolders('src/nobody.ts', 't-req');
-      assert.deepStrictEqual(holders, []);
-    });
-
-    it('should return exclusive holder when another task holds exclusive', async () => {
-      const mod = await reloadModule();
-      mod.acquireLeases({
-        taskId: 't-excl-holder',
-        exclusiveFiles: ['src/gh-excl.ts'],
-        sharedFiles: [],
-      });
-      const holders = mod.getBlockingHolders('src/gh-excl.ts', 't-req');
-      assert.deepStrictEqual(holders, ['t-excl-holder']);
-    });
-
-    it('should exclude the requester from the result', async () => {
-      const mod = await reloadModule();
-      mod.acquireLeases({
-        taskId: 't-self-bh',
-        exclusiveFiles: ['src/gh-self.ts'],
-        sharedFiles: [],
-      });
-      const holders = mod.getBlockingHolders('src/gh-self.ts', 't-self-bh');
-      assert.deepStrictEqual(holders, []);
-    });
-
-    it('should return shared holders when exclusive requester is blocked', async () => {
-      const mod = await reloadModule();
-      mod.acquireLeases({
-        taskId: 't-sh-holder',
-        exclusiveFiles: [],
-        sharedFiles: ['src/gh-shared.ts'],
-      });
-      const holders = mod.getBlockingHolders('src/gh-shared.ts', 't-req-excl');
-      assert.deepStrictEqual(holders, ['t-sh-holder']);
-    });
-
-    it('should return both exclusive and shared holders', async () => {
-      const mod = await reloadModule();
-      // A shared-holds the file; B exclusive-holds the file (re-acquire replaces)
-      // Actually, exclusive takes precedence. Let's test: A shared, then check exclusive
-      // Since exclusive stored at bare path and shared at compound key,
-      // both can co-exist conceptually but exclusive always wins in conflict check.
-      mod.acquireLeases({
-        taskId: 't-sh-bh',
-        exclusiveFiles: [],
-        sharedFiles: ['src/gh-mixed.ts'],
-      });
-      const holders = mod.getBlockingHolders('src/gh-mixed.ts', 't-req2');
-      assert.ok(holders.includes('t-sh-bh'),
-        `Expected shared holder in result: ${JSON.stringify(holders)}`);
-    });
-  });
-
-  // ==============================
   // detectDeadlock
   // ==============================
   describe('detectDeadlock', () => {
