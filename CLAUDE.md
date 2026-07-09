@@ -189,16 +189,10 @@ The server will automatically detect this format and create the task via the For
 
 ## Current Board State
 
-**Project:** Formic
-**Repository:** /Users/WTHX38/WebstormProjects/Formic
+**Project:** workspace
+**Repository:** /workspace
 
-### Todo
-  - [t-bootstrap] !Setup AI Development Guidelines
-
-### Review
-  - [t-1] Merge per-step task log files into a single task.log file
-  - [t-2] !Add a test comment to leaseManager.ts to verify lease blocking
-  - [t-3] Write Formic user guide on Confluence
+No tasks on the board yet.
 
 ## Formic Workflow
 

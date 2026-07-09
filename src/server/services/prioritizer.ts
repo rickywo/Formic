@@ -72,6 +72,9 @@ function countTransitivelyUnblocked(
  *   - Unblocking:         +100 per transitively blocked task that becomes runnable
  *   - Manual priority:    high=+30, medium=+20, low=+10
  *   - FIFO age bonus:     +min(ageMs/1000, 10)
+ *   - Fairness tiebreaker: +min(firstBlockedAgeMs/10000, 0.9) — tiny bonus for
+ *     longest-blocked task at equal priority, ensuring deterministic lease acquisition
+ *     order under contention without overriding priority or age.
  */
 function scoreTask(
   task: Task,
@@ -82,14 +85,24 @@ function scoreTask(
   const priorityScore = PRIORITY_SCORES[task.priority] ?? PRIORITY_SCORES['medium'];
   const ageMs = Date.now() - new Date(task.queuedAt ?? task.createdAt ?? new Date().toISOString()).getTime();
   const ageBonus = Math.min(ageMs / 1000, MAX_AGE_BONUS);
-  const score = fixBonus + unblockScore + priorityScore + ageBonus;
+
+  // Fairness tiebreaker: tasks blocked longer on the same file should win at equal score.
+  // Capped at 0.9 so it never overrides even a 1-second age difference.
+  let fairnessBonus = 0;
+  if (task.firstBlockedAt) {
+    const blockedAgeMs = Date.now() - new Date(task.firstBlockedAt).getTime();
+    fairnessBonus = Math.min(blockedAgeMs / 10000, 0.9);
+  }
+
+  const score = fixBonus + unblockScore + priorityScore + ageBonus + fairnessBonus;
 
   const parts: string[] = [];
   if (fixBonus > 0) parts.push(`fix-bonus(+${fixBonus})`);
   if (unblockScore > 0) parts.push(`unblocking(${unblockingPotential}×+${UNBLOCK_BONUS}=+${unblockScore})`);
   parts.push(`priority(${task.priority}=+${priorityScore})`);
   parts.push(`age(+${ageBonus.toFixed(1)})`);
-  const reasoning = `score=${score.toFixed(1)}: ${parts.join(', ')}`;
+  if (fairnessBonus > 0) parts.push(`fairness(+${fairnessBonus.toFixed(2)})`);
+  const reasoning = `score=${score.toFixed(2)}: ${parts.join(', ')}`;
 
   return { score, reasoning };
 }

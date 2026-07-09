@@ -77,6 +77,21 @@ async function setResumeMarker(taskId: string): Promise<void> {
   }
 }
 
+/**
+ * Set a fixture task's status to 'queued' so detectDeadlock's stale-record
+ * filtering recognizes it as a live waiter. Tasks created via createTask()
+ * start in 'todo' which the filter treats as stale; in the real system,
+ * tasks waiting for leases are always in 'queued' status (yielded → re-queued).
+ */
+async function setTaskQueued(taskId: string): Promise<void> {
+  const board = await loadBoard();
+  const task = board.tasks.find((t: Task) => t.id === taskId);
+  if (task) {
+    task.status = 'queued';
+    await saveBoard(board);
+  }
+}
+
 async function runPreempt(stopSucceeds: boolean): Promise<Record<string, unknown>> {
   const stopCalls: StopCall[] = [];
   const stopperRegistered = await registerStubStopper(stopSucceeds, stopCalls);
@@ -112,6 +127,10 @@ async function runDeadlock(stopSucceeds: boolean): Promise<Record<string, unknow
   const victim = await createTask({ title: 'Repro deadlock victim', context: 'lease stop repro', priority: 'low', type: 'standard' });
   const survivor = await createTask({ title: 'Repro deadlock survivor', context: 'lease stop repro', priority: 'high', type: 'standard' });
   await setResumeMarker(victim.id);
+  // Set both tasks to 'queued' so detectDeadlock's stale-record filter
+  // (which requires {queued, running, declaring}) does not exclude them.
+  await setTaskQueued(victim.id);
+  await setTaskQueued(survivor.id);
 
   const fileX = `src/repro-deadlock-x-${Date.now()}.ts`;
   const fileY = `src/repro-deadlock-y-${Date.now()}.ts`;
@@ -171,6 +190,10 @@ async function runDeadlock3Task(): Promise<Record<string, unknown>> {
   const taskA = await createTask({ title: 'Deadlock3 A', context: 'lease stop repro', priority: 'low', type: 'standard' });
   const taskB = await createTask({ title: 'Deadlock3 B', context: 'lease stop repro', priority: 'medium', type: 'standard' });
   const taskC = await createTask({ title: 'Deadlock3 C', context: 'lease stop repro', priority: 'high', type: 'standard' });
+  // Set all tasks to 'queued' so stale-record filter does not exclude them.
+  await setTaskQueued(taskA.id);
+  await setTaskQueued(taskB.id);
+  await setTaskQueued(taskC.id);
 
   const fileX = `src/dl3-x-${Date.now()}.ts`;
   const fileY = `src/dl3-y-${Date.now()}.ts`;
@@ -217,20 +240,26 @@ async function runDeadlockShared(): Promise<Record<string, unknown>> {
   const stopCalls: StopCall[] = [];
   const stopperRegistered = await registerStubStopper(true, stopCalls);
 
-  // Cycle involving shared leases:
-  // A holds exclusive on F1, wants shared on F2
-  // B holds exclusive on F2, wants exclusive on F1
+  // Cycle involving shared-lease blocking:
+  // A holds exclusive on F1. B holds SHARED on F2.
+  // A wants exclusive on F2 → blocked by B's shared lease (shared→exclusive conflict).
+  // B wants exclusive on F1 → blocked by A's exclusive lease.
+  // Cycle: A → F2(B) → B → F1(A) → A.  Edge A→B only visible because
+  // getBlockingHolders scans shared-lease compound keys, not just bare-path holders.
   const taskA = await createTask({ title: 'DeadlockShared A', context: 'lease stop repro', priority: 'low', type: 'standard' });
   const taskB = await createTask({ title: 'DeadlockShared B', context: 'lease stop repro', priority: 'high', type: 'standard' });
+  // Set both tasks to 'queued' so stale-record filter does not exclude them.
+  await setTaskQueued(taskA.id);
+  await setTaskQueued(taskB.id);
 
   const fileF1 = `src/dlshared-f1-${Date.now()}.ts`;
   const fileF2 = `src/dlshared-f2-${Date.now()}.ts`;
 
-  acquireLeases({ taskId: taskA.id, exclusiveFiles: [fileF1], sharedFiles: [fileF2] });
-  acquireLeases({ taskId: taskB.id, exclusiveFiles: [fileF2], sharedFiles: [] });
+  // A holds exclusive on F1; B holds SHARED on F2
+  acquireLeases({ taskId: taskA.id, exclusiveFiles: [fileF1], sharedFiles: [] });
+  acquireLeases({ taskId: taskB.id, exclusiveFiles: [], sharedFiles: [fileF2] });
 
-  // A waits on F2 (held exclusively by B) → B holds F2 exclusively, so A's shared
-  // request on F2 would conflict. B waits on F1 (held by A).
+  // Cross-waits: A wants exclusive on F2 (blocked by B's shared), B wants exclusive on F1 (blocked by A)
   recordWait(taskA.id, fileF2);
   recordWait(taskB.id, fileF1);
 

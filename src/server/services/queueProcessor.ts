@@ -1,7 +1,7 @@
 import { getQueuedTasks, getAllTasks, getTask, getRunningTasksCount, updateTask } from './store.js';
 import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, executeFromDeclare, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
-import { isFileLeased } from './leaseManager.js';
+import { wouldConflict } from './leaseManager.js';
 import { internalEvents, TASK_COMPLETED, LEASE_RELEASED } from './internalEvents.js';
 import { prioritizeQueue } from './prioritizer.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
@@ -17,6 +17,10 @@ const YIELD_BACKOFF_MAX_MS = 60_000;
 const yieldBackoffMs = new Map<string, number>();
 /** Per-task earliest timestamp (ms) at which the task may be retried */
 const yieldUntil = new Map<string, number>();
+/** Maps filePath → Set<taskId> of tasks currently in backoff waiting for that file.
+ *  Populated when a task yields with `lease-conflict:<filePath>`. Cleared when the
+ *  file is released (via handleLeaseReleased) or the task is dispatched. */
+const fileBackoffTasks = new Map<string, Set<string>>();
 /** Persistent set of task IDs dispatched in any poll cycle whose workflow has not yet
  * committed to a non-queued status. Prevents cross-cycle re-admission during the async
  * setup window between dispatch and the first status transition. */
@@ -91,15 +95,34 @@ async function processQueue(): Promise<void> {
         continue;
       }
 
-      // Check yield count - skip tasks that have been yielded too many times
+      // Check yield count - transition tasks that have yielded too many times to todo
+      // so they are visible on the board instead of silently starving in the queue.
       if (nextTask.yieldCount && nextTask.yieldCount >= engineConfig.maxYieldCount) {
-        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max yield count (${engineConfig.maxYieldCount}), skipping`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max yield count (${engineConfig.maxYieldCount}), transitioning to todo`);
+        try {
+          await updateTask(nextTask.id, {
+            status: 'todo',
+            yieldReason: 'cap-exceeded:max-yield-count',
+          });
+        } catch (err) {
+          console.warn('[QueueProcessor] Failed to transition cap-exceeded task:', err instanceof Error ? err.message : 'Unknown error');
+        }
+        inFlightTasks.delete(nextTask.id);
         continue;
       }
 
-      // Check retry count - skip tasks that have failed execution too many times
+      // Check retry count - transition tasks that have failed too many times to todo
       if ((nextTask.retryCount ?? 0) >= engineConfig.maxExecutionRetries) {
-        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max execution retries (${engineConfig.maxExecutionRetries}), skipping — set to todo to stop bouncing`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max execution retries (${engineConfig.maxExecutionRetries}), transitioning to todo`);
+        try {
+          await updateTask(nextTask.id, {
+            status: 'todo',
+            yieldReason: 'cap-exceeded:max-execution-retries',
+          });
+        } catch (err) {
+          console.warn('[QueueProcessor] Failed to transition cap-exceeded task:', err instanceof Error ? err.message : 'Unknown error');
+        }
+        inFlightTasks.delete(nextTask.id);
         continue;
       }
 
@@ -107,7 +130,7 @@ async function processQueue(): Promise<void> {
       const exclusiveFiles = nextTask.declaredFiles?.exclusive ?? [];
       let conflictingFile: string | null = null;
       for (const filePath of exclusiveFiles) {
-        if (isFileLeased(filePath, nextTask.id)) {
+        if (wouldConflict(filePath, nextTask.id)) {
           conflictingFile = filePath;
           break;
         }
@@ -120,10 +143,22 @@ async function processQueue(): Promise<void> {
         yieldBackoffMs.set(nextTask.id, nextBackoff);
         yieldUntil.set(nextTask.id, Date.now() + nextBackoff);
 
+        // Track file→backoff mapping for targeted reset on LEASE_RELEASED
+        const fileSet = fileBackoffTasks.get(conflictingFile) ?? new Set<string>();
+        fileSet.add(nextTask.id);
+        fileBackoffTasks.set(conflictingFile, fileSet);
+
+        // Set firstBlockedAt fairness timestamp if not already set for this contention
+        const now = new Date().toISOString();
+        const updates: Record<string, unknown> = { yieldReason: `lease-conflict:${conflictingFile}` };
+        if (!nextTask.firstBlockedAt) {
+          updates.firstBlockedAt = now;
+        }
+
         const reason = `lease-conflict:${conflictingFile}`;
         console.log(`[QueueProcessor] Task ${nextTask.id} yielding — ${reason} (backoff ${nextBackoff}ms)`);
         try {
-          await updateTask(nextTask.id, { yieldReason: reason });
+          await updateTask(nextTask.id, updates);
         } catch (err) {
           console.warn('[QueueProcessor] Failed to persist yieldReason:', err instanceof Error ? err.message : 'Unknown error');
         }
@@ -134,8 +169,7 @@ async function processQueue(): Promise<void> {
       console.log(`[QueueProcessor] Starting task ${nextTask.id}: ${nextTask.title}`);
 
       // Clear any stale backoff state for this task before dispatching
-      yieldBackoffMs.delete(nextTask.id);
-      yieldUntil.delete(nextTask.id);
+      clearTaskBackoff(nextTask.id);
 
       // Mark as in-flight synchronously before any await so the cross-cycle guard
       // is effective during the async setup window between dispatch and the first
@@ -188,6 +222,67 @@ export function wakeQueueProcessor(): void {
   void processQueue();
 }
 
+/**
+ * Clear all in-memory backoff state for a single task. Called when the task
+ * is dispatched (lease acquired) or when its backoff is reset via LEASE_RELEASED.
+ */
+function clearTaskBackoff(taskId: string): void {
+  yieldBackoffMs.delete(taskId);
+  yieldUntil.delete(taskId);
+
+  // Remove from all fileBackoffTasks entries
+  for (const [filePath, taskSet] of fileBackoffTasks.entries()) {
+    taskSet.delete(taskId);
+    if (taskSet.size === 0) {
+      fileBackoffTasks.delete(filePath);
+    }
+  }
+
+  // Clear firstBlockedAt on the persisted task so it doesn't carry over
+  // to the next contention. Fire-and-forget — best-effort.
+  updateTask(taskId, { firstBlockedAt: null }).catch(err =>
+    console.warn('[QueueProcessor] Failed to clear firstBlockedAt:', err instanceof Error ? err.message : 'Unknown error')
+  );
+}
+
+/**
+ * Reset all backoff state for a task — exported for external callers (e.g.,
+ * manual re-queue) that need to clear in-memory backoff in addition to the
+ * persisted counters reset by store.queueTask().
+ */
+export function resetBackoff(taskId: string): void {
+  clearTaskBackoff(taskId);
+}
+
+/**
+ * Handle LEASE_RELEASED events: for each released file, clear the backoff
+ * window of any task that was waiting on it, so the next poll/wake cycle
+ * can immediately attempt re-dispatch instead of skipping the waiter due to
+ * an unexpired yieldUntil.
+ */
+function handleLeaseReleased(_releasingTaskId: string, releasedFiles: string[]): void {
+  if (!releasedFiles || releasedFiles.length === 0) return;
+
+  let cleared = 0;
+  for (const filePath of releasedFiles) {
+    const waitingTasks = fileBackoffTasks.get(filePath);
+    if (!waitingTasks || waitingTasks.size === 0) continue;
+
+    for (const taskId of waitingTasks) {
+      clearTaskBackoff(taskId);
+      cleared++;
+    }
+    fileBackoffTasks.delete(filePath);
+  }
+
+  if (cleared > 0) {
+    console.log(`[QueueProcessor] LEASE_RELEASED: cleared backoff for ${cleared} task(s) across ${releasedFiles.length} file(s)`);
+  }
+
+  // Wake the queue processor after clearing backoffs so blocked tasks get a chance
+  wakeQueueProcessor();
+}
+
 function schedulePoll(): void {
   pollTimeoutId = setTimeout(async () => {
     await processQueue();
@@ -215,7 +310,7 @@ export function startQueueProcessor(): void {
 
   // Subscribe to internal wake events
   internalEvents.on(TASK_COMPLETED, wakeQueueProcessor);
-  internalEvents.on(LEASE_RELEASED, wakeQueueProcessor);
+  internalEvents.on(LEASE_RELEASED, handleLeaseReleased);
 
   // Run immediately on start
   processQueue();
@@ -234,7 +329,7 @@ export function stopQueueProcessor(): void {
 
     // Unsubscribe internal wake event listeners
     internalEvents.off(TASK_COMPLETED, wakeQueueProcessor);
-    internalEvents.off(LEASE_RELEASED, wakeQueueProcessor);
+    internalEvents.off(LEASE_RELEASED, handleLeaseReleased);
 
     console.log('[QueueProcessor] Queue processor stopped');
   }

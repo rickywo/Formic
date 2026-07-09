@@ -555,6 +555,11 @@ export async function queueTask(taskId: string): Promise<Task | null> {
     ...task,
     status: 'queued',
     queuedAt: new Date().toISOString(),
+    // Reset lease/yield counters on manual re-queue so the task starts fresh.
+    // Counters are preserved on the task record for human inspection before re-queue.
+    yieldCount: 0,
+    retryCount: null,
+    firstBlockedAt: undefined,
   };
 
   await saveBoard(board);

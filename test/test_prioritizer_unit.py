@@ -77,7 +77,7 @@ console.log(JSON.stringify(result));
 
 def make_task(task_id: str, priority: str = 'medium', status: str = 'queued',
               fix_for: str = None, depends_on_resolved: list = None,
-              queued_at: str = None) -> dict:
+              queued_at: str = None, first_blocked_at: str = None) -> dict:
     t = {
         "id": task_id,
         "title": f"Task {task_id}",
@@ -94,6 +94,8 @@ def make_task(task_id: str, priority: str = 'medium', status: str = 'queued',
         t["fixForTaskId"] = fix_for
     if depends_on_resolved is not None:
         t["dependsOnResolved"] = depends_on_resolved
+    if first_blocked_at is not None:
+        t["firstBlockedAt"] = first_blocked_at
     return t
 
 
@@ -214,6 +216,119 @@ class TestPrioritizeQueue(unittest.TestCase):
         result = prioritize_queue([t1], all_tasks)
         ids = [t['id'] for t in result]
         self.assertNotIn('blocked', ids)
+
+    # ── Fairness tiebreaker (firstBlockedAt) ───────────────────────────────
+
+    def test_firstblocked_task_wins_at_equal_score(self):
+        """Two tasks with same priority and same queuedAt: the one blocked
+        longer (older firstBlockedAt) should rank first due to fairness bonus."""
+        # Both tasks: same priority, same queuedAt, no fix bonus, no deps
+        # Task A has firstBlockedAt from 10 seconds ago → bonus ≈ 1.0 capped at 0.9
+        # Task B has no firstBlockedAt → bonus 0
+        import datetime
+        ten_sec_ago = (datetime.datetime.utcnow() - datetime.timedelta(seconds=10)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        now_iso = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+        blocked_longer = make_task('blocked-old', 'medium', queued_at=now_iso,
+                                   first_blocked_at=ten_sec_ago)
+        not_blocked = make_task('not-blocked', 'medium', queued_at=now_iso)
+
+        result = prioritize_queue([not_blocked, blocked_longer],
+                                  [not_blocked, blocked_longer])
+        self.assertEqual(result[0]['id'], 'blocked-old',
+                         'Task with older firstBlockedAt should win fairness tiebreaker')
+
+    def test_firstblocked_fairness_bonus_does_not_override_priority(self):
+        """The fairness bonus (max 0.9) must not override a 10-point priority
+        difference (high=30 vs low=10)."""
+        import datetime
+        old_blocked = (datetime.datetime.utcnow() - datetime.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        now_iso = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+        low_blocked = make_task('low-blocked', 'low', queued_at=now_iso,
+                                first_blocked_at=old_blocked)
+        high_fresh = make_task('high-fresh', 'high', queued_at=now_iso)
+
+        result = prioritize_queue([low_blocked, high_fresh],
+                                  [low_blocked, high_fresh])
+        self.assertEqual(result[0]['id'], 'high-fresh',
+                         'Priority (high=30 vs low=10, diff=20) should dominate fairness bonus (max 0.9)')
+
+    def test_firstblocked_does_not_override_fifo_age(self):
+        """The fairness bonus (max 0.9) should not override a 1-second
+        age difference (1 point of age bonus). An older queued task without
+        firstBlockedAt should beat a newer queued task with firstBlockedAt."""
+        import datetime
+        now = datetime.datetime.utcnow()
+        one_sec_older = (now - datetime.timedelta(seconds=1)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        now_iso = now.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        long_blocked = (now - datetime.timedelta(hours=2)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+        # Age bonus difference ≈ 1 second = 1 point
+        # Fairness bonus max = 0.9
+        # So the 1-sec-older task should still win
+        older_no_block = make_task('older-no-block', 'medium', queued_at=one_sec_older)
+        newer_blocked = make_task('newer-blocked', 'medium', queued_at=now_iso,
+                                  first_blocked_at=long_blocked)
+
+        result = prioritize_queue([newer_blocked, older_no_block],
+                                  [newer_blocked, older_no_block])
+        self.assertEqual(result[0]['id'], 'older-no-block',
+                         '1-second age bonus should dominate max 0.9 fairness bonus')
+
+    def test_firstblocked_null_does_not_contribute_bonus(self):
+        """Null firstBlockedAt should not contribute any fairness bonus."""
+        import datetime
+        now_iso = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+        null_blocked = make_task('null-blocked', 'medium', queued_at=now_iso)
+        null_blocked['firstBlockedAt'] = None
+        no_blocked = make_task('no-blocked', 'medium', queued_at=now_iso)
+
+        result = prioritize_queue([null_blocked, no_blocked],
+                                  [null_blocked, no_blocked])
+        # Both should have essentially the same score — order is stable
+        self.assertEqual(len(result), 2)
+
+    def test_getqueueanalysis_includes_fairness_in_reasoning_when_blocked(self):
+        """When firstBlockedAt is set, the reasoning should include a fairness
+        component."""
+        import datetime
+        old_blocked = (datetime.datetime.utcnow() - datetime.timedelta(seconds=30)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        now_iso = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+        blocked_task = make_task('blocked-task', 'medium', queued_at=now_iso,
+                                 first_blocked_at=old_blocked)
+        regular_task = make_task('regular-task', 'medium', queued_at=now_iso)
+
+        result = get_queue_analysis([blocked_task, regular_task],
+                                    [blocked_task, regular_task])
+        entries = {e['taskId']: e for e in result}
+        self.assertIn('fairness', entries['blocked-task']['reasoning'],
+                      'Reasoning should include fairness component for blocked task')
+        self.assertNotIn('fairness', entries['regular-task']['reasoning'],
+                         'Reasoning should NOT include fairness for task without firstBlockedAt')
+
+    def test_getqueueanalysis_fairness_bonus_is_small(self):
+        """The fairness bonus for getQueueAnalysis should be ≤ 0.9 (the cap)."""
+        import datetime
+        old_blocked = (datetime.datetime.utcnow() - datetime.timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%S.000Z')
+        now_iso = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.000Z')
+
+        blocked_task = make_task('blocked-task', 'medium', queued_at=now_iso,
+                                 first_blocked_at=old_blocked)
+        regular_task = make_task('regular-task', 'medium', queued_at=now_iso)
+
+        result = get_queue_analysis([regular_task, blocked_task],
+                                    [regular_task, blocked_task])
+        entries = {e['taskId']: e for e in result}
+
+        # Score difference should be small (≤ 0.9 because fairness is capped)
+        score_diff = entries['blocked-task']['score'] - entries['regular-task']['score']
+        self.assertLessEqual(score_diff, 0.91,
+                             f'Fairness bonus difference should be ≤ 0.9, got {score_diff}')
+        self.assertGreater(score_diff, 0,
+                           'Blocked task should have strictly higher score due to fairness bonus')
 
 
 # ── getQueueAnalysis ───────────────────────────────────────────────────────────

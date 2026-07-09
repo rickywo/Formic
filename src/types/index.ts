@@ -594,6 +594,10 @@ export interface Task {
   yieldCount?: number;
   /** Human-readable reason the task last yielded (e.g., 'lease-conflict:src/server/services/store.ts') */
   yieldReason?: string;
+  /** ISO 8601 timestamp when this task first entered backoff for a lease conflict.
+   *  Used as a fairness tiebreaker in prioritizeQueue to favour the longest-blocked
+   *  task at equal score. Cleared on lease acquire or backoff reset. */
+  firstBlockedAt?: string | null;
   /** When set, the queue processor resumes this task at the indicated step instead of running the full workflow */
   resumeFromStep?: WorkflowStep;
   fileConflicts?: FileConflict[];
@@ -649,6 +653,7 @@ export interface UpdateTaskInput {
   retryCount?: number | null;
   yieldCount?: number;
   yieldReason?: string;
+  firstBlockedAt?: string | null;
   /** When set, routes the task directly to this step instead of the full workflow on next dispatch */
   resumeFromStep?: WorkflowStep;
   reflectionMemories?: string[];

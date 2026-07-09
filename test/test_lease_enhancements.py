@@ -446,6 +446,339 @@ def test_lease_enhancements():
         if task_id_b:
             cleanup_task(task_id_b)
 
+    # ── Test 9: Multi-file conflict — all conflicting files returned by API ──
+    print("\n=== Test 9: Multi-file conflict — API returns ALL conflicting files ===")
+    task_id_a = None
+    task_id_b = None
+    try:
+        unique = str(uuid.uuid4())[:8]
+        file_1 = f"src/multi_a_{unique}.ts"
+        file_2 = f"src/multi_b_{unique}.ts"
+
+        # Task A holds both files exclusively
+        task_id_a = create_test_task(f"{unique}_a", priority='medium')
+        set_declared_files(task_id_a, exclusive=[file_1, file_2])
+
+        acq_a = requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/acquire")
+        acq_a.raise_for_status()
+        if not acq_a.json().get('granted'):
+            raise RuntimeError("Task A lease not granted during multi-file test setup")
+
+        # Task B wants both files — should be denied with BOTH in conflictingFiles
+        task_id_b = create_test_task(f"{unique}_b", priority='medium')
+        set_declared_files(task_id_b, exclusive=[file_1, file_2])
+
+        acq_b = requests.post(f"{BASE_URL}/api/tasks/{task_id_b}/lease/acquire")
+        acq_b.raise_for_status()
+        b_result = acq_b.json()
+
+        if b_result.get('granted'):
+            print(f"✗ Task B was unexpectedly granted: {b_result}")
+            results.append(("Multi-file conflict", "FAIL"))
+        elif sorted(b_result.get('conflictingFiles', [])) != sorted([file_1, file_2]):
+            print(f"✗ Expected conflictingFiles [{file_1}, {file_2}], got {b_result.get('conflictingFiles')}")
+            results.append(("Multi-file conflict", "FAIL"))
+        else:
+            print(f"✓ API correctly returns all conflicting files: {b_result.get('conflictingFiles')}")
+            results.append(("Multi-file conflict", "PASS"))
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        results.append(("Multi-file conflict", "FAIL"))
+    finally:
+        if task_id_a:
+            cleanup_task(task_id_a)
+        if task_id_b:
+            cleanup_task(task_id_b)
+
+    # ── Test 10: Shared-holder conflict — exclusive denied by shared lease ──
+    print("\n=== Test 10: Shared-holder conflict — exclusive acquire denied by shared lease ===")
+    task_id_s = None
+    task_id_e = None
+    try:
+        unique = str(uuid.uuid4())[:8]
+        shared_file = f"src/shared_holder_{unique}.ts"
+
+        # Task S acquires shared lease on the file
+        task_id_s = create_test_task(f"{unique}_s", priority='medium')
+        set_declared_files(task_id_s, exclusive=[], shared=[shared_file])
+
+        acq_s = requests.post(f"{BASE_URL}/api/tasks/{task_id_s}/lease/acquire")
+        acq_s.raise_for_status()
+        if not acq_s.json().get('granted'):
+            raise RuntimeError("Task S shared lease not granted")
+
+        # Task E wants exclusive on the same file — should be denied
+        task_id_e = create_test_task(f"{unique}_e", priority='medium')
+        set_declared_files(task_id_e, exclusive=[shared_file], shared=[])
+
+        acq_e = requests.post(f"{BASE_URL}/api/tasks/{task_id_e}/lease/acquire")
+        acq_e.raise_for_status()
+        e_result = acq_e.json()
+
+        if not e_result.get('granted') and shared_file in e_result.get('conflictingFiles', []):
+            print(f"✓ Task E correctly denied — shared lease blocks exclusive acquisition")
+            results.append(("Shared-holder conflict", "PASS"))
+        else:
+            print(f"✗ Unexpected result for Task E: {e_result}")
+            results.append(("Shared-holder conflict", "FAIL"))
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        import traceback; traceback.print_exc()
+        results.append(("Shared-holder conflict", "FAIL"))
+    finally:
+        if task_id_s:
+            cleanup_task(task_id_s)
+        if task_id_e:
+            cleanup_task(task_id_e)
+
+    # ── Test 11: Stale record cleanup — releaseLeases clears wait state ──
+    print("\n=== Test 11: Stale record cleanup — release removes all task state ===")
+    task_id_a = None
+    task_id_b = None
+    try:
+        unique = str(uuid.uuid4())[:8]
+        exclusive_file = f"src/stale_cleanup_{unique}.ts"
+
+        # Task A gets exclusive on the file
+        task_id_a = create_test_task(f"{unique}_a", priority='medium')
+        set_declared_files(task_id_a, exclusive=[exclusive_file])
+
+        acq_a = requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/acquire")
+        acq_a.raise_for_status()
+        if not acq_a.json().get('granted'):
+            raise RuntimeError("Task A lease not granted during stale cleanup test setup")
+
+        # Task B tries — denied (conflict)
+        task_id_b = create_test_task(f"{unique}_b", priority='medium')
+        set_declared_files(task_id_b, exclusive=[exclusive_file])
+
+        acq_b = requests.post(f"{BASE_URL}/api/tasks/{task_id_b}/lease/acquire")
+        acq_b.raise_for_status()
+        b_result = acq_b.json()
+
+        if b_result.get('granted'):
+            print(f"✗ Task B should have been denied: {b_result}")
+            results.append(("Stale record cleanup", "FAIL"))
+        else:
+            # Release task B's leases (which also calls clearWait now)
+            requests.post(f"{BASE_URL}/api/tasks/{task_id_b}/lease/release")
+            time.sleep(0.3)
+
+            # Release task A's leases so the file is free
+            requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/release")
+            time.sleep(0.3)
+
+            # Now task B re-acquires: should succeed (no stale wait record interfering)
+            # Re-acquire task A first
+            set_declared_files(task_id_a, exclusive=[f"src/stale_a2_{unique}.ts"])
+            acq_a2 = requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/acquire")
+            acq_a2.raise_for_status()
+
+            # Task B should be able to acquire the original file now
+            set_declared_files(task_id_b, exclusive=[exclusive_file])
+            acq_b2 = requests.post(f"{BASE_URL}/api/tasks/{task_id_b}/lease/acquire")
+            acq_b2.raise_for_status()
+            b2_result = acq_b2.json()
+
+            if b2_result.get('granted'):
+                print(f"✓ Task B acquired lease after release — no stale state interfered")
+                results.append(("Stale record cleanup", "PASS"))
+            else:
+                print(f"✗ Task B denied after release: {b2_result}")
+                results.append(("Stale record cleanup", "FAIL"))
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        import traceback; traceback.print_exc()
+        results.append(("Stale record cleanup", "FAIL"))
+    finally:
+        if task_id_a:
+            cleanup_task(task_id_a)
+        if task_id_b:
+            cleanup_task(task_id_b)
+
+    # ── Test 12: Multi-file deadlock scenario — both contested files reported ──
+    print("\n=== Test 12: Multi-file deadlock — all contested files visible in conflict report ===")
+    task_id_a = None
+    task_id_b = None
+    task_id_c = None
+    try:
+        unique = str(uuid.uuid4())[:8]
+        f1 = f"src/multi_f1_{unique}.ts"
+        f2 = f"src/multi_f2_{unique}.ts"
+        fa = f"src/multi_fa_{unique}.ts"
+
+        # Task A holds fa.ts exclusively
+        task_id_a = create_test_task(f"{unique}_a", priority='medium')
+        set_declared_files(task_id_a, exclusive=[fa])
+
+        acq_a = requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/acquire")
+        acq_a.raise_for_status()
+        if not acq_a.json().get('granted'):
+            raise RuntimeError("Task A lease not granted during multi-file deadlock test setup")
+
+        # Task B holds f1.ts exclusively
+        task_id_b = create_test_task(f"{unique}_b", priority='medium')
+        set_declared_files(task_id_b, exclusive=[f1])
+
+        acq_b = requests.post(f"{BASE_URL}/api/tasks/{task_id_b}/lease/acquire")
+        acq_b.raise_for_status()
+        if not acq_b.json().get('granted'):
+            raise RuntimeError("Task B lease not granted during multi-file deadlock test setup")
+
+        # Task C holds f2.ts exclusively
+        task_id_c = create_test_task(f"{unique}_c", priority='medium')
+        set_declared_files(task_id_c, exclusive=[f2])
+
+        acq_c = requests.post(f"{BASE_URL}/api/tasks/{task_id_c}/lease/acquire")
+        acq_c.raise_for_status()
+        if not acq_c.json().get('granted'):
+            raise RuntimeError("Task C lease not granted during multi-file deadlock test setup")
+
+        # Simulate the multi-file deadlock scenario:
+        # A wants [f1, f2] exclusively → conflicts with B (f1) and C (f2)
+        set_declared_files(task_id_a, exclusive=[f1, f2])
+        acq_a2 = requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/acquire")
+        acq_a2.raise_for_status()
+        a2_result = acq_a2.json()
+
+        if a2_result.get('granted'):
+            print(f"✗ Task A should have been denied for [f1, f2]: {a2_result}")
+            results.append(("Multi-file deadlock visibility", "FAIL"))
+        elif len(a2_result.get('conflictingFiles', [])) < 2:
+            print(f"✗ Expected at least 2 conflicting files, got {a2_result.get('conflictingFiles')}")
+            results.append(("Multi-file deadlock visibility", "FAIL"))
+        else:
+            # Both f1 and f2 should be in conflictingFiles
+            conflicts = a2_result.get('conflictingFiles', [])
+            if f1 in conflicts and f2 in conflicts:
+                print(f"✓ Multi-file conflict correctly reports both contested files: {conflicts}")
+                results.append(("Multi-file deadlock visibility", "PASS"))
+            else:
+                print(f"✗ Expected both [{f1}, {f2}] in conflictingFiles, got {conflicts}")
+                results.append(("Multi-file deadlock visibility", "FAIL"))
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        import traceback; traceback.print_exc()
+        results.append(("Multi-file deadlock visibility", "FAIL"))
+    finally:
+        if task_id_a:
+            cleanup_task(task_id_a)
+        if task_id_b:
+            cleanup_task(task_id_b)
+        if task_id_c:
+            cleanup_task(task_id_c)
+
+    # ── Test 13: Shared-holder deadlock — shared lease blocks exclusive ──
+    print("\n=== Test 13: Shared-holder deadlock — exclusive blocked by shared correctly reported ===")
+    task_id_s = None
+    task_id_e = None
+    try:
+        unique = str(uuid.uuid4())[:8]
+        f_shared = f"src/shared_dl_{unique}.ts"
+        e_file = f"src/excl_dl_{unique}.ts"
+
+        # Task S holds SHARED lease on f_shared
+        task_id_s = create_test_task(f"{unique}_s", priority='medium')
+        set_declared_files(task_id_s, exclusive=[], shared=[f_shared])
+
+        acq_s = requests.post(f"{BASE_URL}/api/tasks/{task_id_s}/lease/acquire")
+        acq_s.raise_for_status()
+        if not acq_s.json().get('granted'):
+            raise RuntimeError("Task S shared lease not granted")
+
+        # Task E holds exclusive on e_file AND wants exclusive on f_shared
+        task_id_e = create_test_task(f"{unique}_e", priority='medium')
+        set_declared_files(task_id_e, exclusive=[e_file, f_shared])
+
+        acq_e = requests.post(f"{BASE_URL}/api/tasks/{task_id_e}/lease/acquire")
+        acq_e.raise_for_status()
+        e_result = acq_e.json()
+
+        if e_result.get('granted'):
+            print(f"✗ Task E should have been denied: shared lease on f_shared blocks exclusive")
+            results.append(("Shared-holder deadlock", "FAIL"))
+        elif f_shared not in e_result.get('conflictingFiles', []):
+            print(f"✗ Expected f_shared in conflictingFiles, got {e_result.get('conflictingFiles')}")
+            results.append(("Shared-holder deadlock", "FAIL"))
+        else:
+            print(f"✓ Shared-holder blocking correctly detected: conflict on '{f_shared}'")
+            results.append(("Shared-holder deadlock", "PASS"))
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        import traceback; traceback.print_exc()
+        results.append(("Shared-holder deadlock", "FAIL"))
+    finally:
+        if task_id_s:
+            cleanup_task(task_id_s)
+        if task_id_e:
+            cleanup_task(task_id_e)
+
+    # ── Test 14: No phantom deadlock after lease release + re-acquire ──
+    print("\n=== Test 14: No phantom deadlock — release + re-acquire works cleanly ===")
+    task_id_a = None
+    task_id_b = None
+    try:
+        unique = str(uuid.uuid4())[:8]
+        file_1 = f"src/phantom_1_{unique}.ts"
+        file_2 = f"src/phantom_2_{unique}.ts"
+
+        # Task A gets exclusive on file_1
+        task_id_a = create_test_task(f"{unique}_a", priority='medium')
+        set_declared_files(task_id_a, exclusive=[file_1])
+
+        acq_a = requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/acquire")
+        acq_a.raise_for_status()
+        if not acq_a.json().get('granted'):
+            raise RuntimeError("Task A lease not granted")
+
+        # Task B tries to acquire file_1 — denied (conflict with A)
+        task_id_b = create_test_task(f"{unique}_b", priority='medium')
+        set_declared_files(task_id_b, exclusive=[file_1])
+
+        acq_b = requests.post(f"{BASE_URL}/api/tasks/{task_id_b}/lease/acquire")
+        acq_b.raise_for_status()
+        b_result = acq_b.json()
+
+        if b_result.get('granted'):
+            print(f"✗ Task B should have been denied: {b_result}")
+            results.append(("No phantom deadlock", "FAIL"))
+        else:
+            # Release task B (simulates stop/re-queue). Since releaseLeases now
+            # calls clearWait, B's wait record should be cleaned up.
+            requests.post(f"{BASE_URL}/api/tasks/{task_id_b}/lease/release")
+
+            # Release task A too (free the file)
+            requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/release")
+            time.sleep(0.3)
+
+            # Re-acquire: Task B now gets file_1
+            set_declared_files(task_id_b, exclusive=[file_1])
+            acq_b2 = requests.post(f"{BASE_URL}/api/tasks/{task_id_b}/lease/acquire")
+            acq_b2.raise_for_status()
+            b2_result = acq_b2.json()
+
+            # Task A now gets a different file file_2
+            set_declared_files(task_id_a, exclusive=[file_2])
+            acq_a2 = requests.post(f"{BASE_URL}/api/tasks/{task_id_a}/lease/acquire")
+            acq_a2.raise_for_status()
+            a2_result = acq_a2.json()
+
+            if b2_result.get('granted') and a2_result.get('granted'):
+                print(f"✓ Both tasks re-acquired cleanly — no phantom deadlock from stale wait records")
+                results.append(("No phantom deadlock", "PASS"))
+            else:
+                print(f"✗ Re-acquire failed: B={b2_result}, A={a2_result}")
+                results.append(("No phantom deadlock", "FAIL"))
+    except Exception as e:
+        print(f"✗ Error: {e}")
+        import traceback; traceback.print_exc()
+        results.append(("No phantom deadlock", "FAIL"))
+    finally:
+        if task_id_a:
+            cleanup_task(task_id_a)
+        if task_id_b:
+            cleanup_task(task_id_b)
+
     # ── Print summary ──
     print("\n" + "=" * 60)
     print("LEASE ENHANCEMENT TEST RESULTS")

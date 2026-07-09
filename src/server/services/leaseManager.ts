@@ -216,6 +216,38 @@ export function isFileLeased(filePath: string, excludeTaskId?: string): boolean 
 }
 
 /**
+ * Check whether a file would conflict if the given taskId intended to acquire it
+ * exclusively. Mirrors the conflict logic in acquireLeases() so pre-dispatch
+ * checks and actual lease grants are consistent.
+ *
+ * A conflict exists when:
+ * 1. The file has an exclusive lease held by a different task, OR
+ * 2. The file has one or more shared leases held by different tasks
+ *
+ * Expired leases are cleaned before checking, matching acquireLeases behaviour.
+ * Returns true if there IS a conflict (i.e., the task would be denied).
+ */
+export function wouldConflict(filePath: string, taskId: string): boolean {
+  // Clean expired leases before checking (consistent with acquireLeases)
+  cleanExpiredLeases();
+
+  // Check exclusive holder
+  const exclusive = leaseStore.get(filePath);
+  if (exclusive && exclusive.taskId !== taskId) {
+    return true;
+  }
+
+  // Check shared holders — stored under filePath::taskId keys
+  for (const [key, lease] of leaseStore.entries()) {
+    if (key.startsWith(`${filePath}::`) && lease.taskId !== taskId) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Get the task ID that holds an exclusive lease on a file, or null if none.
  * Expired leases whose holder is not active are treated as not held.
  * Used to identify zombie lease holders.

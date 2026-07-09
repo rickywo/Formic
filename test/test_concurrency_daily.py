@@ -675,20 +675,15 @@ class TestConcurrencyDaily(unittest.TestCase):
         )
 
     @unittest.skipIf(not _TSX_AVAILABLE, "npx not available for TypeScript fixture")
-    @unittest.expectedFailure
     def test_shared_holder_cycle_detected(self):
         """
         E3: Multi-file cycle with shared holder detected.
 
-        PENDING FIX: The deadlock detection wait-for graph in detectDeadlock()
-        only considers exclusive leases (stored at bare filePath key in leaseStore).
-        Shared leases use composite keys (filePath::taskId), so waiting tasks that
-        are blocked by a shared holder are not linked in the wait graph. When
-        deadlock detection is extended to also consider shared-lease holders,
-        remove the expectedFailure decorator.
-
-        A holds exclusive on F1 + shared on F2, B holds exclusive on F2.
-        A waits on F2 (blocked by B's exclusive), B waits on F1 (blocked by A).
+        A holds exclusive on F1. B holds SHARED on F2.
+        A wants exclusive on F2 → blocked by B's shared lease.
+        B wants exclusive on F1 → blocked by A's exclusive lease.
+        The shared-holder edge (A→B via B's shared on F2) is now visible
+        because getBlockingHolders scans shared-lease compound keys.
         Uses the 'deadlock-shared' fixture scenario.
         """
         try:
