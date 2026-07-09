@@ -12,7 +12,7 @@ import {
 } from './bootstrap.js';
 import { copySkillsToWorkspace } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
-import { releaseLeases } from './leaseManager.js';
+import { releaseLeases, clearWait } from './leaseManager.js';
 import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
 import { internalEvents, TASK_CREATED, TASK_QUEUED, BOARD_UPDATE, TASK_UPDATED, TASK_STAGE_CHANGED } from './internalEvents.js';
 
