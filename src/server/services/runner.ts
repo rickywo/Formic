@@ -177,7 +177,51 @@ All code changes MUST comply with the project development guidelines provided ab
 
   const logBuffer: string[] = [];
 
-  // Set up error handler FIRST to catch spawn errors (e.g., command not found)
+  // --- Spawn confirmation phase ---
+  // On Unix, spawn() can return successfully but then emit an 'error' event
+  // asynchronously (e.g., ENOENT when the command is not found). We await
+  // explicit confirmation that the child process is alive before registering
+  // it in activeProcesses, so a spawn failure never leaks a phantom running task.
+  let spawnError: NodeJS.ErrnoException | null = null;
+  const onSpawnError = (err: NodeJS.ErrnoException): void => {
+    spawnError = err;
+  };
+  child.once('error', onSpawnError);
+
+  // Yield to the event loop so any queued spawn error can surface.
+  await new Promise<void>(resolve => setImmediate(resolve));
+
+  if (spawnError) {
+    // Spawn failed — clean up without ever adding to activeProcesses.
+    // No activeProcesses entry means no leaked concurrency slot.
+    releaseLeases(taskId);
+    console.log(`[Runner] Released leases for task ${taskId} (spawn error)`);
+
+    const agentName = getAgentDisplayName();
+    let errorMessage = spawnError.message;
+    if (spawnError.code === 'ENOENT') {
+      errorMessage = `Command '${agentCommand}' not found. Please ensure ${agentName} is installed and available in PATH.`;
+    } else if (spawnError.code === 'EACCES') {
+      errorMessage = `Permission denied when trying to execute '${agentCommand}'.`;
+    }
+
+    await updateTaskStatus(taskId, 'todo', null, 'runner.spawn_error');
+
+    broadcastToTask(taskId, {
+      type: 'error',
+      data: errorMessage,
+      timestamp: new Date().toISOString(),
+    });
+
+    throw new Error(errorMessage);
+  }
+
+  // Spawn confirmed — remove the one-shot spawn-error listener and replace
+  // it with the permanent error handler for post-spawn (runtime) failures.
+  child.removeListener('error', onSpawnError);
+
+  // Set up the permanent error handler for post-spawn failures (e.g., process
+  // crash, runtime errors after the child was successfully spawned).
   child.on('error', async (err: NodeJS.ErrnoException) => {
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
@@ -200,15 +244,6 @@ All code changes MUST comply with the project development guidelines provided ab
       timestamp: new Date().toISOString(),
     });
   });
-
-  // Check if spawn succeeded (pid exists)
-  if (!child.pid) {
-    // Don't throw - let the error event handle it
-    // Return a placeholder that will be updated when error fires
-    activeProcesses.set(taskId, child);
-    await updateTaskStatus(taskId, 'running', 0, 'runner.process_spawned_placeholder');
-    return { pid: 0 };
-  }
 
   activeProcesses.set(taskId, child);
 
