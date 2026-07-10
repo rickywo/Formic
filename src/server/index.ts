@@ -19,6 +19,7 @@ import { startQueueProcessor, getQueueProcessorConfig } from './services/queuePr
 import { printStartupBanner } from './utils/banner.js';
 import type { StartupInfo } from './utils/banner.js';
 import { startWatchdog, stopWatchdog } from './services/watchdog.js';
+import { restoreLeases } from './services/leaseManager.js';
 import { setWorkspacePath } from './utils/paths.js';
 import { loadConfig, getActiveWorkspace as getActiveConfigWorkspace } from './services/configStore.js';
 import { recoverStuckTasks, loadBoard } from './services/store.js';
@@ -200,6 +201,11 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     const agentType = getAgentType();
     const agentCommand = getAgentCommand();
     const agentDisplayName = getAgentDisplayName();
+
+    // Restore non-expired leases from disk before recovering stuck tasks.
+    // This ensures recovery can see and release any leases that survived a
+    // crash — preventing stale leases from blocking dispatch after restart.
+    await restoreLeases();
 
     // Recover any stuck tasks from previous server session
     // This must run BEFORE the queue processor starts

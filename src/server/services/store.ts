@@ -738,9 +738,10 @@ export async function getChildTasks(parentGoalId: string): Promise<Task[]> {
  * Tasks already in 'queued' status are left untouched — they were simply waiting in line
  * and do not need recovery.
  *
- * Note: In-memory leases (leaseStore) are naturally cleared on server restart,
- * so no explicit releaseLeases() call is needed here. This assumption holds
- * because leases are stored in a Map that is re-initialized on process start.
+ * Note: restoreLeases() (called before recoverStuckTasks() in the startup
+ * sequence) loads non-expired leases from disk into memory. Recovery must
+ * explicitly release those leases for re-queued tasks — otherwise stale
+ * leases from a prior session can block dispatch after restart.
  *
  * @returns The number of tasks that were recovered
  */
@@ -795,6 +796,11 @@ export async function recoverStuckTasks(): Promise<number> {
       });
 
       recoveredCount++;
+
+      // Release any non-expired leases that restoreLeases() loaded from disk
+      // for this task — stale leases from a prior session can otherwise block
+      // dispatch after restart.
+      releaseLeases(item.id);
     } catch (err) {
       console.warn(`[Recovery] Failed to recover task ${item.id}:`, err instanceof Error ? err.message : 'Unknown error');
     }

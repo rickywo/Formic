@@ -9,7 +9,8 @@ import { writeFile, readFile, mkdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 import type { FileLease, LeaseRequest, LeaseResult, FileConflict, LeaseStoreSnapshot } from '../../types/index.js';
 import { getFormicDir } from '../utils/paths.js';
-import { getTask, updateTaskStatus } from './store.js';
+import { getTask } from './store.js';
+import { teardownTask } from './taskTeardown.js';
 import { broadcastLeaseReleased } from './boardNotifier.js';
 import { internalEvents, LEASE_RELEASED } from './internalEvents.js';
 import { hashWorkspaceFile } from '../utils/safeGit.js';
@@ -22,8 +23,8 @@ const leaseStore = new Map<string, FileLease>();
 /** Recorded file hashes for collision detection: taskId → Map<filePath, hash> */
 const fileHashStore = new Map<string, Map<string, string>>();
 
-/** Wait-for map: taskId → filePath the task is waiting to acquire */
-const waitForMap = new Map<string, string>();
+/** Wait-for map: taskId → set of filePaths the task is waiting to acquire */
+const waitForMap = new Map<string, Set<string>>();
 
 /** Async write mutex — serializes lease snapshots and preserves call order. */
 let persistLock: Promise<void> = Promise.resolve();
@@ -152,6 +153,7 @@ export function renewLeases(taskId: string, durationMs?: number): boolean {
 
   if (renewed > 0) {
     console.warn(`[LeaseManager] Renewed ${renewed} lease(s) for task ${taskId}`);
+    persistLeases().catch(e => console.warn('[LeaseManager] persist error:', e));
     return true;
   }
   return false;
@@ -203,14 +205,55 @@ export function getExclusiveLeaseHolder(filePath: string): string | null {
 }
 
 /**
- * Clean up expired leases from the store
+ * Resolve ALL task IDs currently holding a lease on a file — both the
+ * bare-key exclusive holder and every scoped-key shared holder
+ * (`${filePath}::${taskId}`).  Used by `detectDeadlock()` to build a
+ * complete wait-for graph including shared-lease participants.
+ */
+export function getFileHolders(filePath: string): Set<string> {
+  cleanExpiredLeases();
+  const holders = new Set<string>();
+
+  // Exclusive holder (bare key)
+  const exclusiveLease = leaseStore.get(filePath);
+  if (exclusiveLease && exclusiveLease.leaseType === 'exclusive') {
+    holders.add(exclusiveLease.taskId);
+  }
+
+  // Shared holders (scoped keys)
+  const prefix = `${filePath}::`;
+  for (const [key, lease] of leaseStore.entries()) {
+    if (key.startsWith(prefix)) {
+      holders.add(lease.taskId);
+    }
+  }
+
+  return holders;
+}
+
+/**
+ * Clean up expired leases from the store.
+ *
+ * IMPORTANT: This path is called from hot read paths (getAllLeases, isFileLeased,
+ * acquireLeases), so the persist must only fire when something was actually deleted.
+ *
+ * POLICY CHOICE (see Issue 9 in docs/REMEDIATION_PLAN.md): we deliberately do NOT
+ * emit LEASE_RELEASED from this cleanup path. The watchdog's scanExpiredLeases
+ * relies on getExpiredLeases() + its stop/revert/re-queue teardown sequence —
+ * emitting LEASE_RELEASED here would wake waiters before the holder's files are
+ * reverted. Persist-only keeps the disk truthful without racing the watchdog.
  */
 function cleanExpiredLeases(): void {
   const now = Date.now();
+  let deleted = false;
   for (const [key, lease] of leaseStore.entries()) {
     if (new Date(lease.expiresAt).getTime() <= now) {
       leaseStore.delete(key);
+      deleted = true;
     }
+  }
+  if (deleted) {
+    persistLeases().catch(e => console.warn('[LeaseManager] persist error:', e));
   }
 }
 
@@ -291,11 +334,11 @@ export async function detectCollisions(taskId: string, cwd: string): Promise<Fil
 }
 
 /**
- * Register that a task is waiting to acquire a lease on a file.
+ * Register that a task is waiting to acquire leases on one or more files.
  * Used to build the wait-for graph for deadlock detection.
  */
-export function recordWait(taskId: string, filePath: string): void {
-  waitForMap.set(taskId, filePath);
+export function recordWait(taskId: string, filePaths: string[]): void {
+  waitForMap.set(taskId, new Set(filePaths));
 }
 
 /**
@@ -307,12 +350,14 @@ export function clearWait(taskId: string): void {
 
 /**
  * Read-only inspection helper: returns a snapshot of the current wait-for map
- * (taskId -> filePath it is waiting on). Added strictly for repro/diagnostic
- * tooling (see test/repro-deadlock-survivor.ts) — does not alter any
- * behavior of recordWait/clearWait/detectDeadlock.
+ * (taskId -> filePaths it is waiting on). Added strictly for repro/diagnostic
+ * tooling — does not alter any behavior of recordWait/clearWait/detectDeadlock.
  */
-export function getWaitForEntries(): Array<{ taskId: string; filePath: string }> {
-  return Array.from(waitForMap.entries()).map(([taskId, filePath]) => ({ taskId, filePath }));
+export function getWaitForEntries(): Array<{ taskId: string; filePaths: string[] }> {
+  return Array.from(waitForMap.entries()).map(([taskId, filePaths]) => ({
+    taskId,
+    filePaths: [...filePaths],
+  }));
 }
 
 /**
@@ -369,9 +414,9 @@ export async function restoreLeases(): Promise<void> {
 
 /**
  * Attempt to preempt an exclusive lease held by a lower-priority task.
- * Sets yieldSignal on the holder's lease and polls for voluntary release.
- * Force-releases after a 10 s timeout if the holder does not yield.
- * Returns true if preemption succeeded, false if not applicable.
+ * Tears down the holder (stops its process, reverts files, releases leases, re-queues)
+ * so the higher-priority requester can acquire the lease.
+ * Returns true if preemption was attempted, false if not applicable.
  */
 export async function preemptLease(highPriorityTaskId: string, targetFilePath: string): Promise<boolean> {
   const holderLease = leaseStore.get(targetFilePath);
@@ -396,87 +441,112 @@ export async function preemptLease(highPriorityTaskId: string, targetFilePath: s
     return false;
   }
 
-  // Signal the holder to yield voluntarily
-  holderLease.yieldSignal = true;
-  console.warn(`[LeaseManager] Sent yield signal to task ${holderId} for file ${targetFilePath}`);
-
-  // Poll every 500 ms for up to 10 s
-  const POLL_INTERVAL_MS = 500;
-  const MAX_WAIT_MS = 10000;
-  const deadline = Date.now() + MAX_WAIT_MS;
-
-  await new Promise<void>(resolve => {
-    const poll = setInterval(() => {
-      if (!leaseStore.has(targetFilePath) || Date.now() >= deadline) {
-        clearInterval(poll);
-        resolve();
-      }
-    }, POLL_INTERVAL_MS);
-  });
-
-  if (leaseStore.has(targetFilePath)) {
-    // Holder did not release voluntarily — force-release
-    releaseLeases(holderId);
-    console.warn(`[LeaseManager] Force-preempted lease on ${targetFilePath} from task ${holderId}`);
-  } else {
-    console.warn(`[LeaseManager] Task ${holderId} voluntarily released ${targetFilePath} after yield signal`);
-  }
+  // Tear down the holder: stop its process, revert files, release leases, re-queue.
+  console.warn(`[LeaseManager] Preempting lease on ${targetFilePath} from task ${holderId} (priority ${holderRank} < ${requesterRank})`);
+  await teardownTask(holderId, 'preemption');
 
   return true;
 }
 
 /**
  * Detect and resolve deadlock cycles in the wait-for graph.
- * Resolves each cycle by re-queuing the lowest-priority task in the cycle.
+ *
+ * Graph construction:
+ *   For every (taskId, filePaths) entry in waitForMap, resolve ALL current
+ *   holders of each file via `getFileHolders()` (which covers both exclusive
+ *   bare-key and shared scoped-key leases).  An edge taskId → holder is only
+ *   added when the holder is not the waiting task itself and the holder still
+ *   actually holds a lease on that file.
+ *
+ * Cycle detection:
+ *   Iterative white/grey/black DFS over the directed multi-edge wait graph.
+ *   A cycle is collected when the DFS reaches a GREY (in-stack) node.
+ *   Distinct cycles are deduplicated by a sorted-members key.
+ *
+ * Resolution:
+ *   The lowest-priority task in each distinct cycle is torn down via
+ *   `teardownTask()`.  After resolution, stale waitForMap entries of
+ *   survivors are cleaned up — any file whose current holders set is empty
+ *   (the lease was released) is removed from the survivor's wait set, and
+ *   survivors with an empty wait set are cleared entirely.
+ *
  * Returns the detected cycle arrays, or null if no cycles were found.
  */
 export async function detectDeadlock(): Promise<string[][] | null> {
   if (waitForMap.size === 0) return null;
 
-  // Build task-to-task wait-for graph: waiting task → holding task
-  const waitGraph = new Map<string, string>();
-  for (const [waitingTaskId, filePath] of waitForMap.entries()) {
-    const holderLease = leaseStore.get(filePath);
-    if (holderLease && holderLease.taskId !== waitingTaskId) {
-      waitGraph.set(waitingTaskId, holderLease.taskId);
+  // ---- Build directed wait graph: waitingTaskId → Set<holderTaskId> ----
+  const waitGraph = new Map<string, Set<string>>();
+
+  for (const [waitingTaskId, filePaths] of waitForMap.entries()) {
+    const holders = new Set<string>();
+    for (const filePath of filePaths) {
+      for (const holderId of getFileHolders(filePath)) {
+        if (holderId !== waitingTaskId) {
+          holders.add(holderId);
+        }
+      }
+    }
+    if (holders.size > 0) {
+      waitGraph.set(waitingTaskId, holders);
     }
   }
 
   if (waitGraph.size === 0) return null;
 
-  // DFS-based cycle detection on a functional graph (each node has ≤1 outgoing edge)
+  // ---- White/grey DFS cycle detection (no BLACK — reset on backtrack) ----
+  // We reset nodes to WHITE on backtrack so every distinct simple cycle is
+  // found even when cycles share nodes (e.g. A→B→A and A→C→B→A).
+  // Deduplication by sorted-members key prevents duplicate reporting.
+  const GREY = 1;
+  const WHITE = 0;
+
   const cycles: string[][] = [];
-  const visited = new Set<string>();
+  const seenCycleKeys = new Set<string>();
 
   for (const startNode of waitGraph.keys()) {
-    if (visited.has(startNode)) continue;
-
+    const color = new Map<string, number>();
     const path: string[] = [];
-    const pathSet = new Set<string>();
-    let current: string | undefined = startNode;
 
-    while (current !== undefined && !visited.has(current)) {
-      if (pathSet.has(current)) {
-        const cycleStart = path.indexOf(current);
-        cycles.push(path.slice(cycleStart));
-        break;
+    function dfs(node: string): void {
+      color.set(node, GREY);
+      path.push(node);
+
+      const neighbors = waitGraph.get(node);
+      if (neighbors) {
+        for (const neighbor of neighbors) {
+          const neighborColor = color.get(neighbor) ?? WHITE;
+          if (neighborColor === GREY) {
+            // Back edge — collect the cycle
+            const cycleStart = path.indexOf(neighbor);
+            if (cycleStart >= 0) {
+              const cycle = path.slice(cycleStart);
+              const dedupKey = [...cycle].sort().join(',');
+              if (!seenCycleKeys.has(dedupKey)) {
+                seenCycleKeys.add(dedupKey);
+                cycles.push(cycle);
+              }
+            }
+          } else if (neighborColor === WHITE) {
+            dfs(neighbor);
+          }
+        }
       }
-      path.push(current);
-      pathSet.add(current);
-      current = waitGraph.get(current);
+
+      path.pop();
+      color.set(node, WHITE); // Reset so other paths can re-enter this node
     }
 
-    for (const node of path) {
-      visited.add(node);
-    }
+    dfs(startNode);
   }
 
   if (cycles.length === 0) return null;
 
   console.warn(`[LeaseManager] Detected ${cycles.length} deadlock cycle(s)`);
 
-  // Resolve each cycle by aborting the lowest-priority task
+  // ---- Resolve each distinct cycle ----
   for (const cycle of cycles) {
+    // Choose victim: lowest-priority task in the cycle
     let victimId = cycle[0];
     let victimRank = PRIORITY_RANK[(await getTask(victimId))?.priority ?? 'medium'] ?? 1;
 
@@ -489,10 +559,39 @@ export async function detectDeadlock(): Promise<string[][] | null> {
       }
     }
 
-    releaseLeases(victimId);
-    clearWait(victimId);
-    await updateTaskStatus(victimId, 'queued', null, 'leaseManager.deadlock_resolution');
+    await teardownTask(victimId, 'deadlock_resolution');
     console.warn(`[LeaseManager] Deadlock resolved: aborted task ${victimId}`);
+
+    // ---- Survivor cleanup: remove stale wait-for entries ----
+    for (const survivorId of cycle) {
+      if (survivorId === victimId) continue;
+
+      const survivorWaitFiles = waitForMap.get(survivorId);
+      if (!survivorWaitFiles) continue;
+
+      // Remove files whose holders are now gone
+      const staleFiles: string[] = [];
+      for (const fp of survivorWaitFiles) {
+        const holders = getFileHolders(fp);
+        // A file is stale if no holder remains, or the only holder was the victim
+        if (holders.size === 0) {
+          staleFiles.push(fp);
+        }
+      }
+
+      for (const fp of staleFiles) {
+        survivorWaitFiles.delete(fp);
+      }
+
+      if (survivorWaitFiles.size === 0) {
+        waitForMap.delete(survivorId);
+        console.warn(`[LeaseManager] Cleared stale wait entry for survivor ${survivorId}`);
+      } else if (staleFiles.length > 0) {
+        console.warn(
+          `[LeaseManager] Removed ${staleFiles.length} stale file(s) from survivor ${survivorId}'s wait set`
+        );
+      }
+    }
   }
 
   return cycles;

@@ -419,9 +419,10 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
         timestamp: new Date().toISOString(),
       });
       if (leaseResult.conflictingFiles.length > 0) {
-        const blockedOnFile = leaseResult.conflictingFiles[0];
-        recordWait(taskId, blockedOnFile);
-        await preemptLease(taskId, blockedOnFile);
+        recordWait(taskId, leaseResult.conflictingFiles);
+        // Preempt on the first conflicting file — preemption targets one holder at a time.
+        // The full conflictingFiles array is recorded for deadlock detection.
+        await preemptLease(taskId, leaseResult.conflictingFiles[0]);
       }
       return false;
     }

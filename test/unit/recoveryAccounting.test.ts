@@ -13,8 +13,15 @@ import {
   saveBoard,
   loadBoard,
 } from '../../src/server/services/store.js';
+import {
+  restoreLeases,
+  getLeasesByTask,
+  releaseLeases,
+  persistLeases,
+} from '../../src/server/services/leaseManager.js';
 import { setWorkspacePath } from '../../src/server/utils/paths.js';
 import { refreshEngineConfig, engineConfig } from '../../src/server/services/engineConfig.js';
+import type { LeaseStoreSnapshot } from '../../src/types/index.js';
 
 let workspacePath: string;
 
@@ -251,5 +258,59 @@ describe('queueTask resets recoveryCount', () => {
     t = await getTask(task.id);
     assert.ok(t);
     assert.equal(t!.recoveryCount, null, 'recoveryCount should be reset to null on manual re-queue');
+  });
+});
+
+describe('recovery releases restored leases', () => {
+  it('releases non-expired leases for recovered tasks after startup restore+recover sequence', async () => {
+    // Create a task and set it to 'running' (simulating a stuck task from a prior session)
+    const task = await createTask({ title: 'Stuck with lease', context: 'ctx' });
+    await updateTask(task.id, { status: 'running' as const });
+
+    // Manually write a leases.json with a non-expired lease for this task.
+    // This simulates what survives a crash: the lease was on disk but the
+    // server process died, so the lease never got released in memory.
+    const futureExpiry = new Date(Date.now() + 300_000).toISOString();
+    const snapshot: LeaseStoreSnapshot = {
+      version: '1.0',
+      savedAt: new Date().toISOString(),
+      leases: [
+        {
+          key: 'src/stuck.ts',
+          lease: {
+            filePath: 'src/stuck.ts',
+            taskId: task.id,
+            acquiredAt: new Date().toISOString(),
+            expiresAt: futureExpiry,
+            leaseType: 'exclusive',
+          },
+        },
+      ],
+    };
+    const leasesPath = path.join(workspacePath, '.formic', 'leases.json');
+    await writeFile(leasesPath, JSON.stringify(snapshot, null, 2), 'utf-8');
+
+    // Simulate the startup sequence: restoreLeases then recoverStuckTasks.
+    await restoreLeases();
+
+    // Verify the lease was restored into memory from disk.
+    const leasesBefore = getLeasesByTask(task.id);
+    assert.equal(leasesBefore.length, 1, 'lease should be restored from disk into memory');
+
+    // Run recovery — this should re-queue the task AND release its leases.
+    const recovered = await recoverStuckTasks();
+    assert.equal(recovered, 1, 'should recover exactly 1 task');
+
+    // Assert the task is re-queued.
+    const t = await getTask(task.id);
+    assert.ok(t);
+    assert.equal(t!.status, 'queued', 'task should be re-queued after recovery');
+
+    // Assert zero leases remain — recovery must release restored leases.
+    const leasesAfter = getLeasesByTask(task.id);
+    assert.deepEqual(leasesAfter, [], 'recovered task should hold zero leases');
+
+    // Clean up any remaining in-memory lease state.
+    releaseLeases(task.id);
   });
 });

@@ -34,7 +34,7 @@ describe('lease release on status transition', () => {
 
     const grant = acquireLeases({ taskId: task.id, exclusiveFiles: ['src/a.ts'], sharedFiles: [] });
     assert.equal(grant.granted, true);
-    recordWait(task.id, 'src/waiting-on.ts');
+    recordWait(task.id, ['src/waiting-on.ts']);
     assert.equal(getLeasesByTask(task.id).length, 1);
 
     const updated = await updateTask(task.id, { status: 'review' });
@@ -54,7 +54,7 @@ describe('lease release on status transition', () => {
     await updateTaskStatus(task.id, 'running');
 
     acquireLeases({ taskId: task.id, exclusiveFiles: ['src/b.ts'], sharedFiles: [] });
-    recordWait(task.id, 'src/waiting-on-2.ts');
+    recordWait(task.id, ['src/waiting-on-2.ts']);
 
     const updated = await updateTaskStatus(task.id, 'queued');
     assert.ok(updated);
