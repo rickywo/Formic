@@ -385,7 +385,10 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
     }, 0);
 
     const persistedCounter = board.meta.nextTaskId ?? 0;
-    if (persistedCounter <= maxExisting) {
+    // A missing counter is expected for legacy boards and is safely seeded from
+    // the existing IDs below. Warn only when an actually persisted value is
+    // unsafe, so brand-new and legacy boards do not produce false alarms.
+    if (board.meta.nextTaskId !== undefined && persistedCounter <= maxExisting) {
       console.warn(
         `[Store] Task ID counter regression detected: nextTaskId ${persistedCounter} is behind existing task ID t-${maxExisting}; reconciling counter`,
       );
