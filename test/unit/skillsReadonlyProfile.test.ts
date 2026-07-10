@@ -67,7 +67,7 @@ afterEach(async () => {
 });
 
 // ---------------------------------------------------------------------------
-// (a) Template file exists with expected frontmatter deny keys
+// (a) Template file exists with expected nested permission deny keys
 // ---------------------------------------------------------------------------
 describe('Template file existence and frontmatter', () => {
   it('template file exists at templates/opencode-readonly-agent.md', () => {
@@ -86,13 +86,10 @@ describe('Template file existence and frontmatter', () => {
     assert.equal(fm.mode, 'primary');
   });
 
-  it('frontmatter denies edit, bash, task, todowrite', async () => {
+  it('frontmatter nests deny rules under permission', async () => {
     const content = await readFile(TEMPLATE_PATH, 'utf-8');
-    const fm = parseFrontmatter(content);
-    assert.equal(fm.edit, 'deny', 'edit must be deny');
-    assert.equal(fm.bash, 'deny', 'bash must be deny');
-    assert.equal(fm.task, 'deny', 'task must be deny');
-    assert.equal(fm.todowrite, 'deny', 'todowrite must be deny');
+    assert.match(content, /^permission:\n  edit: deny\n  bash: deny\n  task: deny\n  todowrite: deny$/m);
+    assert.doesNotMatch(content, /^edit: deny$/m);
   });
 
   it('frontmatter has a description', async () => {
@@ -127,8 +124,7 @@ describe('copyOpenCodeReadOnlyProfile materialization', () => {
     const copied = await readFile(expectedPath, 'utf-8');
     const fm = parseFrontmatter(copied);
     assert.equal(fm.name, 'formic-readonly');
-    assert.equal(fm.edit, 'deny');
-    assert.equal(fm.bash, 'deny');
+    assert.match(copied, /^permission:\n  edit: deny\n  bash: deny\n  task: deny\n  todowrite: deny$/m);
   });
 
   it('creates .opencode/agent directory if it does not exist', async () => {
@@ -142,7 +138,7 @@ describe('copyOpenCodeReadOnlyProfile materialization', () => {
 });
 
 // ---------------------------------------------------------------------------
-// (c) Function skips when target file already exists (idempotent)
+// (c) Function only writes when the workspace copy differs from the template
 // ---------------------------------------------------------------------------
 describe('copyOpenCodeReadOnlyProfile idempotency', () => {
   it('skips copy when target file already exists', async () => {
@@ -155,23 +151,23 @@ describe('copyOpenCodeReadOnlyProfile idempotency', () => {
     assert.equal(second.copied, false, 'second copy should be skipped');
   });
 
-  it('does not overwrite user-customized content', async () => {
+  it('updates stale content to match the bundled template', async () => {
     // First copy to set up the file
     await copyOpenCodeReadOnlyProfile();
 
     const targetFile = path.join(tempDir, '.opencode', 'agent', 'formic-readonly.md');
 
-    // Simulate user customization
+    // Simulate a stale profile from an older Formic version.
     const customContent = '---\nname: formic-readonly\ncustom: true\n---\nCustom body\n';
     await writeFile(targetFile, customContent, 'utf-8');
 
-    // Second copy should skip and preserve user content
+    // Second copy should synchronize it to the current bundled template.
     const result = await copyOpenCodeReadOnlyProfile();
-    assert.equal(result.copied, false, 'should skip when file exists');
+    assert.equal(result.copied, true, 'should update a stale profile');
 
-    const preserved = await readFile(targetFile, 'utf-8');
-    assert.ok(preserved.includes('custom: true'), 'user customization should be preserved');
-    assert.ok(preserved.includes('Custom body'), 'user body should be preserved');
+    const updated = await readFile(targetFile, 'utf-8');
+    const template = await readFile(TEMPLATE_PATH, 'utf-8');
+    assert.equal(updated, template, 'stale profile should be replaced with the bundled template');
   });
 });
 
