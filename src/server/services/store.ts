@@ -272,6 +272,7 @@ export async function getBoardWithBootstrap(): Promise<Board> {
         // Normalize self-healing fields for backward compatibility with tasks stored before these fields existed
         safePointCommit: task.safePointCommit ?? null,
         retryCount: task.retryCount ?? null,
+        recoveryCount: task.recoveryCount ?? null,
         fixForTaskId: task.fixForTaskId ?? null,
       };
 
@@ -398,6 +399,7 @@ export async function createTask(input: CreateTaskInput): Promise<Task> {
       // Self-healing fields — always present, null when not set
       safePointCommit: null,
       retryCount: null,
+      recoveryCount: null,
       fixForTaskId: input.fixForTaskId ?? null,
       // Goal linkage — present when task is a child of a goal task
       ...(input.parentGoalId ? { parentGoalId: input.parentGoalId } : {}),
@@ -651,6 +653,7 @@ export async function queueTask(taskId: string): Promise<Task | null> {
       queuedAt: new Date().toISOString(),
       // Reset counters on manual re-queue so a human retry starts fresh
       retryCount: null,
+      recoveryCount: null,
       yieldCount: 0,
       yieldReason: undefined,
     };
@@ -722,6 +725,16 @@ export async function getChildTasks(parentGoalId: string): Promise<Task[]> {
  * architecting, verifying) when the server restarts mid-execution. This function re-queues
  * them so the queue processor picks them up automatically on restart.
  *
+ * Each re-queue goes through updateTaskStatus() so a [StatusTransition] log entry and
+ * broadcast are emitted (unlike the prior direct field writes). recoveryCount is
+ * incremented per recovery so the queue processor can cap the loop.
+ *
+ * Before re-queuing, we attempt a best-effort process.kill() on the task's recorded pid
+ * to clean up orphaned agent processes that survived the server restart. PID reuse is a
+ * theoretical hazard (the kernel may have recycled the pid for an unrelated process), but
+ * this is acceptable for a local dev tool — the worst case is a spurious signal to an
+ * unrelated process owned by the same user on the same machine.
+ *
  * Tasks already in 'queued' status are left untouched — they were simply waiting in line
  * and do not need recovery.
  *
@@ -732,28 +745,64 @@ export async function getChildTasks(parentGoalId: string): Promise<Task[]> {
  * @returns The number of tasks that were recovered
  */
 export async function recoverStuckTasks(): Promise<number> {
-  return withBoard((board) => {
-    const interruptedStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
+  const interruptedStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
 
-    let recoveredCount = 0;
-
+  // Phase 1: collect interrupted task info inside withBoard WITHOUT mutating the board.
+  // This respects the withBoard nesting rule — updateTaskStatus / updateTask called
+  // below each acquire withBoard themselves, and we must not nest.
+  const toRecover: Array<{ id: string; pid: number | null; recoveryCount: number }> = await withBoard((board) => {
+    const items: Array<{ id: string; pid: number | null; recoveryCount: number }> = [];
     for (const task of board.tasks) {
       if (interruptedStatuses.includes(task.status)) {
-        console.warn(`[Recovery] Re-queuing interrupted task ${task.id} (was '${task.status}')`);
-        task.status = 'queued';
-        task.pid = null;
-        task.startedAt = undefined;
-        task.completedAt = undefined;
-        // Keep workflowStep as is - this preserves the last completed step
-        // so the user can see where the task was and manually restart from there
-        recoveredCount++;
+        items.push({
+          id: task.id,
+          pid: task.pid,
+          recoveryCount: task.recoveryCount ?? 0,
+        });
+      }
+    }
+    return items;
+  });
+
+  // Phase 2: for each interrupted task, clean up orphans and transition through
+  // the proper status-update path (outside withBoard so we don't nest mutators).
+  let recoveredCount = 0;
+
+  for (const item of toRecover) {
+    // Best-effort orphan cleanup: if the task recorded a pid, try to terminate it.
+    // PID reuse caveat: the kernel may have recycled the pid since the server restart,
+    // but this is acceptable for a local dev tool.
+    if (item.pid !== null) {
+      try {
+        process.kill(item.pid, 'SIGTERM');
+        console.warn(`[Recovery] Sent SIGTERM to orphan pid ${item.pid} for task ${item.id}`);
+      } catch (_err) {
+        // ESRCH - process already gone
       }
     }
 
-    if (recoveredCount > 0) {
-      console.warn(`[Recovery] Re-queued ${recoveredCount} interrupted task(s)`);
-    }
+    console.warn(`[Recovery] Re-queuing interrupted task ${item.id} (was stuck in active status, recovery #${item.recoveryCount + 1})`);
 
-    return recoveredCount;
-  });
+    try {
+      // Transition to queued with proper StatusTransition logging and broadcast
+      await updateTaskStatus(item.id, 'queued', null, 'recovery.startup');
+
+      // Increment recoveryCount and clear stale timestamps
+      await updateTask(item.id, {
+        recoveryCount: item.recoveryCount + 1,
+        startedAt: undefined,
+        completedAt: undefined,
+      });
+
+      recoveredCount++;
+    } catch (err) {
+      console.warn(`[Recovery] Failed to recover task ${item.id}:`, err instanceof Error ? err.message : 'Unknown error');
+    }
+  }
+
+  if (recoveredCount > 0) {
+    console.warn(`[Recovery] Re-queued ${recoveredCount} interrupted task(s)`);
+  }
+
+  return recoveredCount;
 }

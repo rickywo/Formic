@@ -51,6 +51,22 @@ Without a token, starting on a non-loopback host will exit immediately with an e
 
 **Recommended for remote access:** rather than exposing the port directly, use an SSH tunnel (e.g. `ssh -L 8000:localhost:8000 user@host`) and keep the server bound to loopback.
 
+## Self-hosting Formic on its own repo
+
+If you use Formic to develop Formic itself (workspace = the Formic repo), **do not run the server under `tsx watch` / `npm run dev`** while executing tasks that modify files under `src/server/**`. The agent's edits trigger a watch-mode restart, which recovers and re-dispatches the task on boot, creating an infinite dispatch loop. Symptoms include:
+
+- The same task cycles through queued → briefing → running repeatedly in rapid succession
+- Multiple orphaned agent CLI processes editing files concurrently
+- Agent logs show repeated `queued → briefing` transitions with no preceding `running → queued`
+
+**Instead**, build first and run the production server:
+
+```bash
+npm run build && npm start
+```
+
+Or use a separate checkout of the Formic repo as your workspace, leaving your development checkout untouched by agent edits. Formic detects self-hosting at startup and prints a warning.
+
 ## How It Works
 
 1. **Brainstorm** — Chat with the AI Assistant to refine your idea and explore the codebase.

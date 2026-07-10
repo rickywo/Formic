@@ -107,10 +107,28 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   // Set the workspace path for all services
   setWorkspacePath(workspacePath);
 
+  // Self-hosting guard: warn when the workspace is the Formic package's own project root.
+  // Running under tsx watch / npm run dev while executing tasks that modify src/server/**
+  // creates an infinite dispatch loop: the agent's edit triggers a server restart, which
+  // recovers and re-dispatches the task, which edits again → restart → repeat.
+  const projectRoot = path.resolve(__dirname, '..', '..');
+  const resolvedWorkspace = path.resolve(workspacePath);
+  if (resolvedWorkspace === projectRoot) {
+    console.warn('[Server] ⚠️  Self-hosting detected: workspace is the Formic project itself.');
+    console.warn('[Server] Do NOT run Formic under tsx watch / npm run dev while executing tasks');
+    console.warn('[Server] that modify src/server/**. Use "npm run build && npm start" or a');
+    console.warn('[Server] separate checkout instead. See README.md § Self-hosting for details.');
+  }
+
   const clientPath = resolveClientPath();
 
   const fastify = Fastify({
     logger: false,
+    ajv: {
+      customOptions: {
+        removeAdditional: false,
+      },
+    },
   });
 
   // Register WebSocket support

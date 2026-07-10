@@ -120,6 +120,22 @@ async function processQueue(): Promise<void> {
         continue;
       }
 
+      // Check recovery count - transition tasks that have been recovered too many times back to todo.
+      // This bounds the infinite dispatch loop when Formic self-hosts under tsx watch:
+      // each server restart recovers the task, but after N recoveries the task is demoted.
+      if ((nextTask.recoveryCount ?? 0) > engineConfig.maxExecutionRetries) {
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max recoveries (${engineConfig.maxExecutionRetries}), transitioning to todo`);
+        try {
+          const reason = `cap-exceeded:recoveries(${nextTask.recoveryCount ?? 0})`;
+          await updateTask(nextTask.id, { yieldReason: reason });
+          await updateTaskStatus(nextTask.id, 'todo', null, 'queueProcessor.recovery_cap_exceeded');
+          broadcastBoardUpdate();
+        } catch (err) {
+          console.warn('[QueueProcessor] Failed to transition recovery-capped task to todo:', err instanceof Error ? err.message : 'Unknown error');
+        }
+        continue;
+      }
+
       // Detect the first exclusive file currently held by another task
       const exclusiveFiles = nextTask.declaredFiles?.exclusive ?? [];
       let conflictingFile: string | null = null;
