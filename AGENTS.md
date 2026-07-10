@@ -189,11 +189,10 @@ The server will automatically detect this format and create the task via the For
 
 ## Current Board State
 
-**Project:** Formic
-**Repository:** /Users/rickywo/WebstormProjects/Formic
+**Project:** workspace
+**Repository:** /workspace
 
-### Review
-  - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
+No tasks on the board yet.
 
 ## Formic Workflow
 
