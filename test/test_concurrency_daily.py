@@ -472,17 +472,9 @@ class TestConcurrencyDaily(unittest.TestCase):
 
         self._release_lease(task['id'])
 
-    @unittest.expectedFailure
     def test_expired_dead_task_freed_and_wakes_waiters(self):
         """
         C2: Expired lease of a dead task is freed AND wakes waiters.
-
-        PENDING FIX: engineConfig.leaseDurationMs is loaded from config file at
-        server startup and only refreshed by the watchdog/queue-processor poll ticks.
-        The PUT /api/config/settings/leaseDurationMs endpoint persists the value but
-        acquireLeases reads the stale in-memory singleton. When the config-pickup gap
-        is closed (e.g., acquireLeases reads duration from request or config is
-        re-read on each REST call), remove the expectedFailure decorator.
 
         Set leaseDurationMs=2000. Task A acquires exclusive on F. Do NOT renew.
         Wait >2s for expiry + watchdog tick. Task B can then acquire F.
