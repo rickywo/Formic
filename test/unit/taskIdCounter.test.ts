@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -40,5 +40,41 @@ describe('persistent task ID counter', () => {
     // deleted t-3 folder, even though (unrelatedly) the docs folder itself may persist on disk.
     assert.notEqual(t4.docsPath, t3.docsPath, 'new task must not reuse the deleted task docsPath');
     assert.equal(folders.some(f => f.startsWith('t-4_')), true, 'new task folder t-4 must exist');
+  });
+
+  it('seeds the counter from existing task IDs when nextTaskId is absent (legacy boards)', async () => {
+    // Simulate a legacy board saved before nextTaskId existed: two tasks present,
+    // no meta.nextTaskId field at all.
+    const boardPath = path.join(workspacePath, '.formic', 'board.json');
+    const legacyBoard = {
+      meta: {
+        projectName: 'legacy',
+        repoPath: workspacePath,
+        createdAt: new Date().toISOString(),
+      },
+      tasks: [
+        {
+          id: 't-5',
+          title: 'Existing',
+          context: 'ctx',
+          priority: 'medium',
+          status: 'todo',
+          docsPath: '.formic/tasks/t-5_existing',
+          agentLogs: [],
+          pid: null,
+          type: 'standard',
+          workflowStep: 'pending',
+          workflowLogs: {},
+          createdAt: new Date().toISOString(),
+          safePointCommit: null,
+          retryCount: null,
+          fixForTaskId: null,
+        },
+      ],
+    };
+    await writeFile(boardPath, JSON.stringify(legacyBoard, null, 2), 'utf-8');
+
+    const next = await createTask({ title: 'After legacy', context: 'ctx' });
+    assert.equal(next.id, 't-6', 'seeding must derive from the max existing numeric ID');
   });
 });
