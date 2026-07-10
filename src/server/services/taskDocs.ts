@@ -78,7 +78,6 @@ export async function deleteTaskDocsFolder(
  * Check if a task documentation folder exists
  */
 export function taskDocsFolderExists(docsPath: string): boolean {
-  const workspacePath = process.env.WORKSPACE_PATH || './workspace';
-  const fullPath = path.join(workspacePath, docsPath);
+  const fullPath = path.join(getWorkspacePath(), docsPath);
   return existsSync(fullPath);
 }
