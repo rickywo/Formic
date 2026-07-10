@@ -92,9 +92,17 @@ async function processQueue(): Promise<void> {
         continue;
       }
 
-      // Check yield count - skip tasks that have been yielded too many times
+      // Check yield count - transition tasks that have been yielded too many times back to todo
       if (nextTask.yieldCount && nextTask.yieldCount >= engineConfig.maxYieldCount) {
-        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max yield count (${engineConfig.maxYieldCount}), skipping`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max yield count (${engineConfig.maxYieldCount}), transitioning to todo`);
+        try {
+          const reason = `cap-exceeded:yields(${nextTask.yieldCount})`;
+          await updateTask(nextTask.id, { yieldReason: reason });
+          await updateTaskStatus(nextTask.id, 'todo', null, 'queueProcessor.yield_cap_exceeded');
+          broadcastBoardUpdate();
+        } catch (err) {
+          console.warn('[QueueProcessor] Failed to transition yield-capped task to todo:', err instanceof Error ? err.message : 'Unknown error');
+        }
         continue;
       }
 
