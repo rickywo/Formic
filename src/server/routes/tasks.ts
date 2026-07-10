@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks } from '../services/store.js';
-import { runAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
+import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks, ACTIVE_STATUSES } from '../services/store.js';
+import { runAgent, isAgentRunning, getRunningTaskId, stopAgent } from '../services/runner.js';
 import {
   executeFullWorkflow,
   executeQuickTask,
@@ -61,6 +61,34 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   // PUT /api/tasks/:id - Update a task
   fastify.put<{ Params: { id: string }; Body: UpdateTaskInput }>('/api/tasks/:id', async (request, reply) => {
     const { id } = request.params;
+
+    const currentTask = await getTask(id);
+    if (!currentTask) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    // Guard: if this update moves the task out of an active workflow status, stop any
+    // still-running agent/workflow process for it BEFORE its leases are released out from
+    // under it (the release itself happens inside updateTask()).
+    const nextStatus = request.body.status;
+    if (
+      nextStatus !== undefined &&
+      nextStatus !== currentTask.status &&
+      ACTIVE_STATUSES.has(currentTask.status) &&
+      !ACTIVE_STATUSES.has(nextStatus)
+    ) {
+      try {
+        await stopWorkflow(id);
+      } catch (err) {
+        console.warn('[Tasks] Failed to stop workflow before status transition:', err instanceof Error ? err.message : 'Unknown error');
+      }
+      try {
+        await stopAgent(id);
+      } catch (err) {
+        console.warn('[Tasks] Failed to stop agent before status transition:', err instanceof Error ? err.message : 'Unknown error');
+      }
+    }
+
     const task = await updateTask(id, request.body);
 
     if (!task) {

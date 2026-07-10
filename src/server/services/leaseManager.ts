@@ -306,6 +306,16 @@ export function clearWait(taskId: string): void {
 }
 
 /**
+ * Read-only inspection helper: returns a snapshot of the current wait-for map
+ * (taskId -> filePath it is waiting on). Added strictly for repro/diagnostic
+ * tooling (see test/repro-deadlock-survivor.ts) — does not alter any
+ * behavior of recordWait/clearWait/detectDeadlock.
+ */
+export function getWaitForEntries(): Array<{ taskId: string; filePath: string }> {
+  return Array.from(waitForMap.entries()).map(([taskId, filePath]) => ({ taskId, filePath }));
+}
+
+/**
  * Persist the current leaseStore to .formic/leases.json.
  * Fire-and-forget — callers should .catch() the returned promise.
  */

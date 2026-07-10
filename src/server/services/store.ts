@@ -12,11 +12,44 @@ import {
 } from './bootstrap.js';
 import { copySkillsToWorkspace } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
-import { releaseLeases } from './leaseManager.js';
+import { releaseLeases, clearWait } from './leaseManager.js';
 import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
 
 /** Async write mutex — serializes all saveBoard() calls to prevent concurrent write corruption */
 let saveLock: Promise<void> = Promise.resolve();
+
+/**
+ * Statuses representing an actively-running workflow step for a task.
+ * Single source of truth used both for duration tracking (startedAt) and for
+ * deciding when a task's file leases must be released immediately on exit
+ * from one of these states (see updateTask() and updateTaskStatus()).
+ */
+export const ACTIVE_STATUSES: ReadonlySet<Task['status']> = new Set([
+  'briefing',
+  'planning',
+  'declaring',
+  'running',
+  'architecting',
+  'verifying',
+]);
+
+/**
+ * Release file leases and clear wait-queue state for a task that has just
+ * transitioned out of an active workflow status. Safe to call even if the
+ * task holds no leases (releaseLeases/clearWait are no-ops in that case).
+ */
+function releaseLeasesOnExitFromActive(taskId: string, previousStatus: Task['status'], nextStatus: Task['status']): void {
+  if (!ACTIVE_STATUSES.has(previousStatus) || ACTIVE_STATUSES.has(nextStatus)) {
+    return;
+  }
+
+  try {
+    releaseLeases(taskId);
+    clearWait(taskId);
+  } catch (err) {
+    console.warn('[Store] Failed to release leases on status transition:', err instanceof Error ? err.message : 'Unknown error');
+  }
+}
 
 /**
  * Get project name from workspace folder name
@@ -354,6 +387,13 @@ export async function updateTask(taskId: string, input: UpdateTaskInput): Promis
 
   await saveBoard(board);
 
+  // Post-transition hook: release file leases and clear wait state the moment a task
+  // leaves an active workflow status via any PUT /api/tasks/:id status change (e.g. a
+  // manual board-drag), not just workflow-internal exit paths.
+  if (input.status !== undefined) {
+    releaseLeasesOnExitFromActive(taskId, previousStatus, input.status);
+  }
+
   // Post-transition hook: unblock sibling tasks when status transitions to 'review' or 'done'.
   // This mirrors the same hook in updateTaskStatus and covers the user-approval path
   // (PUT /api/tasks/:id with { status: 'done' or 'review' }) which does not go through updateTaskStatus.
@@ -446,8 +486,7 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
   }
 
   // Duration tracking: set startedAt on first active transition
-  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
-  if (activeStatuses.includes(status) && !board.tasks[taskIndex].startedAt) {
+  if (ACTIVE_STATUSES.has(status) && !board.tasks[taskIndex].startedAt) {
     board.tasks[taskIndex].startedAt = new Date().toISOString();
   }
 
@@ -474,6 +513,10 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
   }
 
   await saveBoard(board);
+
+  // Post-transition hook: release file leases and clear wait state the moment a task
+  // leaves an active workflow status, regardless of which caller triggered the change.
+  releaseLeasesOnExitFromActive(taskId, previousStatus, status);
 
   // Structured status transition log
   const timestamp = new Date().toISOString();
