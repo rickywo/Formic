@@ -7795,6 +7795,11 @@
     let currentWs = null;
     let draggedTaskId = null;
     const BOOTSTRAP_TASK_ID = 't-bootstrap';
+    const ACTIVE_STATUSES = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
+
+    function isTaskActive(status) {
+      return ACTIVE_STATUSES.includes(status);
+    }
 
     // Theme Management (using configStore)
     function getStoredTheme() {
@@ -8640,9 +8645,9 @@
       const columns = ['todo', 'queued', 'running', 'verifying', 'review', 'done'];
 
       // Map workflow statuses to columns
-      // briefing, planning, running all go to the 'running' column
-      function getColumnForStatus(status) {
-        if (status === 'briefing' || status === 'planning' || status === 'declaring' || status === 'running' || status === 'architecting') {
+       // Active workflow states all go to the 'running' column.
+       function getColumnForStatus(status) {
+         if (isTaskActive(status)) {
           return 'running';
         }
         if (status === 'blocked') {
@@ -8707,7 +8712,7 @@
 
           // Build workflow step indicator for active workflow tasks
           const workflowSteps = ['brief', 'plan', 'execute'];
-          const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
+          const isWorkflowActive = isTaskActive(task.status);
           const workflowStep = task.workflowStep || 'pending';
           const isQuickTask = task.type === 'quick';
           const isGoalTask = task.type === 'goal';
@@ -8769,7 +8774,7 @@
           }
 
           // Check if task is in any running state
-          const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying';
+          const isRunning = isTaskActive(task.status);
 
           // Build progress bar HTML
           const progress = task.progress || 0;
@@ -9081,7 +9086,7 @@
 
       // Duration display
       const durationEl = document.getElementById('detail-duration');
-      const isActiveStatus = ['briefing', 'planning', 'running', 'architecting'].includes(task.status);
+      const isActiveStatus = isTaskActive(task.status);
       if (task.startedAt && isActiveStatus) {
         durationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
         durationEl.className = 'task-duration task-duration-active';
@@ -9101,7 +9106,7 @@
       const workflowEl = document.getElementById('detail-workflow');
       const workflowSteps = ['brief', 'plan', 'execute'];
       const workflowStep = task.workflowStep || 'pending';
-      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
+      const isDetailWorkflowActive = isTaskActive(task.status);
       if (task.type === 'goal' && (workflowStep === 'architect' || workflowStep === 'complete')) {
         // Goal tasks show only Architect step
         const architectClass = (workflowStep === 'architect' && isDetailWorkflowActive) ? 'active' : 'completed';
@@ -9124,7 +9129,7 @@
 
       // Run button visibility
       const runBtn = document.getElementById('detail-run-btn');
-      const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying';
+      const isRunning = isTaskActive(task.status);
       runBtn.textContent = task.status === 'queued' ? 'Run Now' : 'Run Task';
 
       // Load subtasks
@@ -9198,7 +9203,7 @@
         childrenStats.textContent = `${doneCount}/${children.length} tasks complete`;
 
         childrenList.innerHTML = children.map(child => {
-          const statusIcon = child.status === 'done' ? '✅' : child.status === 'review' ? '🔍' : child.status === 'running' || child.status === 'briefing' || child.status === 'planning' ? '🔄' : '⬜';
+          const statusIcon = child.status === 'done' ? '✅' : child.status === 'review' ? '🔍' : isTaskActive(child.status) ? '🔄' : '⬜';
           const completedClass = child.status === 'done' ? 'completed' : '';
           return `
             <div class="subtask-item ${completedClass}" onclick="openDetailModal('${child.id}', event)" style="cursor:pointer">
@@ -10126,9 +10131,7 @@
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
       // Get the first running task to connect to its logs
-      const runningTasks = board.tasks.filter(t =>
-        t.status === 'running' || t.status === 'briefing' || t.status === 'planning'
-      );
+      const runningTasks = board.tasks.filter(t => isTaskActive(t.status));
 
       if (runningTasks.length === 0) {
         updateTacticalConnectionStatus('disconnected');
@@ -10235,9 +10238,7 @@
       renderTacticalActions();
 
       // Reconnect to WebSocket if we have running tasks
-      const runningTasks = board.tasks.filter(t =>
-        t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'queued'
-      );
+      const runningTasks = board.tasks.filter(t => isTaskActive(t.status) || t.status === 'queued');
 
       if (runningTasks.length > 0 && (!tacticalWs || tacticalWs.readyState !== WebSocket.OPEN)) {
         connectTacticalWebSocket();
@@ -10251,9 +10252,7 @@
       if (!container) return;
 
       // Get running and queued tasks
-      const activeTasks = board.tasks.filter(t =>
-        t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'queued'
-      );
+      const activeTasks = board.tasks.filter(t => isTaskActive(t.status) || t.status === 'queued');
 
       if (activeTasks.length === 0) {
         container.innerHTML = `
@@ -10415,12 +10414,10 @@
         const countEl = document.getElementById(`mobile-${status}-count`);
         if (!container) return;
 
-        // Include briefing and planning tasks in running column
+        // Include all active workflow tasks in the running column.
         let tasks;
         if (status === 'running') {
-          tasks = board.tasks.filter(t =>
-            t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'architecting' || t.status === 'declaring'
-          );
+          tasks = board.tasks.filter(t => isTaskActive(t.status));
         } else {
           tasks = board.tasks.filter(t => t.status === status);
         }
@@ -10437,13 +10434,13 @@
 
         container.innerHTML = tasks.map(task => {
           let statusClass = '';
-          if (task.status === 'running' || task.status === 'briefing' || task.status === 'planning' || task.status === 'architecting' || task.status === 'verifying') {
+          if (isTaskActive(task.status)) {
             statusClass = 'running';
           } else if (task.status === 'queued') {
             statusClass = 'queued';
           }
 
-          const isActive = task.status === 'running' || task.status === 'briefing' || task.status === 'planning' || task.status === 'architecting' || task.status === 'verifying';
+          const isActive = isTaskActive(task.status);
           const durationHtml = task.startedAt ? (isActive
             ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, null)}</span>`
             : (task.completedAt ? `<span class="task-duration" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, task.completedAt)}</span>` : ''))
@@ -10489,7 +10486,7 @@
 
       // Duration display
       const mobileDurationEl = document.getElementById('mobile-sheet-duration');
-      const isActiveForDuration = ['briefing', 'planning', 'running', 'architecting', 'verifying'].includes(task.status);
+      const isActiveForDuration = isTaskActive(task.status);
       if (task.startedAt && isActiveForDuration) {
         mobileDurationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
         mobileDurationEl.className = 'task-duration task-duration-active';
@@ -10511,7 +10508,7 @@
       const actionsContainer = document.getElementById('mobile-sheet-actions');
       let actionsHtml = '';
 
-      const isRunning = ['running', 'briefing', 'planning', 'architecting', 'verifying'].includes(task.status);
+      const isRunning = isTaskActive(task.status);
 
       if (task.status === 'todo') {
         actionsHtml = `
