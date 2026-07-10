@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks, ACTIVE_STATUSES } from '../services/store.js';
+import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks, ACTIVE_STATUSES, VALID_TASK_STATUSES, VALID_TASK_PRIORITIES } from '../services/store.js';
 import { runAgent, isAgentRunning, getRunningTaskId, stopAgent } from '../services/runner.js';
 import {
   executeFullWorkflow,
@@ -23,6 +23,9 @@ import { getAllLeases, renewLeases, acquireLeases, releaseLeases } from '../serv
 import { broadcastBoardUpdate } from '../services/boardNotifier.js';
 import { getWorkspacePath } from '../utils/paths.js';
 import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../types/index.js';
+
+/** Task type values accepted by the PUT /api/tasks/:id whitelist */
+const VALID_TASK_TYPES = ['standard', 'quick', 'goal'] as const;
 
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   // POST /api/tasks - Create a new task
@@ -59,7 +62,22 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // PUT /api/tasks/:id - Update a task
-  fastify.put<{ Params: { id: string }; Body: UpdateTaskInput }>('/api/tasks/:id', async (request, reply) => {
+  fastify.put<{ Params: { id: string }; Body: UpdateTaskInput }>('/api/tasks/:id', {
+    schema: {
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          title: { type: 'string' },
+          context: { type: 'string' },
+          priority: { type: 'string', enum: [...VALID_TASK_PRIORITIES] },
+          status: { type: 'string', enum: [...VALID_TASK_STATUSES] },
+          type: { type: 'string', enum: [...VALID_TASK_TYPES] },
+          yieldReason: { type: 'string' },
+        },
+      },
+    },
+  }, async (request, reply) => {
     const { id } = request.params;
 
     const currentTask = await getTask(id);
