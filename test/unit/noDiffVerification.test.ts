@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
-import { existsSync, mkdirSync, writeFileSync, unlinkSync, rmdirSync } from 'node:fs';
-import path from 'node:path';
+import { execFile } from 'node:child_process';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
 
 import { getChangedFilesSince } from '../../src/server/utils/gitUtils.js';
 import { checkNoDiffVerification } from '../../src/server/services/workflow.js';
@@ -28,23 +30,37 @@ function makeTask(overrides: Partial<Task> & { id: string; docsPath: string }): 
   };
 }
 
-// Paths used in tests
 const NO_DOCS = '.formic/tasks/t-none_noop';
+const FIXTURE_FILE = 'changed-file.txt';
+const execFileAsync = promisify(execFile);
 
 // ---------------------------------------------------------------------------
-// Env isolation — set WORKSPACE_PATH to the repo root so path-based helpers
-// (subtasksExist, etc.) resolve correctly.
+// Workspace isolation — each test gets an independent git repository with one
+// committed file and one deterministic uncommitted change.
 // ---------------------------------------------------------------------------
-let savedWorkspace: string | undefined;
+let savedWorkspace: string;
+let workspacePath: string;
+let safePointCommit: string;
 
-beforeEach(() => {
+beforeEach(async () => {
   savedWorkspace = getWorkspacePath();
-  // Use the repo root (where the test runs from) as the workspace.
-  setWorkspacePath(process.cwd());
+  workspacePath = await mkdtemp(path.join(os.tmpdir(), 'formic-no-diff-test-'));
+  setWorkspacePath(workspacePath);
+
+  await execFileAsync('git', ['init'], { cwd: workspacePath });
+  await execFileAsync('git', ['config', 'user.email', 'test@example.com'], { cwd: workspacePath });
+  await execFileAsync('git', ['config', 'user.name', 'Formic Test'], { cwd: workspacePath });
+  await writeFile(path.join(workspacePath, FIXTURE_FILE), 'initial contents\n', 'utf-8');
+  await execFileAsync('git', ['add', FIXTURE_FILE], { cwd: workspacePath });
+  await execFileAsync('git', ['commit', '-m', 'fixture safe point'], { cwd: workspacePath });
+  const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: workspacePath });
+  safePointCommit = stdout.trim();
+  await writeFile(path.join(workspacePath, FIXTURE_FILE), 'modified contents\n', 'utf-8');
 });
 
-afterEach(() => {
+afterEach(async () => {
   setWorkspacePath(savedWorkspace);
+  await rm(workspacePath, { recursive: true, force: true });
 });
 
 // ---------------------------------------------------------------------------
@@ -53,7 +69,7 @@ afterEach(() => {
 describe('getChangedFilesSince', () => {
   it('returns an array when diffing against HEAD', async () => {
     const files = await getChangedFilesSince('HEAD');
-    assert.ok(Array.isArray(files), 'expected an array');
+    assert.deepStrictEqual(files, [FIXTURE_FILE]);
   });
 
   it('returns empty array for a nonexistent commit (graceful)', async () => {
@@ -77,7 +93,7 @@ describe('checkNoDiffVerification', () => {
     const task = makeTask({
       id: 't-test',
       docsPath: NO_DOCS,
-      safePointCommit: 'HEAD',
+      safePointCommit,
       declaredFiles: {
         exclusive: ['nonexistent-file.xyz'],
         shared: [],
@@ -89,13 +105,12 @@ describe('checkNoDiffVerification', () => {
   });
 
   it('returns null when at least one declared exclusive file is in the diff', async () => {
-    // This file is known to be modified (it is in the diff vs HEAD).
     const task = makeTask({
       id: 't-test',
       docsPath: NO_DOCS,
-      safePointCommit: 'HEAD',
+      safePointCommit,
       declaredFiles: {
-        exclusive: ['src/server/services/workflow.ts'],
+        exclusive: [FIXTURE_FILE],
         shared: [],
       },
     });
@@ -119,10 +134,9 @@ describe('checkNoDiffVerification', () => {
     const task = makeTask({
       id: 't-test',
       docsPath: NO_DOCS,
-      safePointCommit: 'HEAD',
+      safePointCommit,
       declaredFiles: undefined,
     });
-    // HEAD diff is non-empty in this worktree, so no warning expected.
     const warning = await checkNoDiffVerification('t-test', task);
     assert.strictEqual(warning, null);
   });
@@ -144,28 +158,28 @@ describe('checkNoDiffVerification', () => {
   });
 
   it('does not mention subtasks.json when it exists and diff gate fires', async () => {
-    // Create a temporary task dir with a subtasks.json file in the workspace.
+    // Create a temporary task dir with a subtasks.json file in the fixture.
     const tmpId = 't-no-diff-test-tmp';
     const tmpBase = `.formic/tasks/${tmpId}_noop`;
     const tmpDir = path.join(getWorkspacePath(), tmpBase);
     const subtasksJson = path.join(tmpDir, 'subtasks.json');
 
     try {
-      mkdirSync(tmpDir, { recursive: true });
-      writeFileSync(subtasksJson, JSON.stringify({
+      await mkdir(tmpDir, { recursive: true });
+      await writeFile(subtasksJson, JSON.stringify({
         version: '1.0',
         taskId: tmpId,
         title: 'tmp',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         subtasks: [],
-      }));
+      }), 'utf-8');
 
       // Declare bogus exclusive files so the diff gate fires.
       const task = makeTask({
         id: tmpId,
         docsPath: tmpBase,
-        safePointCommit: 'HEAD',
+        safePointCommit,
         declaredFiles: {
           exclusive: ['nonexistent-file.xyz'],
           shared: [],
@@ -178,9 +192,7 @@ describe('checkNoDiffVerification', () => {
         `should NOT mention subtasks.json: ${warning}`
       );
     } finally {
-      // Clean up
-      try { unlinkSync(subtasksJson); } catch {}
-      try { rmdirSync(tmpDir); } catch {}
+      await rm(tmpDir, { recursive: true, force: true });
     }
   });
 });

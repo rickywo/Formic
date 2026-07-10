@@ -33,6 +33,9 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  // releaseLeases() persists asynchronously; drain that queue before removing
+  // the workspace so a pending leases.json write cannot race cleanup.
+  await persistLeases();
   await rm(workspacePath, { recursive: true, force: true });
 });
 
