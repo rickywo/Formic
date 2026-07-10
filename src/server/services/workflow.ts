@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask, withBoard } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
-import { loadSkillPrompt } from './skillReader.js';
+import { loadSkillPrompt, OVERRIDE_PREAMBLE } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
 import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder } from './leaseManager.js';
 import {
@@ -15,7 +15,7 @@ import {
   subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir, getTaskLogsDir } from '../utils/paths.js';
-import { createSafePoint } from '../utils/gitUtils.js';
+import { createSafePoint, getChangedFilesSince } from '../utils/gitUtils.js';
 import { checkoutFilesFromCommit } from '../utils/safeGit.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
@@ -81,6 +81,78 @@ async function incrementRetryCount(taskId: string, caller: string): Promise<numb
     console.warn(`[Workflow] Failed to increment retryCount for ${taskId}:`, err instanceof Error ? err.message : 'Unknown error');
     return 0;
   }
+}
+
+/**
+ * No-diff verification gate: after the execute step finishes, check whether
+ * the task actually modified any of its declared exclusive files (or any files
+ * at all for quick tasks).  Returns a human-readable warning string if the
+ * agent made no detectable progress, or null if everything is fine.
+ *
+ * Also checks for a missing subtasks.json as a secondary no-progress signal
+ * (the plan step may have failed silently without producing any subtask file).
+ */
+export async function checkNoDiffVerification(taskId: string, task: Task): Promise<string | null> {
+  const safePoint = task.safePointCommit;
+  if (!safePoint) {
+    // No safe-point to diff against — we can't gate, so pass through.
+    return null;
+  }
+
+  let warnings: string[] = [];
+
+  // -- Primary gate: changed files vs safe point ---------------------------
+  let primaryWarning: string | null = null;
+
+  const changedFiles = await getChangedFilesSince(safePoint);
+  const declaredExclusive = task.declaredFiles?.exclusive ?? [];
+  if (declaredExclusive.length > 0) {
+    // Standard / declare-path task — check that at least one exclusive file
+    // appears in the diff.
+    const declaredChanged = changedFiles.filter(f =>
+      declaredExclusive.some(d => f === d || f.startsWith(d + '/') || d.startsWith(f + '/'))
+    );
+
+    if (declaredChanged.length === 0) {
+      primaryWarning =
+        `no changes to declared files since safe point ${safePoint.slice(0, 7)}` +
+        ` (${declaredExclusive.length} exclusive file(s) declared, 0 modified)`;
+    }
+  } else {
+    // Quick task — no declared files.  Require at least one file change.
+    if (changedFiles.length === 0) {
+      primaryWarning =
+        `no file changes detected since safe point ${safePoint.slice(0, 7)}`;
+    }
+  }
+
+  // -- Secondary gate: missing subtasks.json --------------------------------
+  // This is always logged but only contributes to the verificationWarning
+  // message when the primary (diff) gate also fired — it amplifies the
+  // no-progress signal rather than being a standalone gate.
+  const missingSubtasks = !subtasksExist(task.docsPath);
+  if (missingSubtasks) {
+    console.warn(`[Workflow] subtasks.json is missing for ${taskId} (plan step may have failed silently)`);
+  }
+
+  if (primaryWarning === null) {
+    // Diff gate passed — everything is fine.
+    return null;
+  }
+
+  // Diff gate fired — build the full warning message.
+  if (primaryWarning) {
+    warnings.push(primaryWarning);
+  }
+  if (missingSubtasks) {
+    warnings.push(`subtasks.json is missing (plan step may have failed silently)`);
+  }
+
+  if (warnings.length === 0) return null;
+
+  const message = `Verification failed for ${taskId}: ${warnings.join('; ')}`;
+  console.warn(`[Workflow] ${message}`);
+  return message;
 }
 
 // Store WebSocket connections per task (shared with runner)
@@ -181,7 +253,7 @@ async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'exec
 function buildBriefPromptFallback(task: Task, guidelines: string): string {
   const docsPath = path.join(getWorkspacePath(), task.docsPath);
 
-  return `${guidelines}
+  return `${OVERRIDE_PREAMBLE}${guidelines}
 You are generating a feature specification for a task.
 
 TASK_TITLE: ${task.title}
@@ -221,7 +293,7 @@ Write the README.md to: ${docsPath}/README.md`;
 function buildPlanPromptFallback(task: Task, guidelines: string): string {
   const docsPath = path.join(getWorkspacePath(), task.docsPath);
 
-  return `${guidelines}
+  return `${OVERRIDE_PREAMBLE}${guidelines}
 You are generating implementation planning documents for a task.
 
 TASK_TITLE: ${task.title}
@@ -253,7 +325,7 @@ Ensure all implementation steps follow the project development guidelines above.
 function buildExecutePrompt(task: Task, guidelines: string): string {
   const docsPath = path.join(getWorkspacePath(), task.docsPath);
 
-  return `${guidelines}
+  return `${OVERRIDE_PREAMBLE}${guidelines}
 Task: ${task.title}
 
 IMPORTANT: Before implementing, read the task documentation at ${docsPath}/:
@@ -282,7 +354,7 @@ function buildIterativeExecutePrompt(
 ): string {
   const docsPath = path.join(getWorkspacePath(), task.docsPath);
 
-  return `${guidelines}
+  return `${OVERRIDE_PREAMBLE}${guidelines}
 Task: ${task.title}
 
 ITERATION ${iteration} - Continuing work on incomplete subtasks.
@@ -308,7 +380,7 @@ All code changes MUST comply with the project development guidelines provided ab
  * Uses task.context directly as the execution prompt with project guidelines
  */
 function buildQuickExecutePrompt(task: Task, guidelines: string): string {
-  return `${guidelines}
+  return `${OVERRIDE_PREAMBLE}${guidelines}
 Task: ${task.title}
 
 Context: ${task.context}
@@ -1026,7 +1098,7 @@ async function runReflectionStep(taskId: string): Promise<void> {
     const task = await getTask(taskId);
     if (!task) return;
 
-    const prompt = `You have just completed task "${task.title}".
+    const prompt = `${OVERRIDE_PREAMBLE}You have just completed task "${task.title}".
 
 Reflect on what was done and produce a JSON array of memory entries for future reference.
 Each entry must have: type ('pattern'|'pitfall'|'preference'), content (string), relevance_tags (string array of file paths or keywords).
@@ -1073,7 +1145,7 @@ async function triggerToolForge(taskId: string): Promise<void> {
     const task = await getTask(taskId);
     if (!task) return;
 
-    const prompt = `You have just completed task "${task.title}".
+    const prompt = `${OVERRIDE_PREAMBLE}You have just completed task "${task.title}".
 
 Review the work done and identify any shell commands that would be generically reusable across future tasks (e.g. test runners, linters, build scripts, deploy commands).
 
@@ -1274,6 +1346,12 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
       }
 
       if (success) {
+        // No-diff verification gate: warn if the execute step changed nothing
+        const noDiffWarning = await checkNoDiffVerification(taskId, task);
+        if (noDiffWarning) {
+          await updateTask(taskId, { verificationWarning: noDiffWarning });
+        }
+
         const verifyResult = await executeVerifyStep(taskId);
         if (!verifyResult.success) {
           await executeCriticAndRetry(taskId, verifyResult.stderrLines);
@@ -1385,6 +1463,13 @@ export async function executeSingleStep(
         if (result.success && result.allComplete) {
           // All subtasks complete - move to review
           console.warn(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
+
+          // No-diff verification gate: warn if the execute step changed nothing
+          const noDiffWarning = await checkNoDiffVerification(taskId, task);
+          if (noDiffWarning) {
+            await updateTask(taskId, { verificationWarning: noDiffWarning });
+          }
+
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.all_complete');
           broadcastTaskCompleted(taskId);
@@ -1394,6 +1479,13 @@ export async function executeSingleStep(
         } else if (result.success && !result.allComplete) {
           // Max iterations reached but not all complete - still move to review with warning
           console.warn(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
+
+          // No-diff verification gate: warn if the execute step changed nothing
+          const noDiffWarning = await checkNoDiffVerification(taskId, task);
+          if (noDiffWarning) {
+            await updateTask(taskId, { verificationWarning: noDiffWarning });
+          }
+
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.max_iterations');
           broadcastTaskCompleted(taskId);
@@ -1693,6 +1785,12 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         // Guard against stale status updates: check if watchdog has already re-queued the task
         const latestTask = await getTask(taskId);
         if (latestTask && latestTask.status === 'running') {
+          // No-diff verification gate: warn if the execute step changed nothing
+          const noDiffWarning = await checkNoDiffVerification(taskId, latestTask);
+          if (noDiffWarning) {
+            await updateTask(taskId, { verificationWarning: noDiffWarning });
+          }
+
           const verifyResult = await executeVerifyStep(taskId);
           if (!verifyResult.success) {
             await executeCriticAndRetry(taskId, verifyResult.stderrLines);
@@ -1833,6 +1931,12 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
         if (executeResult.success) {
           const latestTask = await getTask(taskId);
           if (latestTask && latestTask.status === 'running') {
+            // No-diff verification gate: warn if the execute step changed nothing
+            const noDiffWarning = await checkNoDiffVerification(taskId, latestTask);
+            if (noDiffWarning) {
+              await updateTask(taskId, { verificationWarning: noDiffWarning });
+            }
+
             const verifyResult = await executeVerifyStep(taskId);
             if (!verifyResult.success) {
               await executeCriticAndRetry(taskId, verifyResult.stderrLines);
@@ -1872,7 +1976,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
 function buildArchitectPromptFallback(task: Task, guidelines: string): string {
   const docsPath = path.join(getWorkspacePath(), task.docsPath);
 
-  return `${guidelines}
+  return `${OVERRIDE_PREAMBLE}${guidelines}
 You are a senior Software Architect. Your task is to analyze a high-level goal and decompose it into multiple independent, actionable child tasks.
 
 TASK_TITLE: ${task.title}

@@ -138,16 +138,16 @@ describe('getAgentSkillsDir (opencode)', () => {
 // Subtask 4: buildAgentArgs
 // ---------------------------------------------------------------------------
 describe('buildAgentArgs (opencode)', () => {
-  it("produces ['run','--dangerously-skip-permissions','--format','json','<prompt>'] for opencode", () => {
+  it("produces ['run','--agent','formic-executor','--auto','--format','json','<prompt>'] for opencode", () => {
     process.env.AGENT_TYPE = 'opencode';
     const args = buildAgentArgs('fix the bug');
-    assert.deepStrictEqual(args, ['run', '--dangerously-skip-permissions', '--format', 'json', 'fix the bug']);
+    assert.deepStrictEqual(args, ['run', '--agent', 'formic-executor', '--auto', '--format', 'json', 'fix the bug']);
   });
 
   it('appends any prompt string to the opencode args array', () => {
     process.env.AGENT_TYPE = 'opencode';
     const args = buildAgentArgs('hello world 123');
-    assert.deepStrictEqual(args, ['run', '--dangerously-skip-permissions', '--format', 'json', 'hello world 123']);
+    assert.deepStrictEqual(args, ['run', '--agent', 'formic-executor', '--auto', '--format', 'json', 'hello world 123']);
   });
 });
 
@@ -207,14 +207,14 @@ describe('getAssistantConfig (opencode)', () => {
 // Subtask 7: buildAssistantArgs
 // ---------------------------------------------------------------------------
 describe('buildAssistantArgs (opencode)', () => {
-  it('includes --agent formic-readonly --dangerously-skip-permissions --format json for opencode', () => {
+  it('includes --agent formic-readonly --auto --format json for opencode', () => {
     process.env.AGENT_TYPE = 'opencode';
     const args = buildAssistantArgs('summarize the repo');
     assert.deepStrictEqual(args, [
       'run',
       '--agent',
       'formic-readonly',
-      '--dangerously-skip-permissions',
+      '--auto',
       '--format',
       'json',
       'summarize the repo',
@@ -228,7 +228,7 @@ describe('buildAssistantArgs (opencode)', () => {
       'run',
       '--agent',
       'formic-readonly',
-      '--dangerously-skip-permissions',
+      '--auto',
       '--format',
       'json',
       '--continue',
@@ -243,7 +243,7 @@ describe('buildAssistantArgs (opencode)', () => {
       'run',
       '--agent',
       'formic-readonly',
-      '--dangerously-skip-permissions',
+      '--auto',
       '--format',
       'json',
       'fresh prompt',
@@ -257,7 +257,7 @@ describe('buildAssistantArgs (opencode)', () => {
       'run',
       '--agent',
       'formic-readonly',
-      '--dangerously-skip-permissions',
+      '--auto',
       '--format',
       'json',
       'fresh prompt',
@@ -269,14 +269,14 @@ describe('buildAssistantArgs (opencode)', () => {
 // Subtask 8: buildMessagingAssistantArgs and supportsConversationContinue
 // ---------------------------------------------------------------------------
 describe('buildMessagingAssistantArgs (opencode)', () => {
-  it('includes --agent formic-readonly --dangerously-skip-permissions --format json for opencode', () => {
+  it('includes --agent formic-readonly --auto --format json for opencode', () => {
     process.env.AGENT_TYPE = 'opencode';
     const args = buildMessagingAssistantArgs('board status');
     assert.deepStrictEqual(args, [
       'run',
       '--agent',
       'formic-readonly',
-      '--dangerously-skip-permissions',
+      '--auto',
       '--format',
       'json',
       'board status',
@@ -290,7 +290,7 @@ describe('buildMessagingAssistantArgs (opencode)', () => {
       'run',
       '--agent',
       'formic-readonly',
-      '--dangerously-skip-permissions',
+      '--auto',
       '--format',
       'json',
       '--continue',

@@ -191,6 +191,10 @@ export interface Task {
   fixForTaskId?: string | null;
   /** IDs of memory entries created by the reflection step for this task */
   reflectionMemories?: string[];
+  /** Human-readable warning set by the no-diff verification gate when the execute
+   * step produced zero changes to declared files (or zero changes at all for
+   * quick tasks).  Undefined means verification passed or wasn't performed. */
+  verificationWarning?: string;
 }
 
 export interface BoardMeta {
@@ -244,6 +248,8 @@ export interface UpdateTaskInput {
   reflectionMemories?: string[];
   startedAt?: string;
   completedAt?: string;
+  /** Verification warning set by the no-diff gate (patchable for retry/reset) */
+  verificationWarning?: string;
 }
 
 export interface LogMessage {

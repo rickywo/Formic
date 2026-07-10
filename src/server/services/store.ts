@@ -10,7 +10,7 @@ import {
   BOOTSTRAP_TASK_ID,
   BOOTSTRAP_TASK_SLUG,
 } from './bootstrap.js';
-import { copySkillsToWorkspace } from './skills.js';
+import { copySkillsToWorkspace, copyOpenCodeExecutorProfile, copyOpenCodeReadOnlyProfile } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
 import { releaseLeases, clearWait } from './leaseManager.js';
 import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
@@ -245,6 +245,16 @@ export async function getBoardWithBootstrap(): Promise<Board> {
   // Step 1: Copy skills to workspace (if not already present)
   // This happens BEFORE bootstrap check so skills are available for all tasks
   await copySkillsToWorkspace();
+
+  // Step 1b: Materialize opencode executor agent profile
+  // This ensures the write-capable executor profile is available for opencode
+  // workflow runs, overriding the read-only Task Manager persona in AGENTS.md/CLAUDE.md
+  await copyOpenCodeExecutorProfile();
+
+  // Step 1c: Materialize opencode read-only agent profile
+  // This ensures the restricted read-only profile is available for opencode
+  // assistant and messaging sessions, enforcing deny rules for write tools
+  await copyOpenCodeReadOnlyProfile();
 
   // Step 2: Check bootstrap status
   const bootstrapStatus = checkBootstrapRequired();

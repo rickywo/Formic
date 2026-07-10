@@ -50,7 +50,10 @@ const AGENTS: Record<AgentType, AgentConfig> = {
   },
   opencode: {
     command: 'opencode',
-    buildArgs: (prompt: string) => ['run', '--dangerously-skip-permissions', '--format', 'json', prompt],
+    // --agent formic-executor routes execution through the dedicated write-capable
+    // agent profile (materialized to .opencode/agent/formic-executor.md at startup),
+    // overriding any read-only persona from repo-root AGENTS.md/CLAUDE.md.
+    buildArgs: (prompt: string) => ['run', '--agent', 'formic-executor', '--auto', '--format', 'json', prompt],
     // opencode natively scans .claude/skills/**/SKILL.md with the same frontmatter/body
     // parsing as Claude/Copilot (spike-confirmed) — do NOT add a parallel .opencode/skills
     // materialization step, it would be redundant.
@@ -134,12 +137,11 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
     supportsConversationContinue: true,
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
       // Restricted `formic-readonly` agent profile grants only read/glob/grep/webfetch/websearch;
-      // omitting --dangerously-skip-permissions alone is unsafe (spike-confirmed: hangs indefinitely
-      // on a write attempt).
+      // omitting --auto is unsafe (spike-confirmed: hangs indefinitely on a write attempt).
       const args = [
         'run',
         '--agent', 'formic-readonly',
-        '--dangerously-skip-permissions',
+        '--auto',
         '--format', 'json',
       ];
       if (options?.continue) {
@@ -299,7 +301,7 @@ export function buildMessagingAssistantArgs(prompt: string, options?: { continue
     const args = [
       'run',
       '--agent', 'formic-readonly',
-      '--dangerously-skip-permissions',
+      '--auto',
       '--format', 'json',
     ];
     if (options?.continue) {
