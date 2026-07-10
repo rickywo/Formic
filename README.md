@@ -39,6 +39,18 @@ AI coding agents are powerful but chaotic. Without structure, they skip planning
 
 3. **Add a workspace** — Open the workspace selector in the top-left and point it at your project repo directory.
 
+## Network Exposure & Security
+
+By default, Formic binds to `127.0.0.1` (loopback only) and requires no authentication for local use. **Breaking change:** if you need to expose the server on your network (e.g. `HOST=0.0.0.0`), you must also set `FORMIC_AUTH_TOKEN` to a shared secret:
+
+```
+HOST=0.0.0.0 FORMIC_AUTH_TOKEN=your-secret-token formic start
+```
+
+Without a token, starting on a non-loopback host will exit immediately with an error — the API (`POST /api/tasks`, `POST /api/tools`) can execute arbitrary code in your workspace, so it must never be reachable without authentication. When a token is configured, every HTTP request and WebSocket connection must set the `Authorization` header to `Bearer`, followed by a space and the token value, or the server responds with `401 Unauthorized`.
+
+**Recommended for remote access:** rather than exposing the port directly, use an SSH tunnel (e.g. `ssh -L 8000:localhost:8000 user@host`) and keep the server bound to loopback.
+
 ## How It Works
 
 1. **Brainstorm** — Chat with the AI Assistant to refine your idea and explore the codebase.

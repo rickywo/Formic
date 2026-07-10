@@ -27,8 +27,12 @@ The audit found **4 high-severity issues** (one security, one data-loss, two con
 | 9 | Lease lifecycle blind spots (silent expiry, unpersisted renewal, stale restart comment) | 🟡 Medium | Concurrency | S |
 | 10 | `console.log` used in ~25 server files (violates project guidelines) | ⚪ Low | Hygiene | S |
 | 11 | Spawn-failure placeholder marks task `running` with `pid: 0` | ⚪ Low | Robustness | S |
+| 12 | Restart-driven dispatch loop: silent recovery re-queue + self-hosting watch-mode hazard | 🟡 Medium | Recovery / self-hosting | M |
 
 Effort: **S** = < half day, **M** = half day to two days.
+
+> **Issue 12 was observed as a live incident on 2026-07-10:** task t-1 (which edits `src/server/index.ts`) was dispatched
+> 9 times in 7 minutes while Formic ran under `tsx watch` on its own repo. See §3 Issue 12 for the incident analysis.
 
 ---
 
@@ -52,7 +56,8 @@ Phase 3 — Concurrency correctness (all touch leaseManager/workflow; do sequent
 
 Phase 4 — Queue & API hardening (independent)
   ├─ Issue 5: Cap-exceeded tasks transition out of the queue
-  └─ Issue 8: Field whitelist + status transition validation on PUT
+  ├─ Issue 8: Field whitelist + status transition validation on PUT
+  └─ Issue 12: Recovery accounting + orphan cleanup + self-hosting guard (after Issue 5)
 
 Phase 5 — Hygiene (anytime, low risk)
   ├─ Issue 10: console.log sweep

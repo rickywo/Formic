@@ -42,7 +42,15 @@ function resolveClientPath(): string {
 }
 
 const DEFAULT_PORT = 8000;
-const DEFAULT_HOST = '0.0.0.0';
+const DEFAULT_HOST = '127.0.0.1';
+
+/**
+ * Determine whether a host string refers to a loopback-only address.
+ * Loopback hosts are considered safe for unauthenticated local development.
+ */
+function isLoopbackHost(host: string): boolean {
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
 
 /**
  * Start the Formic server with the given options.
@@ -51,6 +59,19 @@ const DEFAULT_HOST = '0.0.0.0';
 export async function startServer(options: ServerOptions = {}): Promise<void> {
   const port = options.port ?? parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
   const host = options.host ?? process.env.HOST ?? DEFAULT_HOST;
+  const authToken = process.env.FORMIC_AUTH_TOKEN ?? '';
+  const isLoopback = isLoopbackHost(host);
+
+  // Refuse to bind to a non-loopback host without an auth token: without this
+  // guard, POST /api/tasks and POST /api/tools would be an unauthenticated
+  // remote code execution surface for anyone on the network.
+  if (!isLoopback && authToken.length === 0) {
+    console.error(
+      `[Server] Refusing to bind to non-loopback host "${host}" without FORMIC_AUTH_TOKEN set. ` +
+      'Set FORMIC_AUTH_TOKEN in the environment to enable network exposure, or use SSH tunneling for remote access.'
+    );
+    process.exit(1);
+  }
 
   // Resolve workspace path with priority:
   // 1. Explicit option / WORKSPACE_PATH env var
@@ -94,6 +115,19 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
 
   // Register WebSocket support
   await fastify.register(fastifyWebSocket);
+
+  // Enforce bearer token auth for all HTTP routes and WebSocket upgrades when
+  // bound to a non-loopback host. Skipped entirely on loopback to preserve
+  // the existing unauthenticated local development experience.
+  if (!isLoopback) {
+    fastify.addHook('onRequest', async (request, reply) => {
+      const header = request.headers.authorization ?? '';
+      const expectedHeader = 'Bearer ' + authToken;
+      if (header !== expectedHeader) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+    });
+  }
 
   // Serve static files from client directory
   await fastify.register(fastifyStatic, {
