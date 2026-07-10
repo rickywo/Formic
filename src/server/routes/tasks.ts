@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks } from '../services/store.js';
-import { runAgent, isAgentRunning, getRunningTaskId } from '../services/runner.js';
+import { createTask, updateTask, deleteTask, getTask, queueTask, getQueuedTasks, getChildTasks, ACTIVE_STATUSES, VALID_TASK_STATUSES, VALID_TASK_PRIORITIES } from '../services/store.js';
+import { runAgent, isAgentRunning, getRunningTaskId, stopAgent } from '../services/runner.js';
 import {
   executeFullWorkflow,
   executeQuickTask,
@@ -23,6 +23,14 @@ import { getAllLeases, renewLeases, acquireLeases, releaseLeases } from '../serv
 import { broadcastBoardUpdate } from '../services/boardNotifier.js';
 import { getWorkspacePath } from '../utils/paths.js';
 import type { CreateTaskInput, UpdateTaskInput, SubtaskStatus } from '../../types/index.js';
+
+/** Task type values accepted by the PUT /api/tasks/:id whitelist */
+const VALID_TASK_TYPES = ['standard', 'quick', 'goal'] as const;
+
+/** Fields that clients are allowed to update via PUT /api/tasks/:id */
+const UPDATABLE_TASK_FIELDS = new Set([
+  'title', 'context', 'priority', 'status', 'type', 'yieldReason',
+]);
 
 export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   // POST /api/tasks - Create a new task
@@ -59,8 +67,72 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
   });
 
   // PUT /api/tasks/:id - Update a task
-  fastify.put<{ Params: { id: string }; Body: UpdateTaskInput }>('/api/tasks/:id', async (request, reply) => {
+  fastify.put<{ Params: { id: string }; Body: UpdateTaskInput }>('/api/tasks/:id', {
+    schema: {
+      body: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          title: { type: 'string' },
+          context: { type: 'string' },
+          priority: { type: 'string', enum: [...VALID_TASK_PRIORITIES] },
+          status: { type: 'string', enum: [...VALID_TASK_STATUSES] },
+          type: { type: 'string', enum: [...VALID_TASK_TYPES] },
+          yieldReason: { type: 'string' },
+        },
+      },
+    },
+  }, async (request, reply) => {
     const { id } = request.params;
+
+    const currentTask = await getTask(id);
+    if (!currentTask) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+
+    // Handler-level validation: reject unknown fields and invalid enumerated values.
+    // Fastify's ajv-compiler defaults to removeAdditional:true, so the JSON schema
+    // silently strips unknown fields rather than rejecting them. We enforce the
+    // whitelist here to produce a clear 400 error.
+    const body = request.body as Record<string, unknown>;
+    const unknownFields = Object.keys(body).filter(k => !UPDATABLE_TASK_FIELDS.has(k));
+    if (unknownFields.length > 0) {
+      return reply.status(400).send({
+        error: `Unknown field(s): ${unknownFields.join(', ')}. Allowed fields: ${[...UPDATABLE_TASK_FIELDS].join(', ')}`,
+      });
+    }
+    if (body.status !== undefined && !VALID_TASK_STATUSES.includes(body.status as string)) {
+      return reply.status(400).send({ error: `Invalid status: "${body.status}". Must be one of: ${VALID_TASK_STATUSES.join(', ')}` });
+    }
+    if (body.priority !== undefined && !VALID_TASK_PRIORITIES.includes(body.priority as string)) {
+      return reply.status(400).send({ error: `Invalid priority: "${body.priority}". Must be one of: ${VALID_TASK_PRIORITIES.join(', ')}` });
+    }
+    if (body.type !== undefined && !(VALID_TASK_TYPES as readonly string[]).includes(body.type as string)) {
+      return reply.status(400).send({ error: `Invalid type: "${body.type}". Must be one of: standard, quick, goal` });
+    }
+
+    // Guard: if this update moves the task out of an active workflow status, stop any
+    // still-running agent/workflow process for it BEFORE its leases are released out from
+    // under it (the release itself happens inside updateTask()).
+    const nextStatus = request.body.status;
+    if (
+      nextStatus !== undefined &&
+      nextStatus !== currentTask.status &&
+      ACTIVE_STATUSES.has(currentTask.status) &&
+      !ACTIVE_STATUSES.has(nextStatus)
+    ) {
+      try {
+        await stopWorkflow(id);
+      } catch (err) {
+        console.warn('[Tasks] Failed to stop workflow before status transition:', err instanceof Error ? err.message : 'Unknown error');
+      }
+      try {
+        await stopAgent(id);
+      } catch (err) {
+        console.warn('[Tasks] Failed to stop agent before status transition:', err instanceof Error ? err.message : 'Unknown error');
+      }
+    }
+
     const task = await updateTask(id, request.body);
 
     if (!task) {

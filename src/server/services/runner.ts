@@ -115,7 +115,7 @@ export async function runAgent(taskId: string, title: string, context: string, d
     if (task !== undefined) {
       const memories = await getRelevantMemories(task);
       if (memories.length > 0) {
-        console.log(`[Runner] Injecting ${memories.length} memories into agent context for task ${taskId}`);
+        console.warn(`[Runner] Injecting ${memories.length} memories into agent context for task ${taskId}`);
         const entries = memories
           .map((m, i) => `${i + 1}. [${m.type.toUpperCase()}] ${m.content}`)
           .join('\n');
@@ -131,7 +131,7 @@ export async function runAgent(taskId: string, title: string, context: string, d
   try {
     const tools = await listTools();
     if (tools.length > 0) {
-      console.log(`[Runner] ${tools.length} tools available in agent context for task ${taskId}`);
+      console.warn(`[Runner] ${tools.length} tools available in agent context for task ${taskId}`);
       availableToolsSection = `\n## Available Tools (${tools.length} registered)\n${tools.map(t => `- **${t.manifest.name}**: ${t.manifest.description}\n  Command: \`${t.manifest.command}\``).join('\n')}\nUse these tools when they match the task requirements to avoid re-implementing existing functionality.\n`;
     }
   } catch (error) {
@@ -177,11 +177,57 @@ All code changes MUST comply with the project development guidelines provided ab
 
   const logBuffer: string[] = [];
 
-  // Set up error handler FIRST to catch spawn errors (e.g., command not found)
+  // --- Spawn confirmation phase ---
+  // On Unix, spawn() can return successfully but then emit an 'error' event
+  // asynchronously (e.g., ENOENT when the command is not found). We await
+  // explicit confirmation that the child process is alive before registering
+  // it in activeProcesses, so a spawn failure never leaks a phantom running task.
+  // We use a ref object so TypeScript can track the mutation through the closure.
+  const spawnErrorRef: { err: NodeJS.ErrnoException | null } = { err: null };
+  const onSpawnError = (err: NodeJS.ErrnoException): void => {
+    spawnErrorRef.err = err;
+  };
+  child.once('error', onSpawnError);
+
+  // Yield to the event loop so any queued spawn error can surface.
+  await new Promise<void>(resolve => setImmediate(resolve));
+
+  const spawnError = spawnErrorRef.err;
+  if (spawnError) {
+    // Spawn failed — clean up without ever adding to activeProcesses.
+    // No activeProcesses entry means no leaked concurrency slot.
+    releaseLeases(taskId);
+    console.warn(`[Runner] Released leases for task ${taskId} (spawn error)`);
+
+    const agentName = getAgentDisplayName();
+    let errorMessage = spawnError.message;
+    if (spawnError.code === 'ENOENT') {
+      errorMessage = `Command '${agentCommand}' not found. Please ensure ${agentName} is installed and available in PATH.`;
+    } else if (spawnError.code === 'EACCES') {
+      errorMessage = `Permission denied when trying to execute '${agentCommand}'.`;
+    }
+
+    await updateTaskStatus(taskId, 'todo', null, 'runner.spawn_error');
+
+    broadcastToTask(taskId, {
+      type: 'error',
+      data: errorMessage,
+      timestamp: new Date().toISOString(),
+    });
+
+    throw new Error(errorMessage);
+  }
+
+  // Spawn confirmed — remove the one-shot spawn-error listener and replace
+  // it with the permanent error handler for post-spawn (runtime) failures.
+  child.removeListener('error', onSpawnError);
+
+  // Set up the permanent error handler for post-spawn failures (e.g., process
+  // crash, runtime errors after the child was successfully spawned).
   child.on('error', async (err: NodeJS.ErrnoException) => {
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
-    console.log(`[Runner] Released leases for task ${taskId} (error handler)`);
+    console.warn(`[Runner] Released leases for task ${taskId} (error handler)`);
 
     // Provide helpful error messages for common issues
     const agentName = getAgentDisplayName();
@@ -200,15 +246,6 @@ All code changes MUST comply with the project development guidelines provided ab
       timestamp: new Date().toISOString(),
     });
   });
-
-  // Check if spawn succeeded (pid exists)
-  if (!child.pid) {
-    // Don't throw - let the error event handle it
-    // Return a placeholder that will be updated when error fires
-    activeProcesses.set(taskId, child);
-    await updateTaskStatus(taskId, 'running', 0, 'runner.process_spawned_placeholder');
-    return { pid: 0 };
-  }
 
   activeProcesses.set(taskId, child);
 
@@ -245,7 +282,7 @@ All code changes MUST comply with the project development guidelines provided ab
   child.on('close', async (code) => {
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
-    console.log(`[Runner] Released leases for task ${taskId} (close handler)`);
+    console.warn(`[Runner] Released leases for task ${taskId} (close handler)`);
 
     // Save logs to task
     await appendTaskLogs(taskId, logBuffer);
@@ -262,7 +299,8 @@ All code changes MUST comply with the project development guidelines provided ab
     });
   });
 
-  return { pid: child.pid };
+  // child.pid is guaranteed defined here because spawn was confirmed above
+  return { pid: child.pid! };
 }
 
 export async function stopAgent(taskId: string): Promise<boolean> {

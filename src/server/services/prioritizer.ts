@@ -123,7 +123,7 @@ export function prioritizeQueue(tasks: Task[], allTasks: Task[]): Task[] {
   const originalOrder = tasks.map(t => t.id).join(', ');
   const newOrder = scored.map(e => e.task.id).join(', ');
   if (originalOrder !== newOrder) {
-    console.log(`[Prioritizer] Reordered queue: [${newOrder}] (was [${originalOrder}])`);
+    console.warn(`[Prioritizer] Reordered queue: [${newOrder}] (was [${originalOrder}])`);
   }
 
   return scored.map(e => e.task);

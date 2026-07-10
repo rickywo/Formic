@@ -145,7 +145,7 @@ export async function upsertSession(
       lastActiveAt: now,
     };
     await saveMessagingStore(store);
-    console.log(`[MessagingStore] Updated session ${sessionId}`);
+    console.warn(`[MessagingStore] Updated session ${sessionId}`);
     return store.sessions[existingIndex];
   }
 
@@ -168,7 +168,7 @@ export async function upsertSession(
 
   store.sessions.push(newSession);
   await saveMessagingStore(store);
-  console.log(`[MessagingStore] Created new session ${sessionId}`);
+  console.warn(`[MessagingStore] Created new session ${sessionId}`);
   return newSession;
 }
 
@@ -212,7 +212,7 @@ export async function updateNotificationPreferences(
   session.lastActiveAt = new Date().toISOString();
 
   await saveMessagingStore(store);
-  console.log(`[MessagingStore] Updated notifications for ${sessionId}`);
+  console.warn(`[MessagingStore] Updated notifications for ${sessionId}`);
   return session;
 }
 
@@ -231,7 +231,7 @@ export async function deleteSession(
 
   if (store.sessions.length < initialLength) {
     await saveMessagingStore(store);
-    console.log(`[MessagingStore] Deleted session ${sessionId}`);
+    console.warn(`[MessagingStore] Deleted session ${sessionId}`);
     return true;
   }
 
@@ -252,7 +252,7 @@ export async function getAllSessions(): Promise<MessagingSession[]> {
 export async function clearAllSessions(): Promise<void> {
   const store = createDefaultStore();
   await saveMessagingStore(store);
-  console.log('[MessagingStore] Cleared all sessions');
+  console.warn('[MessagingStore] Cleared all sessions');
 }
 
 // ==================== AI Conversation History Functions ====================
@@ -307,7 +307,7 @@ export async function setAIModeEnabled(
   }
 
   await saveMessagingStore(store);
-  console.log(`[MessagingStore] AI mode ${enabled ? 'enabled' : 'disabled'} for ${sessionId}`);
+  console.warn(`[MessagingStore] AI mode ${enabled ? 'enabled' : 'disabled'} for ${sessionId}`);
   return session;
 }
 
@@ -386,6 +386,6 @@ export async function clearConversationHistory(
   session.lastActiveAt = new Date().toISOString();
 
   await saveMessagingStore(store);
-  console.log(`[MessagingStore] Cleared conversation history for ${sessionId}`);
+  console.warn(`[MessagingStore] Cleared conversation history for ${sessionId}`);
   return true;
 }

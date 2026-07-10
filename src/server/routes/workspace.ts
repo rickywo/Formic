@@ -183,7 +183,7 @@ export async function workspaceRoutes(fastify: FastifyInstance): Promise<void> {
     if (!validation.hasFormic) {
       try {
         await mkdir(formicPath, { recursive: true });
-        console.log('[Workspace] Created .formic directory at:', formicPath);
+        console.warn('[Workspace] Created .formic directory at:', formicPath);
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
         return reply.status(500).send({ error: `Failed to create .formic directory: ${message}` });
@@ -207,7 +207,7 @@ export async function workspaceRoutes(fastify: FastifyInstance): Promise<void> {
     // Restart assistant session if running so it picks up the new workspace context
     const assistantSession = getAssistantSession();
     if (assistantSession.status === 'running') {
-      console.log('[Workspace] Restarting assistant for new workspace:', workspacePath);
+      console.warn('[Workspace] Restarting assistant for new workspace:', workspacePath);
       restartAssistant().catch(err => {
         console.error('[Workspace] Failed to restart assistant:', err);
       });

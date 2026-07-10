@@ -71,7 +71,7 @@ export async function addMemory(
   const store = await loadMemoryStore();
   store.entries.push(newEntry);
   await saveMemoryStore(store);
-  console.log(`[Memory] Added memory entry ${newEntry.id} (type: ${newEntry.type}) for task ${newEntry.source_task}`);
+  console.warn(`[Memory] Added memory entry ${newEntry.id} (type: ${newEntry.type}) for task ${newEntry.source_task}`);
   return newEntry;
 }
 

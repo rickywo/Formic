@@ -4,18 +4,14 @@
  * reverts uncommitted file changes, and re-queues affected tasks.
  */
 
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { getExpiredLeases, releaseLeases, restoreLeases, detectDeadlock, renewLeases } from './leaseManager.js';
-import { stopAgent } from './runner.js';
-import { stopWorkflow, isWorkflowRunning } from './workflow.js';
-import { updateTaskStatus, getTask, validateBoard, loadBoard } from './store.js';
+import { getExpiredLeases, detectDeadlock, renewLeases } from './leaseManager.js';
+import { isWorkflowRunning } from './workflow.js';
+import { getTask, validateBoard, loadBoard } from './store.js';
 import { broadcastBoardUpdate } from './boardNotifier.js';
-import { getWorkspacePath, getBoardPath } from '../utils/paths.js';
-
-const execAsync = promisify(exec);
+import { getBoardPath } from '../utils/paths.js';
+import { teardownTask } from './taskTeardown.js';
 
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 
@@ -58,32 +54,10 @@ async function scanExpiredLeases(): Promise<void> {
         continue;
       }
 
-      // 1. Stop the agent/workflow process
-      const workflowStopped = await stopWorkflow(taskId);
-      if (!workflowStopped) {
-        await stopAgent(taskId);
-      }
+      // 1. Tear down the task: stop → revert → release → re-queue.
+      await teardownTask(taskId, 'lease_expired');
 
-      // 2. Revert uncommitted changes on leased files
-      const exclusiveFiles = files.filter(f => !f.includes('::'));
-      if (exclusiveFiles.length > 0) {
-        try {
-          const fileList = exclusiveFiles.map(f => `"${f}"`).join(' ');
-          await execAsync(`git checkout -- ${fileList}`, { cwd: getWorkspacePath() });
-          console.warn(`[Watchdog] Reverted files for task ${taskId}`);
-        } catch (error) {
-          console.warn(`[Watchdog] Failed to revert files for task ${taskId}:`, error);
-        }
-      }
-
-      // 3. Release all leases
-      releaseLeases(taskId);
-
-      // 4. Re-queue the task
-      await updateTaskStatus(taskId, 'queued', null, 'watchdog.lease_expired');
-      console.warn(`[Watchdog] Re-queued task ${taskId} after lease expiration`);
-
-      // 5. Broadcast board update
+      // 2. Broadcast board update
       broadcastBoardUpdate();
 
     } catch (error) {
@@ -164,7 +138,6 @@ export function startWatchdog(): void {
 
   void refreshEngineConfig().then(() => {
     console.warn(`[Watchdog] Starting watchdog (interval: ${engineConfig.watchdogIntervalMs}ms)`);
-    restoreLeases().catch(e => console.warn('[Watchdog] restore error:', e));
     scheduleWatchdog();
   });
 }

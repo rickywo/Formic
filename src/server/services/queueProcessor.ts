@@ -1,10 +1,11 @@
-import { getQueuedTasks, getAllTasks, getTask, getRunningTasksCount, updateTask } from './store.js';
+import { getQueuedTasks, getAllTasks, getTask, getRunningTasksCount, updateTask, updateTaskStatus } from './store.js';
 import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, executeFromDeclare, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
 import { isFileLeased } from './leaseManager.js';
 import { internalEvents, TASK_COMPLETED, LEASE_RELEASED } from './internalEvents.js';
 import { prioritizeQueue } from './prioritizer.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
+import { broadcastBoardUpdate } from './boardNotifier.js';
 import type { Task } from '../../types/index.js';
 
 const QUEUE_ENABLED = process.env.QUEUE_ENABLED !== 'false';
@@ -91,15 +92,47 @@ async function processQueue(): Promise<void> {
         continue;
       }
 
-      // Check yield count - skip tasks that have been yielded too many times
+      // Check yield count - transition tasks that have been yielded too many times back to todo
       if (nextTask.yieldCount && nextTask.yieldCount >= engineConfig.maxYieldCount) {
-        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max yield count (${engineConfig.maxYieldCount}), skipping`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max yield count (${engineConfig.maxYieldCount}), transitioning to todo`);
+        try {
+          const reason = `cap-exceeded:yields(${nextTask.yieldCount})`;
+          await updateTask(nextTask.id, { yieldReason: reason });
+          await updateTaskStatus(nextTask.id, 'todo', null, 'queueProcessor.yield_cap_exceeded');
+          broadcastBoardUpdate();
+        } catch (err) {
+          console.warn('[QueueProcessor] Failed to transition yield-capped task to todo:', err instanceof Error ? err.message : 'Unknown error');
+        }
         continue;
       }
 
-      // Check retry count - skip tasks that have failed execution too many times
+      // Check retry count - transition tasks that have failed execution too many times back to todo
       if ((nextTask.retryCount ?? 0) >= engineConfig.maxExecutionRetries) {
-        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max execution retries (${engineConfig.maxExecutionRetries}), skipping — set to todo to stop bouncing`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max execution retries (${engineConfig.maxExecutionRetries}), transitioning to todo`);
+        try {
+          const reason = `cap-exceeded:retries(${nextTask.retryCount ?? 0})`;
+          await updateTask(nextTask.id, { yieldReason: reason });
+          await updateTaskStatus(nextTask.id, 'todo', null, 'queueProcessor.retry_cap_exceeded');
+          broadcastBoardUpdate();
+        } catch (err) {
+          console.warn('[QueueProcessor] Failed to transition retry-capped task to todo:', err instanceof Error ? err.message : 'Unknown error');
+        }
+        continue;
+      }
+
+      // Check recovery count - transition tasks that have been recovered too many times back to todo.
+      // This bounds the infinite dispatch loop when Formic self-hosts under tsx watch:
+      // each server restart recovers the task, but after N recoveries the task is demoted.
+      if ((nextTask.recoveryCount ?? 0) > engineConfig.maxExecutionRetries) {
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max recoveries (${engineConfig.maxExecutionRetries}), transitioning to todo`);
+        try {
+          const reason = `cap-exceeded:recoveries(${nextTask.recoveryCount ?? 0})`;
+          await updateTask(nextTask.id, { yieldReason: reason });
+          await updateTaskStatus(nextTask.id, 'todo', null, 'queueProcessor.recovery_cap_exceeded');
+          broadcastBoardUpdate();
+        } catch (err) {
+          console.warn('[QueueProcessor] Failed to transition recovery-capped task to todo:', err instanceof Error ? err.message : 'Unknown error');
+        }
         continue;
       }
 
@@ -121,7 +154,7 @@ async function processQueue(): Promise<void> {
         yieldUntil.set(nextTask.id, Date.now() + nextBackoff);
 
         const reason = `lease-conflict:${conflictingFile}`;
-        console.log(`[QueueProcessor] Task ${nextTask.id} yielding — ${reason} (backoff ${nextBackoff}ms)`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} yielding — ${reason} (backoff ${nextBackoff}ms)`);
         try {
           await updateTask(nextTask.id, { yieldReason: reason });
         } catch (err) {
@@ -131,7 +164,7 @@ async function processQueue(): Promise<void> {
         continue;
       }
 
-      console.log(`[QueueProcessor] Starting task ${nextTask.id}: ${nextTask.title}`);
+      console.warn(`[QueueProcessor] Starting task ${nextTask.id}: ${nextTask.title}`);
 
       // Clear any stale backoff state for this task before dispatching
       yieldBackoffMs.delete(nextTask.id);
@@ -149,13 +182,13 @@ async function processQueue(): Promise<void> {
 
       // Check task type and execute appropriate workflow
       if (nextTask.type === 'quick') {
-        console.log(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} is a quick task - skipping brief/plan stages`);
         await executeQuickTask(nextTask.id);
       } else if (nextTask.type === 'goal') {
-        console.log(`[QueueProcessor] Task ${nextTask.id} is a goal task - running architect decomposition`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} is a goal task - running architect decomposition`);
         await executeGoalWorkflow(nextTask.id);
       } else if (freshTask?.resumeFromStep === 'declare' || freshTask?.resumeFromStep === 'execute') {
-        console.log(`[QueueProcessor] Task ${nextTask.id} resuming from ${freshTask.resumeFromStep} step (skipping brief/plan)`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} resuming from ${freshTask.resumeFromStep} step (skipping brief/plan)`);
         await executeFromDeclare(nextTask.id);
       } else {
         await executeFullWorkflow(nextTask.id);
@@ -184,7 +217,7 @@ export function wakeQueueProcessor(): void {
   if (!QUEUE_ENABLED || isProcessing) {
     return;
   }
-  console.log('[QueueProcessor] Woken by event');
+  console.warn('[QueueProcessor] Woken by event');
   void processQueue();
 }
 
@@ -202,16 +235,16 @@ function schedulePoll(): void {
  */
 export function startQueueProcessor(): void {
   if (!QUEUE_ENABLED) {
-    console.log('[QueueProcessor] Queue processing is disabled (QUEUE_ENABLED=false)');
+    console.warn('[QueueProcessor] Queue processing is disabled (QUEUE_ENABLED=false)');
     return;
   }
 
   if (pollTimeoutId !== null) {
-    console.log('[QueueProcessor] Queue processor already running');
+    console.warn('[QueueProcessor] Queue processor already running');
     return;
   }
 
-  console.log(`[QueueProcessor] Starting queue processor (poll: ${engineConfig.queuePollIntervalMs}ms, max concurrent: ${engineConfig.maxConcurrentTasks})`);
+  console.warn(`[QueueProcessor] Starting queue processor (poll: ${engineConfig.queuePollIntervalMs}ms, max concurrent: ${engineConfig.maxConcurrentTasks})`);
 
   // Subscribe to internal wake events
   internalEvents.on(TASK_COMPLETED, wakeQueueProcessor);
@@ -236,7 +269,7 @@ export function stopQueueProcessor(): void {
     internalEvents.off(TASK_COMPLETED, wakeQueueProcessor);
     internalEvents.off(LEASE_RELEASED, wakeQueueProcessor);
 
-    console.log('[QueueProcessor] Queue processor stopped');
+    console.warn('[QueueProcessor] Queue processor stopped');
   }
 }
 
@@ -245,7 +278,7 @@ export function stopQueueProcessor(): void {
  */
 export function pauseQueueProcessor(): void {
   stopQueueProcessor();
-  console.log('[QueueProcessor] Queue paused by kill switch');
+  console.warn('[QueueProcessor] Queue paused by kill switch');
 }
 
 /**

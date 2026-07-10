@@ -74,15 +74,15 @@ export async function isPlaywrightAvailable(): Promise<boolean> {
     });
 
     if (result) {
-      console.log('[McpScreenshot] Playwright is available');
+      console.warn('[McpScreenshot] Playwright is available');
     } else {
-      console.log('[McpScreenshot] Playwright is not available');
+      console.warn('[McpScreenshot] Playwright is not available');
     }
 
     return result;
   } catch (error) {
     const err = error as Error;
-    console.log('[McpScreenshot] Playwright availability check failed:', err.message);
+    console.warn('[McpScreenshot] Playwright availability check failed:', err.message);
     return false;
   }
 }
@@ -141,17 +141,17 @@ function generateTempFilename(): string {
  * @returns ScreenshotResult with base64-encoded PNG data or error
  */
 export async function takeScreenshot(url: string): Promise<ScreenshotResult> {
-  console.log(`[McpScreenshot] Taking screenshot of: ${url}`);
+  console.warn(`[McpScreenshot] Taking screenshot of: ${url}`);
 
   // Validate URL
   const validation = validateUrl(url);
   if (!validation.valid) {
-    console.log(`[McpScreenshot] Invalid URL: ${validation.error}`);
+    console.warn(`[McpScreenshot] Invalid URL: ${validation.error}`);
     return { success: false, error: validation.error };
   }
 
   const normalizedUrl = validation.url!;
-  console.log(`[McpScreenshot] Normalized URL: ${normalizedUrl}`);
+  console.warn(`[McpScreenshot] Normalized URL: ${normalizedUrl}`);
 
   // Check if Playwright is available
   const playwrightAvailable = await isPlaywrightAvailable();
@@ -247,7 +247,7 @@ const { chromium } = require('playwright');
     });
 
     if (!result.success) {
-      console.log(`[McpScreenshot] Screenshot failed: ${result.error}`);
+      console.warn(`[McpScreenshot] Screenshot failed: ${result.error}`);
       return { success: false, error: result.error };
     }
 
@@ -256,7 +256,7 @@ const { chromium } = require('playwright');
     const screenshotBuffer = await readFile(tempFile);
     const base64Data = screenshotBuffer.toString('base64');
 
-    console.log(`[McpScreenshot] Screenshot captured successfully (${Math.round(screenshotBuffer.length / 1024)}KB)`);
+    console.warn(`[McpScreenshot] Screenshot captured successfully (${Math.round(screenshotBuffer.length / 1024)}KB)`);
 
     // Clean up temp file
     try {

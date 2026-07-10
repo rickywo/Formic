@@ -18,8 +18,8 @@ export function createObjective(input: Omit<TestObjective, 'id'>): TestObjective
   return { id: 'obj-new', ...input };
 }
 
-export function getObjective(id: string): TestObjective {
-  return { ...MOCK_OBJECTIVE_1, id };
+export function getObjective(id: string): TestObjective | undefined {
+  return [MOCK_OBJECTIVE_1, MOCK_OBJECTIVE_2].find((obj) => obj.id === id);
 }
 
 export function listObjectives(): TestObjective[] {

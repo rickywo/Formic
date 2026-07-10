@@ -475,7 +475,7 @@ async function isPlaywrightMCPAvailable(): Promise<boolean> {
  * Returns the screenshot as a base64-encoded buffer
  */
 async function takeScreenshotWithMCP(url: string): Promise<{ success: boolean; data?: string; source?: 'url' | 'buffer'; error?: string }> {
-  console.log(`[MessagingAdapter] Initiating screenshot capture for: ${url}`);
+  console.warn(`[MessagingAdapter] Initiating screenshot capture for: ${url}`);
   const result = await captureScreenshot(url);
 
   if (result.success) {

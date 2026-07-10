@@ -134,6 +134,201 @@ def test_api():
         print("✗ Skipped (no task created)")
         results.append(("DELETE /api/tasks/:id", "SKIP"))
 
+    # ============================================================
+    # Tests for PUT /api/tasks/:id field whitelist and validation
+    # ============================================================
+
+    # Create a fresh task for the whitelist/validation tests
+    whitelist_task_id = None
+    try:
+        response = requests.post(
+            f"{BASE_URL}/api/tasks",
+            json={
+                "title": f"Whitelist Validation Test {unique_id}",
+                "context": "Testing field whitelist and value validation on PUT",
+                "priority": "medium"
+            }
+        )
+        if response.status_code in [200, 201]:
+            whitelist_task_id = response.json().get('id')
+            print(f"\n✓ Created test task for whitelist tests: {whitelist_task_id}")
+        else:
+            print(f"\n✗ Failed to create test task for whitelist tests: {response.status_code}")
+    except Exception as e:
+        print(f"\n✗ Error creating test task for whitelist tests: {e}")
+
+    if whitelist_task_id:
+        # Test 5a: Reject unknown field 'pid'
+        print("\n=== Test 5a: PUT with unknown field 'pid' → 400 ===")
+        try:
+            response = requests.put(
+                f"{BASE_URL}/api/tasks/{whitelist_task_id}",
+                json={"pid": 9999}
+            )
+            if response.status_code == 400:
+                print(f"✓ Correctly rejected unknown 'pid' field (400)")
+                results.append(("PUT whitelist: reject 'pid'", "PASS"))
+            else:
+                print(f"✗ Expected 400, got {response.status_code}: {response.text}")
+                results.append(("PUT whitelist: reject 'pid'", "FAIL"))
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            results.append(("PUT whitelist: reject 'pid'", "FAIL"))
+
+        # Test 5b: Reject unknown field 'retryCount'
+        print("\n=== Test 5b: PUT with unknown field 'retryCount' → 400 ===")
+        try:
+            response = requests.put(
+                f"{BASE_URL}/api/tasks/{whitelist_task_id}",
+                json={"retryCount": 5}
+            )
+            if response.status_code == 400:
+                print(f"✓ Correctly rejected unknown 'retryCount' field (400)")
+                results.append(("PUT whitelist: reject 'retryCount'", "PASS"))
+            else:
+                print(f"✗ Expected 400, got {response.status_code}: {response.text}")
+                results.append(("PUT whitelist: reject 'retryCount'", "FAIL"))
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            results.append(("PUT whitelist: reject 'retryCount'", "FAIL"))
+
+        # Test 5c: Reject unknown field 'agentLogs'
+        print("\n=== Test 5c: PUT with unknown field 'agentLogs' → 400 ===")
+        try:
+            response = requests.put(
+                f"{BASE_URL}/api/tasks/{whitelist_task_id}",
+                json={"agentLogs": ["fake log"]}
+            )
+            if response.status_code == 400:
+                print(f"✓ Correctly rejected unknown 'agentLogs' field (400)")
+                results.append(("PUT whitelist: reject 'agentLogs'", "PASS"))
+            else:
+                print(f"✗ Expected 400, got {response.status_code}: {response.text}")
+                results.append(("PUT whitelist: reject 'agentLogs'", "FAIL"))
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            results.append(("PUT whitelist: reject 'agentLogs'", "FAIL"))
+
+        # Test 5d: Reject invalid status value
+        print("\n=== Test 5d: PUT with invalid status 'bogus' → 400 ===")
+        try:
+            response = requests.put(
+                f"{BASE_URL}/api/tasks/{whitelist_task_id}",
+                json={"status": "bogus"}
+            )
+            if response.status_code == 400:
+                print(f"✓ Correctly rejected invalid status 'bogus' (400)")
+                results.append(("PUT validation: reject invalid status", "PASS"))
+            else:
+                print(f"✗ Expected 400, got {response.status_code}: {response.text}")
+                results.append(("PUT validation: reject invalid status", "FAIL"))
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            results.append(("PUT validation: reject invalid status", "FAIL"))
+
+        # Test 5e: Reject invalid priority value
+        print("\n=== Test 5e: PUT with invalid priority 'urgent' → 400 ===")
+        try:
+            response = requests.put(
+                f"{BASE_URL}/api/tasks/{whitelist_task_id}",
+                json={"priority": "urgent"}
+            )
+            if response.status_code == 400:
+                print(f"✓ Correctly rejected invalid priority 'urgent' (400)")
+                results.append(("PUT validation: reject invalid priority", "PASS"))
+            else:
+                print(f"✗ Expected 400, got {response.status_code}: {response.text}")
+                results.append(("PUT validation: reject invalid priority", "FAIL"))
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            results.append(("PUT validation: reject invalid priority", "FAIL"))
+
+        # Test 5f: Reject invalid type value
+        print("\n=== Test 5f: PUT with invalid type 'epic' → 400 ===")
+        try:
+            response = requests.put(
+                f"{BASE_URL}/api/tasks/{whitelist_task_id}",
+                json={"type": "epic"}
+            )
+            if response.status_code == 400:
+                print(f"✓ Correctly rejected invalid type 'epic' (400)")
+                results.append(("PUT validation: reject invalid type", "PASS"))
+            else:
+                print(f"✗ Expected 400, got {response.status_code}: {response.text}")
+                results.append(("PUT validation: reject invalid type", "FAIL"))
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            results.append(("PUT validation: reject invalid type", "FAIL"))
+
+        # Test 5g: Successful partial update with allowed fields
+        print("\n=== Test 5g: PUT with allowed fields → 200 ===")
+        try:
+            response = requests.put(
+                f"{BASE_URL}/api/tasks/{whitelist_task_id}",
+                json={"title": "Updated Title via Whitelist", "priority": "low"}
+            )
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('title') == 'Updated Title via Whitelist' and data.get('priority') == 'low':
+                    print(f"✓ Allowed fields updated successfully")
+                    results.append(("PUT whitelist: allowed fields succeed", "PASS"))
+                else:
+                    print(f"✗ Fields not updated correctly: title={data.get('title')}, priority={data.get('priority')}")
+                    results.append(("PUT whitelist: allowed fields succeed", "FAIL"))
+            else:
+                print(f"✗ Expected 200, got {response.status_code}: {response.text}")
+                results.append(("PUT whitelist: allowed fields succeed", "FAIL"))
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            results.append(("PUT whitelist: allowed fields succeed", "FAIL"))
+
+        # Test 5h: Verify internal fields were NOT overwritten by earlier rejection tests
+        print("\n=== Test 5h: GET verifies internal fields unchanged ===")
+        try:
+            response = requests.get(f"{BASE_URL}/api/tasks/{whitelist_task_id}")
+            if response.status_code == 200:
+                data = response.json()
+                # pid should not be 9999 (from test 5a)
+                # retryCount should not be 5 (from test 5b)
+                # agentLogs should not be ['fake log'] (from test 5c)
+                checks_ok = True
+                if data.get('pid') == 9999:
+                    print(f"✗ pid was overwritten to 9999!")
+                    checks_ok = False
+                if data.get('retryCount') == 5:
+                    print(f"✗ retryCount was overwritten to 5!")
+                    checks_ok = False
+                if data.get('agentLogs') == ['fake log']:
+                    print(f"✗ agentLogs was overwritten!")
+                    checks_ok = False
+                if checks_ok:
+                    print(f"✓ Internal fields (pid, retryCount, agentLogs) were NOT overwritten")
+                    results.append(("PUT whitelist: internal fields protected", "PASS"))
+                else:
+                    results.append(("PUT whitelist: internal fields protected", "FAIL"))
+            else:
+                print(f"✗ GET failed: {response.status_code}")
+                results.append(("PUT whitelist: internal fields protected", "FAIL"))
+        except Exception as e:
+            print(f"✗ Error: {e}")
+            results.append(("PUT whitelist: internal fields protected", "FAIL"))
+
+        # Clean up the whitelist test task
+        try:
+            requests.delete(f"{BASE_URL}/api/tasks/{whitelist_task_id}")
+        except Exception:
+            pass
+    else:
+        print("\n✗ Skipping whitelist/validation tests (no test task created)")
+        results.append(("PUT whitelist: reject 'pid'", "SKIP"))
+        results.append(("PUT whitelist: reject 'retryCount'", "SKIP"))
+        results.append(("PUT whitelist: reject 'agentLogs'", "SKIP"))
+        results.append(("PUT validation: reject invalid status", "SKIP"))
+        results.append(("PUT validation: reject invalid priority", "SKIP"))
+        results.append(("PUT validation: reject invalid type", "SKIP"))
+        results.append(("PUT whitelist: allowed fields succeed", "SKIP"))
+        results.append(("PUT whitelist: internal fields protected", "SKIP"))
+
     # Print summary
     print("\n" + "=" * 50)
     print("API TEST SUMMARY")

@@ -12,11 +12,82 @@ import {
 } from './bootstrap.js';
 import { copySkillsToWorkspace } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
-import { releaseLeases } from './leaseManager.js';
+import { releaseLeases, clearWait } from './leaseManager.js';
 import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
 
 /** Async write mutex — serializes all saveBoard() calls to prevent concurrent write corruption */
 let saveLock: Promise<void> = Promise.resolve();
+
+/**
+ * Promise-chained mutex that serializes entire board read-modify-write cycles.
+ *
+ * Every board mutator MUST use this instead of manually calling loadBoard() →
+ * mutate → saveBoard(). The existing saveLock only serializes the final write;
+ * without this whole-cycle lock, concurrent mutators can both load the same
+ * stale snapshot and the later save silently erases the earlier change
+ * (lost-update race).
+ *
+ * Usage:
+ *   const result = await withBoard((board) => {
+ *     const task = board.tasks.find(t => t.id === id);
+ *     task.status = 'done';
+ *     return task;
+ *   });
+ *
+ * IMPORTANT: The mutator callback MUST NOT call any other function that itself
+ * calls withBoard() (e.g. queueTask, appendTaskLogs, updateTask). Doing so
+ * would deadlock on this mutex. Side effects that mutate the board must be
+ * deferred until AFTER withBoard resolves.
+ */
+let boardMutex: Promise<void> = Promise.resolve();
+
+export async function withBoard<T>(mutator: (board: Board) => T | Promise<T>): Promise<T> {
+  const resultPromise = boardMutex.then(async () => {
+    const board = await loadBoard();
+    const result = await mutator(board);
+    await saveBoard(board);
+    return result;
+  });
+
+  // Keep the chain alive regardless of success/failure so future
+  // withBoard calls aren't permanently blocked by a failed cycle.
+  boardMutex = resultPromise.then(() => undefined, () => undefined);
+
+  return resultPromise;
+}
+
+/**
+ * Statuses representing an actively-running workflow step for a task.
+ * Single source of truth used both for duration tracking (startedAt) and for
+ * deciding when a task's file leases must be released immediately on exit
+ * from one of these states (see updateTask() and updateTaskStatus()).
+ */
+export const ACTIVE_STATUSES: ReadonlySet<Task['status']> = new Set([
+  'briefing',
+  'planning',
+  'declaring',
+  'running',
+  'architecting',
+  'verifying',
+]);
+
+/**
+ * Release file leases and clear wait-queue state for a task that has just
+ * transitioned out of an active workflow status. Safe to call even if the
+ * task holds no leases (releaseLeases/clearWait are no-ops in that case).
+ */
+function releaseLeasesOnExitFromActive(taskId: string, previousStatus: Task['status'], nextStatus: Task['status']): void {
+  if (!ACTIVE_STATUSES.has(previousStatus) || ACTIVE_STATUSES.has(nextStatus)) {
+    return;
+  }
+
+  try {
+    releaseLeases(taskId);
+    clearWait(taskId);
+  } catch (err) {
+    console.warn('[Store] Failed to release leases on status transition:', err instanceof Error ? err.message : 'Unknown error');
+  }
+}
 
 /**
  * Get project name from workspace folder name
@@ -73,6 +144,7 @@ export function validateBoard(board: unknown): board is Board {
   if (typeof meta.projectName !== 'string') return false;
   if (typeof meta.repoPath !== 'string') return false;
   if (typeof meta.createdAt !== 'string') return false;
+  if (meta.nextTaskId !== undefined && typeof meta.nextTaskId !== 'number') return false;
 
   // Validate tasks array
   if (!Array.isArray(b.tasks)) return false;
@@ -200,6 +272,7 @@ export async function getBoardWithBootstrap(): Promise<Board> {
         // Normalize self-healing fields for backward compatibility with tasks stored before these fields existed
         safePointCommit: task.safePointCommit ?? null,
         retryCount: task.retryCount ?? null,
+        recoveryCount: task.recoveryCount ?? null,
         fixForTaskId: task.fixForTaskId ?? null,
       };
 
@@ -228,6 +301,13 @@ export async function getBoardWithBootstrap(): Promise<Board> {
 /**
  * Save the board to workspace/.formic/board.json
  * Uses atomic temp-file+rename, rolling backup, and async mutex.
+ *
+ * IMPORTANT: Direct loadBoard() → mutate → saveBoard() sequences outside of
+ * withBoard() are FORBIDDEN for any operation that mutates the board. Always
+ * use withBoard() for read-modify-write cycles to prevent lost-update races
+ * under concurrency. This method's own saveLock is defense-in-depth — it
+ * serializes the final write but cannot prevent two callers from loading the
+ * same stale snapshot before either saves.
  */
 export async function saveBoard(board: Board): Promise<void> {
   // Validate before any disk I/O
@@ -283,111 +363,133 @@ export async function getTask(taskId: string): Promise<Task | undefined> {
  * Create a new task with documentation folder
  */
 export async function createTask(input: CreateTaskInput): Promise<Task> {
-  const board = await loadBoard();
+  return withBoard(async (board) => {
+    // Generate next task ID from a persistent monotonic counter so deleting the
+    // highest-numbered task (or restoring an older board) never causes ID reuse.
+    // Seed the counter from the current max ID on first use (covers boards saved
+    // before this field existed); BOOTSTRAP_TASK_ID ('t-bootstrap') is excluded
+    // naturally since parseInt('bootstrap', 10) is not finite.
+    const seeded = board.meta.nextTaskId ?? board.tasks.reduce((max, task) => {
+      const num = parseInt(task.id.replace('t-', ''), 10);
+      return Number.isFinite(num) && num > max ? num : max;
+    }, 0) + 1;
 
-  // Generate next task ID
-  const maxId = board.tasks.reduce((max, task) => {
-    const num = parseInt(task.id.replace('t-', ''), 10);
-    return num > max ? num : max;
-  }, 0);
+    const taskId = `t-${seeded}`;
+    board.meta.nextTaskId = seeded + 1;
 
-  const taskId = `t-${maxId + 1}`;
+    // Create documentation folder and get the relative path
+    const docsPath = await createTaskDocsFolder(taskId, input.title, input.context);
 
-  // Create documentation folder and get the relative path
-  const docsPath = await createTaskDocsFolder(taskId, input.title, input.context);
+    const task: Task = {
+      id: taskId,
+      title: input.title,
+      context: input.context,
+      priority: input.priority || 'medium',
+      status: 'todo',
+      docsPath,
+      agentLogs: [],
+      pid: null,
+      // Task type: 'standard' (full workflow) or 'quick' (direct execution)
+      type: input.type || 'standard',
+      // Initialize workflow fields
+      workflowStep: 'pending',
+      workflowLogs: {},
+      // Timestamp for queue ordering
+      createdAt: new Date().toISOString(),
+      // Self-healing fields — always present, null when not set
+      safePointCommit: null,
+      retryCount: null,
+      recoveryCount: null,
+      fixForTaskId: input.fixForTaskId ?? null,
+      // Goal linkage — present when task is a child of a goal task
+      ...(input.parentGoalId ? { parentGoalId: input.parentGoalId } : {}),
+    };
 
-  const task: Task = {
-    id: taskId,
-    title: input.title,
-    context: input.context,
-    priority: input.priority || 'medium',
-    status: 'todo',
-    docsPath,
-    agentLogs: [],
-    pid: null,
-    // Task type: 'standard' (full workflow) or 'quick' (direct execution)
-    type: input.type || 'standard',
-    // Initialize workflow fields
-    workflowStep: 'pending',
-    workflowLogs: {},
-    // Timestamp for queue ordering
-    createdAt: new Date().toISOString(),
-    // Self-healing fields — always present, null when not set
-    safePointCommit: null,
-    retryCount: null,
-    fixForTaskId: input.fixForTaskId ?? null,
-    // Goal linkage — present when task is a child of a goal task
-    ...(input.parentGoalId ? { parentGoalId: input.parentGoalId } : {}),
-  };
-
-  board.tasks.push(task);
-  await saveBoard(board);
-  return task;
+    board.tasks.push(task);
+    return task;
+  });
 }
 
 /**
  * Update a task (docsPath cannot be changed)
  */
 export async function updateTask(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
-  const board = await loadBoard();
-  const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+  // Capture values inside the serialized withBoard closure for use in post-save
+  // hooks, which must run OUTSIDE withBoard to avoid deadlocking on nested
+  // withBoard calls (unblockSiblingTasks → queueTask → withBoard).
+  let previousStatus: Task['status'] | undefined;
+  let parentGoalId: string | undefined;
 
-  if (taskIndex === -1) {
-    return null;
+  const result = await withBoard((board) => {
+    const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+
+    if (taskIndex === -1) {
+      return null;
+    }
+
+    const task = board.tasks[taskIndex];
+    previousStatus = task.status;
+    parentGoalId = task.parentGoalId;
+
+    // Merge input but preserve docsPath
+    board.tasks[taskIndex] = {
+      ...task,
+      ...input,
+      docsPath: task.docsPath, // Ensure docsPath cannot be changed
+    };
+
+    return board.tasks[taskIndex];
+  });
+
+  if (result === null) return null;
+
+  // Post-transition hook: release file leases and clear wait state the moment a task
+  // leaves an active workflow status via any PUT /api/tasks/:id status change (e.g. a
+  // manual board-drag), not just workflow-internal exit paths.
+  if (input.status !== undefined && previousStatus !== undefined) {
+    releaseLeasesOnExitFromActive(taskId, previousStatus, input.status);
   }
-
-  const task = board.tasks[taskIndex];
-  const previousStatus = task.status;
-
-  // Merge input but preserve docsPath
-  board.tasks[taskIndex] = {
-    ...task,
-    ...input,
-    docsPath: task.docsPath, // Ensure docsPath cannot be changed
-  };
-
-  await saveBoard(board);
 
   // Post-transition hook: unblock sibling tasks when status transitions to 'review' or 'done'.
   // This mirrors the same hook in updateTaskStatus and covers the user-approval path
   // (PUT /api/tasks/:id with { status: 'done' or 'review' }) which does not go through updateTaskStatus.
-  if ((input.status === 'done' || input.status === 'review') && input.status !== previousStatus && task.parentGoalId) {
+  if ((input.status === 'done' || input.status === 'review') && input.status !== previousStatus && parentGoalId) {
     try {
-      await unblockSiblingTasks(taskId, task.parentGoalId);
+      await unblockSiblingTasks(taskId, parentGoalId);
     } catch (err) {
       console.warn('[Store] Failed to unblock sibling tasks:', err instanceof Error ? err.message : 'Unknown error');
     }
   }
 
-  return board.tasks[taskIndex];
+  return result;
 }
 
 /**
  * Delete a task and optionally its documentation folder
  */
 export async function deleteTask(taskId: string, preserveHistory: boolean = false): Promise<boolean> {
-  const board = await loadBoard();
-  const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+  return withBoard(async (board) => {
+    const taskIndex = board.tasks.findIndex(t => t.id === taskId);
 
-  if (taskIndex === -1) {
-    return false;
-  }
+    if (taskIndex === -1) {
+      return false;
+    }
 
-  const task = board.tasks[taskIndex];
+    const task = board.tasks[taskIndex];
 
-  // Release any leases held by this task (defensive - task may be in declaring or queued-after-yield state)
-  try {
-    releaseLeases(taskId);
-  } catch (err) {
-    console.warn('[Store] Failed to release leases during task deletion:', err instanceof Error ? err.message : 'Unknown error');
-  }
+    // Release any leases held by this task (defensive - task may be in declaring or queued-after-yield state)
+    try {
+      releaseLeases(taskId);
+    } catch (err) {
+      console.warn('[Store] Failed to release leases during task deletion:', err instanceof Error ? err.message : 'Unknown error');
+    }
 
-  // Delete documentation folder if not preserving history
-  await deleteTaskDocsFolder(task.docsPath, preserveHistory);
+    // Delete documentation folder if not preserving history
+    await deleteTaskDocsFolder(task.docsPath, preserveHistory);
 
-  board.tasks.splice(taskIndex, 1);
-  await saveBoard(board);
-  return true;
+    board.tasks.splice(taskIndex, 1);
+    return true;
+  });
 }
 
 /**
@@ -425,49 +527,62 @@ async function unblockSiblingTasks(completedTaskId: string, parentGoalId: string
  * Update task status and optionally PID
  */
 export async function updateTaskStatus(taskId: string, status: Task['status'], pid?: number | null, caller?: string): Promise<Task | null> {
-  const board = await loadBoard();
-  const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+  // Capture values inside the serialized withBoard closure for use in post-save
+  // hooks, which must run OUTSIDE withBoard to avoid deadlocking on nested
+  // withBoard calls (appendTaskLogs → withBoard, unblockSiblingTasks → queueTask → withBoard).
+  let previousStatus: Task['status'] | undefined;
+  let parentGoalId: string | undefined;
 
-  if (taskIndex === -1) {
-    return null;
-  }
+  const result = await withBoard((board) => {
+    const taskIndex = board.tasks.findIndex(t => t.id === taskId);
 
-  const previousStatus = board.tasks[taskIndex].status;
-
-  board.tasks[taskIndex].status = status;
-  if (pid !== undefined) {
-    board.tasks[taskIndex].pid = pid;
-  }
-
-  // Duration tracking: set startedAt on first active transition
-  const activeStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
-  if (activeStatuses.includes(status) && !board.tasks[taskIndex].startedAt) {
-    board.tasks[taskIndex].startedAt = new Date().toISOString();
-  }
-
-  // Duration tracking: set completedAt on completion
-  // NOTE: 'blocked' is intentionally excluded here — blocked tasks are not yet complete.
-  if (status === 'review' || status === 'done') {
-    board.tasks[taskIndex].completedAt = new Date().toISOString();
-  }
-
-  // Duration tracking: clear timestamps on reset to todo
-  // NOTE: 'blocked' does not trigger this reset — queuedAt and startedAt are preserved.
-  if (status === 'todo') {
-    board.tasks[taskIndex].startedAt = undefined;
-    board.tasks[taskIndex].completedAt = undefined;
-
-    // Workflow resumption: if brief+plan are already done (workflowStep is 'declare',
-    // 'execute', or 'verify'), mark the task to resume from declare on re-queue so it
-    // skips brief and plan instead of starting over from scratch.
-    const stepsPastPlan: WorkflowStep[] = ['declare', 'execute', 'verify'];
-    const currentStep = board.tasks[taskIndex].workflowStep;
-    if (currentStep && stepsPastPlan.includes(currentStep) && !board.tasks[taskIndex].resumeFromStep) {
-      board.tasks[taskIndex].resumeFromStep = 'declare';
+    if (taskIndex === -1) {
+      return null;
     }
-  }
 
-  await saveBoard(board);
+    previousStatus = board.tasks[taskIndex].status;
+    parentGoalId = board.tasks[taskIndex].parentGoalId;
+
+    board.tasks[taskIndex].status = status;
+    if (pid !== undefined) {
+      board.tasks[taskIndex].pid = pid;
+    }
+
+    // Duration tracking: set startedAt on first active transition
+    if (ACTIVE_STATUSES.has(status) && !board.tasks[taskIndex].startedAt) {
+      board.tasks[taskIndex].startedAt = new Date().toISOString();
+    }
+
+    // Duration tracking: set completedAt on completion
+    // NOTE: 'blocked' is intentionally excluded here — blocked tasks are not yet complete.
+    if (status === 'review' || status === 'done') {
+      board.tasks[taskIndex].completedAt = new Date().toISOString();
+    }
+
+    // Duration tracking: clear timestamps on reset to todo
+    // NOTE: 'blocked' does not trigger this reset — queuedAt and startedAt are preserved.
+    if (status === 'todo') {
+      board.tasks[taskIndex].startedAt = undefined;
+      board.tasks[taskIndex].completedAt = undefined;
+
+      // Workflow resumption: if brief+plan are already done (workflowStep is 'declare',
+      // 'execute', or 'verify'), mark the task to resume from declare on re-queue so it
+      // skips brief and plan instead of starting over from scratch.
+      const stepsPastPlan: WorkflowStep[] = ['declare', 'execute', 'verify'];
+      const currentStep = board.tasks[taskIndex].workflowStep;
+      if (currentStep && stepsPastPlan.includes(currentStep) && !board.tasks[taskIndex].resumeFromStep) {
+        board.tasks[taskIndex].resumeFromStep = 'declare';
+      }
+    }
+
+    return board.tasks[taskIndex];
+  });
+
+  if (result === null) return null;
+
+  // Post-transition hook: release file leases and clear wait state the moment a task
+  // leaves an active workflow status, regardless of which caller triggered the change.
+  releaseLeasesOnExitFromActive(taskId, previousStatus!, status);
 
   // Structured status transition log
   const timestamp = new Date().toISOString();
@@ -488,61 +603,63 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
   }
 
   // Post-transition hook: unblock sibling tasks whose dependencies are now all resolved (review or done)
-  if ((status === 'done' || status === 'review') && board.tasks[taskIndex].parentGoalId) {
+  if ((status === 'done' || status === 'review') && parentGoalId) {
     try {
-      await unblockSiblingTasks(taskId, board.tasks[taskIndex].parentGoalId!);
+      await unblockSiblingTasks(taskId, parentGoalId);
     } catch (err) {
       console.warn('[Store] Failed to unblock sibling tasks:', err instanceof Error ? err.message : 'Unknown error');
     }
   }
 
-  return board.tasks[taskIndex];
+  return result;
 }
 
 /**
  * Append logs to a task (max 50 lines)
  */
 export async function appendTaskLogs(taskId: string, logs: string[]): Promise<void> {
-  const board = await loadBoard();
-  const task = board.tasks.find(t => t.id === taskId);
-
-  if (!task) return;
-
-  task.agentLogs.push(...logs);
-  // Keep only last 50 lines
-  if (task.agentLogs.length > 50) {
-    task.agentLogs = task.agentLogs.slice(-50);
-  }
-
-  await saveBoard(board);
+  await withBoard((board) => {
+    const task = board.tasks.find(t => t.id === taskId);
+    if (!task) return;
+    task.agentLogs.push(...logs);
+    // Keep only last 50 lines
+    if (task.agentLogs.length > 50) {
+      task.agentLogs = task.agentLogs.slice(-50);
+    }
+  });
 }
 
 /**
  * Queue a task - transition from todo to queued and set queuedAt timestamp
  */
 export async function queueTask(taskId: string): Promise<Task | null> {
-  const board = await loadBoard();
-  const taskIndex = board.tasks.findIndex(t => t.id === taskId);
+  return withBoard((board) => {
+    const taskIndex = board.tasks.findIndex(t => t.id === taskId);
 
-  if (taskIndex === -1) {
-    return null;
-  }
+    if (taskIndex === -1) {
+      return null;
+    }
 
-  const task = board.tasks[taskIndex];
+    const task = board.tasks[taskIndex];
 
-  // Only allow queuing from 'todo' or 'blocked' status
-  if (task.status !== 'todo' && task.status !== 'blocked') {
-    return null;
-  }
+    // Only allow queuing from 'todo' or 'blocked' status
+    if (task.status !== 'todo' && task.status !== 'blocked') {
+      return null;
+    }
 
-  board.tasks[taskIndex] = {
-    ...task,
-    status: 'queued',
-    queuedAt: new Date().toISOString(),
-  };
+    board.tasks[taskIndex] = {
+      ...task,
+      status: 'queued',
+      queuedAt: new Date().toISOString(),
+      // Reset counters on manual re-queue so a human retry starts fresh
+      retryCount: null,
+      recoveryCount: null,
+      yieldCount: 0,
+      yieldReason: undefined,
+    };
 
-  await saveBoard(board);
-  return board.tasks[taskIndex];
+    return board.tasks[taskIndex];
+  });
 }
 
 /**
@@ -608,36 +725,88 @@ export async function getChildTasks(parentGoalId: string): Promise<Task[]> {
  * architecting, verifying) when the server restarts mid-execution. This function re-queues
  * them so the queue processor picks them up automatically on restart.
  *
+ * Each re-queue goes through updateTaskStatus() so a [StatusTransition] log entry and
+ * broadcast are emitted (unlike the prior direct field writes). recoveryCount is
+ * incremented per recovery so the queue processor can cap the loop.
+ *
+ * Before re-queuing, we attempt a best-effort process.kill() on the task's recorded pid
+ * to clean up orphaned agent processes that survived the server restart. PID reuse is a
+ * theoretical hazard (the kernel may have recycled the pid for an unrelated process), but
+ * this is acceptable for a local dev tool — the worst case is a spurious signal to an
+ * unrelated process owned by the same user on the same machine.
+ *
  * Tasks already in 'queued' status are left untouched — they were simply waiting in line
  * and do not need recovery.
  *
- * Note: In-memory leases (leaseStore) are naturally cleared on server restart,
- * so no explicit releaseLeases() call is needed here. This assumption holds
- * because leases are stored in a Map that is re-initialized on process start.
+ * Note: restoreLeases() (called before recoverStuckTasks() in the startup
+ * sequence) loads non-expired leases from disk into memory. Recovery must
+ * explicitly release those leases for re-queued tasks — otherwise stale
+ * leases from a prior session can block dispatch after restart.
  *
  * @returns The number of tasks that were recovered
  */
 export async function recoverStuckTasks(): Promise<number> {
-  const board = await loadBoard();
   const interruptedStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
 
+  // Phase 1: collect interrupted task info inside withBoard WITHOUT mutating the board.
+  // This respects the withBoard nesting rule — updateTaskStatus / updateTask called
+  // below each acquire withBoard themselves, and we must not nest.
+  const toRecover: Array<{ id: string; pid: number | null; recoveryCount: number }> = await withBoard((board) => {
+    const items: Array<{ id: string; pid: number | null; recoveryCount: number }> = [];
+    for (const task of board.tasks) {
+      if (interruptedStatuses.includes(task.status)) {
+        items.push({
+          id: task.id,
+          pid: task.pid,
+          recoveryCount: task.recoveryCount ?? 0,
+        });
+      }
+    }
+    return items;
+  });
+
+  // Phase 2: for each interrupted task, clean up orphans and transition through
+  // the proper status-update path (outside withBoard so we don't nest mutators).
   let recoveredCount = 0;
 
-  for (const task of board.tasks) {
-    if (interruptedStatuses.includes(task.status)) {
-      console.warn(`[Recovery] Re-queuing interrupted task ${task.id} (was '${task.status}')`);
-      task.status = 'queued';
-      task.pid = null;
-      task.startedAt = undefined;
-      task.completedAt = undefined;
-      // Keep workflowStep as is - this preserves the last completed step
-      // so the user can see where the task was and manually restart from there
+  for (const item of toRecover) {
+    // Best-effort orphan cleanup: if the task recorded a pid, try to terminate it.
+    // PID reuse caveat: the kernel may have recycled the pid since the server restart,
+    // but this is acceptable for a local dev tool.
+    if (item.pid !== null) {
+      try {
+        process.kill(item.pid, 'SIGTERM');
+        console.warn(`[Recovery] Sent SIGTERM to orphan pid ${item.pid} for task ${item.id}`);
+      } catch (_err) {
+        // ESRCH - process already gone
+      }
+    }
+
+    console.warn(`[Recovery] Re-queuing interrupted task ${item.id} (was stuck in active status, recovery #${item.recoveryCount + 1})`);
+
+    try {
+      // Transition to queued with proper StatusTransition logging and broadcast
+      await updateTaskStatus(item.id, 'queued', null, 'recovery.startup');
+
+      // Increment recoveryCount and clear stale timestamps
+      await updateTask(item.id, {
+        recoveryCount: item.recoveryCount + 1,
+        startedAt: undefined,
+        completedAt: undefined,
+      });
+
       recoveredCount++;
+
+      // Release any non-expired leases that restoreLeases() loaded from disk
+      // for this task — stale leases from a prior session can otherwise block
+      // dispatch after restart.
+      releaseLeases(item.id);
+    } catch (err) {
+      console.warn(`[Recovery] Failed to recover task ${item.id}:`, err instanceof Error ? err.message : 'Unknown error');
     }
   }
 
   if (recoveredCount > 0) {
-    await saveBoard(board);
     console.warn(`[Recovery] Re-queued ${recoveredCount} interrupted task(s)`);
   }
 

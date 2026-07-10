@@ -19,6 +19,7 @@ import { startQueueProcessor, getQueueProcessorConfig } from './services/queuePr
 import { printStartupBanner } from './utils/banner.js';
 import type { StartupInfo } from './utils/banner.js';
 import { startWatchdog, stopWatchdog } from './services/watchdog.js';
+import { restoreLeases } from './services/leaseManager.js';
 import { setWorkspacePath } from './utils/paths.js';
 import { loadConfig, getActiveWorkspace as getActiveConfigWorkspace } from './services/configStore.js';
 import { recoverStuckTasks, loadBoard } from './services/store.js';
@@ -42,7 +43,15 @@ function resolveClientPath(): string {
 }
 
 const DEFAULT_PORT = 8000;
-const DEFAULT_HOST = '0.0.0.0';
+const DEFAULT_HOST = '127.0.0.1';
+
+/**
+ * Determine whether a host string refers to a loopback-only address.
+ * Loopback hosts are considered safe for unauthenticated local development.
+ */
+function isLoopbackHost(host: string): boolean {
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1';
+}
 
 /**
  * Start the Formic server with the given options.
@@ -51,6 +60,19 @@ const DEFAULT_HOST = '0.0.0.0';
 export async function startServer(options: ServerOptions = {}): Promise<void> {
   const port = options.port ?? parseInt(process.env.PORT || String(DEFAULT_PORT), 10);
   const host = options.host ?? process.env.HOST ?? DEFAULT_HOST;
+  const authToken = process.env.FORMIC_AUTH_TOKEN ?? '';
+  const isLoopback = isLoopbackHost(host);
+
+  // Refuse to bind to a non-loopback host without an auth token: without this
+  // guard, POST /api/tasks and POST /api/tools would be an unauthenticated
+  // remote code execution surface for anyone on the network.
+  if (!isLoopback && authToken.length === 0) {
+    console.error(
+      `[Server] Refusing to bind to non-loopback host "${host}" without FORMIC_AUTH_TOKEN set. ` +
+      'Set FORMIC_AUTH_TOKEN in the environment to enable network exposure, or use SSH tunneling for remote access.'
+    );
+    process.exit(1);
+  }
 
   // Resolve workspace path with priority:
   // 1. Explicit option / WORKSPACE_PATH env var
@@ -86,14 +108,45 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   // Set the workspace path for all services
   setWorkspacePath(workspacePath);
 
+  // Self-hosting guard: warn when the workspace is the Formic package's own project root.
+  // Running under tsx watch / npm run dev while executing tasks that modify src/server/**
+  // creates an infinite dispatch loop: the agent's edit triggers a server restart, which
+  // recovers and re-dispatches the task, which edits again → restart → repeat.
+  const projectRoot = path.resolve(__dirname, '..', '..');
+  const resolvedWorkspace = path.resolve(workspacePath);
+  if (resolvedWorkspace === projectRoot) {
+    console.warn('[Server] ⚠️  Self-hosting detected: workspace is the Formic project itself.');
+    console.warn('[Server] Do NOT run Formic under tsx watch / npm run dev while executing tasks');
+    console.warn('[Server] that modify src/server/**. Use "npm run build && npm start" or a');
+    console.warn('[Server] separate checkout instead. See README.md § Self-hosting for details.');
+  }
+
   const clientPath = resolveClientPath();
 
   const fastify = Fastify({
     logger: false,
+    ajv: {
+      customOptions: {
+        removeAdditional: false,
+      },
+    },
   });
 
   // Register WebSocket support
   await fastify.register(fastifyWebSocket);
+
+  // Enforce bearer token auth for all HTTP routes and WebSocket upgrades when
+  // bound to a non-loopback host. Skipped entirely on loopback to preserve
+  // the existing unauthenticated local development experience.
+  if (!isLoopback) {
+    fastify.addHook('onRequest', async (request, reply) => {
+      const header = request.headers.authorization ?? '';
+      const expectedHeader = 'Bearer ' + authToken;
+      if (header !== expectedHeader) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
+    });
+  }
 
   // Serve static files from client directory
   await fastify.register(fastifyStatic, {
@@ -148,6 +201,11 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     const agentType = getAgentType();
     const agentCommand = getAgentCommand();
     const agentDisplayName = getAgentDisplayName();
+
+    // Restore non-expired leases from disk before recovering stuck tasks.
+    // This ensures recovery can see and release any leases that survived a
+    // crash — preventing stale leases from blocking dispatch after restart.
+    await restoreLeases();
 
     // Recover any stuck tasks from previous server session
     // This must run BEFORE the queue processor starts

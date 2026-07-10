@@ -16,6 +16,7 @@
     "LICENSE"
   ],
   "scripts": {
+    "test": "node --import tsx --test --test-concurrency=1 test/unit/*.test.ts",
     "dev": "tsx watch src/server/index.ts",
     "build": "tsc && chmod +x dist/cli/index.js",
     "start": "node dist/server/index.js",

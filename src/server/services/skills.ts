@@ -58,7 +58,7 @@ async function copyDirectory(src: string, dest: string): Promise<void> {
 export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills: string[] }> {
   // Skip if skills already exist in either location
   if (skillsExistInWorkspace()) {
-    console.log('[Skills] Skills already exist in workspace, skipping copy');
+    console.warn('[Skills] Skills already exist in workspace, skipping copy');
     return { copied: false, skills: [] };
   }
 
@@ -89,7 +89,7 @@ export async function copySkillsToWorkspace(): Promise<{ copied: boolean; skills
       return stats.isDirectory();
     });
 
-    console.log('[Skills] Copied skills to workspace .claude/skills/:', skills);
+    console.warn('[Skills] Copied skills to workspace .claude/skills/:', skills);
     return { copied: true, skills };
   } catch (error) {
     console.error('[Skills] Error copying skills to workspace:', error);

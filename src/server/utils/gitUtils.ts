@@ -19,7 +19,7 @@ export async function createSafePoint(taskId: string): Promise<string | null> {
     const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd });
     const sha = stdout.trim();
     await updateTask(taskId, { safePointCommit: sha });
-    console.log(`[Workflow] Safe point commit created for task ${taskId}: ${sha}`);
+    console.warn(`[Workflow] Safe point commit created for task ${taskId}: ${sha}`);
     return sha;
   } catch (error) {
     console.warn('[Workflow] createSafePoint failed for', taskId + ':', error instanceof Error ? error.message : 'Unknown error');

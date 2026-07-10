@@ -26,7 +26,6 @@ export interface FileLease {
   acquiredAt: string;
   expiresAt: string;
   leaseType: 'exclusive' | 'shared';
-  yieldSignal?: boolean;
 }
 
 /** Persisted lease store snapshot written to .formic/leases.json */
@@ -186,6 +185,8 @@ export interface Task {
   safePointCommit?: string | null;
   /** Number of verification/retry attempts for this task */
   retryCount?: number | null;
+  /** Number of times this task has been recovered on startup (re-queued from a stuck active state) */
+  recoveryCount?: number | null;
   /** ID of the task that this task is a fix for (links auto-created fix tasks to originals) */
   fixForTaskId?: string | null;
   /** IDs of memory entries created by the reflection step for this task */
@@ -200,6 +201,8 @@ export interface BoardMeta {
   queueEnabled?: boolean;
   /** Task counts per status (for AGI phase health metrics) */
   counts?: TaskCounts;
+  /** Persistent monotonic counter for the next task ID (t-N). Never decremented on delete. */
+  nextTaskId?: number;
 }
 
 export interface Board {
@@ -232,6 +235,8 @@ export interface UpdateTaskInput {
   pid?: number | null;
   /** Number of verification/retry attempts — patchable for critic kill-switch logic */
   retryCount?: number | null;
+  /** Number of times this task has been recovered on startup */
+  recoveryCount?: number | null;
   yieldCount?: number;
   yieldReason?: string;
   /** When set, routes the task directly to this step instead of the full workflow on next dispatch */

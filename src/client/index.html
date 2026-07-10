@@ -2227,6 +2227,24 @@
       line-height: 1.6;
     }
 
+    .task-yield-reason {
+      font-size: 11px;
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: 6px;
+      padding: 6px 10px;
+      margin-bottom: 10px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    [data-theme="light"] .task-yield-reason {
+      color: #b45309;
+      background: rgba(245, 158, 11, 0.08);
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
     .task-actions {
       display: flex;
       justify-content: flex-end;
@@ -8773,6 +8791,7 @@
               </div>
               ${depsHtml}
               ${workflowIndicator}
+              ${(task.status === 'todo' && task.yieldReason) ? `<div class="task-yield-reason" title="Task fell out of the queue. Reason: ${escapeHtml(task.yieldReason)}">⚠ Queue capped: ${escapeHtml(task.yieldReason)}</div>` : ''}
               <div class="task-context">${contextText}</div>
               ${task.startedAt ? (isRunning
                 ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}">⏱ ${formatDuration(task.startedAt, null)}</span>`

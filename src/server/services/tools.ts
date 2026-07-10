@@ -123,7 +123,7 @@ export async function recordToolUsage(name: string): Promise<void> {
 
     const updated: ToolManifest = { ...parsed, usage_count: parsed.usage_count + 1 };
     await writeFile(manifestPath, JSON.stringify(updated, null, 2), 'utf-8');
-    console.log(`[Tools] Incremented usage for ${name}`);
+    console.warn(`[Tools] Incremented usage for ${name}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     console.warn(`[Tools] Failed to record usage for '${name}': ${msg}`);
@@ -162,7 +162,7 @@ export async function addTool(input: { name: string; description: string; comman
   };
 
   await writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8');
-  console.log(`[Tools] Added tool ${manifest.name}`);
+  console.warn(`[Tools] Added tool ${manifest.name}`);
 
   return {
     name: manifest.name,

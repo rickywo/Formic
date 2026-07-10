@@ -12,13 +12,24 @@ services:
       # API key is required for Docker deployments
       # OAuth credentials are stored in system keychain and not accessible in Docker
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # The server now defaults to binding 127.0.0.1 only. Since the container's
+      # published port must be reachable from the host, HOST is set to 0.0.0.0
+      # here — which requires FORMIC_AUTH_TOKEN to be set, or the server refuses
+      # to start (unauthenticated 0.0.0.0 binding is an RCE risk: the API can
+      # execute arbitrary code in the mounted workspace).
+      - HOST=0.0.0.0
+      - FORMIC_AUTH_TOKEN=${FORMIC_AUTH_TOKEN:?FORMIC_AUTH_TOKEN must be set for container deployments}
     restart: unless-stopped
 
 # Usage:
 # 1. Set your API key: export ANTHROPIC_API_KEY=your-key
-# 2. Set workspace path: export WORKSPACE_PATH=/path/to/your/project
-# 3. Run: docker-compose up -d
-# 4. Open: http://localhost:8000
+# 2. Set a strong auth token (required — the container binds 0.0.0.0 internally
+#    so its published port is reachable): export FORMIC_AUTH_TOKEN=your-secret-token
+# 3. Set workspace path: export WORKSPACE_PATH=/path/to/your/project
+# 4. Run: docker-compose up -d
+# 5. Open: http://localhost:8000 and set the `Authorization` header to `Bearer`,
+#    followed by a space and your FORMIC_AUTH_TOKEN value, on all API requests
+#    (or use the client's token prompt if supported).
 #
 # Note: OAuth login credentials are stored in your system's keychain
 # and cannot be shared with Docker containers. Use an API key instead.
