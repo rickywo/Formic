@@ -109,9 +109,26 @@ function runDependencyChecks(info: StartupInfo): CheckResult[] {
     });
   }
 
-  // 3. API key / agent check
+  // 3. OpenCode CLI
+  const opencodeVersion = tryExec('opencode --version');
+  if (opencodeVersion !== null) {
+    results.push({ label: `OpenCode CLI ${dim(opencodeVersion)}`, ok: true });
+  } else {
+    results.push({
+      label: 'OpenCode CLI not found',
+      ok: false,
+      hint: 'Install: npm install -g opencode',
+    });
+  }
+
+  // 4. API key / agent check
   if (info.agentType === 'copilot') {
     results.push({ label: 'GitHub Copilot OAuth (no key required)', ok: true });
+  } else if (info.agentType === 'opencode') {
+    const anyKey = Boolean(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY);
+    results.push(anyKey
+      ? { label: 'OpenCode provider key detected', ok: true }
+      : { label: 'No provider key found — run `opencode auth login`', ok: true });
   } else {
     const keySet = Boolean(process.env.ANTHROPIC_API_KEY);
     if (keySet) {
@@ -125,7 +142,7 @@ function runDependencyChecks(info: StartupInfo): CheckResult[] {
     }
   }
 
-  // 4. Workspace
+  // 5. Workspace
   const boardExists = existsSync(`${info.workspacePath}/.formic/board.json`);
   if (boardExists) {
     results.push({ label: `Workspace ${dim(info.workspacePath)} ${dim('(.formic initialized)')}`, ok: true });
@@ -138,7 +155,7 @@ function runDependencyChecks(info: StartupInfo): CheckResult[] {
     });
   }
 
-  // 5. Node.js version
+  // 6. Node.js version
   const nodeVersion = process.versions.node;
   const major = parseInt(nodeVersion.split('.')[0] ?? '0', 10);
   if (major >= 20) {

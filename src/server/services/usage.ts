@@ -160,6 +160,11 @@ export async function getUsageInfo(): Promise<UsageInfo> {
   try {
     if (agentType === 'copilot') {
       cachedUsage = await queryCopilotUsage();
+    } else if (agentType === 'opencode') {
+      // TODO: opencode has no single unified quota (provider-dependent).
+      // Investigate whether `opencode session list --format json` exposes
+      // usage/session stats worth surfacing.
+      cachedUsage = unknownUsage(agentType);
     } else {
       cachedUsage = await queryClaudeUsage();
     }

@@ -5,6 +5,11 @@ import { getFormicDir, getSkillsDir, getBundledSkillsPath } from '../utils/paths
 
 /**
  * Get the path to the workspace skills directory (.claude/skills/)
+ *
+ * This single path serves claude, copilot, and opencode identically — opencode
+ * auto-discovers .claude/skills/**\/SKILL.md natively (spike-confirmed, see
+ * docs/OPENCODE_INTEGRATION_PLAN.md Item 4/§10.4), so no agent-type branching
+ * or per-agent copy step belongs in this file.
  */
 export function getWorkspaceSkillsPath(): string {
   return getSkillsDir();

@@ -5,12 +5,12 @@
 <p align="center">
 <a href="https://www.npmjs.com/package/@rickywo/formic"><img src="https://img.shields.io/badge/npm-v0.8.0-CB3837?style=flat-square&logo=npm" alt="npm v0.8.0"></a>
 <img src="https://img.shields.io/badge/Node-20%2B-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js 20+">
-<img src="https://img.shields.io/badge/Agents-Claude%20Code%20CLI%20%7C%20GitHub%20Copilot%20CLI-6f42c1?style=flat-square" alt="Supported agents">
+<img src="https://img.shields.io/badge/Agents-Claude%20Code%20%7C%20Copilot%20%7C%20OpenCode-6f42c1?style=flat-square" alt="Supported agents">
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
 <a href="https://rickywo.github.io/Formic/"><img src="https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue?style=flat-square&logo=github" alt="Live Demo"></a>
 </p>
 
-**Formic — AI-powered task manager that turns goals into shipped code. Orchestrates Claude Code & Copilot CLI with structured planning, parallel execution, and human review. 🐜**
+**Formic — AI-powered task manager that turns goals into shipped code. Orchestrates Claude Code, Copilot CLI, and OpenCode with structured planning, parallel execution, and human review. 🐜**
 
 <video src="https://github.com/user-attachments/assets/909773e7-d356-4485-a020-9505ff3d85ae" width="100%" controls autoplay muted loop></video>
 
@@ -29,7 +29,10 @@ AI coding agents are powerful but chaotic. Without structure, they skip planning
 ## Requirements
 
 - Node.js 20+ and npm
-- A supported AI agent CLI: [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) or [GitHub Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line)
+- A supported AI agent CLI:
+  - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) — `npm install -g @anthropic-ai/claude-code`
+  - [GitHub Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) — `gh extension install github/gh-copilot`
+  - [OpenCode CLI](https://github.com/opencode-ai/opencode) — `npm install -g opencode`
 
 ## Getting Started
 
@@ -38,6 +41,22 @@ AI coding agents are powerful but chaotic. Without structure, they skip planning
 2. **Start the server** — Run `PORT=8000 formic start`, then open [http://localhost:8000](http://localhost:8000).
 
 3. **Add a workspace** — Open the workspace selector in the top-left and point it at your project repo directory.
+
+## Supported Agents
+
+Formic supports three AI agent backends. Switch between them by setting `AGENT_TYPE`:
+
+| Agent | `AGENT_TYPE` | Auth |
+|-------|-------------|------|
+| Claude Code CLI | `claude` (default) | `ANTHROPIC_API_KEY` env var |
+| GitHub Copilot CLI | `copilot` | `gh auth login` (GitHub OAuth) |
+| OpenCode CLI | `opencode` | `opencode auth login` or provider key |
+
+**OpenCode notes:**
+- Install: `npm install -g opencode`
+- Auth: `opencode auth login` (supports Anthropic, OpenAI, and other providers)
+- Set `OPENCODE_DISABLE_AUTOUPDATE=1` in your `.env` for headless/CI stability
+- ⚠️ Formic runs opencode with `--auto` (auto-approves permissions). Only run on trusted, isolated workspaces.
 
 ## Network Exposure & Security
 

@@ -93,8 +93,8 @@ Examples:
 Environment Variables:
   PORT              Server port (default: 8000)
   HOST              Server host (default: 0.0.0.0)
-  AGENT_TYPE        Agent CLI type: 'claude' or 'copilot' (default: claude)
-  ANTHROPIC_API_KEY API key for Claude agent
+  AGENT_TYPE        Agent CLI type: 'claude', 'copilot', or 'opencode' (default: claude)
+  ANTHROPIC_API_KEY API key for Claude agent (opencode: run \`opencode auth login\` or set a provider key)
 
 Documentation:
   https://github.com/anthropics/formic

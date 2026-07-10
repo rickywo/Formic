@@ -50,8 +50,11 @@ const AGENTS: Record<AgentType, AgentConfig> = {
   },
   opencode: {
     command: 'opencode',
-    buildArgs: (prompt: string) => ['run', '--auto', '--format', 'json', prompt],
-    skillsDir: '.claude/skills', // opencode natively auto-discovers this path (spike-confirmed)
+    buildArgs: (prompt: string) => ['run', '--dangerously-skip-permissions', '--format', 'json', prompt],
+    // opencode natively scans .claude/skills/**/SKILL.md with the same frontmatter/body
+    // parsing as Claude/Copilot (spike-confirmed) — do NOT add a parallel .opencode/skills
+    // materialization step, it would be redundant.
+    skillsDir: '.claude/skills',
     envVars: {}, // provider-dependent; validated per selected provider elsewhere
   },
 };
@@ -131,11 +134,12 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
     supportsConversationContinue: true,
     buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
       // Restricted `formic-readonly` agent profile grants only read/glob/grep/webfetch/websearch;
-      // omitting --auto alone is unsafe (spike-confirmed: hangs indefinitely on a write attempt).
+      // omitting --dangerously-skip-permissions alone is unsafe (spike-confirmed: hangs indefinitely
+      // on a write attempt).
       const args = [
         'run',
         '--agent', 'formic-readonly',
-        '--auto',
+        '--dangerously-skip-permissions',
         '--format', 'json',
       ];
       if (options?.continue) {
@@ -295,7 +299,7 @@ export function buildMessagingAssistantArgs(prompt: string, options?: { continue
     const args = [
       'run',
       '--agent', 'formic-readonly',
-      '--auto',
+      '--dangerously-skip-permissions',
       '--format', 'json',
     ];
     if (options?.continue) {

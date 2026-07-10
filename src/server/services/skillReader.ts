@@ -83,6 +83,11 @@ END OF GUIDELINES
 /**
  * Load a skill file, substitute variables, and prepend guidelines
  * Returns the fully prepared prompt content
+ *
+ * Deferred fallback: if opencode is ever found to not reliably invoke a skill it
+ * can see in .claude/skills/, this function is the seam for inlining the skill
+ * body directly into the assembled prompt instead of relying on discovery. See
+ * .formic/tasks/t-6_make-formic-skills-discoverabl/output/fallback-strategy.md.
  */
 export async function loadSkillPrompt(
   skillName: string,
