@@ -106,9 +106,17 @@ async function processQueue(): Promise<void> {
         continue;
       }
 
-      // Check retry count - skip tasks that have failed execution too many times
+      // Check retry count - transition tasks that have failed execution too many times back to todo
       if ((nextTask.retryCount ?? 0) >= engineConfig.maxExecutionRetries) {
-        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max execution retries (${engineConfig.maxExecutionRetries}), skipping — set to todo to stop bouncing`);
+        console.warn(`[QueueProcessor] Task ${nextTask.id} exceeded max execution retries (${engineConfig.maxExecutionRetries}), transitioning to todo`);
+        try {
+          const reason = `cap-exceeded:retries(${nextTask.retryCount ?? 0})`;
+          await updateTask(nextTask.id, { yieldReason: reason });
+          await updateTaskStatus(nextTask.id, 'todo', null, 'queueProcessor.retry_cap_exceeded');
+          broadcastBoardUpdate();
+        } catch (err) {
+          console.warn('[QueueProcessor] Failed to transition retry-capped task to todo:', err instanceof Error ? err.message : 'Unknown error');
+        }
         continue;
       }
 
