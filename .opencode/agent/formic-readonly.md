@@ -1,7 +1,6 @@
 ---
 name: formic-readonly
 description: Formic read-only assistant agent with no write permissions — for chat, analysis, and Q&A
-model: inherit
 mode: primary
 edit: deny
 bash: deny

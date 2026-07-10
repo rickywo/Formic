@@ -1,7 +1,6 @@
 ---
 name: formic-executor
 description: Formic workflow execution agent with full write permissions for implementing tasks
-model: inherit
 edit: allow
 bash: allow
 task: allow

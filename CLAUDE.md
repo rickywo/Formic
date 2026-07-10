@@ -193,6 +193,13 @@ The server will automatically detect this format and create the task via the For
 **Repository:** /Users/rickywo/WebstormProjects/Formic
 
 ### Todo
+  - [t-12] Consolidate task 'active/running' status checks in client into a single source of truth
+  - [t-17] !Fix invalid frontmatter in opencode agent profile templates (model: inherit crashes opencode)
+  - [t-18] !Prevent duplicate task IDs: reconcile nextTaskId with existing max task ID on create
+
+### Review
+  - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
+  - [t-2] !Rewrite root README.md as a concise onboarding guide with demo video
   - [t-3] !Spike: characterize opencode run output, permissions, and skill discovery
   - [t-4] !Add opencode to AgentType union and agent exec/assistant/messaging config
   - [t-5] !Add opencode output parser and wire parseAgentOutput / usesJsonOutput
@@ -201,10 +208,10 @@ The server will automatically detect this format and create the task via the For
   - [t-8] -Add opencode usage reporting branch (graceful unknown)
   - [t-9] -Surface opencode in CLI help, banner, README, and .env.example
   - [t-10] Add opencode unit tests and integration smoke run
-
-### Review
-  - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
-  - [t-2] !Rewrite root README.md as a concise onboarding guide with demo video
+  - [t-13] !Fix opencode permission flag: replace --dangerously-skip-permissions with --auto
+  - [t-14] !Isolate workflow execution agents from the read-only Task Manager persona in AGENTS.md/CLAUDE.md
+  - [t-15] !Ship and materialize the .opencode/agent/formic-readonly.md restricted agent profile
+  - [t-16] Add no-diff verification gate: fail tasks whose declared files were never modified
 
 ## Formic Workflow
 
