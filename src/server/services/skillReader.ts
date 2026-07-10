@@ -123,7 +123,7 @@ export async function loadSkillPrompt(
     // Combine guidelines + skill content
     const finalContent = guidelines + substitutedContent;
 
-    console.log(`[SkillReader] Loaded skill '${skillName}' with variables substituted`);
+    console.warn(`[SkillReader] Loaded skill '${skillName}' with variables substituted`);
     return { success: true, content: finalContent, source: 'skill' };
   } catch (error) {
     console.error(`[SkillReader] Error loading skill '${skillName}':`, error);

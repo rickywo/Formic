@@ -68,7 +68,7 @@ async function notifyTaskEvent(
     }
   });
 
-  console.log(`[MessagingNotifier] Sending '${event}' notification for task ${task.id} to ${eligibleSessions.length} sessions`);
+  console.warn(`[MessagingNotifier] Sending '${event}' notification for task ${task.id} to ${eligibleSessions.length} sessions`);
 
   // Send notifications to all eligible sessions
   await Promise.all(
@@ -96,7 +96,7 @@ export async function checkTaskStatusChange(task: Task): Promise<void> {
     return;
   }
 
-  console.log(`[MessagingNotifier] Task ${task.id} status changed: ${previousStatus} -> ${currentStatus}`);
+  console.warn(`[MessagingNotifier] Task ${task.id} status changed: ${previousStatus} -> ${currentStatus}`);
 
   // Determine notification type based on transition
   if (currentStatus === 'done') {
@@ -129,7 +129,7 @@ export function initializeStatusCache(tasks: Task[]): void {
   for (const task of tasks) {
     taskStatusCache.set(task.id, task.status);
   }
-  console.log(`[MessagingNotifier] Initialized status cache with ${tasks.length} tasks`);
+  console.warn(`[MessagingNotifier] Initialized status cache with ${tasks.length} tasks`);
 }
 
 /**
@@ -169,7 +169,7 @@ export async function broadcastToWorkspace(
     return;
   }
 
-  console.log(`[MessagingNotifier] Broadcasting to ${sessions.length} sessions`);
+  console.warn(`[MessagingNotifier] Broadcasting to ${sessions.length} sessions`);
 
   await Promise.all(
     sessions.map((session) => sendNotificationToSession(session, message))

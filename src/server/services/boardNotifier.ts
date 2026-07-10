@@ -48,7 +48,7 @@ export function broadcastToTask(taskId: string, message: LogMessage): void {
  */
 export function registerBoardConnection(ws: WebSocket): void {
   boardConnections.add(ws);
-  console.log('[BoardNotifier] Connection registered, total:', boardConnections.size);
+  console.warn('[BoardNotifier] Connection registered, total:', boardConnections.size);
 }
 
 /**
@@ -56,7 +56,7 @@ export function registerBoardConnection(ws: WebSocket): void {
  */
 export function unregisterBoardConnection(ws: WebSocket): void {
   boardConnections.delete(ws);
-  console.log('[BoardNotifier] Connection unregistered, total:', boardConnections.size);
+  console.warn('[BoardNotifier] Connection unregistered, total:', boardConnections.size);
 }
 
 /**
@@ -74,7 +74,7 @@ export function broadcastBoardUpdate(): void {
     }
   }
 
-  console.log('[BoardNotifier] Broadcast board-updated to', sentCount, 'clients');
+  console.warn('[BoardNotifier] Broadcast board-updated to', sentCount, 'clients');
 }
 
 /**
@@ -91,7 +91,7 @@ export function broadcastDependencyResolved(taskId: string, parentGoalId: string
     }
   }
 
-  console.log(`[BoardNotifier] Broadcast dependency-resolved for task ${taskId} (goal ${parentGoalId}) to ${sentCount} clients`);
+  console.warn(`[BoardNotifier] Broadcast dependency-resolved for task ${taskId} (goal ${parentGoalId}) to ${sentCount} clients`);
 }
 
 /**
@@ -108,7 +108,7 @@ export function broadcastKillSwitch(taskId: string): void {
     }
   }
 
-  console.log(`[BoardNotifier] Broadcast kill-switch for task ${taskId} to ${sentCount} clients`);
+  console.warn(`[BoardNotifier] Broadcast kill-switch for task ${taskId} to ${sentCount} clients`);
 }
 
 /**
@@ -125,7 +125,7 @@ export function broadcastTaskCompleted(taskId: string): void {
     }
   }
 
-  console.log(`[BoardNotifier] Broadcast task-completed for task ${taskId} to ${sentCount} clients`);
+  console.warn(`[BoardNotifier] Broadcast task-completed for task ${taskId} to ${sentCount} clients`);
 }
 
 /**
@@ -142,7 +142,7 @@ export function broadcastLeaseReleased(taskId: string, releasedFiles: string[]):
     }
   }
 
-  console.log(`[BoardNotifier] Broadcast lease-released for task ${taskId} (${releasedFiles.length} file(s)) to ${sentCount} clients`);
+  console.warn(`[BoardNotifier] Broadcast lease-released for task ${taskId} (${releasedFiles.length} file(s)) to ${sentCount} clients`);
 }
 
 /**
@@ -163,5 +163,5 @@ export function broadcastWorkspaceChanged(workspacePath: string): void {
     }
   }
 
-  console.log('[BoardNotifier] Broadcast workspace-changed to', sentCount, 'clients');
+  console.warn('[BoardNotifier] Broadcast workspace-changed to', sentCount, 'clients');
 }

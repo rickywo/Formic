@@ -115,7 +115,7 @@ export async function runAgent(taskId: string, title: string, context: string, d
     if (task !== undefined) {
       const memories = await getRelevantMemories(task);
       if (memories.length > 0) {
-        console.log(`[Runner] Injecting ${memories.length} memories into agent context for task ${taskId}`);
+        console.warn(`[Runner] Injecting ${memories.length} memories into agent context for task ${taskId}`);
         const entries = memories
           .map((m, i) => `${i + 1}. [${m.type.toUpperCase()}] ${m.content}`)
           .join('\n');
@@ -131,7 +131,7 @@ export async function runAgent(taskId: string, title: string, context: string, d
   try {
     const tools = await listTools();
     if (tools.length > 0) {
-      console.log(`[Runner] ${tools.length} tools available in agent context for task ${taskId}`);
+      console.warn(`[Runner] ${tools.length} tools available in agent context for task ${taskId}`);
       availableToolsSection = `\n## Available Tools (${tools.length} registered)\n${tools.map(t => `- **${t.manifest.name}**: ${t.manifest.description}\n  Command: \`${t.manifest.command}\``).join('\n')}\nUse these tools when they match the task requirements to avoid re-implementing existing functionality.\n`;
     }
   } catch (error) {
@@ -197,7 +197,7 @@ All code changes MUST comply with the project development guidelines provided ab
     // Spawn failed — clean up without ever adding to activeProcesses.
     // No activeProcesses entry means no leaked concurrency slot.
     releaseLeases(taskId);
-    console.log(`[Runner] Released leases for task ${taskId} (spawn error)`);
+    console.warn(`[Runner] Released leases for task ${taskId} (spawn error)`);
 
     const agentName = getAgentDisplayName();
     let errorMessage = spawnError.message;
@@ -227,7 +227,7 @@ All code changes MUST comply with the project development guidelines provided ab
   child.on('error', async (err: NodeJS.ErrnoException) => {
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
-    console.log(`[Runner] Released leases for task ${taskId} (error handler)`);
+    console.warn(`[Runner] Released leases for task ${taskId} (error handler)`);
 
     // Provide helpful error messages for common issues
     const agentName = getAgentDisplayName();
@@ -282,7 +282,7 @@ All code changes MUST comply with the project development guidelines provided ab
   child.on('close', async (code) => {
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
-    console.log(`[Runner] Released leases for task ${taskId} (close handler)`);
+    console.warn(`[Runner] Released leases for task ${taskId} (close handler)`);
 
     // Save logs to task
     await appendTaskLogs(taskId, logBuffer);

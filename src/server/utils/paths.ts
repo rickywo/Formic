@@ -63,7 +63,7 @@ export function getWorkspacePath(): string {
  */
 export function setWorkspacePath(newPath: string): void {
   currentWorkspacePath = newPath;
-  console.log('[Paths] Workspace path updated to:', newPath);
+  console.warn('[Paths] Workspace path updated to:', newPath);
 }
 
 /**

@@ -55,7 +55,7 @@ async function ensureGlobalFormicDir(): Promise<void> {
   const dir = getGlobalFormicDir();
   if (!existsSync(dir)) {
     await mkdir(dir, { recursive: true });
-    console.log('[ConfigStore] Created global config directory:', dir);
+    console.warn('[ConfigStore] Created global config directory:', dir);
   }
 }
 
@@ -89,7 +89,7 @@ export async function loadConfig(): Promise<FormicConfig> {
   const configPath = getGlobalConfigPath();
 
   if (!existsSync(configPath)) {
-    console.log('[ConfigStore] No config file found, using defaults');
+    console.warn('[ConfigStore] No config file found, using defaults');
     return createDefaultConfig();
   }
 
@@ -166,7 +166,7 @@ export async function addWorkspace(input: {
   }
 
   await saveConfig(config);
-  console.log('[ConfigStore] Added workspace:', workspace.name, workspace.path);
+  console.warn('[ConfigStore] Added workspace:', workspace.name, workspace.path);
   return workspace;
 }
 
@@ -192,7 +192,7 @@ export async function removeWorkspace(workspaceId: string): Promise<boolean> {
   }
 
   await saveConfig(config);
-  console.log('[ConfigStore] Removed workspace:', workspaceId);
+  console.warn('[ConfigStore] Removed workspace:', workspaceId);
   return true;
 }
 
@@ -211,7 +211,7 @@ export async function setActiveWorkspace(workspaceId: string): Promise<boolean> 
   workspace.lastAccessed = new Date().toISOString();
 
   await saveConfig(config);
-  console.log('[ConfigStore] Active workspace set to:', workspace.name);
+  console.warn('[ConfigStore] Active workspace set to:', workspace.name);
   return true;
 }
 
@@ -246,5 +246,5 @@ export async function setSetting<K extends keyof ConfigSettings>(
   const config = await loadConfig();
   config.settings[key] = value;
   await saveConfig(config);
-  console.log('[ConfigStore] Setting updated:', key, '=', value);
+  console.warn('[ConfigStore] Setting updated:', key, '=', value);
 }

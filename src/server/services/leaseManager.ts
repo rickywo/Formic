@@ -104,7 +104,7 @@ export function acquireLeases(request: LeaseRequest): LeaseResult {
     grantedLeases.push(lease);
   }
 
-  console.log(`[LeaseManager] Leases granted for task ${taskId}: ${exclusiveFiles.length} exclusive, ${sharedFiles.length} shared`);
+  console.warn(`[LeaseManager] Leases granted for task ${taskId}: ${exclusiveFiles.length} exclusive, ${sharedFiles.length} shared`);
   persistLeases().catch(e => console.warn('[LeaseManager] persist error:', e));
   return { granted: true, leases: grantedLeases, conflictingFiles: [] };
 }
@@ -125,7 +125,7 @@ export function releaseLeases(taskId: string): void {
     }
   }
   if (released > 0) {
-    console.log(`[LeaseManager] Released ${released} lease(s) for task ${taskId}`);
+    console.warn(`[LeaseManager] Released ${released} lease(s) for task ${taskId}`);
     broadcastLeaseReleased(taskId, releasedFiles);
     internalEvents.emit(LEASE_RELEASED, taskId, releasedFiles);
   }
@@ -151,7 +151,7 @@ export function renewLeases(taskId: string, durationMs?: number): boolean {
   }
 
   if (renewed > 0) {
-    console.log(`[LeaseManager] Renewed ${renewed} lease(s) for task ${taskId}`);
+    console.warn(`[LeaseManager] Renewed ${renewed} lease(s) for task ${taskId}`);
     return true;
   }
   return false;
@@ -248,7 +248,7 @@ export async function recordFileHashes(taskId: string, filePaths: string[], cwd:
   }
 
   fileHashStore.set(taskId, hashes);
-  console.log(`[LeaseManager] Recorded ${hashes.size} file hash(es) for task ${taskId}`);
+  console.warn(`[LeaseManager] Recorded ${hashes.size} file hash(es) for task ${taskId}`);
   return hashes;
 }
 
@@ -284,7 +284,7 @@ export async function detectCollisions(taskId: string, cwd: string): Promise<Fil
   }
 
   if (conflicts.length > 0) {
-    console.log(`[LeaseManager] Detected ${conflicts.length} collision(s) for task ${taskId}`);
+    console.warn(`[LeaseManager] Detected ${conflicts.length} collision(s) for task ${taskId}`);
   }
 
   return conflicts;
@@ -355,14 +355,14 @@ export async function restoreLeases(): Promise<void> {
         restored++;
       }
     }
-    console.log(`[LeaseManager] Restored ${restored} non-expired lease(s) from disk`);
+    console.warn(`[LeaseManager] Restored ${restored} non-expired lease(s) from disk`);
   } catch (err) {
     // File not found on first startup is expected
     const message = err instanceof Error ? err.message : 'Unknown error';
     if (!message.includes('ENOENT')) {
       console.warn('[LeaseManager] Failed to restore leases:', message);
     } else {
-      console.log('[LeaseManager] No leases.json found — starting with empty lease store');
+      console.warn('[LeaseManager] No leases.json found — starting with empty lease store');
     }
   }
 }
@@ -398,7 +398,7 @@ export async function preemptLease(highPriorityTaskId: string, targetFilePath: s
 
   // Signal the holder to yield voluntarily
   holderLease.yieldSignal = true;
-  console.log(`[LeaseManager] Sent yield signal to task ${holderId} for file ${targetFilePath}`);
+  console.warn(`[LeaseManager] Sent yield signal to task ${holderId} for file ${targetFilePath}`);
 
   // Poll every 500 ms for up to 10 s
   const POLL_INTERVAL_MS = 500;
@@ -419,7 +419,7 @@ export async function preemptLease(highPriorityTaskId: string, targetFilePath: s
     releaseLeases(holderId);
     console.warn(`[LeaseManager] Force-preempted lease on ${targetFilePath} from task ${holderId}`);
   } else {
-    console.log(`[LeaseManager] Task ${holderId} voluntarily released ${targetFilePath} after yield signal`);
+    console.warn(`[LeaseManager] Task ${holderId} voluntarily released ${targetFilePath} after yield signal`);
   }
 
   return true;
