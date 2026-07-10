@@ -4,10 +4,39 @@
  * Handles different output formats from supported AI coding agents:
  * - Claude Code CLI: stream-json format with line-delimited JSON events
  * - GitHub Copilot CLI: Plain text output
+ * - opencode CLI: `--format json` line-delimited JSON events
  */
 
 import type { OutputParseResult, OutputEventType } from '../../types/index.js';
 import { getAgentType, type AgentType } from './agentAdapter.js';
+
+/**
+ * Format an opencode tool_use event into a human-readable status label.
+ * Prefers the pre-formatted `state.title` opencode already provides, falling
+ * back to a tool-specific label derived from `state.input` when no title is set.
+ */
+function formatOpencodeToolStatus(
+  tool: string,
+  input?: Record<string, unknown>,
+  title?: string
+): string {
+  if (title) {
+    return title;
+  }
+
+  switch (tool) {
+    case 'read': {
+      const filePath = input?.filePath as string | undefined;
+      return filePath ? `Reading ${filePath}` : 'Reading file…';
+    }
+    case 'bash':
+      return 'Running command…';
+    case 'apply_patch':
+      return 'Applying patch…';
+    default:
+      return `Using ${tool}…`;
+  }
+}
 
 /**
  * Format a tool_use content block into a human-readable status label.
@@ -162,6 +191,81 @@ export function parseClaudeStreamJson(line: string): OutputParseResult {
   }
 }
 
+/**
+ * Parse opencode CLI `--format json` output line
+ * Format: Line-delimited JSON with top-level event types:
+ *   'step_start'  (structural, no user-visible content)
+ *   'text'        (assistant text chunk, in part.text)
+ *   'tool_use'    (tool invocation, in part.tool / part.state)
+ *   'step_finish' (part.reason: 'tool-calls' = mid-run checkpoint, 'stop' = terminal result)
+ *
+ * See docs/OPENCODE_INTEGRATION_PLAN.md §10.2 for captured sample lines this is modeled on.
+ */
+export function parseOpencodeJson(line: string): OutputParseResult {
+  if (!line.trim()) {
+    return { type: 'unknown' };
+  }
+
+  try {
+    const event = JSON.parse(line) as {
+      type?: string;
+      sessionID?: string;
+      part?: {
+        text?: string;
+        tool?: string;
+        state?: {
+          status?: string;
+          input?: Record<string, unknown>;
+          output?: string;
+          title?: string;
+        };
+        reason?: string;
+      };
+    };
+
+    const eventType = event.type;
+
+    if (eventType === 'step_start') {
+      // Purely structural — no user-facing content yet.
+      return { type: 'status', content: '', raw: event };
+    }
+
+    if (eventType === 'text') {
+      return {
+        type: 'text',
+        content: event.part?.text ?? '',
+        raw: event,
+      };
+    }
+
+    if (eventType === 'tool_use') {
+      const tool = event.part?.tool;
+      const label = tool
+        ? formatOpencodeToolStatus(tool, event.part?.state?.input, event.part?.state?.title)
+        : 'Using tool…';
+      return { type: 'status', content: label, raw: event };
+    }
+
+    if (eventType === 'step_finish') {
+      if (event.part?.reason === 'stop') {
+        // Text content has already been accumulated by the caller from the
+        // preceding 'text' events; this event only marks the terminal boundary.
+        return { type: 'result', content: '', isFinal: true, raw: event };
+      }
+      // reason === 'tool-calls' (or unknown) — mid-run checkpoint, not completion.
+      return { type: 'status', content: '', raw: event };
+    }
+
+    return { type: 'unknown', raw: event };
+  } catch {
+    // Not valid JSON - could be plain text or error output
+    return {
+      type: 'unknown',
+      content: line,
+    };
+  }
+}
+
 // Braille spinner characters emitted by Copilot CLI progress indicators
 const SPINNER_CHARS = /^[\s⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏⣾⣽⣻⢿⡿⣟⣯⣷⠁⠂⠄⡀⢀⠠⠐⠈|\\/-]+$/;
 
@@ -265,6 +369,8 @@ export function parseAgentOutput(line: string, agentType?: AgentType): OutputPar
       return parseClaudeStreamJson(line);
     case 'copilot':
       return parseCopilotOutput(line);
+    case 'opencode':
+      return parseOpencodeJson(line);
     default:
       // Fallback to treating as plain text
       return {
@@ -279,5 +385,5 @@ export function parseAgentOutput(line: string, agentType?: AgentType): OutputPar
  */
 export function usesJsonOutput(agentType?: AgentType): boolean {
   const type = agentType ?? getAgentType();
-  return type === 'claude';
+  return type === 'claude' || type === 'opencode';
 }
