@@ -16,7 +16,7 @@ export interface AgentConfig {
   envVars: Record<string, string | undefined>;
 }
 
-export type AgentType = 'claude' | 'copilot';
+export type AgentType = 'claude' | 'copilot' | 'opencode';
 
 /**
  * Assistant-specific configuration for read-only Task Manager mode
@@ -48,6 +48,12 @@ const AGENTS: Record<AgentType, AgentConfig> = {
     skillsDir: '.claude/skills',
     envVars: {}, // Uses GitHub OAuth
   },
+  opencode: {
+    command: 'opencode',
+    buildArgs: (prompt: string) => ['run', '--auto', '--format', 'json', prompt],
+    skillsDir: '.claude/skills', // opencode natively auto-discovers this path (spike-confirmed)
+    envVars: {}, // provider-dependent; validated per selected provider elsewhere
+  },
 };
 
 /**
@@ -72,6 +78,13 @@ const CLAUDE_MESSAGING_TOOLS = [...CLAUDE_READONLY_TOOLS];
 const COPILOT_READONLY_TOOLS = ['view', 'glob', 'grep', 'web_fetch'];
 const COPILOT_ASSISTANT_TOOLS = [...COPILOT_READONLY_TOOLS];
 const COPILOT_MESSAGING_TOOLS = [...COPILOT_READONLY_TOOLS];
+
+/**
+ * OpenCode CLI tool names (snake_case)
+ */
+const OPENCODE_READONLY_TOOLS = ['read', 'glob', 'grep', 'webfetch', 'websearch'];
+const OPENCODE_ASSISTANT_TOOLS = [...OPENCODE_READONLY_TOOLS];
+const OPENCODE_MESSAGING_TOOLS = [...OPENCODE_READONLY_TOOLS];
 
 const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
   claude: {
@@ -112,6 +125,26 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
       return args;
     },
   },
+  opencode: {
+    outputFormat: 'json',
+    readOnlyTools: OPENCODE_ASSISTANT_TOOLS,
+    supportsConversationContinue: true,
+    buildAssistantArgs: (prompt: string, options?: { continue?: boolean }) => {
+      // Restricted `formic-readonly` agent profile grants only read/glob/grep/webfetch/websearch;
+      // omitting --auto alone is unsafe (spike-confirmed: hangs indefinitely on a write attempt).
+      const args = [
+        'run',
+        '--agent', 'formic-readonly',
+        '--auto',
+        '--format', 'json',
+      ];
+      if (options?.continue) {
+        args.push('--continue');
+      }
+      args.push(prompt);
+      return args;
+    },
+  },
 };
 
 /**
@@ -122,6 +155,9 @@ export function getAgentType(): AgentType {
   const envType = process.env.AGENT_TYPE?.toLowerCase();
   if (envType === 'copilot') {
     return 'copilot';
+  }
+  if (envType === 'opencode') {
+    return 'opencode';
   }
   return 'claude';
 }
@@ -173,6 +209,8 @@ export function getAgentDisplayName(): string {
       return 'Claude Code CLI';
     case 'copilot':
       return 'GitHub Copilot CLI';
+    case 'opencode':
+      return 'OpenCode CLI';
     default:
       return agentType;
   }
@@ -250,6 +288,20 @@ export function buildMessagingAssistantArgs(prompt: string, options?: { continue
     if (options?.continue) {
       args.push('--continue');
     }
+    return args;
+  }
+
+  if (agentType === 'opencode') {
+    const args = [
+      'run',
+      '--agent', 'formic-readonly',
+      '--auto',
+      '--format', 'json',
+    ];
+    if (options?.continue) {
+      args.push('--continue');
+    }
+    args.push(prompt);
     return args;
   }
 
