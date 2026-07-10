@@ -72,7 +72,7 @@ def test_task_id_counter():
 
         highest_id = max(created_ids, key=_task_num)
         del_response = requests.delete(f"{BASE_URL}/api/tasks/{highest_id}")
-        if del_response.status_code != 200:
+        if del_response.status_code not in (200, 204):
             raise RuntimeError(f"Delete failed with status {del_response.status_code}")
 
         create_response = requests.post(
