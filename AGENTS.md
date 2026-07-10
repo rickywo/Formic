@@ -192,11 +192,14 @@ The server will automatically detect this format and create the task via the For
 **Project:** workspace
 **Repository:** /workspace
 
-### Todo
-  - [t-1] !Fix: Restrict server binding to localhost and add token auth for network exposure
+### Declaring
+  - [t-3] !Fix: Serialize board read-modify-write cycles with a mutation mutex
 
 ### Review
+  - [t-1] !Fix: Restrict server binding to localhost and add token auth for network exposure
   - [t-2] !Fix: Scope kill-switch rollback to the failing task's declared files
+  - [t-4] Fix: Use a persistent monotonic counter for task ID generation
+  - [t-5] !Fix: Release file leases when a task transitions out of active workflow states
 
 ## Formic Workflow
 

@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile, mkdir, appendFile, access } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
-import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask } from './store.js';
+import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask, withBoard } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt } from './skillReader.js';
 import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
@@ -137,12 +137,12 @@ function broadcastToTask(taskId: string, message: LogMessage): void {
  * Update the workflow step for a task
  */
 async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<void> {
-  const board = await loadBoard();
-  const task = board.tasks.find(t => t.id === taskId);
-  if (task) {
-    task.workflowStep = step;
-    await saveBoard(board);
-  }
+  await withBoard((board) => {
+    const task = board.tasks.find(t => t.id === taskId);
+    if (task) {
+      task.workflowStep = step;
+    }
+  });
 }
 
 /**
@@ -152,26 +152,26 @@ async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<v
 async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute' | 'architect' | 'verify', logs: string[]): Promise<void> {
   if (logs.length === 0) return;
 
-  // Ensure the .formic/logs/{taskId}/ directory exists
+  // Ensure the .formic/logs/{taskId}/ directory exists and append log lines.
+  // File I/O is done OUTSIDE withBoard to avoid holding the mutex during disk writes.
   const taskLogsDir = getTaskLogsDir(taskId);
   await mkdir(taskLogsDir, { recursive: true });
 
-  // Append log lines to {step}.log file
   const logFilePath = path.join(taskLogsDir, `${step}.log`);
   const content = logs.join('\n') + '\n';
   await appendFile(logFilePath, content, 'utf-8');
 
   // Store the relative log file path in board.json (not the log content)
-  const board = await loadBoard();
-  const task = board.tasks.find(t => t.id === taskId);
-  if (task) {
-    if (!task.workflowLogs) {
-      task.workflowLogs = {};
+  await withBoard((board) => {
+    const task = board.tasks.find(t => t.id === taskId);
+    if (task) {
+      if (!task.workflowLogs) {
+        task.workflowLogs = {};
+      }
+      // Store relative path so it's portable across machines
+      task.workflowLogs[step] = `.formic/logs/${taskId}/${step}.log`;
     }
-    // Store relative path so it's portable across machines
-    task.workflowLogs[step] = `.formic/logs/${taskId}/${step}.log`;
-    await saveBoard(board);
-  }
+  });
 }
 
 /**
@@ -391,13 +391,13 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
   // Parse declared-files.json
   const declaredFiles = await loadDeclaredFiles(task.docsPath);
   if (declaredFiles) {
-    // Store declared files on the task
-    const board = await loadBoard();
-    const boardTask = board.tasks.find(t => t.id === taskId);
-    if (boardTask) {
-      boardTask.declaredFiles = declaredFiles;
-      await saveBoard(board);
-    }
+    // Store declared files on the task (serialized via withBoard)
+    await withBoard((board) => {
+      const boardTask = board.tasks.find(t => t.id === taskId);
+      if (boardTask) {
+        boardTask.declaredFiles = declaredFiles;
+      }
+    });
 
     // Record file hashes for shared files (optimistic concurrency)
     if (declaredFiles.shared.length > 0) {
@@ -858,33 +858,52 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
  * On verify failure: increment retryCount; create a Fix task or engage kill switch after 3 failures.
  */
 async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Promise<void> {
-  const board = await loadBoard();
-  const task = board.tasks.find(t => t.id === taskId);
-  if (!task) return;
+  // Capture retryCount and fields needed for kill-switch logic inside the
+  // serialized withBoard closure so the task reference remains valid.
+  const captured = await withBoard((board): {
+    newRetryCount: number;
+    safePointCommit: string | null | undefined;
+    declaredExclusiveFiles: string[];
+    title: string;
+    context: string;
+  } | null => {
+    const task = board.tasks.find(t => t.id === taskId);
+    if (!task) return null;
 
-  const newRetryCount = (task.retryCount ?? 0) + 1;
-  task.retryCount = newRetryCount;
-  await saveBoard(board);
+    const newRetryCount = (task.retryCount ?? 0) + 1;
+    task.retryCount = newRetryCount;
+
+    return {
+      newRetryCount,
+      safePointCommit: task.safePointCommit,
+      declaredExclusiveFiles: task.declaredFiles?.exclusive ?? [],
+      title: task.title,
+      context: task.context,
+    };
+  });
+
+  if (!captured) return;
+
+  const { newRetryCount, safePointCommit, declaredExclusiveFiles, title, context } = captured;
   console.log(`[Critic] Task ${taskId} retry count: ${newRetryCount}`);
 
   if (newRetryCount >= 3) {
     console.log(`[Critic] Kill switch activated for task ${taskId} after ${newRetryCount} failed verifications`);
 
     let revertMessage: string;
-    if (task.safePointCommit) {
-      const exclusiveFiles = task.declaredFiles?.exclusive ?? [];
-      if (exclusiveFiles.length > 0) {
+    if (safePointCommit) {
+      if (declaredExclusiveFiles.length > 0) {
         try {
-          await checkoutFilesFromCommit(task.safePointCommit, exclusiveFiles, getWorkspacePath());
-          console.log(`[Critic] Reverted ${exclusiveFiles.length} declared file(s) for task ${taskId} to safe point ${task.safePointCommit}`);
-          revertMessage = `Declared files reverted to safe point \`${task.safePointCommit}\`. HEAD was not moved.`;
+          await checkoutFilesFromCommit(safePointCommit, declaredExclusiveFiles, getWorkspacePath());
+          console.log(`[Critic] Reverted ${declaredExclusiveFiles.length} declared file(s) for task ${taskId} to safe point ${safePointCommit}`);
+          revertMessage = `Declared files reverted to safe point \`${safePointCommit}\`. HEAD was not moved.`;
         } catch (err) {
           console.warn('[Critic] Failed to revert declared files to safe point:', err instanceof Error ? err.message : 'Unknown error');
-          revertMessage = `Attempted revert failed. Safe point: \`${task.safePointCommit}\`. Manual review recommended.`;
+          revertMessage = `Attempted revert failed. Safe point: \`${safePointCommit}\`. Manual review recommended.`;
         }
       } else {
-        console.warn(`[Critic] Task ${taskId} has no declaredFiles, skipping auto-revert. Safe point: ${task.safePointCommit}`);
-        revertMessage = `Workspace NOT auto-reverted (no declared files). Safe point: \`${task.safePointCommit}\``;
+        console.warn(`[Critic] Task ${taskId} has no declaredFiles, skipping auto-revert. Safe point: ${safePointCommit}`);
+        revertMessage = `Workspace NOT auto-reverted (no declared files). Safe point: \`${safePointCommit}\``;
       }
     } else {
       console.warn(`[Critic] No safePointCommit on task ${taskId}, skipping revert`);
@@ -911,10 +930,10 @@ async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Pro
   }
 
   const errorSnippet = stderrLines.slice(-100).join('\n');
-  const fixContext = `Auto-fix for task ${taskId}: ${task.title}\n\nVerification failed with the following error:\n\`\`\`\n${errorSnippet}\n\`\`\`\n\nPlease fix the code so that the verification command passes.\n\nOriginal task context:\n${task.context}`;
+  const fixContext = `Auto-fix for task ${taskId}: ${title}\n\nVerification failed with the following error:\n\`\`\`\n${errorSnippet}\n\`\`\`\n\nPlease fix the code so that the verification command passes.\n\nOriginal task context:\n${context}`;
 
   const fixTask = await createTask({
-    title: `Fix: ${task.title}`,
+    title: `Fix: ${title}`,
     context: fixContext,
     priority: 'high',
     type: 'quick',
@@ -1616,15 +1635,15 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
     if (!leasesAcquired) {
       // Task needs to yield - mark resumeFromStep so retry skips brief+plan
       activeWorkflows.delete(taskId);
-      const board = await loadBoard();
-      const yieldTask = board.tasks.find(t => t.id === taskId);
-      if (yieldTask) {
-        yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
-        yieldTask.resumeFromStep = 'declare';
-        await saveBoard(board);
-        const verifyTask = await getTask(taskId);
-        console.log(`[Workflow] Task ${taskId} yielded at declare — resumeFromStep persisted: ${verifyTask?.resumeFromStep}`);
-      }
+      await withBoard((board) => {
+        const yieldTask = board.tasks.find(t => t.id === taskId);
+        if (yieldTask) {
+          yieldTask.yieldCount = (yieldTask.yieldCount || 0) + 1;
+          yieldTask.resumeFromStep = 'declare';
+        }
+      });
+      const verifyTask = await getTask(taskId);
+      console.log(`[Workflow] Task ${taskId} yielded at declare — resumeFromStep persisted: ${verifyTask?.resumeFromStep}`);
       await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFullWorkflow.declare_yield');
       return;
     }
@@ -1659,12 +1678,12 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
       if (currentTask.declaredFiles?.shared && currentTask.declaredFiles.shared.length > 0) {
         const conflicts = await detectCollisions(taskId, getWorkspacePath());
         if (conflicts.length > 0) {
-          const board = await loadBoard();
-          const conflictTask = board.tasks.find(t => t.id === taskId);
-          if (conflictTask) {
-            conflictTask.fileConflicts = conflicts;
-            await saveBoard(board);
-          }
+          await withBoard((board) => {
+            const conflictTask = board.tasks.find(t => t.id === taskId);
+            if (conflictTask) {
+              conflictTask.fileConflicts = conflicts;
+            }
+          });
           console.log(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
         }
       }
@@ -1731,50 +1750,49 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
       if (!leasesAcquired) {
         // Still conflicted — re-queue with resumeFromStep preserved for the next retry
         activeWorkflows.delete(taskId);
-        const board = await loadBoard();
-        const yieldTask = board.tasks.find(t => t.id === taskId);
-        if (yieldTask) {
-          const newYieldCount = (yieldTask.yieldCount || 0) + 1;
-          yieldTask.yieldCount = newYieldCount;
-          yieldTask.resumeFromStep = 'declare';
+        await withBoard(async (board) => {
+          const yieldTask = board.tasks.find(t => t.id === taskId);
+          if (yieldTask) {
+            const newYieldCount = (yieldTask.yieldCount || 0) + 1;
+            yieldTask.yieldCount = newYieldCount;
+            yieldTask.resumeFromStep = 'declare';
 
-          // Zombie lease detection: if we've retried enough times, check whether
-          // the blocking task is still active. If not, force-release its leases.
-          const ZOMBIE_YIELD_THRESHOLD = Math.max(3, Math.floor(engineConfig.maxYieldCount / 2));
-          if (newYieldCount >= ZOMBIE_YIELD_THRESHOLD) {
-            const exclusiveFiles = currentTask.declaredFiles?.exclusive ?? [];
-            const zombieHolders = new Set<string>();
-            for (const filePath of exclusiveFiles) {
-              const holder = getExclusiveLeaseHolder(filePath);
-              if (holder && holder !== taskId) {
-                zombieHolders.add(holder);
+            // Zombie lease detection: if we've retried enough times, check whether
+            // the blocking task is still active. If not, force-release its leases.
+            const ZOMBIE_YIELD_THRESHOLD = Math.max(3, Math.floor(engineConfig.maxYieldCount / 2));
+            if (newYieldCount >= ZOMBIE_YIELD_THRESHOLD) {
+              const exclusiveFiles = currentTask.declaredFiles?.exclusive ?? [];
+              const zombieHolders = new Set<string>();
+              for (const filePath of exclusiveFiles) {
+                const holder = getExclusiveLeaseHolder(filePath);
+                if (holder && holder !== taskId) {
+                  zombieHolders.add(holder);
+                }
               }
-            }
-            for (const holderId of zombieHolders) {
-              const holderTask = await getTask(holderId);
-              const holderStatus = holderTask?.status ?? 'unknown';
-              if (holderStatus !== 'running' && holderStatus !== 'declaring') {
-                console.warn(`[Workflow] Force-releasing zombie leases held by task ${holderId} (status: ${holderStatus}) to unblock task ${taskId}`);
-                releaseLeases(holderId);
+              for (const holderId of zombieHolders) {
+                const holderTask = await getTask(holderId);
+                const holderStatus = holderTask?.status ?? 'unknown';
+                if (holderStatus !== 'running' && holderStatus !== 'declaring') {
+                  console.warn(`[Workflow] Force-releasing zombie leases held by task ${holderId} (status: ${holderStatus}) to unblock task ${taskId}`);
+                  releaseLeases(holderId);
+                }
               }
             }
           }
-
-          await saveBoard(board);
-          const verifyRetryTask = await getTask(taskId);
-          console.log(`[Workflow] Task ${taskId} re-queued from declare retry — resumeFromStep persisted: ${verifyRetryTask?.resumeFromStep}, yieldCount: ${verifyRetryTask?.yieldCount}`);
-        }
+        });
+        const verifyRetryTask = await getTask(taskId);
+        console.log(`[Workflow] Task ${taskId} re-queued from declare retry — resumeFromStep persisted: ${verifyRetryTask?.resumeFromStep}, yieldCount: ${verifyRetryTask?.yieldCount}`);
         await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFromDeclare.declare_yield');
         return;
       }
 
       // Leases acquired — clear the resume marker so future retries (if any) start fresh
-      const boardAfterLease = await loadBoard();
-      const boardTask = boardAfterLease.tasks.find(t => t.id === taskId);
-      if (boardTask) {
-        boardTask.resumeFromStep = undefined;
-        await saveBoard(boardAfterLease);
-      }
+      await withBoard((board) => {
+        const boardTask = board.tasks.find(t => t.id === taskId);
+        if (boardTask) {
+          boardTask.resumeFromStep = undefined;
+        }
+      });
 
       // Abort if stop was requested between declare and execute
       if (stoppedWorkflows.has(taskId)) {
@@ -1801,12 +1819,12 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
         if (taskForExecution.declaredFiles?.shared && taskForExecution.declaredFiles.shared.length > 0) {
           const conflicts = await detectCollisions(taskId, getWorkspacePath());
           if (conflicts.length > 0) {
-            const board = await loadBoard();
-            const conflictTask = board.tasks.find(t => t.id === taskId);
-            if (conflictTask) {
-              conflictTask.fileConflicts = conflicts;
-              await saveBoard(board);
-            }
+            await withBoard((board) => {
+              const conflictTask = board.tasks.find(t => t.id === taskId);
+              if (conflictTask) {
+                conflictTask.fileConflicts = conflicts;
+              }
+            });
             console.log(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
           }
         }
@@ -2095,12 +2113,12 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
         });
 
         // Set parentGoalId on the child task
-        const board = await loadBoard();
-        const childInBoard = board.tasks.find(t => t.id === childTask.id);
-        if (childInBoard) {
-          childInBoard.parentGoalId = taskId;
-          await saveBoard(board);
-        }
+        await withBoard((board) => {
+          const childInBoard = board.tasks.find(t => t.id === childTask.id);
+          if (childInBoard) {
+            childInBoard.parentGoalId = taskId;
+          }
+        });
 
         if (dagMode && typeof def.task_id === 'string' && def.task_id.length > 0) {
           symbolicToFormicId.set(def.task_id, childTask.id);
@@ -2116,30 +2134,30 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       }
 
       // Update goal task with child task IDs
-      const goalBoard = await loadBoard();
-      const goalTask = goalBoard.tasks.find(t => t.id === taskId);
-      if (goalTask) {
-        goalTask.childTaskIds = childTaskIds;
-        await saveBoard(goalBoard);
-      }
+      await withBoard((board) => {
+        const goalTask = board.tasks.find(t => t.id === taskId);
+        if (goalTask) {
+          goalTask.childTaskIds = childTaskIds;
+        }
+      });
 
       // In DAG mode: persist dependsOn / dependsOnResolved, then queue or block each child
       if (dagMode) {
-        const depBoard = await loadBoard();
-        for (let i = 0; i < childTaskDefs.length; i++) {
-          const def = childTaskDefs[i];
-          const childId = childTaskIds[i];
-          if (!childId) continue;
+        await withBoard((board) => {
+          for (let i = 0; i < childTaskDefs.length; i++) {
+            const def = childTaskDefs[i];
+            const childId = childTaskIds[i];
+            if (!childId) continue;
 
-          const childInBoard = depBoard.tasks.find(t => t.id === childId);
-          if (childInBoard && Array.isArray(def.depends_on) && def.depends_on.length > 0) {
-            childInBoard.dependsOn = def.depends_on;
-            childInBoard.dependsOnResolved = def.depends_on
-              .map(sym => symbolicToFormicId.get(sym))
-              .filter((id): id is string => typeof id === 'string');
+            const childInBoard = board.tasks.find(t => t.id === childId);
+            if (childInBoard && Array.isArray(def.depends_on) && def.depends_on.length > 0) {
+              childInBoard.dependsOn = def.depends_on;
+              childInBoard.dependsOnResolved = def.depends_on
+                .map(sym => symbolicToFormicId.get(sym))
+                .filter((id): id is string => typeof id === 'string');
+            }
           }
-        }
-        await saveBoard(depBoard);
+        });
 
         let queuedCount = 0;
         let blockedCount = 0;
