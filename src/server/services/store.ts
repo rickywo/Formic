@@ -649,6 +649,10 @@ export async function queueTask(taskId: string): Promise<Task | null> {
       ...task,
       status: 'queued',
       queuedAt: new Date().toISOString(),
+      // Reset counters on manual re-queue so a human retry starts fresh
+      retryCount: null,
+      yieldCount: 0,
+      yieldReason: undefined,
     };
 
     return board.tasks[taskIndex];
