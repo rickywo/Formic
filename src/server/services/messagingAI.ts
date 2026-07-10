@@ -76,7 +76,7 @@ function detectScreenshotIntent(text: string): string | null {
     url = 'https://' + url;
   }
 
-  console.log('[MessagingAI] Screenshot intent detected, URL:', url);
+  console.warn('[MessagingAI] Screenshot intent detected, URL:', url);
   return url;
 }
 
@@ -136,7 +136,7 @@ async function createTaskViaAPI(taskData: {
     }
 
     const result = (await response.json()) as { id: string };
-    console.log('[MessagingAI] Task created:', result.id);
+    console.warn('[MessagingAI] Task created:', result.id);
     return { success: true, taskId: result.id };
   } catch (error) {
     const err = error as Error;
@@ -220,9 +220,9 @@ export function parseScreenshotBlocks(content: string): ScreenshotParseResult {
         // Validate the path is a real local path, not a fake URL
         if (isValidLocalPath(screenshotData.path)) {
           screenshots.push(screenshotData);
-          console.log('[MessagingAI] Parsed screenshot block:', screenshotData.url, '->', screenshotData.path);
+          console.warn('[MessagingAI] Parsed screenshot block:', screenshotData.url, '->', screenshotData.path);
         } else {
-          console.log('[MessagingAI] Screenshot block has invalid path (looks like fake URL):', screenshotData.path);
+          console.warn('[MessagingAI] Screenshot block has invalid path (looks like fake URL):', screenshotData.path);
           warnings.push(`Screenshot path appears invalid: ${screenshotData.path}`);
         }
       }
@@ -246,7 +246,7 @@ export function parseScreenshotBlocks(content: string): ScreenshotParseResult {
                                   /screenshot|capture|page/i.test(altText);
 
       if (looksLikeScreenshot) {
-        console.log('[MessagingAI] Detected malformed markdown image syntax:', `![${altText}](${imagePath})`);
+        console.warn('[MessagingAI] Detected malformed markdown image syntax:', `![${altText}](${imagePath})`);
 
         // Check if the path might be a valid local file
         if (isValidLocalPath(imagePath)) {
@@ -255,11 +255,11 @@ export function parseScreenshotBlocks(content: string): ScreenshotParseResult {
             url: altText || 'Unknown URL',
             path: imagePath,
           });
-          console.log('[MessagingAI] Using markdown image as fallback screenshot:', imagePath);
+          console.warn('[MessagingAI] Using markdown image as fallback screenshot:', imagePath);
         } else {
           // This is the common case where AI generates fake URLs
           warnings.push(`AI generated a fake screenshot URL instead of using the actual file path. Please ensure the screenshot was actually taken and try again.`);
-          console.log('[MessagingAI] Markdown image has fake/invalid path:', imagePath);
+          console.warn('[MessagingAI] Markdown image has fake/invalid path:', imagePath);
         }
       }
     }
@@ -280,7 +280,7 @@ async function readScreenshotAsBase64(filePath: string): Promise<string | null> 
     const buffer = await readFile(filePath);
     const base64Data = buffer.toString('base64');
 
-    console.log(`[MessagingAI] Screenshot file read successfully: ${filePath} (${Math.round(buffer.length / 1024)}KB)`);
+    console.warn(`[MessagingAI] Screenshot file read successfully: ${filePath} (${Math.round(buffer.length / 1024)}KB)`);
     return base64Data;
   } catch (error) {
     const err = error as Error;
@@ -400,7 +400,7 @@ export async function processAIMessage(
   let preInterceptMessage = '';
 
   if (screenshotUrl) {
-    console.log('[MessagingAI] Pre-intercepting screenshot request for:', screenshotUrl);
+    console.warn('[MessagingAI] Pre-intercepting screenshot request for:', screenshotUrl);
 
     const playwrightAvailable = await isPlaywrightAvailable();
     if (playwrightAvailable) {
@@ -409,7 +409,7 @@ export async function processAIMessage(
       if (result.success && result.data) {
         if (platform === 'line') {
           preInterceptMessage = `\n\n📸 Screenshot captured for: ${screenshotUrl}\nNote: LINE does not support direct image uploads. Screenshot saved locally.`;
-          console.log('[MessagingAI] LINE platform - screenshot captured but cannot be sent directly');
+          console.warn('[MessagingAI] LINE platform - screenshot captured but cannot be sent directly');
         } else {
           preInterceptMedia = {
             type: 'photo',
@@ -417,14 +417,14 @@ export async function processAIMessage(
             data: result.data,
             caption: `Screenshot of ${screenshotUrl}`,
           };
-          console.log('[MessagingAI] Pre-intercept screenshot captured for Telegram');
+          console.warn('[MessagingAI] Pre-intercept screenshot captured for Telegram');
         }
       } else {
-        console.log('[MessagingAI] Pre-intercept screenshot failed:', result.error);
+        console.warn('[MessagingAI] Pre-intercept screenshot failed:', result.error);
         preInterceptMessage = `\n\n⚠️ Screenshot capture failed: ${result.error}`;
       }
     } else {
-      console.log('[MessagingAI] Playwright not available for pre-intercept screenshot');
+      console.warn('[MessagingAI] Playwright not available for pre-intercept screenshot');
       preInterceptMessage = '\n\n⚠️ Screenshot not available: Playwright is not installed.';
     }
   }
@@ -484,17 +484,17 @@ export async function processAIMessage(
 
     // Log any warnings from screenshot parsing
     for (const warning of screenshotWarnings) {
-      console.log('[MessagingAI] Screenshot parsing warning:', warning);
+      console.warn('[MessagingAI] Screenshot parsing warning:', warning);
     }
 
     // Only attempt post-process if pre-intercept didn't already capture a screenshot
     if (!preInterceptMedia && screenshotBlocks.length > 0) {
       const screenshot = screenshotBlocks[0];
-      console.log('[MessagingAI] Post-processing screenshot block for URL:', screenshot.url);
+      console.warn('[MessagingAI] Post-processing screenshot block for URL:', screenshot.url);
 
       if (platform === 'line') {
         screenshotMessage = `\n\n📸 Screenshot captured for: ${screenshot.url}\nNote: LINE does not support direct image uploads. Screenshot saved locally.`;
-        console.log('[MessagingAI] LINE platform - screenshot saved but cannot be sent directly');
+        console.warn('[MessagingAI] LINE platform - screenshot saved but cannot be sent directly');
       } else {
         // Try to read the file from the AI's screenshot block path
         const base64Data = await readScreenshotAsBase64(screenshot.path);
@@ -506,10 +506,10 @@ export async function processAIMessage(
             data: base64Data,
             caption: `Screenshot of ${screenshot.url}`,
           };
-          console.log('[MessagingAI] Screenshot attachment created from AI output path');
+          console.warn('[MessagingAI] Screenshot attachment created from AI output path');
         } else {
           // Fallback: file doesn't exist (MCP tools failed silently), retry via direct Playwright
-          console.log('[MessagingAI] Screenshot file not found, retrying via direct Playwright:', screenshot.url);
+          console.warn('[MessagingAI] Screenshot file not found, retrying via direct Playwright:', screenshot.url);
           const fallbackResult = await takeScreenshotWithMCP(screenshot.url);
 
           if (fallbackResult.success && fallbackResult.data) {
@@ -519,17 +519,17 @@ export async function processAIMessage(
               data: fallbackResult.data,
               caption: `Screenshot of ${screenshot.url}`,
             };
-            console.log('[MessagingAI] Fallback screenshot captured successfully');
+            console.warn('[MessagingAI] Fallback screenshot captured successfully');
           } else {
             screenshotMessage = `\n\n⚠️ Screenshot could not be captured: ${fallbackResult.error || 'Unknown error'}`;
-            console.log('[MessagingAI] Fallback screenshot also failed:', fallbackResult.error);
+            console.warn('[MessagingAI] Fallback screenshot also failed:', fallbackResult.error);
           }
         }
       }
     } else if (!preInterceptMedia && screenshotWarnings.length > 0) {
       // No valid screenshots found but warnings exist - the AI likely generated fake URLs
       screenshotMessage = `\n\n⚠️ Screenshot could not be attached: ${screenshotWarnings[0]}`;
-      console.log('[MessagingAI] Screenshot attachment failed due to invalid AI output');
+      console.warn('[MessagingAI] Screenshot attachment failed due to invalid AI output');
     }
 
     // Clean up response - remove task-create and screenshot blocks for display
@@ -596,9 +596,9 @@ function spawnAgentAndGetResponse(
     // Build args for messaging assistant mode (no MCP Playwright tools)
     const args = buildMessagingAssistantArgs(prompt, { continue: useContinue });
 
-    console.log('[MessagingAI] Spawning agent:', agentCommand);
-    console.log('[MessagingAI] Working directory:', workspacePath);
-    console.log('[MessagingAI] Using --continue:', useContinue);
+    console.warn('[MessagingAI] Spawning agent:', agentCommand);
+    console.warn('[MessagingAI] Working directory:', workspacePath);
+    console.warn('[MessagingAI] Using --continue:', useContinue);
 
     const child = spawn(agentCommand, args, {
       cwd: workspacePath,
@@ -647,7 +647,7 @@ function spawnAgentAndGetResponse(
         !text.includes('● Calling') &&
         !text.includes('● Reading')
       ) {
-        console.log('[MessagingAI] stderr:', text);
+        console.warn('[MessagingAI] stderr:', text);
       }
     });
 
@@ -659,7 +659,7 @@ function spawnAgentAndGetResponse(
 
     // Handle process exit
     child.on('close', (code) => {
-      console.log('[MessagingAI] Process exited with code:', code);
+      console.warn('[MessagingAI] Process exited with code:', code);
 
       // Mark conversation as started for future --continue usage
       conversationStarted.set(sessionKey, true);

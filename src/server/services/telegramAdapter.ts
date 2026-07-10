@@ -451,7 +451,7 @@ export async function handleTelegramWebhook(
     return { success: true };
   }
 
-  console.log(`[TelegramAdapter] Received message from ${incomingMessage.userName}: ${incomingMessage.text}`);
+  console.warn(`[TelegramAdapter] Received message from ${incomingMessage.userName}: ${incomingMessage.text}`);
 
   // Check if this will use AI processing (potentially slow)
   const useAI = await willUseAIProcessing(incomingMessage);
@@ -518,7 +518,7 @@ export function handleTelegramWebhookAsync(
   return {
     immediate: Promise.resolve({ success: true }),
     background: (async () => {
-      console.log(`[TelegramAdapter] Processing message async from ${incomingMessage.userName}`);
+      console.warn(`[TelegramAdapter] Processing message async from ${incomingMessage.userName}`);
 
       // Check if AI processing needed
       const useAI = await willUseAIProcessing(incomingMessage);
@@ -560,7 +560,7 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
       url: webhookUrl,
       allowed_updates: ['message', 'callback_query'],
     });
-    console.log(`[TelegramAdapter] Webhook set to: ${webhookUrl}`);
+    console.warn(`[TelegramAdapter] Webhook set to: ${webhookUrl}`);
     return true;
   } catch (error) {
     const err = error as Error;
@@ -575,7 +575,7 @@ export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
 export async function deleteTelegramWebhook(): Promise<boolean> {
   try {
     await callTelegramApi('deleteWebhook', {});
-    console.log('[TelegramAdapter] Webhook deleted');
+    console.warn('[TelegramAdapter] Webhook deleted');
     return true;
   } catch (error) {
     const err = error as Error;

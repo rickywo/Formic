@@ -148,7 +148,7 @@ export async function configRoutes(fastify: FastifyInstance): Promise<void> {
 
       // Only migrate if server config is empty (no workspaces)
       if (currentConfig.workspaces.length > 0) {
-        console.log('[ConfigStore] Migration skipped: server config already has workspaces');
+        console.warn('[ConfigStore] Migration skipped: server config already has workspaces');
         return reply.send({ migrated: false, reason: 'Server config already has data' });
       }
 
@@ -163,7 +163,7 @@ export async function configRoutes(fastify: FastifyInstance): Promise<void> {
       };
 
       await saveConfig(migratedConfig);
-      console.log('[ConfigStore] Migration from localStorage complete:', migratedConfig.workspaces.length, 'workspaces');
+      console.warn('[ConfigStore] Migration from localStorage complete:', migratedConfig.workspaces.length, 'workspaces');
       return reply.send({ migrated: true, config: migratedConfig });
     }
   );

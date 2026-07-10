@@ -440,7 +440,7 @@ export async function sendTypingIndicator(chatId: string): Promise<void> {
   } catch (error) {
     const err = error as Error;
     // Loading indicator may not be supported in all contexts, ignore errors
-    console.log('[LineAdapter] Loading indicator not available:', err.message);
+    console.warn('[LineAdapter] Loading indicator not available:', err.message);
   }
 }
 
@@ -533,7 +533,7 @@ async function handleMessageEvent(event: LineMessageEvent): Promise<SendMessageR
     return { success: true };
   }
 
-  console.log(`[LineAdapter] Received message from ${incomingMessage.userName || incomingMessage.userId}: ${incomingMessage.text}`);
+  console.warn(`[LineAdapter] Received message from ${incomingMessage.userName || incomingMessage.userId}: ${incomingMessage.text}`);
 
   // Check if AI processing is needed
   const useAI = await willUseAIProcessing(incomingMessage);

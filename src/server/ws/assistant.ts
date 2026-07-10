@@ -16,7 +16,7 @@ export async function assistantWebSocket(fastify: FastifyInstance): Promise<void
   fastify.get('/ws/assistant', { websocket: true }, async (connection: SocketStream) => {
     const socket = connection.socket;
 
-    console.log('[AssistantWS] New connection established');
+    console.warn('[AssistantWS] New connection established');
 
     // Register this connection for broadcasts
     registerAssistantConnection(socket);
@@ -53,7 +53,7 @@ export async function assistantWebSocket(fastify: FastifyInstance): Promise<void
 
     // Handle disconnection
     socket.on('close', () => {
-      console.log('[AssistantWS] Connection closed');
+      console.warn('[AssistantWS] Connection closed');
       unregisterAssistantConnection(socket);
       unregisterBoardConnection(socket);
     });
