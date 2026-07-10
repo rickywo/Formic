@@ -375,14 +375,23 @@ export async function getTask(taskId: string): Promise<Task | undefined> {
 export async function createTask(input: CreateTaskInput): Promise<Task> {
   return withBoard(async (board) => {
     // Generate next task ID from a persistent monotonic counter so deleting the
-    // highest-numbered task (or restoring an older board) never causes ID reuse.
-    // Seed the counter from the current max ID on first use (covers boards saved
-    // before this field existed); BOOTSTRAP_TASK_ID ('t-bootstrap') is excluded
-    // naturally since parseInt('bootstrap', 10) is not finite.
-    const seeded = board.meta.nextTaskId ?? board.tasks.reduce((max, task) => {
+    // highest-numbered task never causes ID reuse. Reconcile it with the board's
+    // existing IDs as a defensive measure against a stale restored board.
+    // BOOTSTRAP_TASK_ID ('t-bootstrap') is excluded naturally since
+    // parseInt('bootstrap', 10) is not finite.
+    const maxExisting = board.tasks.reduce((max, task) => {
       const num = parseInt(task.id.replace('t-', ''), 10);
       return Number.isFinite(num) && num > max ? num : max;
-    }, 0) + 1;
+    }, 0);
+
+    const persistedCounter = board.meta.nextTaskId ?? 0;
+    if (persistedCounter <= maxExisting) {
+      console.warn(
+        `[Store] Task ID counter regression detected: nextTaskId ${persistedCounter} is behind existing task ID t-${maxExisting}; reconciling counter`,
+      );
+    }
+
+    const seeded = Math.max(persistedCounter, maxExisting + 1);
 
     const taskId = `t-${seeded}`;
     board.meta.nextTaskId = seeded + 1;

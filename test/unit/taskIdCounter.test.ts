@@ -77,4 +77,55 @@ describe('persistent task ID counter', () => {
     const next = await createTask({ title: 'After legacy', context: 'ctx' });
     assert.equal(next.id, 't-6', 'seeding must derive from the max existing numeric ID');
   });
+
+  it('reconciles a stale persisted counter with existing task IDs and warns', async () => {
+    const boardPath = path.join(workspacePath, '.formic', 'board.json');
+    const staleBoard = {
+      meta: {
+        projectName: 'stale-counter',
+        repoPath: workspacePath,
+        createdAt: new Date().toISOString(),
+        nextTaskId: 13,
+      },
+      tasks: [
+        {
+          id: 't-16',
+          title: 'Existing',
+          context: 'ctx',
+          priority: 'medium',
+          status: 'todo',
+          docsPath: '.formic/tasks/t-16_existing',
+          agentLogs: [],
+          pid: null,
+          type: 'standard',
+          workflowStep: 'pending',
+          workflowLogs: {},
+          createdAt: new Date().toISOString(),
+          safePointCommit: null,
+          retryCount: null,
+          fixForTaskId: null,
+        },
+      ],
+    };
+    await writeFile(boardPath, JSON.stringify(staleBoard, null, 2), 'utf-8');
+
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(' '));
+    };
+
+    try {
+      const next = await createTask({ title: 'After stale counter', context: 'ctx' });
+      assert.equal(next.id, 't-17', 'a stale counter must not create a duplicate ID');
+    } finally {
+      console.warn = originalWarn;
+    }
+
+    assert.equal(
+      warnings.some(warning => warning.includes('[Store] Task ID counter regression detected')),
+      true,
+      'counter reconciliation must be visible in server logs',
+    );
+  });
 });
