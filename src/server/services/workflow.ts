@@ -75,7 +75,7 @@ async function incrementRetryCount(taskId: string, caller: string): Promise<numb
     if (!task) return 0;
     const newCount = (task.retryCount ?? 0) + 1;
     await updateTask(taskId, { retryCount: newCount });
-    console.log(`[Workflow] Incremented retryCount for ${taskId} to ${newCount} (caller: ${caller})`);
+    console.warn(`[Workflow] Incremented retryCount for ${taskId} to ${newCount} (caller: ${caller})`);
     return newCount;
   } catch (err) {
     console.warn(`[Workflow] Failed to increment retryCount for ${taskId}:`, err instanceof Error ? err.message : 'Unknown error');
@@ -359,7 +359,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
   try {
     const skillResult = await loadSkillPrompt('declare', task);
     if (!skillResult.success) {
-      console.log('[Workflow] Declare skill not found, skipping declaration');
+      console.warn('[Workflow] Declare skill not found, skipping declaration');
       declareSuccess = true;
     } else {
       let pidPromise: Promise<void> | undefined;
@@ -384,7 +384,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
   activeWorkflows.delete(taskId);
 
   if (!declareSuccess) {
-    console.log(`[Workflow] Declare step failed for task ${taskId}`);
+    console.warn(`[Workflow] Declare step failed for task ${taskId}`);
     return false;
   }
 
@@ -412,7 +412,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
     });
 
     if (!leaseResult.granted) {
-      console.log(`[Workflow] Lease acquisition failed for task ${taskId}, yielding`);
+      console.warn(`[Workflow] Lease acquisition failed for task ${taskId}, yielding`);
       broadcastToTask(taskId, {
         type: 'stdout',
         data: `\n[YIELD] Cannot acquire file leases - conflicts on: ${leaseResult.conflictingFiles.join(', ')}\n`,
@@ -433,7 +433,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
       timestamp: new Date().toISOString(),
     });
   } else {
-    console.log(`[Workflow] No declared-files.json found for task ${taskId}, proceeding without leases`);
+    console.warn(`[Workflow] No declared-files.json found for task ${taskId}, proceeding without leases`);
   }
 
   return true;
@@ -453,7 +453,7 @@ function runWorkflowStep(
   prompt: string,
   onComplete: (success: boolean) => void
 ): { child: ChildProcess; pidPersisted: Promise<void> } {
-  console.log(`[Workflow] Starting ${step} step for task ${taskId}`);
+  console.warn(`[Workflow] Starting ${step} step for task ${taskId}`);
 
   // Use agent adapter for CLI invocation
   const agentCommand = getAgentCommand();
@@ -488,7 +488,7 @@ function runWorkflowStep(
   // Set up timeout to kill hanging processes
   const timeout = setTimeout(() => {
     if (!hasCompleted) {
-      console.log(`[Workflow] ${step} step timed out after ${engineConfig.stepTimeoutMs}ms, killing process`);
+      console.warn(`[Workflow] ${step} step timed out after ${engineConfig.stepTimeoutMs}ms, killing process`);
       broadcastToTask(taskId, {
         type: 'error',
         data: `[${step.toUpperCase()}] Step timed out after ${engineConfig.stepTimeoutMs / 1000}s`,
@@ -514,7 +514,7 @@ function runWorkflowStep(
       errorMessage = `Command '${agentCommand}' not found. Please ensure ${agentName} is installed.`;
     }
 
-    console.log(`[Workflow] ${step} step error: ${errorMessage}`);
+    console.warn(`[Workflow] ${step} step error: ${errorMessage}`);
     await appendWorkflowLogs(taskId, step, [`Error: ${errorMessage}`]);
 
     broadcastToTask(taskId, {
@@ -556,7 +556,7 @@ function runWorkflowStep(
     hasCompleted = true;
     clearTimeout(timeout);
 
-    console.log(`[Workflow] ${step} step completed with code ${code}`);
+    console.warn(`[Workflow] ${step} step completed with code ${code}`);
     await appendWorkflowLogs(taskId, step, logBuffer);
 
     broadcastToTask(taskId, {
@@ -607,7 +607,7 @@ async function executeWithIterativeLoop(
   taskId: string,
   task: Task
 ): Promise<{ success: boolean; iterations: number; allComplete: boolean }> {
-  console.log(`[Workflow] Starting iterative execution for task ${taskId}`);
+  console.warn(`[Workflow] Starting iterative execution for task ${taskId}`);
   const guidelines = await loadProjectGuidelines();
   let iteration = 1;
   let allComplete = false;
@@ -620,7 +620,7 @@ async function executeWithIterativeLoop(
   const LEASE_RENEWAL_INTERVAL_MS = 2 * 60 * 1000;
   const leaseRenewalTimer = setInterval(() => {
     renewLeases(taskId);
-    console.log(`[Workflow] Periodic lease renewal for task ${taskId}`);
+    console.warn(`[Workflow] Periodic lease renewal for task ${taskId}`);
   }, LEASE_RENEWAL_INTERVAL_MS);
 
   // Broadcast start of iterative execution
@@ -633,7 +633,7 @@ async function executeWithIterativeLoop(
   try {
 
   while (iteration <= engineConfig.maxExecuteIterations && !allComplete) {
-    console.log(`[Workflow] Execute iteration ${iteration}/${engineConfig.maxExecuteIterations} for task ${taskId}`);
+    console.warn(`[Workflow] Execute iteration ${iteration}/${engineConfig.maxExecuteIterations} for task ${taskId}`);
 
     // Renew leases at the start of each iteration to prevent watchdog timeout
     renewLeases(taskId);
@@ -665,7 +665,7 @@ async function executeWithIterativeLoop(
 
     if (!success) {
       // Iteration failed - stop the loop
-      console.log(`[Workflow] Execute iteration ${iteration} failed`);
+      console.warn(`[Workflow] Execute iteration ${iteration} failed`);
       return { success: false, iterations: iteration, allComplete: false };
     }
 
@@ -673,7 +673,7 @@ async function executeWithIterativeLoop(
     await new Promise(resolve => setTimeout(resolve, 500));
 
     // Check subtasks completion after this iteration
-    console.log(`[Workflow] Checking subtasks for task ${taskId}, docsPath: ${task.docsPath}`);
+    console.warn(`[Workflow] Checking subtasks for task ${taskId}, docsPath: ${task.docsPath}`);
     const subtasks = await loadSubtasks(task.docsPath);
     if (subtasks) {
       const stats = getCompletionStats(subtasks);
@@ -684,7 +684,7 @@ async function executeWithIterativeLoop(
         acc[s.status] = (acc[s.status] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
-      console.log(`[Workflow] Subtask statuses: ${JSON.stringify(statusCounts)}`);
+      console.warn(`[Workflow] Subtask statuses: ${JSON.stringify(statusCounts)}`);
 
       // Broadcast completion status
       broadcastToTask(taskId, {
@@ -693,12 +693,12 @@ async function executeWithIterativeLoop(
         timestamp: new Date().toISOString(),
       });
 
-      console.log(`[Workflow] Subtask completion after iteration ${iteration}: ${stats.completed}/${stats.total} (${stats.percentage}%), allComplete=${allComplete}`);
+      console.warn(`[Workflow] Subtask completion after iteration ${iteration}: ${stats.completed}/${stats.total} (${stats.percentage}%), allComplete=${allComplete}`);
 
       // Stall detection: check if progress was made this iteration
       if (stats.completed === previousCompletedCount && iteration > 1) {
         stalledIterations++;
-        console.log(`[Workflow] No progress made in iteration ${iteration}. Stalled iterations: ${stalledIterations}/${STALL_THRESHOLD}`);
+        console.warn(`[Workflow] No progress made in iteration ${iteration}. Stalled iterations: ${stalledIterations}/${STALL_THRESHOLD}`);
 
         if (stalledIterations >= STALL_THRESHOLD) {
           // Progress has stalled - likely manual testing subtasks remaining
@@ -712,7 +712,7 @@ async function executeWithIterativeLoop(
             data: `[INFO] Moving to review. Please verify remaining subtasks manually.\n`,
             timestamp: new Date().toISOString(),
           });
-          console.log(`[Workflow] Stall detected - stopping execution loop. Remaining subtasks need manual verification.`);
+          console.warn(`[Workflow] Stall detected - stopping execution loop. Remaining subtasks need manual verification.`);
           break;
         }
       } else {
@@ -730,7 +730,7 @@ async function executeWithIterativeLoop(
       }
     } else {
       // No subtasks.json found - treat as complete (backwards compatibility)
-      console.log(`[Workflow] No subtasks.json found for task ${taskId}, treating as complete`);
+      console.warn(`[Workflow] No subtasks.json found for task ${taskId}, treating as complete`);
       allComplete = true;
     }
 
@@ -739,17 +739,17 @@ async function executeWithIterativeLoop(
 
   if (!allComplete && stalledIterations >= STALL_THRESHOLD) {
     // Stalled - this is expected for manual testing subtasks
-    console.log(`[Workflow] Execution stalled after ${iteration - 1} iterations, moving to review for manual verification`);
+    console.warn(`[Workflow] Execution stalled after ${iteration - 1} iterations, moving to review for manual verification`);
   } else if (!allComplete && iteration > engineConfig.maxExecuteIterations) {
     broadcastToTask(taskId, {
       type: 'stdout',
       data: `\n[WARNING] Max iterations (${engineConfig.maxExecuteIterations}) reached. Some subtasks may be incomplete.\n`,
       timestamp: new Date().toISOString(),
     });
-    console.log(`[Workflow] Max iterations reached, some subtasks incomplete`);
+    console.warn(`[Workflow] Max iterations reached, some subtasks incomplete`);
   }
 
-  console.log(`[Workflow] Iterative execution completed for task ${taskId}: iterations=${iteration - 1}, allComplete=${allComplete}, stalled=${stalledIterations >= STALL_THRESHOLD}`);
+  console.warn(`[Workflow] Iterative execution completed for task ${taskId}: iterations=${iteration - 1}, allComplete=${allComplete}, stalled=${stalledIterations >= STALL_THRESHOLD}`);
   return { success: true, iterations: iteration - 1, allComplete };
 
   } finally {
@@ -766,7 +766,7 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
   await refreshEngineConfig();
 
   if (engineConfig.skipVerify) {
-    console.log('[Verifier] Skipping verification — toggle is OFF');
+    console.warn('[Verifier] Skipping verification — toggle is OFF');
     return { success: true, stderrLines: [] };
   }
 
@@ -799,7 +799,7 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.log(`[Verifier] Failed to spawn verification command: ${message}`);
+    console.warn(`[Verifier] Failed to spawn verification command: ${message}`);
     return { success: false, stderrLines: [message] };
   }
 
@@ -816,7 +816,7 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
   return new Promise((resolve) => {
     child.on('error', (err: NodeJS.ErrnoException) => {
       const message = err.message;
-      console.log(`[Verifier] Failed to spawn verification command: ${message}`);
+      console.warn(`[Verifier] Failed to spawn verification command: ${message}`);
       resolve({ success: false, stderrLines: [message] });
     });
 
@@ -844,10 +844,10 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
       });
 
       if (code === 0) {
-        console.log('[Verifier] Verification PASSED');
+        console.warn('[Verifier] Verification PASSED');
         resolve({ success: true, stderrLines: [] });
       } else {
-        console.log(`[Verifier] Verification FAILED (exit code ${code})`);
+        console.warn(`[Verifier] Verification FAILED (exit code ${code})`);
         resolve({ success: false, stderrLines });
       }
     });
@@ -885,17 +885,17 @@ async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Pro
   if (!captured) return;
 
   const { newRetryCount, safePointCommit, declaredExclusiveFiles, title, context } = captured;
-  console.log(`[Critic] Task ${taskId} retry count: ${newRetryCount}`);
+  console.warn(`[Critic] Task ${taskId} retry count: ${newRetryCount}`);
 
   if (newRetryCount >= 3) {
-    console.log(`[Critic] Kill switch activated for task ${taskId} after ${newRetryCount} failed verifications`);
+    console.warn(`[Critic] Kill switch activated for task ${taskId} after ${newRetryCount} failed verifications`);
 
     let revertMessage: string;
     if (safePointCommit) {
       if (declaredExclusiveFiles.length > 0) {
         try {
           await checkoutFilesFromCommit(safePointCommit, declaredExclusiveFiles, getWorkspacePath());
-          console.log(`[Critic] Reverted ${declaredExclusiveFiles.length} declared file(s) for task ${taskId} to safe point ${safePointCommit}`);
+          console.warn(`[Critic] Reverted ${declaredExclusiveFiles.length} declared file(s) for task ${taskId} to safe point ${safePointCommit}`);
           revertMessage = `Declared files reverted to safe point \`${safePointCommit}\`. HEAD was not moved.`;
         } catch (err) {
           console.warn('[Critic] Failed to revert declared files to safe point:', err instanceof Error ? err.message : 'Unknown error');
@@ -911,7 +911,7 @@ async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Pro
     }
 
     stopQueueProcessor();
-    console.log('[Critic] Queue processor stopped by kill switch');
+    console.warn('[Critic] Queue processor stopped by kill switch');
 
     broadcastKillSwitch(taskId);
 
@@ -942,7 +942,7 @@ async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Pro
   await queueTask(fixTask.id);
   await updateTaskStatus(taskId, 'todo', null, 'workflow.executeCriticAndRetry.retry');
   broadcastBoardUpdate();
-  console.log(`[Critic] Created fix task ${fixTask.id} for task ${taskId} (retry ${newRetryCount}/3)`);
+  console.warn(`[Critic] Created fix task ${fixTask.id} for task ${taskId} (retry ${newRetryCount}/3)`);
 }
 
 // ==================== Reflection Step ====================
@@ -1054,7 +1054,7 @@ Example:
     if (memoryIds.length > 0) {
       await updateTask(taskId, { reflectionMemories: memoryIds });
       broadcastBoardUpdate();
-      console.log(`[Workflow] Reflection step saved ${memoryIds.length} memory entries for task ${taskId}`);
+      console.warn(`[Workflow] Reflection step saved ${memoryIds.length} memory entries for task ${taskId}`);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -1105,7 +1105,7 @@ Example:
     }
 
     if (forged > 0) {
-      console.log(`[Workflow] Tool forge step registered ${forged} tool(s) for task ${taskId}`);
+      console.warn(`[Workflow] Tool forge step registered ${forged} tool(s) for task ${taskId}`);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
@@ -1211,7 +1211,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
     throw new Error('A workflow is already running for this task');
   }
 
-  console.log(`[Workflow] Starting quick task execution for ${taskId}`);
+  console.warn(`[Workflow] Starting quick task execution for ${taskId}`);
 
   // Create a git safe-point commit before execution for rollback support
   await createSafePoint(taskId);
@@ -1339,12 +1339,12 @@ export async function executeSingleStep(
       const skillResult = await loadSkillPrompt('brief', task);
       if (skillResult.success) {
         prompt = skillResult.content;
-        console.log('[Workflow] Using skill file for brief step');
+        console.warn('[Workflow] Using skill file for brief step');
       } else {
         // Fallback to hardcoded prompt
         const guidelines = await loadProjectGuidelines();
         prompt = buildBriefPromptFallback(task, guidelines);
-        console.log('[Workflow] Using fallback prompt for brief step');
+        console.warn('[Workflow] Using fallback prompt for brief step');
       }
       status = 'briefing';
       break;
@@ -1354,19 +1354,19 @@ export async function executeSingleStep(
       const skillResult = await loadSkillPrompt('plan', task);
       if (skillResult.success) {
         prompt = skillResult.content;
-        console.log('[Workflow] Using skill file for plan step');
+        console.warn('[Workflow] Using skill file for plan step');
       } else {
         // Fallback to hardcoded prompt
         const guidelines = await loadProjectGuidelines();
         prompt = buildPlanPromptFallback(task, guidelines);
-        console.log('[Workflow] Using fallback prompt for plan step');
+        console.warn('[Workflow] Using fallback prompt for plan step');
       }
       status = 'planning';
       break;
     }
     case 'execute': {
       // Execute step uses iterative loop with subtask completion checking
-      console.log(`[Workflow] Starting execute step for task ${taskId}`);
+      console.warn(`[Workflow] Starting execute step for task ${taskId}`);
       await updateTaskStatus(taskId, 'running', undefined, 'workflow.executeSingleStep.execute_start');
       await updateWorkflowStep(taskId, 'execute');
 
@@ -1379,11 +1379,11 @@ export async function executeSingleStep(
       let result: { success: boolean; allComplete: boolean; iterations: number };
       try {
         result = await executeWithIterativeLoop(taskId, task);
-        console.log(`[Workflow] Execute step finished for task ${taskId}: success=${result.success}, allComplete=${result.allComplete}, iterations=${result.iterations}`);
+        console.warn(`[Workflow] Execute step finished for task ${taskId}: success=${result.success}, allComplete=${result.allComplete}, iterations=${result.iterations}`);
 
         if (result.success && result.allComplete) {
           // All subtasks complete - move to review
-          console.log(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
+          console.warn(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.all_complete');
           broadcastTaskCompleted(taskId);
@@ -1392,7 +1392,7 @@ export async function executeSingleStep(
           void triggerToolForge(taskId);
         } else if (result.success && !result.allComplete) {
           // Max iterations reached but not all complete - still move to review with warning
-          console.log(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
+          console.warn(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.max_iterations');
           broadcastTaskCompleted(taskId);
@@ -1401,13 +1401,13 @@ export async function executeSingleStep(
           void triggerToolForge(taskId);
         } else {
           // Execution failed
-          console.log(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
+          console.warn(`[Workflow] Execute step failed for task ${taskId}, reverting to todo`);
           await incrementRetryCount(taskId, 'workflow.executeSingleStep.execute_failed');
           await updateTaskStatus(taskId, 'todo', null, 'workflow.executeSingleStep.execute_failed');
         }
       } finally {
         releaseLeases(taskId);
-        console.log(`[Workflow] Released leases for task ${taskId} (executeSingleStep)`);
+        console.warn(`[Workflow] Released leases for task ${taskId} (executeSingleStep)`);
       }
 
       return { success: result.success, pid: process.pid };
@@ -1480,11 +1480,11 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         const skillResult = await loadSkillPrompt('brief', currentTask);
         if (skillResult.success) {
           prompt = skillResult.content;
-          console.log('[Workflow] Full workflow: Using skill file for brief step');
+          console.warn('[Workflow] Full workflow: Using skill file for brief step');
         } else {
           const guidelines = await loadProjectGuidelines();
           prompt = buildBriefPromptFallback(currentTask, guidelines);
-          console.log('[Workflow] Full workflow: Using fallback for brief step');
+          console.warn('[Workflow] Full workflow: Using fallback for brief step');
         }
         status = 'briefing';
         break;
@@ -1493,11 +1493,11 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         const skillResult = await loadSkillPrompt('plan', currentTask);
         if (skillResult.success) {
           prompt = skillResult.content;
-          console.log('[Workflow] Full workflow: Using skill file for plan step');
+          console.warn('[Workflow] Full workflow: Using skill file for plan step');
         } else {
           const guidelines = await loadProjectGuidelines();
           prompt = buildPlanPromptFallback(currentTask, guidelines);
-          console.log('[Workflow] Full workflow: Using fallback for plan step');
+          console.warn('[Workflow] Full workflow: Using fallback for plan step');
         }
         status = 'planning';
         break;
@@ -1643,7 +1643,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         }
       });
       const verifyTask = await getTask(taskId);
-      console.log(`[Workflow] Task ${taskId} yielded at declare — resumeFromStep persisted: ${verifyTask?.resumeFromStep}`);
+      console.warn(`[Workflow] Task ${taskId} yielded at declare — resumeFromStep persisted: ${verifyTask?.resumeFromStep}`);
       await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFullWorkflow.declare_yield');
       return;
     }
@@ -1684,7 +1684,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
               conflictTask.fileConflicts = conflicts;
             }
           });
-          console.log(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
+          console.warn(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
         }
       }
 
@@ -1781,7 +1781,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
           }
         });
         const verifyRetryTask = await getTask(taskId);
-        console.log(`[Workflow] Task ${taskId} re-queued from declare retry — resumeFromStep persisted: ${verifyRetryTask?.resumeFromStep}, yieldCount: ${verifyRetryTask?.yieldCount}`);
+        console.warn(`[Workflow] Task ${taskId} re-queued from declare retry — resumeFromStep persisted: ${verifyRetryTask?.resumeFromStep}, yieldCount: ${verifyRetryTask?.yieldCount}`);
         await updateTaskStatus(taskId, 'queued', null, 'workflow.executeFromDeclare.declare_yield');
         return;
       }
@@ -1825,7 +1825,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
                 conflictTask.fileConflicts = conflicts;
               }
             });
-            console.log(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
+            console.warn(`[Workflow] File conflicts detected for task ${taskId}: ${conflicts.map(c => c.filePath).join(', ')}`);
           }
         }
 
@@ -1968,7 +1968,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
     throw new Error('A workflow is already running for this task');
   }
 
-  console.log(`[Workflow] Starting goal workflow for ${taskId}`);
+  console.warn(`[Workflow] Starting goal workflow for ${taskId}`);
 
   // Create a git safe-point commit before execution for rollback support
   await createSafePoint(taskId);
@@ -1982,11 +1982,11 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
   const skillResult = await loadSkillPrompt('architect', task);
   if (skillResult.success) {
     prompt = skillResult.content;
-    console.log('[Workflow] Using skill file for architect step');
+    console.warn('[Workflow] Using skill file for architect step');
   } else {
     const guidelines = await loadProjectGuidelines();
     prompt = buildArchitectPromptFallback(task, guidelines);
-    console.log('[Workflow] Using fallback prompt for architect step');
+    console.warn('[Workflow] Using fallback prompt for architect step');
   }
 
   // Broadcast start
@@ -2071,7 +2071,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
         throw new Error('architect-output.json must be a non-empty array');
       }
 
-      console.log(`[Workflow] Parsed ${childTaskDefs.length} child tasks from architect output`);
+      console.warn(`[Workflow] Parsed ${childTaskDefs.length} child tasks from architect output`);
 
       // Determine if DAG mode is active: at least one def has a task_id and no cycle exists
       const hasDagFields = childTaskDefs.some(d => typeof d.task_id === 'string' && d.task_id.length > 0);

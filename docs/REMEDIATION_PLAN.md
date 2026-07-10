@@ -34,6 +34,25 @@ Effort: **S** = < half day, **M** = half day to two days.
 > **Issue 12 was observed as a live incident on 2026-07-10:** task t-1 (which edits `src/server/index.ts`) was dispatched
 > 9 times in 7 minutes while Formic ran under `tsx watch` on its own repo. See §3 Issue 12 for the incident analysis.
 
+### Implementation status (re-audit 2026-07-10, evening)
+
+| Issue | Status | Evidence |
+|-------|--------|----------|
+| 1 (bind/auth) | ✅ Landed | `DEFAULT_HOST='127.0.0.1'`, `FORMIC_AUTH_TOKEN` guard + onRequest hook in `index.ts` |
+| 2 (kill-switch rollback) | ✅ Landed | `checkoutFilesFromCommit()` in `safeGit.ts`, used at `workflow.ts` critic path |
+| 3 (board mutex) | ✅ Landed | `withBoard<T>()` in `store.ts`, mutators converted |
+| 4 (stop-before-release) | ❌ Outstanding | `yieldSignal` still written and never read; no teardown helper — **task created** |
+| 5 (cap transitions) | ✅ Landed | `cap-exceeded:*` demotions incl. recoveries in `queueProcessor.ts`; counter resets in `queueTask()` |
+| 6 (wait graph) | ❌ Outstanding | `waitForMap` still `Map<taskId, string>`; plus new survivor stale-wait bug (`test/repro-deadlock-survivor.ts`) — **task created** |
+| 7 (task ID counter) | ✅ Landed | `board.meta.nextTaskId` + validation + seeding |
+| 8 (PUT whitelist) | ✅ Landed | `UPDATABLE_TASK_FIELDS` + Fastify schema `additionalProperties:false` + 400 on unknown fields |
+| 9 (lease lifecycle) | ❌ Outstanding | `cleanExpiredLeases` still silent; `renewLeases` unpersisted; stale recovery comment — **task created** |
+| 10 (console.log) | ✅ Landed | 1 intentional remnant: `mcpScreenshot.ts` `SCREENSHOT_SUCCESS` protocol marker |
+| 11 (spawn failure) | ✅ Landed | Spawn-confirm pattern in `runner.ts`; no `pid: 0` placeholder |
+| 12 (recovery loop) | ✅ Landed | `recoveryCount` + `recovery.startup` transitions + orphan SIGTERM + self-host warning + README section |
+
+Outstanding work = Phase 3 (Issues 4, 6, 9). Execute in that order — 6 depends on 4's teardown helper; all three share `leaseManager.ts`/`workflow.ts` so run sequentially, not in parallel.
+
 ---
 
 ## 2. Recommended Implementation Order (Phases)

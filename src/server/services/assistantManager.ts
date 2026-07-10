@@ -66,7 +66,7 @@ async function createTaskViaAPI(taskData: { title: string; context: string; prio
     }
 
     const result = await response.json() as { id: string };
-    console.log('[AssistantManager] Task created:', result.id);
+    console.warn('[AssistantManager] Task created:', result.id);
     return { success: true, taskId: result.id };
   } catch (error) {
     const err = error as Error;
@@ -83,14 +83,14 @@ async function processTaskCreation(content: string): Promise<void> {
   const matches = [...content.matchAll(TASK_CREATE_PATTERN)];
   if (matches.length === 0) return;
 
-  console.log(`[AssistantManager] Found ${matches.length} task creation request(s)`);
+  console.warn(`[AssistantManager] Found ${matches.length} task creation request(s)`);
 
   const results: Array<{ success: boolean; title: string; taskId?: string; error?: string }> = [];
 
   for (const match of matches) {
     try {
       const taskData = JSON.parse(match[1]) as { title: string; context: string; priority?: string };
-      console.log('[AssistantManager] Creating task:', taskData.title);
+      console.warn('[AssistantManager] Creating task:', taskData.title);
 
       const result = await createTaskViaAPI(taskData);
       results.push({
@@ -160,7 +160,7 @@ async function processTaskCreation(content: string): Promise<void> {
  */
 export function registerAssistantConnection(ws: WebSocket): void {
   assistantConnections.add(ws);
-  console.log('[AssistantManager] Connection registered, total:', assistantConnections.size);
+  console.warn('[AssistantManager] Connection registered, total:', assistantConnections.size);
 }
 
 /**
@@ -168,7 +168,7 @@ export function registerAssistantConnection(ws: WebSocket): void {
  */
 export function unregisterAssistantConnection(ws: WebSocket): void {
   assistantConnections.delete(ws);
-  console.log('[AssistantManager] Connection unregistered, total:', assistantConnections.size);
+  console.warn('[AssistantManager] Connection unregistered, total:', assistantConnections.size);
 }
 
 /**
@@ -543,7 +543,7 @@ The server will automatically read this code block, load the image file, and sen
 `;
 
   await writeFile(contextPath, contextContent, 'utf-8');
-  console.log('[AssistantManager] Context file generated at:', contextPath);
+  console.warn('[AssistantManager] Context file generated at:', contextPath);
   return contextPath;
 }
 
@@ -552,12 +552,12 @@ The server will automatically read this code block, load the image file, and sen
  */
 export function sendUserMessage(content: string): boolean {
   if (session.status !== 'running') {
-    console.log('[AssistantManager] Cannot send message: assistant not running');
+    console.warn('[AssistantManager] Cannot send message: assistant not running');
     return false;
   }
 
   if (isProcessing) {
-    console.log('[AssistantManager] Cannot send message: already processing');
+    console.warn('[AssistantManager] Cannot send message: already processing');
     return false;
   }
 
@@ -591,9 +591,9 @@ function processMessage(content: string): void {
   // Build agent-specific args using the adapter
   const args = buildAssistantArgs(content, { continue: useContinue });
 
-  console.log('[AssistantManager] Processing message in:', workspacePath);
-  console.log('[AssistantManager] Agent:', agentType, '| Command:', agentCommand);
-  console.log('[AssistantManager] Args:', args.join(' ').substring(0, 100));
+  console.warn('[AssistantManager] Processing message in:', workspacePath);
+  console.warn('[AssistantManager] Agent:', agentType, '| Command:', agentCommand);
+  console.warn('[AssistantManager] Args:', args.join(' ').substring(0, 100));
 
   const child = spawn(agentCommand, args, {
     cwd: workspacePath,
@@ -604,7 +604,7 @@ function processMessage(content: string): void {
   // Close stdin immediately - agents may wait for stdin to close before processing
   child.stdin?.end();
 
-  console.log('[AssistantManager] Spawned with PID:', child.pid);
+  console.warn('[AssistantManager] Spawned with PID:', child.pid);
 
   // Track streaming content
   let streamingContent = '';
@@ -640,7 +640,7 @@ function processMessage(content: string): void {
 
   child.stdout?.on('data', (data: Buffer) => {
     const chunk = data.toString();
-    console.log('[AssistantManager] STDOUT chunk received, length:', chunk.length);
+    console.warn('[AssistantManager] STDOUT chunk received, length:', chunk.length);
     outputBuffer += chunk;
 
     // Split by newlines and process complete lines
@@ -672,7 +672,7 @@ function processMessage(content: string): void {
             timestamp: new Date().toISOString(),
           };
           broadcastMessage(message);
-          console.log('[AssistantManager] Response:', finalContent.substring(0, 100));
+          console.warn('[AssistantManager] Response:', finalContent.substring(0, 100));
 
           // Check for task creation commands in the response
           processTaskCreation(finalContent).catch(err => {
@@ -680,7 +680,7 @@ function processMessage(content: string): void {
           });
         }
       } else if (result.type === 'system') {
-        console.log('[AssistantManager] System event:', result.content);
+        console.warn('[AssistantManager] System event:', result.content);
       } else if (!isJsonOutput && result.type === 'unknown' && line.trim()) {
         // For non-JSON agents, treat unknown lines as potential text content
         streamingContent += line + '\n';
@@ -732,13 +732,13 @@ function processMessage(content: string): void {
       text.includes('Unknown tool name');
 
     if (!isNoise) {
-      console.log('[AssistantManager] stderr:', text);
+      console.warn('[AssistantManager] stderr:', text);
     }
   });
 
   // Handle process exit
   child.on('close', (code) => {
-    console.log('[AssistantManager] Process exited with code:', code);
+    console.warn('[AssistantManager] Process exited with code:', code);
     isProcessing = false;
 
     // Only set isFirstMessage to false if agent supports continuation
@@ -806,7 +806,7 @@ function processMessage(content: string): void {
  */
 export async function startAssistant(): Promise<AssistantSession> {
   if (session.status === 'running') {
-    console.log('[AssistantManager] Assistant already running');
+    console.warn('[AssistantManager] Assistant already running');
     return session;
   }
 
@@ -836,7 +836,7 @@ export async function startAssistant(): Promise<AssistantSession> {
     };
     broadcastMessage(welcomeMessage);
 
-    console.log('[AssistantManager] Session started with agent:', getAgentType());
+    console.warn('[AssistantManager] Session started with agent:', getAgentType());
     return session;
 
   } catch (error) {
@@ -858,11 +858,11 @@ export async function startAssistant(): Promise<AssistantSession> {
  */
 export async function stopAssistant(): Promise<AssistantSession> {
   if (session.status !== 'running') {
-    console.log('[AssistantManager] No active session to stop');
+    console.warn('[AssistantManager] No active session to stop');
     return session;
   }
 
-  console.log('[AssistantManager] Stopping assistant...');
+  console.warn('[AssistantManager] Stopping assistant...');
 
   session = {
     status: 'idle',
@@ -888,7 +888,7 @@ export async function stopAssistant(): Promise<AssistantSession> {
  * Restart the Claude Code assistant session
  */
 export async function restartAssistant(): Promise<AssistantSession> {
-  console.log('[AssistantManager] Restarting assistant...');
+  console.warn('[AssistantManager] Restarting assistant...');
 
   // Stop if running
   if (session.status === 'running') {
