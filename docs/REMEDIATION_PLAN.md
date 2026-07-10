@@ -661,6 +661,68 @@ The project guidelines forbid `console.log` in production code (use `console.war
 
 ---
 
+### Issue 12 — Restart-driven dispatch loop (silent recovery re-queue + self-hosting hazard) 🟡
+
+**Suggested Formic task:** `Fix: Add recovery accounting, orphan cleanup, and a self-hosting watch-mode guard to startup recovery` — priority `medium`, type `standard`
+**Depends on:** Issue 5 (uses the cap-demotion path). Complements Issue 9 step 3 (recovery lease release).
+
+#### Problem — live incident, 2026-07-10
+
+Task t-1 ("restrict server binding") edits `src/server/index.ts` — the Formic server's own entry point — while the server ran under `npm run dev` (`tsx watch src/server/index.ts`) against its own repo. The resulting feedback loop dispatched the full workflow **9 times in 7 minutes**:
+
+1. The agent edits `index.ts` → tsx watch restarts the server, killing/orphaning the running workflow mid-execute.
+2. On boot, `recoverStuckTasks()` (`store.ts:620-645`) sees the task in an active state and re-queues it **silently** — it writes `task.status = 'queued'` directly, producing no `[StatusTransition]` log line and incrementing no counter.
+3. The queue processor immediately re-dispatches → new declare → new execute → the agent edits `index.ts` again → restart → repeat forever.
+
+Compounding defects observed in the incident:
+
+- **No accounting:** `recoverStuckTasks` does not increment `retryCount`, so no cap (even after Issue 5) ever halts a recovery-driven loop. The dispatch-loop **fingerprint** in the logs is repeated `queued → briefing | caller=workflow.executeFullWorkflow.init` with *no preceding* `running → queued` transition.
+- **Orphaned agents:** the agent CLI processes are children of the server; when tsx kills the server they are orphaned, not killed, and **keep editing files concurrently** with newly dispatched instances.
+- **Lease pollution:** each generation's declare run re-acquires leases (same-task requests never conflict), and `restoreLeases()` resurrects prior generations' leases across restarts — `leases.json` accumulated overlapping same-task leases with mismatched types (`README.md` held both shared *and* exclusive, with different expiries).
+
+#### Solution design
+
+Make startup recovery observable, bounded, and side-effect-clean; kill orphans; and warn loudly on the self-hosting-with-watch configuration that triggers the loop.
+
+#### Implementation steps
+
+1. **Recovery accounting.** In `recoverStuckTasks()`:
+   - Route the status change through `updateTaskStatus(task.id, 'queued', null, 'recovery.startup')` instead of a direct field write, so the `[StatusTransition]` log line and broadcast happen like every other transition. (After Issue 3, this runs inside the board mutex — call it *after* the scan loop collects IDs, not while holding a stale snapshot.)
+   - Add a `recoveryCount` field to `Task` (`src/types/index.ts`; include `recoveryCount: null` in `createTask` defaults, mirror the `retryCount` pattern) and increment it per recovery.
+2. **Bound the loop.** In the queue processor, alongside the Issue 5 cap checks, demote tasks whose `recoveryCount` exceeds a threshold (suggest `3`, or reuse `engineConfig.maxExecutionRetries`) to `todo` with `yieldReason: 'cap-exceeded:recoveries(N)'` — same demotion block as Issue 5, same counter-reset on manual re-queue in `queueTask()`.
+3. **Orphan cleanup on recovery.** The board persists each active task's `pid`. Before re-queuing a recovered task, if `task.pid` is set, attempt best-effort termination:
+   ```ts
+   if (task.pid) {
+     try { process.kill(task.pid, 'SIGTERM'); console.warn(`[Recovery] Sent SIGTERM to orphaned process ${task.pid} for task ${task.id}`); }
+     catch { /* ESRCH — already gone; expected on clean restarts */ }
+   }
+   ```
+   Note the PID-reuse caveat: on long gaps the PID may belong to an unrelated process. Acceptable for a local dev tool; mention it in the code comment. (Do **not** swallow silently — the empty catch above is the one documented exception; add the `// ESRCH` comment to satisfy the no-empty-catch rule.)
+4. **Release recovered tasks' restored leases** — this is Issue 9 step 3; if Issue 9 ships first, just verify ordering (`restoreLeases()` before `recoverStuckTasks()`); if not, implement it here.
+5. **Self-hosting watch-mode guard.** At startup, if the resolved `workspacePath` equals the Formic package's own root (compare `path.resolve(workspacePath)` against the project root already computed in `resolveClientPath()`), log a prominent warning:
+   ```
+   [Server] ⚠ Workspace is Formic's own source tree. Do NOT run the server in watch mode
+   (npm run dev) while executing tasks that modify src/server/** — every agent edit will
+   restart the server and re-dispatch the task in a loop. Use `npm run build && npm start`
+   or a separate checkout.
+   ```
+   Optionally strengthen: when self-hosted **and** a dispatched task's `declaredFiles` include `src/server/` paths, require an explicit `FORMIC_ALLOW_SELF_EDIT=1` to dispatch, otherwise demote to `todo` with a clear `yieldReason`. Keep this behind discussion — the warning alone may be enough for a single-user tool.
+6. **Docs:** add a "Self-hosting Formic on its own repo" section to `README.md` covering the build-then-run requirement and the orphan/loop symptoms.
+7. **Tests:**
+   - Unit: a board with a `running` task + live dummy child process → recovery re-queues it, logs a `[StatusTransition]`, increments `recoveryCount`, and the dummy process receives SIGTERM.
+   - Unit: task with `recoveryCount = 3` in `queued` → demoted to `todo` on next poll with the cap reason.
+   - Manual: reproduce the incident shape (watch mode + task editing `src/server/index.ts`) and confirm the loop now halts by the cap within ~3 restarts and the warning appears at boot.
+
+#### Acceptance criteria / verification
+
+- [ ] Every recovery re-queue produces a `[StatusTransition] ... | caller=recovery.startup` log line (no more silent `queued` regressions).
+- [ ] A task recovered more than the threshold lands in `todo` with a visible `yieldReason` instead of looping.
+- [ ] Recovered tasks' orphaned PIDs receive SIGTERM; recovered tasks hold zero leases after startup.
+- [ ] Self-hosted startup prints the watch-mode warning.
+- [ ] `npx tsc --noEmit`, unit tests, and `python test/run_tests.py` pass.
+
+---
+
 ## 4. Suggested Formic Task Batch
 
 Copy-paste inventory for creating the tasks (details/context: reference the relevant section of this document in each task's context, or paste the section body in):
@@ -677,9 +739,12 @@ Copy-paste inventory for creating the tasks (details/context: reference the rele
 | 8 | Fix: Whitelist updatable fields and validate status transitions on task update | standard | medium | Task 4 (teardown helper) |
 | 9 | Fix: Transition tasks that exceed retry/yield caps out of the queue | quick | medium | — |
 | 10 | Fix: Handle agent spawn failure without marking the task running | quick | low | — |
-| 11 | Refactor: Replace console.log with console.warn/error per logging guidelines | quick | low | run last |
+| 11 | Fix: Add recovery accounting, orphan cleanup, and a self-hosting watch-mode guard to startup recovery | standard | medium | Task 9 (Issue 5), Task 6 (Issue 9) |
+| 12 | Refactor: Replace console.log with console.warn/error per logging guidelines | quick | low | run last |
 
-**Concurrency guidance for Formic execution:** Tasks 4, 5, 6, and 8 all declare `src/server/services/leaseManager.ts` and/or `src/server/services/workflow.ts` exclusively — the lease system will serialize them, but queue them in the listed order so the teardown helper (Task 4) exists before its consumers. Task 11 conflicts with everything; queue it alone at the end.
+**Concurrency guidance for Formic execution:** Tasks 4, 5, 6, and 8 all declare `src/server/services/leaseManager.ts` and/or `src/server/services/workflow.ts` exclusively — the lease system will serialize them, but queue them in the listed order so the teardown helper (Task 4) exists before its consumers. Task 12 (console sweep) conflicts with everything; queue it alone at the end.
+
+> ⚠️ **Self-hosting warning (learned from the 2026-07-10 incident):** several of these tasks edit `src/server/**` — the running Formic server's own source. Do **not** execute them while the server runs under `npm run dev` (tsx watch) on this repo, or every agent edit will restart the server and re-dispatch the task in a loop (see Issue 12). Run the server via `npm run build && npm start` (or a globally installed build pointed at this workspace) while these tasks execute.
 
 ---
 

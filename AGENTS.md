@@ -192,7 +192,11 @@ The server will automatically detect this format and create the task via the For
 **Project:** workspace
 **Repository:** /workspace
 
-No tasks on the board yet.
+### Todo
+  - [t-1] !Fix: Restrict server binding to localhost and add token auth for network exposure
+
+### Review
+  - [t-2] !Fix: Scope kill-switch rollback to the failing task's declared files
 
 ## Formic Workflow
 

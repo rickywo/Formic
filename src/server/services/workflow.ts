@@ -1,9 +1,6 @@
-import { spawn, execFile, type ChildProcess } from 'node:child_process';
-import { promisify } from 'node:util';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile, mkdir, appendFile, access } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-
-const execFileAsync = promisify(execFile);
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
@@ -19,6 +16,7 @@ import {
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir, getTaskLogsDir } from '../utils/paths.js';
 import { createSafePoint } from '../utils/gitUtils.js';
+import { checkoutFilesFromCommit } from '../utils/safeGit.js';
 import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
 import { broadcastBoardUpdate, broadcastKillSwitch, broadcastTaskCompleted } from './boardNotifier.js';
@@ -872,15 +870,25 @@ async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Pro
   if (newRetryCount >= 3) {
     console.log(`[Critic] Kill switch activated for task ${taskId} after ${newRetryCount} failed verifications`);
 
+    let revertMessage: string;
     if (task.safePointCommit) {
-      try {
-        await execFileAsync('git', ['reset', '--hard', task.safePointCommit], { cwd: getWorkspacePath() });
-        console.log(`[Critic] Workspace reverted to safe point ${task.safePointCommit}`);
-      } catch (err) {
-        console.warn('[Critic] Failed to revert to safe point:', err instanceof Error ? err.message : 'Unknown error');
+      const exclusiveFiles = task.declaredFiles?.exclusive ?? [];
+      if (exclusiveFiles.length > 0) {
+        try {
+          await checkoutFilesFromCommit(task.safePointCommit, exclusiveFiles, getWorkspacePath());
+          console.log(`[Critic] Reverted ${exclusiveFiles.length} declared file(s) for task ${taskId} to safe point ${task.safePointCommit}`);
+          revertMessage = `Declared files reverted to safe point \`${task.safePointCommit}\`. HEAD was not moved.`;
+        } catch (err) {
+          console.warn('[Critic] Failed to revert declared files to safe point:', err instanceof Error ? err.message : 'Unknown error');
+          revertMessage = `Attempted revert failed. Safe point: \`${task.safePointCommit}\`. Manual review recommended.`;
+        }
+      } else {
+        console.warn(`[Critic] Task ${taskId} has no declaredFiles, skipping auto-revert. Safe point: ${task.safePointCommit}`);
+        revertMessage = `Workspace NOT auto-reverted (no declared files). Safe point: \`${task.safePointCommit}\``;
       }
     } else {
-      console.warn(`[Critic] No safePointCommit on task ${taskId}, skipping git reset`);
+      console.warn(`[Critic] No safePointCommit on task ${taskId}, skipping revert`);
+      revertMessage = 'No safe point recorded; workspace was not reverted.';
     }
 
     stopQueueProcessor();
@@ -891,7 +899,7 @@ async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Pro
     try {
       await broadcastToWorkspace(getWorkspacePath(), {
         chatId: '',
-        text: `🚨 *Kill Switch Activated*\n\nTask \`${taskId}\` has failed verification 3 times.\nQueue paused. Workspace reverted to safe point.`,
+        text: `🚨 *Kill Switch Activated*\n\nTask \`${taskId}\` has failed verification 3 times.\nQueue paused. ${revertMessage}`,
         parseMode: 'markdown',
       });
     } catch (err) {

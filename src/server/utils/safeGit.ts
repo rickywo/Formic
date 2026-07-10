@@ -56,3 +56,42 @@ export async function checkoutWorkspaceFiles(filePaths: string[], workspacePath:
     cwd: workspacePath,
   });
 }
+
+const COMMIT_HASH_PATTERN = /^[0-9a-f]{7,40}$/i;
+
+/**
+ * Restore workspace files to their content at a given commit, without moving HEAD.
+ * Files are checked out individually so a single file missing at that commit
+ * (e.g. created after the commit) does not abort the rest; such failures are
+ * caught, logged with a `[SafeGit]` prefix, and skipped rather than force-deleted.
+ */
+export async function checkoutFilesFromCommit(
+  commit: string,
+  filePaths: string[],
+  workspacePath: string
+): Promise<void> {
+  if (!COMMIT_HASH_PATTERN.test(commit)) {
+    throw new Error(`Invalid commit hash: ${commit}`);
+  }
+
+  const relativePaths = filePaths.map(filePath => {
+    const relativePath = getSafeWorkspaceRelativePath(filePath, workspacePath);
+    if (!relativePath) {
+      throw new Error(`Path is outside the workspace: ${filePath}`);
+    }
+    return relativePath;
+  });
+
+  if (relativePaths.length === 0) return;
+
+  for (const relativePath of relativePaths) {
+    try {
+      await execFileAsync('git', ['checkout', commit, '--', relativePath], {
+        cwd: workspacePath,
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      console.warn(`[SafeGit] Failed to checkout '${relativePath}' from commit ${commit} (likely did not exist at safe point): ${message}`);
+    }
+  }
+}
