@@ -286,13 +286,18 @@ export async function getTask(taskId: string): Promise<Task | undefined> {
 export async function createTask(input: CreateTaskInput): Promise<Task> {
   const board = await loadBoard();
 
-  // Generate next task ID
-  const maxId = board.tasks.reduce((max, task) => {
+  // Generate next task ID from a persistent monotonic counter so deleting the
+  // highest-numbered task (or restoring an older board) never causes ID reuse.
+  // Seed the counter from the current max ID on first use (covers boards saved
+  // before this field existed); BOOTSTRAP_TASK_ID ('t-bootstrap') is excluded
+  // naturally since parseInt('bootstrap', 10) is not finite.
+  const seeded = board.meta.nextTaskId ?? board.tasks.reduce((max, task) => {
     const num = parseInt(task.id.replace('t-', ''), 10);
-    return num > max ? num : max;
-  }, 0);
+    return Number.isFinite(num) && num > max ? num : max;
+  }, 0) + 1;
 
-  const taskId = `t-${maxId + 1}`;
+  const taskId = `t-${seeded}`;
+  board.meta.nextTaskId = seeded + 1;
 
   // Create documentation folder and get the relative path
   const docsPath = await createTaskDocsFolder(taskId, input.title, input.context);
