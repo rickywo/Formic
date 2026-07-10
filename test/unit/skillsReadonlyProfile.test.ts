@@ -92,6 +92,11 @@ describe('Template file existence and frontmatter', () => {
     assert.doesNotMatch(content, /^edit: deny$/m);
   });
 
+  it('omits model so opencode inherits the configured default model', async () => {
+    const content = await readFile(TEMPLATE_PATH, 'utf-8');
+    assert.doesNotMatch(content, /^model:/m);
+  });
+
   it('frontmatter has a description', async () => {
     const content = await readFile(TEMPLATE_PATH, 'utf-8');
     const fm = parseFrontmatter(content);
