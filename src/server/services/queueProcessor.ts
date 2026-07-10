@@ -1,10 +1,11 @@
-import { getQueuedTasks, getAllTasks, getTask, getRunningTasksCount, updateTask } from './store.js';
+import { getQueuedTasks, getAllTasks, getTask, getRunningTasksCount, updateTask, updateTaskStatus } from './store.js';
 import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, executeFromDeclare, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
 import { isFileLeased } from './leaseManager.js';
 import { internalEvents, TASK_COMPLETED, LEASE_RELEASED } from './internalEvents.js';
 import { prioritizeQueue } from './prioritizer.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
+import { broadcastBoardUpdate } from './boardNotifier.js';
 import type { Task } from '../../types/index.js';
 
 const QUEUE_ENABLED = process.env.QUEUE_ENABLED !== 'false';
