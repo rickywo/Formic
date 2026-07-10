@@ -5,17 +5,14 @@
  * Includes priority preemption, deadlock detection, and disk persistence.
  */
 
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
-import { writeFile, readFile } from 'node:fs/promises';
+import { writeFile, readFile, mkdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 import type { FileLease, LeaseRequest, LeaseResult, FileConflict, LeaseStoreSnapshot } from '../../types/index.js';
 import { getFormicDir } from '../utils/paths.js';
 import { getTask, updateTaskStatus } from './store.js';
 import { broadcastLeaseReleased } from './boardNotifier.js';
 import { internalEvents, LEASE_RELEASED } from './internalEvents.js';
-
-const execAsync = promisify(exec);
+import { hashWorkspaceFile } from '../utils/safeGit.js';
 
 import { engineConfig } from './engineConfig.js';
 
@@ -27,6 +24,9 @@ const fileHashStore = new Map<string, Map<string, string>>();
 
 /** Wait-for map: taskId → filePath the task is waiting to acquire */
 const waitForMap = new Map<string, string>();
+
+/** Async write mutex — serializes lease snapshots and preserves call order. */
+let persistLock: Promise<void> = Promise.resolve();
 
 /** Priority rank for comparison: higher number = higher priority */
 const PRIORITY_RANK: Record<string, number> = { low: 0, medium: 1, high: 2 };
@@ -46,28 +46,37 @@ export function acquireLeases(request: LeaseRequest): LeaseResult {
   cleanExpiredLeases();
 
   // Check for conflicts on exclusive files
-  const conflictingFiles: string[] = [];
+  const conflictingFiles = new Set<string>();
   for (const filePath of exclusiveFiles) {
     const existing = leaseStore.get(filePath);
     if (existing && existing.taskId !== taskId) {
-      conflictingFiles.push(filePath);
+      conflictingFiles.add(filePath);
       continue;
     }
     // Also check for shared leases on this file held by other tasks
     for (const [key, lease] of leaseStore.entries()) {
       if (key.startsWith(`${filePath}::`) && lease.taskId !== taskId) {
-        conflictingFiles.push(filePath);
+        conflictingFiles.add(filePath);
         break;
       }
     }
   }
 
-  if (conflictingFiles.length > 0) {
-    console.log(`[LeaseManager] Lease denied for task ${taskId}: conflicts on ${conflictingFiles.join(', ')}`);
-    return { granted: false, leases: [], conflictingFiles };
+  // Check for conflicts on shared files against exclusive leases
+  for (const filePath of sharedFiles) {
+    const existing = leaseStore.get(filePath);
+    if (existing && existing.taskId !== taskId && existing.leaseType === 'exclusive') {
+      conflictingFiles.add(filePath);
+    }
   }
 
-  // Grant all leases atomically
+  if (conflictingFiles.size > 0) {
+    const conflicts = [...conflictingFiles];
+    console.warn(`[LeaseManager] Lease denied for task ${taskId}: conflicts on ${conflicts.join(', ')}`);
+    return { granted: false, leases: [], conflictingFiles: conflicts };
+  }
+
+  // Grant only after every requested file has passed conflict validation.
   const grantedLeases: FileLease[] = [];
 
   for (const filePath of exclusiveFiles) {
@@ -80,19 +89,6 @@ export function acquireLeases(request: LeaseRequest): LeaseResult {
     };
     leaseStore.set(filePath, lease);
     grantedLeases.push(lease);
-  }
-
-  // Check for conflicts on shared files against exclusive leases
-  for (const filePath of sharedFiles) {
-    const existing = leaseStore.get(filePath);
-    if (existing && existing.taskId !== taskId && existing.leaseType === 'exclusive') {
-      conflictingFiles.push(filePath);
-    }
-  }
-
-  if (conflictingFiles.length > 0) {
-    console.log(`[LeaseManager] Lease denied for task ${taskId}: conflicts on ${conflictingFiles.join(', ')}`);
-    return { granted: false, leases: [], conflictingFiles };
   }
 
   for (const filePath of sharedFiles) {
@@ -143,9 +139,6 @@ export function releaseLeases(taskId: string): void {
  * Renew all leases for a task by extending their expiration
  */
 export function renewLeases(taskId: string, durationMs?: number): boolean {
-  // Clean expired leases before renewing to avoid extending zombie leases
-  cleanExpiredLeases();
-
   const extension = durationMs ?? engineConfig.leaseDurationMs;
   const newExpiresAt = new Date(Date.now() + extension).toISOString();
   let renewed = 0;
@@ -244,8 +237,7 @@ export async function recordFileHashes(taskId: string, filePaths: string[], cwd:
 
   for (const filePath of filePaths) {
     try {
-      const { stdout } = await execAsync(`git hash-object "${filePath}"`, { cwd });
-      const hash = stdout.trim();
+      const hash = await hashWorkspaceFile(filePath, cwd);
       if (hash) {
         hashes.set(filePath, hash);
       }
@@ -273,8 +265,7 @@ export async function detectCollisions(taskId: string, cwd: string): Promise<Fil
 
   for (const [filePath, expectedHash] of baseHashes.entries()) {
     try {
-      const { stdout } = await execAsync(`git hash-object "${filePath}"`, { cwd });
-      const actualHash = stdout.trim();
+      const actualHash = await hashWorkspaceFile(filePath, cwd);
       if (actualHash && actualHash !== expectedHash) {
         conflicts.push({
           filePath,
@@ -319,17 +310,22 @@ export function clearWait(taskId: string): void {
  * Fire-and-forget — callers should .catch() the returned promise.
  */
 export async function persistLeases(): Promise<void> {
-  try {
+  const resultPromise = persistLock.then(async () => {
     const snapshot: LeaseStoreSnapshot = {
       version: '1.0',
       savedAt: new Date().toISOString(),
       leases: Array.from(leaseStore.entries()).map(([key, lease]) => ({ key, lease })),
     };
-    const leasesPath = path.join(getFormicDir(), 'leases.json');
-    await writeFile(leasesPath, JSON.stringify(snapshot, null, 2), 'utf-8');
-  } catch (err) {
-    console.warn('[LeaseManager] Failed to persist leases:', err instanceof Error ? err.message : 'Unknown error');
-  }
+    const formicDir = getFormicDir();
+    const leasesPath = path.join(formicDir, 'leases.json');
+    const tmpPath = `${leasesPath}.tmp`;
+    await mkdir(formicDir, { recursive: true });
+    await writeFile(tmpPath, JSON.stringify(snapshot, null, 2), 'utf-8');
+    await rename(tmpPath, leasesPath);
+  });
+
+  persistLock = resultPromise.catch(() => {});
+  return resultPromise;
 }
 
 /**

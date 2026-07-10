@@ -4,8 +4,6 @@
  * reverts uncommitted file changes, and re-queues affected tasks.
  */
 
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { getExpiredLeases, releaseLeases, restoreLeases, detectDeadlock, renewLeases } from './leaseManager.js';
@@ -14,8 +12,7 @@ import { stopWorkflow, isWorkflowRunning } from './workflow.js';
 import { updateTaskStatus, getTask, validateBoard, loadBoard } from './store.js';
 import { broadcastBoardUpdate } from './boardNotifier.js';
 import { getWorkspacePath, getBoardPath } from '../utils/paths.js';
-
-const execAsync = promisify(exec);
+import { checkoutWorkspaceFiles } from '../utils/safeGit.js';
 
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 
@@ -68,8 +65,7 @@ async function scanExpiredLeases(): Promise<void> {
       const exclusiveFiles = files.filter(f => !f.includes('::'));
       if (exclusiveFiles.length > 0) {
         try {
-          const fileList = exclusiveFiles.map(f => `"${f}"`).join(' ');
-          await execAsync(`git checkout -- ${fileList}`, { cwd: getWorkspacePath() });
+          await checkoutWorkspaceFiles(exclusiveFiles, getWorkspacePath());
           console.warn(`[Watchdog] Reverted files for task ${taskId}`);
         } catch (error) {
           console.warn(`[Watchdog] Failed to revert files for task ${taskId}:`, error);
