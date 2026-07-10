@@ -182,15 +182,17 @@ All code changes MUST comply with the project development guidelines provided ab
   // asynchronously (e.g., ENOENT when the command is not found). We await
   // explicit confirmation that the child process is alive before registering
   // it in activeProcesses, so a spawn failure never leaks a phantom running task.
-  let spawnError: NodeJS.ErrnoException | null = null;
+  // We use a ref object so TypeScript can track the mutation through the closure.
+  const spawnErrorRef: { err: NodeJS.ErrnoException | null } = { err: null };
   const onSpawnError = (err: NodeJS.ErrnoException): void => {
-    spawnError = err;
+    spawnErrorRef.err = err;
   };
   child.once('error', onSpawnError);
 
   // Yield to the event loop so any queued spawn error can surface.
   await new Promise<void>(resolve => setImmediate(resolve));
 
+  const spawnError = spawnErrorRef.err;
   if (spawnError) {
     // Spawn failed — clean up without ever adding to activeProcesses.
     // No activeProcesses entry means no leaked concurrency slot.
@@ -297,7 +299,8 @@ All code changes MUST comply with the project development guidelines provided ab
     });
   });
 
-  return { pid: child.pid };
+  // child.pid is guaranteed defined here because spawn was confirmed above
+  return { pid: child.pid! };
 }
 
 export async function stopAgent(taskId: string): Promise<boolean> {
