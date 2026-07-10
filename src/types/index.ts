@@ -200,6 +200,8 @@ export interface BoardMeta {
   queueEnabled?: boolean;
   /** Task counts per status (for AGI phase health metrics) */
   counts?: TaskCounts;
+  /** Persistent monotonic counter for the next task ID (t-N). Never decremented on delete. */
+  nextTaskId?: number;
 }
 
 export interface Board {

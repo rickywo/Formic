@@ -73,6 +73,7 @@ export function validateBoard(board: unknown): board is Board {
   if (typeof meta.projectName !== 'string') return false;
   if (typeof meta.repoPath !== 'string') return false;
   if (typeof meta.createdAt !== 'string') return false;
+  if (meta.nextTaskId !== undefined && typeof meta.nextTaskId !== 'number') return false;
 
   // Validate tasks array
   if (!Array.isArray(b.tasks)) return false;
