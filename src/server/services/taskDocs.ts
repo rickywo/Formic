@@ -1,7 +1,7 @@
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { getTaskDocsPath, getRelativeDocsPath, getTasksDir } from '../utils/paths.js';
+import { getTaskDocsPath, getRelativeDocsPath, getTasksDir, getWorkspacePath } from '../utils/paths.js';
 import { generateSlug } from '../utils/slug.js';
 import { generateTaskReadme, generateTaskPlan } from '../templates/index.js';
 
@@ -67,8 +67,7 @@ export async function deleteTaskDocsFolder(
     return;
   }
 
-  const workspacePath = process.env.WORKSPACE_PATH || './workspace';
-  const fullPath = path.join(workspacePath, docsPath);
+  const fullPath = path.join(getWorkspacePath(), docsPath);
 
   if (existsSync(fullPath)) {
     await rm(fullPath, { recursive: true, force: true });

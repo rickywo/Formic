@@ -48,6 +48,7 @@ def main():
     # Define baseline test suites (always run)
     test_suites = [
         ("API Tests", "test_api.py"),
+        ("Task ID Counter Tests", "test_task_id_counter.py"),
         ("Concurrency Tests", "test_concurrency.py"),
         ("Lease Enhancement Tests", "test_lease_enhancements.py"),
         ("Self-Healing QA Tests", "test_selfhealing.py"),
