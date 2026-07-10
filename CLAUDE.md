@@ -192,8 +192,19 @@ The server will automatically detect this format and create the task via the For
 **Project:** Formic
 **Repository:** /Users/rickywo/WebstormProjects/Formic
 
+### Todo
+  - [t-3] !Spike: characterize opencode run output, permissions, and skill discovery
+  - [t-4] !Add opencode to AgentType union and agent exec/assistant/messaging config
+  - [t-5] !Add opencode output parser and wire parseAgentOutput / usesJsonOutput
+  - [t-6] !Make Formic skills discoverable by opencode (inline or copy strategy)
+  - [t-7] Add opencode auth/env validation and banner health check
+  - [t-8] -Add opencode usage reporting branch (graceful unknown)
+  - [t-9] -Surface opencode in CLI help, banner, README, and .env.example
+  - [t-10] Add opencode unit tests and integration smoke run
+
 ### Review
   - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
+  - [t-2] !Rewrite root README.md as a concise onboarding guide with demo video
 
 ## Formic Workflow
 
