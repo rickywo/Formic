@@ -58,6 +58,13 @@ Formic supports three AI agent backends. Switch between them by setting `AGENT_T
 - Set `OPENCODE_DISABLE_AUTOUPDATE=1` in your `.env` for headless/CI stability
 - ⚠️ Formic runs opencode with `--auto` (auto-approves permissions). Only run on trusted, isolated workspaces.
 
+### Per-step model selection
+
+Choose a model for each workflow stage and the chat assistant in **Settings → Agent Models**.
+Selections are stored separately for each agent type.
+**Agent default** uses the CLI's own default model.
+For OpenCode, enter model IDs in `provider/model` format.
+
 ## Network Exposure & Security
 
 By default, Formic binds to `127.0.0.1` (loopback only) and requires no authentication for local use. **Breaking change:** if you need to expose the server on your network (e.g. `HOST=0.0.0.0`), you must also set `FORMIC_AUTH_TOKEN` to a shared secret:
