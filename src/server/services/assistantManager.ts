@@ -576,8 +576,15 @@ export async function sendUserMessage(content: string): Promise<boolean> {
   isProcessing = true;
 
   // Spawn the configured agent process for this message
-  await processMessage(content);
-  return true;
+  try {
+    await processMessage(content);
+    return true;
+  } catch (error) {
+    isProcessing = false;
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[AssistantManager] Failed to process message:', message);
+    return false;
+  }
 }
 
 /**
