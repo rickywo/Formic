@@ -13,7 +13,9 @@ import {
   getAgentDisplayName,
   buildAssistantArgs,
   supportsConversationContinue,
+  getModelForStep,
 } from './agentAdapter.js';
+import { refreshEngineConfig } from './engineConfig.js';
 import { parseAgentOutput, usesJsonOutput, cleanAgentOutput } from './outputParser.js';
 import { loadProjectGuidelines } from './skillReader.js';
 
@@ -550,7 +552,7 @@ The server will automatically read this code block, load the image file, and sen
 /**
  * Send a user message - spawns a Claude process for this message
  */
-export function sendUserMessage(content: string): boolean {
+export async function sendUserMessage(content: string): Promise<boolean> {
   if (session.status !== 'running') {
     console.warn('[AssistantManager] Cannot send message: assistant not running');
     return false;
@@ -569,16 +571,20 @@ export function sendUserMessage(content: string): boolean {
   };
   broadcastMessage(userMessage);
 
-  // Spawn Claude process for this message
-  processMessage(content);
+  // Reserve processing before refreshing configuration so a second incoming
+  // message cannot start another subprocess while the refresh is pending.
+  isProcessing = true;
+
+  // Spawn the configured agent process for this message
+  await processMessage(content);
   return true;
 }
 
 /**
  * Process a message by spawning the configured agent CLI
  */
-function processMessage(content: string): void {
-  isProcessing = true;
+async function processMessage(content: string): Promise<void> {
+  await refreshEngineConfig();
 
   const workspacePath = getWorkspacePath();
   const agentType = getAgentType();
@@ -589,10 +595,15 @@ function processMessage(content: string): void {
   const useContinue = !isFirstMessage && supportsConversationContinue();
 
   // Build agent-specific args using the adapter
-  const args = buildAssistantArgs(content, { continue: useContinue });
+  const model = getModelForStep('assistant');
+  const args = buildAssistantArgs(content, {
+    continue: useContinue,
+    ...(model ? { model } : {}),
+  });
 
   console.warn('[AssistantManager] Processing message in:', workspacePath);
   console.warn('[AssistantManager] Agent:', agentType, '| Command:', agentCommand);
+  console.warn(`[AssistantManager] Model: ${model || '(agent default)'}`);
   console.warn('[AssistantManager] Args:', args.join(' ').substring(0, 100));
 
   const child = spawn(agentCommand, args, {
