@@ -12,7 +12,7 @@ import {
   getMessagingConfig,
   parseCommand,
 } from './messagingAdapter.js';
-import { getSessionAI, loadMessagingStore, saveMessagingStore } from './messagingStore.js';
+import { getSessionAI, updateMessagingStore } from './messagingStore.js';
 
 /**
  * Telegram Adapter Service
@@ -591,16 +591,16 @@ export async function getTelegramWebhookSecret(): Promise<string> {
         }
       }
 
-      const store = await loadMessagingStore();
-      if (store.telegramWebhookSecret && store.telegramWebhookSecret.length > 0) {
-        return store.telegramWebhookSecret;
-      }
+      return updateMessagingStore((store) => {
+        if (store.telegramWebhookSecret && store.telegramWebhookSecret.length > 0) {
+          return store.telegramWebhookSecret;
+        }
 
-      const secret = randomBytes(32).toString('hex');
-      store.telegramWebhookSecret = secret;
-      await saveMessagingStore(store);
-      console.warn('[TelegramAdapter] Generated and persisted a new webhook secret (set TELEGRAM_WEBHOOK_SECRET to override)');
-      return secret;
+        const secret = randomBytes(32).toString('hex');
+        store.telegramWebhookSecret = secret;
+        console.warn('[TelegramAdapter] Generated and persisted a new webhook secret (set TELEGRAM_WEBHOOK_SECRET to override)');
+        return secret;
+      });
     } catch (err) {
       // Reset on rejection so a subsequent call can retry
       webhookSecretPromise = null;

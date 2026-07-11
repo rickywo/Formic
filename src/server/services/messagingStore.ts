@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, chmod, rename, unlink } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type {
@@ -21,6 +21,9 @@ import { getFormicDir } from '../utils/paths.js';
 
 const MESSAGING_FILE = 'messaging.json';
 const STORE_VERSION = '1.0';
+
+/** Serializes complete messaging-store read-modify-write cycles. */
+let messagingMutationLock: Promise<void> = Promise.resolve();
 
 /**
  * Get the path to the messaging.json file
@@ -52,15 +55,13 @@ async function ensureFormicDir(): Promise<void> {
 /**
  * Load the messaging store from disk
  */
-export async function loadMessagingStore(): Promise<MessagingStore> {
+async function loadMessagingStoreFromDisk(): Promise<MessagingStore> {
   await ensureFormicDir();
 
   const messagingPath = getMessagingPath();
 
   if (!existsSync(messagingPath)) {
-    const defaultStore = createDefaultStore();
-    await saveMessagingStore(defaultStore);
-    return defaultStore;
+    return createDefaultStore();
   }
 
   try {
@@ -74,15 +75,63 @@ export async function loadMessagingStore(): Promise<MessagingStore> {
 }
 
 /**
- * Save the messaging store to disk
+ * Persist the messaging store atomically with owner-only permissions.
  */
-export async function saveMessagingStore(store: MessagingStore): Promise<void> {
+async function writeMessagingStoreAtomic(store: MessagingStore): Promise<void> {
   await ensureFormicDir();
   const messagingPath = getMessagingPath();
-  await writeFile(messagingPath, JSON.stringify(store, null, 2), { mode: 0o600, encoding: 'utf-8' });
-  // Tighten pre-existing file permissions — writeFile mode only applies when
-  // creating a new file, so chmod catches files created before this hardening.
-  await chmod(messagingPath, 0o600);
+  const tempPath = `${messagingPath}.${process.pid}.${Date.now()}.tmp`;
+
+  try {
+    await writeFile(tempPath, JSON.stringify(store, null, 2), { mode: 0o600, encoding: 'utf-8' });
+    await chmod(tempPath, 0o600);
+    await rename(tempPath, messagingPath);
+    await chmod(messagingPath, 0o600);
+  } catch (error) {
+    try {
+      await unlink(tempPath);
+    } catch (cleanupError) {
+      const cleanupMessage = cleanupError instanceof Error ? cleanupError.message : 'Unknown error';
+      if (!cleanupMessage.includes('ENOENT')) {
+        console.warn(`[MessagingStore] Failed to clean up temporary store file: ${cleanupMessage}`);
+      }
+    }
+    throw error;
+  }
+}
+
+/**
+ * Run a serialized read-modify-write operation against messaging.json.
+ * The lock covers the complete cycle so concurrent session and webhook-secret
+ * updates cannot overwrite each other with stale snapshots.
+ */
+export async function updateMessagingStore<T>(
+  mutator: (store: MessagingStore) => T | Promise<T>
+): Promise<T> {
+  const resultPromise = messagingMutationLock.then(async () => {
+    const store = await loadMessagingStoreFromDisk();
+    const result = await mutator(store);
+    await writeMessagingStoreAtomic(store);
+    return result;
+  });
+
+  messagingMutationLock = resultPromise.then(() => undefined, () => undefined);
+  return resultPromise;
+}
+
+/** Load a consistent snapshot after all queued mutations finish. */
+export async function loadMessagingStore(): Promise<MessagingStore> {
+  await messagingMutationLock;
+  return loadMessagingStoreFromDisk();
+}
+
+/** Replace the store through the same serialized, atomic write path. */
+export async function saveMessagingStore(store: MessagingStore): Promise<void> {
+  await updateMessagingStore((current) => {
+    current.version = store.version;
+    current.sessions = store.sessions;
+    current.telegramWebhookSecret = store.telegramWebhookSecret;
+  });
 }
 
 /**
@@ -132,47 +181,43 @@ export async function upsertSession(
   workspacePath: string,
   userName?: string
 ): Promise<MessagingSession> {
-  const store = await loadMessagingStore();
-  const sessionId = generateSessionId(platform, chatId);
+  return updateMessagingStore((store) => {
+    const sessionId = generateSessionId(platform, chatId);
+    const existingIndex = store.sessions.findIndex((s) => s.id === sessionId);
+    const now = new Date().toISOString();
 
-  const existingIndex = store.sessions.findIndex((s) => s.id === sessionId);
-  const now = new Date().toISOString();
+    if (existingIndex >= 0) {
+      store.sessions[existingIndex] = {
+        ...store.sessions[existingIndex],
+        userId,
+        userName,
+        workspacePath,
+        lastActiveAt: now,
+      };
+      console.warn(`[MessagingStore] Updated session ${sessionId}`);
+      return store.sessions[existingIndex];
+    }
 
-  if (existingIndex >= 0) {
-    // Update existing session
-    store.sessions[existingIndex] = {
-      ...store.sessions[existingIndex],
+    const newSession: MessagingSession = {
+      id: sessionId,
+      platform,
+      chatId,
       userId,
       userName,
       workspacePath,
+      notifications: {
+        onTaskComplete: true,
+        onTaskFailed: true,
+        onReviewReady: true,
+      },
+      createdAt: now,
       lastActiveAt: now,
     };
-    await saveMessagingStore(store);
-    console.warn(`[MessagingStore] Updated session ${sessionId}`);
-    return store.sessions[existingIndex];
-  }
 
-  // Create new session with default notification preferences
-  const newSession: MessagingSession = {
-    id: sessionId,
-    platform,
-    chatId,
-    userId,
-    userName,
-    workspacePath,
-    notifications: {
-      onTaskComplete: true,
-      onTaskFailed: true,
-      onReviewReady: true,
-    },
-    createdAt: now,
-    lastActiveAt: now,
-  };
-
-  store.sessions.push(newSession);
-  await saveMessagingStore(store);
-  console.warn(`[MessagingStore] Created new session ${sessionId}`);
-  return newSession;
+    store.sessions.push(newSession);
+    console.warn(`[MessagingStore] Created new session ${sessionId}`);
+    return newSession;
+  });
 }
 
 /**
@@ -182,14 +227,11 @@ export async function touchSession(
   platform: MessagingPlatform,
   chatId: string
 ): Promise<void> {
-  const store = await loadMessagingStore();
-  const sessionId = generateSessionId(platform, chatId);
-
-  const session = store.sessions.find((s) => s.id === sessionId);
-  if (session) {
-    session.lastActiveAt = new Date().toISOString();
-    await saveMessagingStore(store);
-  }
+  await updateMessagingStore((store) => {
+    const sessionId = generateSessionId(platform, chatId);
+    const session = store.sessions.find((s) => s.id === sessionId);
+    if (session) session.lastActiveAt = new Date().toISOString();
+  });
 }
 
 /**
@@ -200,23 +242,16 @@ export async function updateNotificationPreferences(
   chatId: string,
   preferences: Partial<NotificationPreferences>
 ): Promise<MessagingSession | null> {
-  const store = await loadMessagingStore();
-  const sessionId = generateSessionId(platform, chatId);
+  return updateMessagingStore((store) => {
+    const sessionId = generateSessionId(platform, chatId);
+    const session = store.sessions.find((s) => s.id === sessionId);
+    if (!session) return null;
 
-  const session = store.sessions.find((s) => s.id === sessionId);
-  if (!session) {
-    return null;
-  }
-
-  session.notifications = {
-    ...session.notifications,
-    ...preferences,
-  };
-  session.lastActiveAt = new Date().toISOString();
-
-  await saveMessagingStore(store);
-  console.warn(`[MessagingStore] Updated notifications for ${sessionId}`);
-  return session;
+    session.notifications = { ...session.notifications, ...preferences };
+    session.lastActiveAt = new Date().toISOString();
+    console.warn(`[MessagingStore] Updated notifications for ${sessionId}`);
+    return session;
+  });
 }
 
 /**
@@ -226,19 +261,14 @@ export async function deleteSession(
   platform: MessagingPlatform,
   chatId: string
 ): Promise<boolean> {
-  const store = await loadMessagingStore();
-  const sessionId = generateSessionId(platform, chatId);
-
-  const initialLength = store.sessions.length;
-  store.sessions = store.sessions.filter((s) => s.id !== sessionId);
-
-  if (store.sessions.length < initialLength) {
-    await saveMessagingStore(store);
-    console.warn(`[MessagingStore] Deleted session ${sessionId}`);
-    return true;
-  }
-
-  return false;
+  return updateMessagingStore((store) => {
+    const sessionId = generateSessionId(platform, chatId);
+    const initialLength = store.sessions.length;
+    store.sessions = store.sessions.filter((s) => s.id !== sessionId);
+    const deleted = store.sessions.length < initialLength;
+    if (deleted) console.warn(`[MessagingStore] Deleted session ${sessionId}`);
+    return deleted;
+  });
 }
 
 /**
@@ -253,8 +283,9 @@ export async function getAllSessions(): Promise<MessagingSession[]> {
  * Clear all sessions (for testing)
  */
 export async function clearAllSessions(): Promise<void> {
-  const store = createDefaultStore();
-  await saveMessagingStore(store);
+  await updateMessagingStore((store) => {
+    store.sessions = [];
+  });
   console.warn('[MessagingStore] Cleared all sessions');
 }
 
@@ -290,28 +321,20 @@ export async function setAIModeEnabled(
   chatId: string,
   enabled: boolean
 ): Promise<MessagingSessionAI | null> {
-  const store = await loadMessagingStore();
-  const sessionId = generateSessionId(platform, chatId);
+  return updateMessagingStore((store) => {
+    const sessionId = generateSessionId(platform, chatId);
+    const session = store.sessions.find((s) => s.id === sessionId) as MessagingSessionAI | undefined;
+    if (!session) return null;
 
-  const session = store.sessions.find((s) => s.id === sessionId) as MessagingSessionAI | undefined;
-  if (!session) {
-    return null;
-  }
+    session.aiEnabled = enabled;
+    session.lastActiveAt = new Date().toISOString();
+    if (enabled && !session.conversationHistory) {
+      session.conversationHistory = { messages: [], lastUpdatedAt: new Date().toISOString() };
+    }
 
-  session.aiEnabled = enabled;
-  session.lastActiveAt = new Date().toISOString();
-
-  // Initialize conversation history if enabling AI and not present
-  if (enabled && !session.conversationHistory) {
-    session.conversationHistory = {
-      messages: [],
-      lastUpdatedAt: new Date().toISOString(),
-    };
-  }
-
-  await saveMessagingStore(store);
-  console.warn(`[MessagingStore] AI mode ${enabled ? 'enabled' : 'disabled'} for ${sessionId}`);
-  return session;
+    console.warn(`[MessagingStore] AI mode ${enabled ? 'enabled' : 'disabled'} for ${sessionId}`);
+    return session;
+  });
 }
 
 /**
@@ -336,35 +359,22 @@ export async function appendConversationMessage(
   chatId: string,
   message: AIConversationMessage
 ): Promise<AIConversationHistory | null> {
-  const store = await loadMessagingStore();
-  const sessionId = generateSessionId(platform, chatId);
+  return updateMessagingStore((store) => {
+    const sessionId = generateSessionId(platform, chatId);
+    const session = store.sessions.find((s) => s.id === sessionId) as MessagingSessionAI | undefined;
+    if (!session) return null;
 
-  const session = store.sessions.find((s) => s.id === sessionId) as MessagingSessionAI | undefined;
-  if (!session) {
-    return null;
-  }
-
-  // Initialize history if not present
-  if (!session.conversationHistory) {
-    session.conversationHistory = {
-      messages: [],
-      lastUpdatedAt: new Date().toISOString(),
-    };
-  }
-
-  // Append message
-  session.conversationHistory.messages.push(message);
-
-  // Enforce MAX_HISTORY limit
-  while (session.conversationHistory.messages.length > MAX_HISTORY) {
-    session.conversationHistory.messages.shift();
-  }
-
-  session.conversationHistory.lastUpdatedAt = new Date().toISOString();
-  session.lastActiveAt = new Date().toISOString();
-
-  await saveMessagingStore(store);
-  return session.conversationHistory;
+    if (!session.conversationHistory) {
+      session.conversationHistory = { messages: [], lastUpdatedAt: new Date().toISOString() };
+    }
+    session.conversationHistory.messages.push(message);
+    while (session.conversationHistory.messages.length > MAX_HISTORY) {
+      session.conversationHistory.messages.shift();
+    }
+    session.conversationHistory.lastUpdatedAt = new Date().toISOString();
+    session.lastActiveAt = new Date().toISOString();
+    return session.conversationHistory;
+  });
 }
 
 /**
@@ -374,21 +384,14 @@ export async function clearConversationHistory(
   platform: MessagingPlatform,
   chatId: string
 ): Promise<boolean> {
-  const store = await loadMessagingStore();
-  const sessionId = generateSessionId(platform, chatId);
+  return updateMessagingStore((store) => {
+    const sessionId = generateSessionId(platform, chatId);
+    const session = store.sessions.find((s) => s.id === sessionId) as MessagingSessionAI | undefined;
+    if (!session) return false;
 
-  const session = store.sessions.find((s) => s.id === sessionId) as MessagingSessionAI | undefined;
-  if (!session) {
-    return false;
-  }
-
-  session.conversationHistory = {
-    messages: [],
-    lastUpdatedAt: new Date().toISOString(),
-  };
-  session.lastActiveAt = new Date().toISOString();
-
-  await saveMessagingStore(store);
-  console.warn(`[MessagingStore] Cleared conversation history for ${sessionId}`);
-  return true;
+    session.conversationHistory = { messages: [], lastUpdatedAt: new Date().toISOString() };
+    session.lastActiveAt = new Date().toISOString();
+    console.warn(`[MessagingStore] Cleared conversation history for ${sessionId}`);
+    return true;
+  });
 }
