@@ -3543,6 +3543,27 @@
       border-radius: 8px;
     }
 
+    .assistant-model-controls {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .assistant-model-controls .settings-text-input {
+      width: 112px;
+      padding: 6px 8px;
+      font-size: 10px;
+    }
+
+    .assistant-model-hint {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      width: max-content;
+      z-index: 1;
+    }
+
     /* Messages Container */
     .assistant-messages {
       flex: 1;
@@ -7292,6 +7313,16 @@
         <span class="assistant-status idle" id="assistant-status">Idle</span>
       </div>
       <div class="assistant-header-actions">
+        <div class="assistant-model-controls">
+          <select class="settings-text-input" id="assistant-model-select" title="Assistant model" onchange="handleModelSelectChange('assistant', 'assistant')">
+            <option value="">Agent default</option>
+            <option value="__custom__">Custom…</option>
+          </select>
+          <input type="text" class="settings-text-input" id="assistant-model-custom" placeholder="Custom model ID" hidden
+            onblur="saveCustomStepModel('assistant', 'assistant')"
+            onkeydown="handleCustomModelKeydown(event, 'assistant', 'assistant')">
+          <span class="settings-hint assistant-model-hint" id="assistant-model-hint" hidden>takes effect from your next message</span>
+        </div>
         <button class="btn" id="assistant-expand-btn" onclick="toggleAssistantExpand()" title="Expand panel">⤢</button>
         <button class="btn" id="assistant-restart-btn" onclick="restartAssistant()" title="Restart session">↻</button>
         <button class="btn" onclick="closeAssistant()">×</button>
@@ -7696,6 +7727,91 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
+      </div>
+
+      <!-- Agent Models Section -->
+      <div class="settings-section">
+        <div class="settings-section-title">Agent Models</div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-brief">Briefing</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-brief" onchange="handleModelSelectChange('settings', 'brief')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-brief" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'brief')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'brief')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-plan">Planning</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-plan" onchange="handleModelSelectChange('settings', 'plan')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-plan" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'plan')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'plan')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-declare">Declaring</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-declare" onchange="handleModelSelectChange('settings', 'declare')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-declare" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'declare')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'declare')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-execute">Executing</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-execute" onchange="handleModelSelectChange('settings', 'execute')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-execute" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'execute')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'execute')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-architect">Architecting</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-architect" onchange="handleModelSelectChange('settings', 'architect')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-architect" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'architect')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'architect')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-assistant">Chat Assistant</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-assistant" onchange="handleModelSelectChange('settings', 'assistant')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-assistant" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'assistant')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'assistant')">
+          </div>
+        </div>
+
+        <div class="settings-hint" id="agent-models-caption"></div>
       </div>
 
       <!-- Queue & Concurrency Section -->
@@ -9275,6 +9391,7 @@
         panel.classList.add('open');
         fab.classList.add('active');
         connectAssistantWebSocket();
+        loadModelControls('assistant');
         document.getElementById('assistant-input').focus();
       }
     }
@@ -9339,6 +9456,7 @@
       panel.classList.add('open');
       backdrop.classList.add('open');
       initializeSettingsPanel();
+      loadModelControls('settings');
     }
 
     function closeSettings() {
@@ -9441,6 +9559,207 @@
 
       // Render workspace list
       renderWorkspaceList();
+    }
+
+    const MODEL_CONTROL_STEPS = ['brief', 'plan', 'declare', 'execute', 'architect', 'assistant'];
+    let assistantModelHintTimeout = null;
+
+    function getModelControlIds(surface, step) {
+      if (surface === 'assistant') {
+        return { select: 'assistant-model-select', custom: 'assistant-model-custom' };
+      }
+      return { select: `step-model-${step}`, custom: `step-model-custom-${step}` };
+    }
+
+    function getAgentDisplayName(agentType) {
+      const names = {
+        claude: 'Claude Code',
+        copilot: 'GitHub Copilot',
+        opencode: 'OpenCode',
+      };
+      return names[agentType] || agentType;
+    }
+
+    function normalizeStepModels(value) {
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+        return {};
+      }
+
+      const stepModels = {};
+      Object.entries(value).forEach(([agentType, stepConfig]) => {
+        if (stepConfig === null || typeof stepConfig !== 'object' || Array.isArray(stepConfig)) {
+          return;
+        }
+
+        const models = {};
+        Object.entries(stepConfig).forEach(([step, modelId]) => {
+          if (typeof modelId === 'string') {
+            models[step] = modelId;
+          }
+        });
+        stepModels[agentType] = models;
+      });
+      return stepModels;
+    }
+
+    async function fetchStepModels() {
+      const response = await fetch('/api/config/settings/stepModels');
+      if (response.status === 404) {
+        return {};
+      }
+      if (!response.ok) {
+        throw new Error(`Unable to load model settings (${response.status})`);
+      }
+      const payload = await response.json();
+      return normalizeStepModels(payload ? payload.value : null);
+    }
+
+    async function fetchModelCatalog() {
+      const response = await fetch('/api/models');
+      if (!response.ok) {
+        throw new Error(`Unable to load model catalog (${response.status})`);
+      }
+      const payload = await response.json();
+      if (!payload || typeof payload.agentType !== 'string' || !Array.isArray(payload.models)) {
+        throw new Error('Unable to load model catalog');
+      }
+
+      const models = payload.models.filter(model =>
+        model && typeof model.id === 'string' && typeof model.label === 'string'
+      );
+      return { agentType: payload.agentType, models };
+    }
+
+    function renderModelControl(surface, step, catalog, selectedModelId) {
+      const ids = getModelControlIds(surface, step);
+      const select = document.getElementById(ids.select);
+      const customInput = document.getElementById(ids.custom);
+      if (!select || !customInput) {
+        return;
+      }
+
+      const hasCatalogValue = catalog.models.some(model => model.id === selectedModelId);
+      const isCustom = selectedModelId !== '' && !hasCatalogValue;
+      select.innerHTML = `${catalog.models.map(model =>
+        `<option value="${escapeHtml(model.id)}">${escapeHtml(model.label)}</option>`
+      ).join('')}<option value="__custom__">Custom…</option>`;
+      select.value = isCustom ? '__custom__' : selectedModelId;
+      select.dataset.agentType = catalog.agentType;
+      select.dataset.savedValue = selectedModelId;
+      customInput.hidden = !isCustom;
+      customInput.value = isCustom ? selectedModelId : '';
+      customInput.dataset.agentType = catalog.agentType;
+    }
+
+    async function loadModelControls(surface) {
+      try {
+        const [catalog, stepModels] = await Promise.all([fetchModelCatalog(), fetchStepModels()]);
+        const currentModels = stepModels[catalog.agentType] || {};
+        const steps = surface === 'assistant' ? ['assistant'] : MODEL_CONTROL_STEPS;
+        steps.forEach(step => renderModelControl(surface, step, catalog, currentModels[step] || ''));
+
+        if (surface === 'settings') {
+          const caption = document.getElementById('agent-models-caption');
+          caption.textContent = `Models apply to the ${getAgentDisplayName(catalog.agentType)} agent (AGENT_TYPE=${catalog.agentType}). Switching agent type keeps a separate model set.`;
+        }
+      } catch (error) {
+        console.warn('[Settings] Failed to load agent models:', error);
+        showToast('Could not load agent models', 'error');
+      }
+    }
+
+    async function persistStepModel(agentType, step, modelId) {
+      const stepModels = await fetchStepModels();
+      const agentModels = { ...(stepModels[agentType] || {}) };
+      if (modelId === '') {
+        delete agentModels[step];
+      } else {
+        agentModels[step] = modelId;
+      }
+
+      if (Object.keys(agentModels).length === 0) {
+        delete stepModels[agentType];
+      } else {
+        stepModels[agentType] = agentModels;
+      }
+
+      const response = await fetch('/api/config/settings/stepModels', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: stepModels }),
+      });
+      if (!response.ok) {
+        throw new Error(`Unable to save model setting (${response.status})`);
+      }
+    }
+
+    async function saveStepModel(surface, step, modelId) {
+      const ids = getModelControlIds(surface, step);
+      const select = document.getElementById(ids.select);
+      if (!select || !select.dataset.agentType) {
+        return;
+      }
+
+      try {
+        await persistStepModel(select.dataset.agentType, step, modelId);
+        select.dataset.savedValue = modelId;
+        if (surface === 'assistant') {
+          showAssistantModelHint();
+        }
+      } catch (error) {
+        console.warn('[Settings] Failed to save agent model:', error);
+        showToast('Could not save agent model', 'error');
+        loadModelControls(surface);
+      }
+    }
+
+    function handleModelSelectChange(surface, step) {
+      const ids = getModelControlIds(surface, step);
+      const select = document.getElementById(ids.select);
+      const customInput = document.getElementById(ids.custom);
+      if (!select || !customInput) {
+        return;
+      }
+
+      if (select.value === '__custom__') {
+        customInput.hidden = false;
+        customInput.value = select.dataset.savedValue || '';
+        customInput.focus();
+        customInput.select();
+        return;
+      }
+
+      customInput.hidden = true;
+      customInput.value = '';
+      saveStepModel(surface, step, select.value);
+    }
+
+    function saveCustomStepModel(surface, step) {
+      const ids = getModelControlIds(surface, step);
+      const select = document.getElementById(ids.select);
+      const customInput = document.getElementById(ids.custom);
+      if (!select || !customInput || select.value !== '__custom__') {
+        return;
+      }
+      saveStepModel(surface, step, customInput.value);
+    }
+
+    function handleCustomModelKeydown(event, surface, step) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        event.target.blur();
+      }
+    }
+
+    function showAssistantModelHint() {
+      const hint = document.getElementById('assistant-model-hint');
+      hint.hidden = false;
+      if (assistantModelHintTimeout) {
+        clearTimeout(assistantModelHintTimeout);
+      }
+      assistantModelHintTimeout = setTimeout(() => {
+        hint.hidden = true;
+      }, 3000);
     }
 
     function updateThemeSelector(theme) {

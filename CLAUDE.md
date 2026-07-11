@@ -193,9 +193,8 @@ The server will automatically detect this format and create the task via the For
 **Repository:** /Users/rickywo/WebstormProjects/Formic
 
 ### Todo
-  - [t-12] Consolidate task 'active/running' status checks in client into a single source of truth
-  - [t-17] !Fix invalid frontmatter in opencode agent profile templates (model: inherit crashes opencode)
-  - [t-18] !Prevent duplicate task IDs: reconcile nextTaskId with existing max task ID on create
+  - [t-25] Persist stepModels config and expose GET /api/models with settings validation
+  - [t-29] -Add model-selection E2E test and README/docs updates
 
 ### Review
   - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
@@ -208,10 +207,18 @@ The server will automatically detect this format and create the task via the For
   - [t-8] -Add opencode usage reporting branch (graceful unknown)
   - [t-9] -Surface opencode in CLI help, banner, README, and .env.example
   - [t-10] Add opencode unit tests and integration smoke run
+  - [t-12] Consolidate task 'active/running' status checks in client into a single source of truth
   - [t-13] !Fix opencode permission flag: replace --dangerously-skip-permissions with --auto
   - [t-14] !Isolate workflow execution agents from the read-only Task Manager persona in AGENTS.md/CLAUDE.md
   - [t-15] !Ship and materialize the .opencode/agent/formic-readonly.md restricted agent profile
   - [t-16] Add no-diff verification gate: fail tasks whose declared files were never modified
+  - [t-17] !Fix invalid frontmatter in opencode agent profile templates (model: inherit crashes opencode)
+  - [t-18] !Prevent duplicate task IDs: reconcile nextTaskId with existing max task ID on create
+  - [t-23] Fix environment-dependent unit test in noDiffVerification.test.ts (build a temp git fixture)
+  - [t-24] Add per-step model types, catalog, and --model arg support to agentAdapter
+  - [t-26] Thread per-step model selection through workflow, runner, and reflection spawns
+  - [t-27] Apply assistant model selection to chat and messaging agent spawns
+  - [t-28] Add Agent Models section to Settings panel and assistant-panel model selector
 
 ## Formic Workflow
 
