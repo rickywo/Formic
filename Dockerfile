@@ -21,12 +21,13 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Bump these with a PR when new releases are validated.
 ARG CLAUDE_CODE_VERSION=2.1.207
 ARG OPENCODE_AI_VERSION=1.17.18
+ARG FORMIC_VERSION=0.8.0
 
 # ---------------------------------------------------------------------------
 # OCI labels
 # ---------------------------------------------------------------------------
 LABEL org.opencontainers.image.source="https://github.com/rickywo/Formic" \
-      org.opencontainers.image.version="${FORMIC_VERSION:-0.8.0}" \
+      org.opencontainers.image.version="${FORMIC_VERSION}" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.description="Formic — AI-powered task manager and agent orchestration platform (headless runtime)"
 
@@ -80,7 +81,7 @@ ENV PORT=8000
 ENV WORKSPACE_PATH=/app/workspace
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:8000/api/board', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+  CMD node -e "const r=require('http').get('http://localhost:8000/api/health',(res)=>{process.exit(res.statusCode===200?0:1)});r.on('error',()=>process.exit(1))"
 
 CMD ["node", "dist/server/index.js"]
 

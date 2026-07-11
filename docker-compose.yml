@@ -11,9 +11,16 @@ services:
     volumes:
       # Mount your project directory as the workspace
       - ${WORKSPACE_PATH:-./_workspace}:/app/workspace
-    # Read-only root filesystem — the workspace volume is the only writable
-    # path. A tmpfs on /tmp allows agent CLIs and the Node runtime to create
-    # temporary files without granting persistent write access to the image.
+      # The root filesystem is read-only (see below); this named volume is the
+      # only writable path besides the workspace mount and /tmp. It persists UI
+      # settings (~/.formic/config.json) across container restarts, preventing
+      # EROFS failures when saving agent provider selection, stepModels, or
+      # workspace configuration.
+      - formic-config:/home/node/.formic
+    # Read-only root filesystem — the workspace volume and formic-config volume
+    # are the only writable paths. A tmpfs on /tmp allows agent CLIs and the
+    # Node runtime to create temporary files without granting persistent write
+    # access to the image.
     read_only: true
     tmpfs:
       - /tmp:exec,size=256M
@@ -37,6 +44,9 @@ services:
       - HOST=0.0.0.0
       - FORMIC_AUTH_TOKEN=${FORMIC_AUTH_TOKEN:?FORMIC_AUTH_TOKEN must be set for container deployments}
     restart: unless-stopped
+
+volumes:
+  formic-config:
 
 # Usage:
 # 1. Set your API key: export ANTHROPIC_API_KEY=your-key

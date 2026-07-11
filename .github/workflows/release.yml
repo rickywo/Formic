@@ -6,7 +6,7 @@
 #   2. npm tarball allowlist audit
 #   3. npm publish --provenance --access public
 #   4. Dockerfile linting (hadolint) and image scanning (trivy)
-#   5. Multi-arch Docker buildx with SBOM + provenance, pushing:
+#   5. Docker buildx with SBOM + provenance, pushing:
 #      <version>, <version>-devcontainer, and latest (on semver tags only)
 #
 # Required secrets:
@@ -38,8 +38,8 @@ jobs:
           fetch-depth: 0   # full history for complete scan
 
       - uses: gitleaks/gitleaks-action@v2
-        with:
-          config-path: '.gitleaks.toml'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ---------------------------------------------------------------------------
   # npm tarball audit — fail if any file outside the allowlisted roots ships
@@ -58,17 +58,14 @@ jobs:
       - run: npm ci
 
       - name: Audit npm pack file list
-        run: node scripts/auditNpmPack.mjs
+        run: node scripts/auditNpmPack.mjs | tee npm-pack-files.txt
 
       - name: Upload file list artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: npm-pack-files
-          path: |
-            # The audit script prints the file list to stdout; we capture it
-            # via a redirect in a separate step if needed.  For now the
-            # artifact is the audit output as logged by GitHub Actions.
+          path: npm-pack-files.txt
 
   # ---------------------------------------------------------------------------
   # npm publish — provenance-attested, automation-token auth
@@ -110,6 +107,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # --- Build dist/ before the image build (the runtime Dockerfile
+      #     COPY dist/ ./dist/ so dist/ must exist at build time) ---
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
       # --- Lint the Dockerfile ---
       - uses: hadolint/hadolint-action@v3
         with:
@@ -150,9 +157,11 @@ jobs:
           provenance: true
 
       # --- Scan built image with trivy ---
-      - uses: aquasecurity/trivy-action@master
+      - uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}${{ matrix.dockerfile.suffix }}
+          # docker/metadata-action's version output already includes the
+          # flavor suffix, so we must not re-append matrix.dockerfile.suffix
+          image-ref: ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
           format: 'table'
           exit-code: '1'
           ignore-unfixed: false

@@ -142,6 +142,14 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   // the existing unauthenticated local development experience.
   if (!isLoopback) {
     fastify.addHook('onRequest', async (request, reply) => {
+      // Exempt the health-check endpoint from auth so Docker HEALTHCHECK
+      // can probe the container without a bearer token. The endpoint is
+      // deliberately data-free — it returns only { status: 'ok' }, no
+      // version, workspace path, or task data.
+      if (request.url === '/api/health') {
+        return;
+      }
+
       const header = request.headers.authorization ?? '';
       const expectedHeader = 'Bearer ' + authToken;
       if (!timingSafeEqualStrings(header, expectedHeader)) {
@@ -170,8 +178,13 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   await fastify.register(logsWebSocket);
   await fastify.register(assistantWebSocket);
 
-  // Health check endpoint
+  // Health check endpoints.
+  // /api/health is the Docker HEALTHCHECK target — it is exempted from the
+  // global onRequest auth hook so the container can be probed without a
+  // bearer token. The response is deliberately data-free (no version, no
+  // workspace path, no task data).
   fastify.get('/health', async () => ({ status: 'ok' }));
+  fastify.get('/api/health', async () => ({ status: 'ok' }));
 
   // Demo mode entry point — serves the static showcase HTML
   fastify.get('/demo', async (_req, reply) => {

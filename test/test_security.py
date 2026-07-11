@@ -96,6 +96,13 @@ def test_auth_token_enforcement():
 
         base = f'http://127.0.0.1:{AUTH_PORT}'
 
+        # /api/health must return 200 WITHOUT an auth header (Docker HEALTHCHECK)
+        r = requests.get(f'{base}/api/health', timeout=5)
+        if r.status_code != 200:
+            print(f'❌ Expected 200 for /api/health without Authorization header, got {r.status_code}')
+            return False
+        print('✅ /api/health returns 200 unauthenticated')
+
         r = requests.get(f'{base}/api/board', timeout=5)
         if r.status_code != 401:
             print(f'❌ Expected 401 without Authorization header, got {r.status_code}')
