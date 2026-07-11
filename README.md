@@ -44,13 +44,15 @@ AI coding agents are powerful but chaotic. Without structure, they skip planning
 
 ## Supported Agents
 
-Formic supports three AI agent backends. Switch between them by setting `AGENT_TYPE`:
+Formic supports three AI agent backends. Switch between them from the **Kanban header** via the provider dropdown — no server restart needed. The dropdown shows which CLIs are installed and their versions.
 
 | Agent | `AGENT_TYPE` | Auth |
 |-------|-------------|------|
 | Claude Code CLI | `claude` (default) | `ANTHROPIC_API_KEY` env var |
 | GitHub Copilot CLI | `copilot` | `gh auth login` (GitHub OAuth) |
 | OpenCode CLI | `opencode` | `opencode auth login` or provider key |
+
+**Precedence:** UI selection > `AGENT_TYPE` env var > `claude` (default). The env var acts as a headless/startup fallback.
 
 **OpenCode notes:**
 - Install: `npm install -g opencode`

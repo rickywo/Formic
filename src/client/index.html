@@ -801,6 +801,55 @@
       border-color: rgba(139, 92, 246, 0.4);
     }
 
+    /* Light theme — Agent Provider Switcher */
+    [data-theme="light"] .agent-trigger {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .agent-trigger:hover {
+      background: rgba(0, 0, 0, 0.06);
+      border-color: rgba(0, 0, 0, 0.12);
+    }
+
+    [data-theme="light"] .agent-trigger-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .agent-trigger-chevron {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .agent-dropdown {
+      background: rgba(255, 255, 255, 0.98);
+      border-color: rgba(0, 0, 0, 0.1);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="light"] .agent-item:hover:not(.disabled) {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .agent-item.active {
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    [data-theme="light"] .agent-item-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .agent-item-meta {
+      color: rgba(0, 0, 0, 0.45);
+    }
+
+    [data-theme="light"] .agent-item.disabled .agent-item-name {
+      color: rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme="light"] .agent-item.disabled .agent-item-meta {
+      color: rgba(0, 0, 0, 0.2);
+    }
+
     [data-theme="light"] .add-workspace-form-title {
       color: rgba(0, 0, 0, 0.6);
     }
@@ -1743,6 +1792,161 @@
     .add-workspace-submit:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+
+    /* Agent Provider Switcher */
+    .agent-switcher {
+      position: relative;
+      z-index: 99;
+    }
+
+    .agent-trigger {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .agent-trigger:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .agent-trigger-icon {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .agent-trigger-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .agent-trigger-chevron {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.5);
+      transition: transform 0.2s ease;
+    }
+
+    .agent-switcher.open .agent-trigger-chevron {
+      transform: rotate(180deg);
+    }
+
+    .agent-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      min-width: 280px;
+      max-height: 260px;
+      overflow-y: auto;
+      background: rgba(15, 15, 15, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      transition: all 0.2s ease;
+    }
+
+    .agent-switcher.open .agent-dropdown {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .agent-dropdown-list {
+      padding: 8px;
+    }
+
+    .agent-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .agent-item:hover:not(.disabled) {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .agent-item.active {
+      background: rgba(139, 92, 246, 0.15);
+    }
+
+    .agent-item.disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .agent-item-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .agent-item-dot.installed {
+      background: #22c55e;
+      box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+    }
+
+    .agent-item-dot.not-installed {
+      background: #6b7280;
+    }
+
+    .agent-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .agent-item-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .agent-item-meta {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.45);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .agent-item.disabled .agent-item-name {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    .agent-item.disabled .agent-item-meta {
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    .agent-item-check {
+      font-size: 12px;
+      color: #8b5cf6;
+      opacity: 0;
+    }
+
+    .agent-item.active .agent-item-check {
+      opacity: 1;
     }
 
     /* Toast Notifications */
@@ -4937,6 +5141,11 @@
         box-shadow: none;
       }
 
+      /* Hide agent switcher on mobile — use Settings panel */
+      .agent-switcher {
+        display: none;
+      }
+
       /* Help panel - full screen on mobile with stacked layout */
       .help-panel {
         width: 100%;
@@ -7028,6 +7237,19 @@
     </div>
 
     <div class="desktop-header-right">
+      <!-- Agent Provider Switcher -->
+      <div class="agent-switcher" id="agent-switcher">
+        <button class="agent-trigger" id="agent-trigger" onclick="toggleAgentDropdown()" title="Switch AI provider">
+          <span class="agent-trigger-icon" id="agent-trigger-icon">🤖</span>
+          <span class="agent-trigger-name" id="agent-trigger-name">Loading...</span>
+          <span class="agent-trigger-chevron" id="agent-trigger-chevron">▼</span>
+        </button>
+        <div class="agent-dropdown" id="agent-dropdown">
+          <div class="agent-dropdown-list" id="agent-dropdown-list">
+            <!-- Agent items rendered here -->
+          </div>
+        </div>
+      </div>
       <div class="usage-meter usage-unknown" id="usage-meter" title="Loading usage...">
         <span class="usage-icon">⚡</span>
         <span class="usage-label" id="usage-label">—</span>
@@ -7611,6 +7833,14 @@
             <li><strong>Max Concurrent Sessions</strong> — How many AI agent sessions can run in parallel. Increase this to process more tasks simultaneously. The default is 1 (sequential). Higher values require more system resources.</li>
           </ul>
 
+          <h3>AI Provider</h3>
+          <ul>
+            <li>Switch the active AI agent backend from the <strong>header dropdown</strong> (next to the usage meter) or from <strong>Settings → Agent Models → AI Provider</strong>. The dropdown shows which CLIs are installed and their versions.</li>
+            <li>Only installed providers are selectable. Uninstalled providers show an install hint.</li>
+            <li>Switching while tasks are running or queued shows a confirmation prompt — in-flight tasks finish with the current provider, and subsequent tasks use the new one.</li>
+            <li>The selection persists across server restarts. The <code>AGENT_TYPE</code> environment variable acts as a headless fallback.</li>
+          </ul>
+
           <h3>Workspaces</h3>
           <ul>
             <li>Formic can manage tasks across multiple code repositories. Add a workspace by pasting an absolute path to a local repository and clicking <strong>+ Add</strong>.</li>
@@ -7732,6 +7962,17 @@
       <!-- Agent Models Section -->
       <div class="settings-section">
         <div class="settings-section-title">Agent Models</div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="settings-agent-type">AI Provider</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="settings-agent-type" onchange="selectAgentType(this.value)">
+              <option value="claude">Claude Code CLI</option>
+              <option value="copilot">GitHub Copilot CLI</option>
+              <option value="opencode">OpenCode CLI</option>
+            </select>
+          </div>
+        </div>
 
         <div class="settings-row">
           <label class="settings-label" for="step-model-brief">Briefing</label>
@@ -7898,6 +8139,18 @@
           <input type="text" class="add-workspace-input" id="add-workspace-path" placeholder="Enter workspace path...">
           <button class="btn btn-primary add-workspace-btn" onclick="addWorkspaceFromSettings()">+ Add</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal (in-app confirmation dialog) -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal" style="max-width: 420px;">
+      <h2 style="margin-bottom: 12px;">Confirm</h2>
+      <p id="confirm-modal-message" style="font-size: 14px; color: rgba(255, 255, 255, 0.75); margin-bottom: 20px; line-height: 1.5;"></p>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-secondary" id="confirm-modal-cancel" onclick="closeConfirmModal(false)">Cancel</button>
+        <button class="btn btn-primary" id="confirm-modal-ok" onclick="closeConfirmModal(true)">Continue</button>
       </div>
     </div>
   </div>
@@ -8406,18 +8659,236 @@
         if (workspaceDropdownOpen && switcher && !switcher.contains(e.target)) {
           closeWorkspaceDropdown();
         }
+        const agentSwitcher = document.getElementById('agent-switcher');
+        if (agentDropdownOpen && agentSwitcher && !agentSwitcher.contains(e.target)) {
+          closeAgentDropdown();
+        }
       });
 
       // Escape key handler
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && workspaceDropdownOpen) {
-          closeWorkspaceDropdown();
+        if (e.key === 'Escape') {
+          if (workspaceDropdownOpen) closeWorkspaceDropdown();
+          if (agentDropdownOpen) closeAgentDropdown();
         }
       });
     }
 
     // ============================================
     // End Workspace Switcher Functions
+    // ============================================
+
+    /**
+     * Show an in-app confirmation modal. Returns a Promise that resolves to true
+     * if the user clicked Continue, false otherwise.
+     * @param {string} message - Message to display
+     * @returns {Promise<boolean>}
+     */
+    function showConfirmModal(message) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('confirm-modal');
+        const messageEl = document.getElementById('confirm-modal-message');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        const okBtn = document.getElementById('confirm-modal-ok');
+
+        messageEl.textContent = message;
+        overlay.classList.add('open');
+
+        window._confirmModalResolve = (result) => {
+          overlay.classList.remove('open');
+          delete window._confirmModalResolve;
+          resolve(result);
+        };
+
+        cancelBtn.onclick = () => window._confirmModalResolve(false);
+        okBtn.onclick = () => window._confirmModalResolve(true);
+
+        // Close on overlay click
+        overlay.onclick = (e) => {
+          if (e.target === overlay) window._confirmModalResolve(false);
+        };
+      });
+    }
+
+    function closeConfirmModal(result) {
+      if (window._confirmModalResolve) {
+        window._confirmModalResolve(result);
+      }
+    }
+
+    // ============================================
+    // Agent Provider Switcher Functions
+    // ============================================
+
+    let agentDropdownOpen = false;
+
+    /** Fetch agent availability from the server */
+    async function fetchAgents(refresh = false) {
+      try {
+        const url = refresh ? '/api/agents?refresh=1' : '/api/agents';
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return await res.json();
+      } catch (err) {
+        console.warn('[AgentSwitcher] Failed to fetch agents:', err);
+        return null;
+      }
+    }
+
+    /** Update the header pill display */
+    function updateAgentPill(data) {
+      const nameEl = document.getElementById('agent-trigger-name');
+      const settingsSelect = document.getElementById('settings-agent-type');
+      if (!data || !data.current) return;
+
+      const names = { claude: 'Claude Code', copilot: 'Copilot', opencode: 'OpenCode' };
+      nameEl.textContent = names[data.current] || data.current;
+
+      if (settingsSelect) {
+        settingsSelect.value = data.current;
+      }
+    }
+
+    /** Toggle the agent dropdown open/closed */
+    async function toggleAgentDropdown() {
+      if (agentDropdownOpen) {
+        closeAgentDropdown();
+      } else {
+        const switcher = document.getElementById('agent-switcher');
+        switcher.classList.add('open');
+        agentDropdownOpen = true;
+        await renderAgentDropdown();
+      }
+    }
+
+    /** Close the agent dropdown */
+    function closeAgentDropdown() {
+      const switcher = document.getElementById('agent-switcher');
+      if (switcher) switcher.classList.remove('open');
+      agentDropdownOpen = false;
+    }
+
+    /** Render agent items in the dropdown */
+    async function renderAgentDropdown() {
+      const data = await fetchAgents(true);
+      if (!data) return;
+
+      const listEl = document.getElementById('agent-dropdown-list');
+      if (!listEl) return;
+
+      const icons = { claude: '🧠', copilot: '🦾', opencode: '🔧' };
+      listEl.innerHTML = data.agents.map(agent => {
+        const isActive = agent.type === data.current;
+        const disabledClass = agent.installed ? '' : 'disabled';
+        const metaText = agent.installed
+          ? `✓ v${agent.version}`
+          : (agent.hint || 'Not installed');
+        const onclick = agent.installed
+          ? `onclick="selectAgentType('${agent.type}')"`
+          : '';
+
+        return `
+          <div class="agent-item ${isActive ? 'active' : ''} ${disabledClass}"
+               ${onclick}
+               ${agent.installed ? '' : 'aria-disabled="true"'}>
+            <span class="agent-trigger-icon">${icons[agent.type] || '🤖'}</span>
+            <div class="agent-item-info">
+              <div class="agent-item-name">${escapeHtml(agent.displayName)}</div>
+              <div class="agent-item-meta">${escapeHtml(metaText)}</div>
+            </div>
+            ${isActive ? '<span class="agent-item-check">✓</span>' : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Switch the active AI provider.
+     * @param {string} newType - One of 'claude', 'copilot', 'opencode'
+     */
+    async function selectAgentType(newType) {
+      // Check if we need to confirm (active/queued tasks)
+      const activeOrQueued = board.tasks.filter(
+        t => isTaskActive(t.status) || t.status === 'queued'
+      );
+
+      if (activeOrQueued.length > 0) {
+        const currentName = document.getElementById('agent-trigger-name').textContent;
+        const names = { claude: 'Claude Code', copilot: 'Copilot', opencode: 'OpenCode' };
+        const newName = names[newType] || newType;
+        const confirmed = await showConfirmModal(
+          `${activeOrQueued.length} task(s) are running or queued. Steps already in progress will finish with ${currentName}; subsequent steps will use ${newName}. Continue?`
+        );
+        if (!confirmed) {
+          // Restore settings select to current value
+          const data = await fetchAgents();
+          if (data) updateAgentPill(data);
+          return;
+        }
+      }
+
+      try {
+        const res = await fetch('/api/config/settings/agentType', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: newType }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to switch provider');
+        }
+
+        // Update UI
+        const names = { claude: 'Claude Code', copilot: 'Copilot', opencode: 'OpenCode' };
+        document.getElementById('agent-trigger-name').textContent = names[newType] || newType;
+        const settingsSelect = document.getElementById('settings-agent-type');
+        if (settingsSelect) settingsSelect.value = newType;
+
+        closeAgentDropdown();
+        showToast(`Switched to ${names[newType] || newType}`, 'success');
+
+        // Refresh model controls in settings
+        if (typeof loadModelControls === 'function') {
+          loadModelControls('settings').catch(() => {});
+        }
+
+        // If assistant panel is open, show notice
+        const assistantPanel = document.getElementById('assistant-panel');
+        if (assistantPanel && assistantPanel.classList.contains('open')) {
+          const messagesContainer = document.getElementById('assistant-messages');
+          if (messagesContainer) {
+            const notice = document.createElement('div');
+            notice.className = 'assistant-message assistant-message-system';
+            notice.innerHTML = `<div class="message-content">Provider switched to ${names[newType] || newType} — conversation restarted.</div>`;
+            messagesContainer.appendChild(notice);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          }
+        }
+
+        // Refresh usage meter
+        if (typeof fetchUsageInfo === 'function') {
+          fetchUsageInfo().catch(() => {});
+        }
+      } catch (err) {
+        console.error('[AgentSwitcher] Switch failed:', err);
+        showToast(err.message || 'Failed to switch provider', 'error');
+        // Restore settings select
+        const data = await fetchAgents();
+        if (data) updateAgentPill(data);
+      }
+    }
+
+    /** Initialize the agent switcher on page load */
+    async function initAgentSwitcher() {
+      const data = await fetchAgents();
+      if (data) {
+        updateAgentPill(data);
+      }
+    }
+
+    // ============================================
+    // End Agent Provider Switcher Functions
     // ============================================
 
     // ============================================
@@ -8609,6 +9080,9 @@
 
       // Initialize workspace switcher
       initWorkspaceSwitcher();
+
+      // Initialize agent provider switcher
+      initAgentSwitcher();
 
       // Initialize project brief panel
       await initProjectBriefPanel();
@@ -9660,7 +10134,7 @@
 
         if (surface === 'settings') {
           const caption = document.getElementById('agent-models-caption');
-          caption.textContent = `Models apply to the ${getAgentDisplayName(catalog.agentType)} agent (AGENT_TYPE=${catalog.agentType}). Switching agent type keeps a separate model set.`;
+          caption.textContent = `Models apply to the ${getAgentDisplayName(catalog.agentType)} agent. Each provider keeps its own model set.`;
         }
       } catch (error) {
         console.warn('[Settings] Failed to load agent models:', error);

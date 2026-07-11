@@ -194,7 +194,7 @@ The server will automatically detect this format and create the task via the For
 
 ### Todo
   - [t-25] Persist stepModels config and expose GET /api/models with settings validation
-  - [t-29] -Add model-selection E2E test and README/docs updates
+  - [t-111] Make AI provider selectable from the Kanban UI with availability-aware switcher (replaces AGENT_TYPE env-only selection)
 
 ### Review
   - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
@@ -219,6 +219,7 @@ The server will automatically detect this format and create the task via the For
   - [t-26] Thread per-step model selection through workflow, runner, and reflection spawns
   - [t-27] Apply assistant model selection to chat and messaging agent spawns
   - [t-28] Add Agent Models section to Settings panel and assistant-panel model selector
+  - [t-29] -Add model-selection E2E test and README/docs updates
 
 ## Formic Workflow
 

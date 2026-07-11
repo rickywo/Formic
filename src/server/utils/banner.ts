@@ -1,5 +1,5 @@
-import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { detectAgents } from '../services/agentAvailability.js';
 
 export interface StartupInfo {
   port: number;
@@ -72,53 +72,21 @@ interface CheckResult {
   hint?: string;
 }
 
-function tryExec(cmd: string): string | null {
-  try {
-    const output = execSync(cmd, { stdio: 'pipe' }).toString().trim();
-    return output.split('\n')[0]?.trim() ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function runDependencyChecks(info: StartupInfo): CheckResult[] {
+async function runDependencyChecks(info: StartupInfo): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
 
-  // 1. Claude Code CLI
-  const claudeVersion = tryExec('claude --version');
-  if (claudeVersion !== null) {
-    results.push({ label: `Claude Code CLI ${dim(claudeVersion)}`, ok: true });
-  } else {
-    results.push({
-      label: 'Claude Code CLI not found',
-      ok: false,
-      hint: 'Install: npm install -g @anthropic-ai/claude-code',
-    });
-  }
-
-  // 2. GitHub Copilot CLI
-  const copilotVersion = tryExec('gh copilot --version') ?? tryExec('copilot --version');
-  if (copilotVersion !== null) {
-    const cleanVersion = copilotVersion.replace(/^GitHub Copilot CLI\s*/i, '');
-    results.push({ label: `GitHub Copilot CLI ${dim(cleanVersion)}`, ok: true });
-  } else {
-    results.push({
-      label: 'GitHub Copilot CLI not found',
-      ok: false,
-      hint: 'Install: gh extension install github/gh-copilot',
-    });
-  }
-
-  // 3. OpenCode CLI
-  const opencodeVersion = tryExec('opencode --version');
-  if (opencodeVersion !== null) {
-    results.push({ label: `OpenCode CLI ${dim(opencodeVersion)}`, ok: true });
-  } else {
-    results.push({
-      label: 'OpenCode CLI not found',
-      ok: false,
-      hint: 'Install: npm install -g opencode',
-    });
+  // 1-3. CLI availability via async service (cached, non-blocking)
+  const agents = await detectAgents();
+  for (const agent of agents) {
+    if (agent.installed && agent.version) {
+      results.push({ label: `${agent.displayName} ${dim(agent.version)}`, ok: true });
+    } else {
+      results.push({
+        label: `${agent.displayName} not found`,
+        ok: false,
+        hint: agent.hint,
+      });
+    }
   }
 
   // 4. API key / agent check
@@ -210,7 +178,7 @@ export async function printStartupBanner(info: StartupInfo): Promise<void> {
   lines.push(`  ${bold('System Checks')}`);
   lines.push(hr());
 
-  const checks = runDependencyChecks(info);
+  const checks = await runDependencyChecks(info);
   for (const check of checks) {
     lines.push(checkRow(check));
     if (check.hint) {

@@ -4,6 +4,15 @@ export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' 
 export type TaskType = 'standard' | 'quick' | 'goal';
 export type AgentType = 'claude' | 'copilot' | 'opencode';
 
+/** Installation state reported for a supported agent CLI. */
+export interface AgentAvailability {
+  type: AgentType;
+  displayName: string;
+  installed: boolean;
+  version?: string;
+  hint?: string;
+}
+
 export const MODEL_STEPS = ['brief', 'plan', 'declare', 'execute', 'architect', 'assistant'] as const;
 export type ModelStep = typeof MODEL_STEPS[number];
 /** Model id per step. Empty string / missing key = agent CLI default (no flag passed). */
@@ -397,6 +406,8 @@ export interface ConfigSettings {
   maxExecutionRetries?: number;
   /** Per-agent per-step model overrides. Missing/empty = agent CLI default. */
   stepModels?: Partial<Record<AgentType, StepModelConfig>>;
+  /** Selected agent CLI provider. Missing = fall back to AGENT_TYPE env var, then claude. */
+  agentType?: AgentType;
 }
 
 /** Root schema for ~/.formic/config.json */

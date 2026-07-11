@@ -93,7 +93,9 @@ Examples:
 Environment Variables:
   PORT              Server port (default: 8000)
   HOST              Server host (default: 0.0.0.0)
-  AGENT_TYPE        Agent CLI type: 'claude', 'copilot', or 'opencode' (default: claude)
+  AGENT_TYPE        Initial agent CLI type: 'claude', 'copilot', or 'opencode' (default: claude).
+                    Falls back to this if no provider is selected in the Kanban UI.
+                    UI selection takes precedence once set.
   ANTHROPIC_API_KEY API key for Claude agent (opencode: run \`opencode auth login\` or set a provider key)
 
 Documentation:

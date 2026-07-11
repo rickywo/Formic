@@ -179,25 +179,17 @@ const ASSISTANT_CONFIGS: Record<AgentType, AssistantConfig> = {
 };
 
 /**
- * Get the configured agent type from environment
- * Defaults to 'claude' if not specified or invalid
+ * Get the configured agent type. engineConfig is refreshed at top-level operation
+ * boundaries so this remains synchronous for command construction.
  */
 export function getAgentType(): AgentType {
-  const envType = process.env.AGENT_TYPE?.toLowerCase();
-  if (envType === 'copilot') {
-    return 'copilot';
-  }
-  if (envType === 'opencode') {
-    return 'opencode';
-  }
-  return 'claude';
+  return engineConfig.agentType;
 }
 
 /**
  * Get the agent configuration for the configured agent type
  */
-export function getAgentConfig(): AgentConfig {
-  const agentType = getAgentType();
+export function getAgentConfig(agentType = getAgentType()): AgentConfig {
   const config = AGENTS[agentType];
 
   // Override command if AGENT_COMMAND is set
@@ -212,15 +204,15 @@ export function getAgentConfig(): AgentConfig {
 /**
  * Get the CLI command for the configured agent
  */
-export function getAgentCommand(): string {
-  return getAgentConfig().command;
+export function getAgentCommand(agentType = getAgentType()): string {
+  return getAgentConfig(agentType).command;
 }
 
 /**
  * Build CLI arguments for the configured agent
  */
-export function buildAgentArgs(prompt: string, options?: { model?: string }): string[] {
-  return getAgentConfig().buildArgs(prompt, options);
+export function buildAgentArgs(prompt: string, options?: { model?: string; agentType?: AgentType }): string[] {
+  return getAgentConfig(options?.agentType).buildArgs(prompt, options);
 }
 
 /**
@@ -233,8 +225,7 @@ export function getAgentSkillsDir(): string {
 /**
  * Get a human-readable name for the configured agent
  */
-export function getAgentDisplayName(): string {
-  const agentType = getAgentType();
+export function getAgentDisplayName(agentType = getAgentType()): string {
   switch (agentType) {
     case 'claude':
       return 'Claude Code CLI';
@@ -267,16 +258,15 @@ export function validateAgentEnv(): string[] {
 /**
  * Get the assistant configuration for the configured agent type
  */
-export function getAssistantConfig(): AssistantConfig {
-  const agentType = getAgentType();
+export function getAssistantConfig(agentType = getAgentType()): AssistantConfig {
   return ASSISTANT_CONFIGS[agentType];
 }
 
 /**
  * Build CLI arguments for assistant (read-only) mode
  */
-export function buildAssistantArgs(prompt: string, options?: { continue?: boolean; model?: string }): string[] {
-  return getAssistantConfig().buildAssistantArgs(prompt, options);
+export function buildAssistantArgs(prompt: string, options?: { continue?: boolean; model?: string; agentType?: AgentType }): string[] {
+  return getAssistantConfig(options?.agentType).buildAssistantArgs(prompt, options);
 }
 
 /**
@@ -290,8 +280,8 @@ export function getAssistantOutputFormat(): string | null {
 /**
  * Check if the configured agent supports conversation continuation (--continue flag)
  */
-export function supportsConversationContinue(): boolean {
-  return getAssistantConfig().supportsConversationContinue;
+export function supportsConversationContinue(agentType = getAgentType()): boolean {
+  return getAssistantConfig(agentType).supportsConversationContinue;
 }
 
 /**
@@ -306,8 +296,8 @@ export function getAssistantReadOnlyTools(): string[] {
  * The messaging subprocess cannot access MCP tools because no MCP server
  * configuration is injected into the spawned process.
  */
-export function buildMessagingAssistantArgs(prompt: string, options?: { continue?: boolean; model?: string }): string[] {
-  const agentType = getAgentType();
+export function buildMessagingAssistantArgs(prompt: string, options?: { continue?: boolean; model?: string; agentType?: AgentType }): string[] {
+  const agentType = options?.agentType ?? getAgentType();
 
   if (agentType === 'copilot') {
     const args = [

@@ -49,6 +49,7 @@ def main():
     test_suites = [
         ("API Tests", "test_api.py"),
         ("Model Configuration API Tests", "test_model_config.py"),
+        ("Agent Selection API Tests", "test_agent_selection.py"),
         ("Task ID Counter Tests", "test_task_id_counter.py"),
         ("Concurrency Tests", "test_concurrency.py"),
         ("Lease Enhancement Tests", "test_lease_enhancements.py"),

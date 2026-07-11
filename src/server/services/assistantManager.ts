@@ -922,3 +922,13 @@ export async function restartAssistant(): Promise<AssistantSession> {
   // Start fresh
   return startAssistant();
 }
+
+/**
+ * Reset the assistant conversation state without restarting the process.
+ * Called when the agent type changes so the next assistant message spawns
+ * with the new provider and starts a fresh conversation.
+ */
+export function resetConversation(): void {
+  console.warn('[AssistantManager] Agent type changed — conversation reset');
+  isFirstMessage = true;
+}
