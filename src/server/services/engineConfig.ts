@@ -5,6 +5,7 @@
  * (workflow execution, queue poll tick, watchdog scan) to pick up config changes.
  */
 import { loadConfig } from './configStore.js';
+import type { AgentType, StepModelConfig } from '../../types/index.js';
 
 export interface EngineConfig {
   maxConcurrentTasks: number;
@@ -17,6 +18,7 @@ export interface EngineConfig {
   maxExecuteIterations: number;
   stepTimeoutMs: number;
   maxExecutionRetries: number;
+  stepModels: Partial<Record<AgentType, StepModelConfig>>;
 }
 
 export const engineConfig: EngineConfig = {
@@ -30,6 +32,7 @@ export const engineConfig: EngineConfig = {
   maxExecuteIterations: 5,
   stepTimeoutMs: 6000000,
   maxExecutionRetries: 3,
+  stepModels: {},
 };
 
 export async function refreshEngineConfig(): Promise<void> {
@@ -45,4 +48,5 @@ export async function refreshEngineConfig(): Promise<void> {
   engineConfig.maxExecuteIterations = s.maxExecuteIterations ?? 5;
   engineConfig.stepTimeoutMs = s.stepTimeoutMs ?? 6000000;
   engineConfig.maxExecutionRetries = s.maxExecutionRetries ?? 3;
+  engineConfig.stepModels = s.stepModels ?? {};
 }

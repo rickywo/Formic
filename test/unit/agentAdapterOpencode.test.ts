@@ -4,6 +4,7 @@ import {
   buildAgentArgs,
   buildAssistantArgs,
   buildMessagingAssistantArgs,
+  getAvailableModels,
   getAgentCommand,
   getAgentConfig,
   getAgentDisplayName,
@@ -12,9 +13,11 @@ import {
   getAssistantConfig,
   getAssistantOutputFormat,
   getAssistantReadOnlyTools,
+  getModelForStep,
   supportsConversationContinue,
   validateAgentEnv,
 } from '../../src/server/services/agentAdapter.js';
+import { engineConfig } from '../../src/server/services/engineConfig.js';
 
 // ---------------------------------------------------------------------------
 // Env isolation helpers
@@ -392,5 +395,175 @@ describe('regression guard (claude defaults)', () => {
     assert.ok(args.includes('--print'), 'claude messaging must use --print');
     assert.ok(args.includes('--output-format'), 'claude messaging must use --output-format');
     assert.ok(args.includes('--verbose'), 'claude messaging must use --verbose');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Per-step model selection foundation: builder regression matrix
+// ---------------------------------------------------------------------------
+type BuilderName = 'executor' | 'assistant' | 'messaging';
+
+interface BuilderCase {
+  name: BuilderName;
+  buildArgs: (prompt: string, model?: string) => string[];
+  defaultArgs: string[];
+  modelArgs: string[];
+}
+
+interface AgentBuilderMatrix {
+  agentType: 'claude' | 'copilot' | 'opencode';
+  model: string;
+  builders: BuilderCase[];
+}
+
+const PROMPT = 'model selection prompt';
+const MODEL = 'claude-sonnet-5';
+const OPENCODE_MODEL = 'anthropic/claude-sonnet-5';
+
+const AGENT_BUILDER_MATRICES: AgentBuilderMatrix[] = [
+  {
+    agentType: 'claude',
+    model: MODEL,
+    builders: [
+      {
+        name: 'executor',
+        buildArgs: (prompt, model) => buildAgentArgs(prompt, model ? { model } : undefined),
+        defaultArgs: ['--print', '--dangerously-skip-permissions', PROMPT],
+        modelArgs: ['--print', '--dangerously-skip-permissions', '--model', MODEL, PROMPT],
+      },
+      {
+        name: 'assistant',
+        buildArgs: (prompt, model) => buildAssistantArgs(prompt, model ? { model } : undefined),
+        defaultArgs: ['--print', '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions', PROMPT],
+        modelArgs: ['--print', '--output-format', 'stream-json', '--verbose', '--dangerously-skip-permissions', '--model', MODEL, PROMPT],
+      },
+      {
+        name: 'messaging',
+        buildArgs: (prompt, model) => buildMessagingAssistantArgs(prompt, model ? { model } : undefined),
+        defaultArgs: ['--print', '--output-format', 'stream-json', '--verbose', '--allowedTools', 'Read,Glob,Grep,LS,WebSearch,WebFetch', '--dangerously-skip-permissions', PROMPT],
+        modelArgs: ['--print', '--output-format', 'stream-json', '--verbose', '--allowedTools', 'Read,Glob,Grep,LS,WebSearch,WebFetch', '--dangerously-skip-permissions', '--model', MODEL, PROMPT],
+      },
+    ],
+  },
+  {
+    agentType: 'copilot',
+    model: MODEL,
+    builders: [
+      {
+        name: 'executor',
+        buildArgs: (prompt, model) => buildAgentArgs(prompt, model ? { model } : undefined),
+        defaultArgs: ['--prompt', PROMPT, '--allow-all-tools', '--allow-all-paths'],
+        modelArgs: ['--model', MODEL, '--prompt', PROMPT, '--allow-all-tools', '--allow-all-paths'],
+      },
+      {
+        name: 'assistant',
+        buildArgs: (prompt, model) => buildAssistantArgs(prompt, model ? { model } : undefined),
+        defaultArgs: ['--prompt', PROMPT, '--allow-all-tools', '--allow-all-paths', '--no-color'],
+        modelArgs: ['--model', MODEL, '--prompt', PROMPT, '--allow-all-tools', '--allow-all-paths', '--no-color'],
+      },
+      {
+        name: 'messaging',
+        buildArgs: (prompt, model) => buildMessagingAssistantArgs(prompt, model ? { model } : undefined),
+        defaultArgs: ['--prompt', PROMPT, '--available-tools', 'view', 'glob', 'grep', 'web_fetch', '--allow-all-paths', '--no-color'],
+        modelArgs: ['--model', MODEL, '--prompt', PROMPT, '--available-tools', 'view', 'glob', 'grep', 'web_fetch', '--allow-all-paths', '--no-color'],
+      },
+    ],
+  },
+  {
+    agentType: 'opencode',
+    model: OPENCODE_MODEL,
+    builders: [
+      {
+        name: 'executor',
+        buildArgs: (prompt, model) => buildAgentArgs(prompt, model ? { model } : undefined),
+        defaultArgs: ['run', '--agent', 'formic-executor', '--auto', '--format', 'json', PROMPT],
+        modelArgs: ['run', '--agent', 'formic-executor', '--auto', '--format', 'json', '--model', OPENCODE_MODEL, PROMPT],
+      },
+      {
+        name: 'assistant',
+        buildArgs: (prompt, model) => buildAssistantArgs(prompt, model ? { model } : undefined),
+        defaultArgs: ['run', '--agent', 'formic-readonly', '--auto', '--format', 'json', PROMPT],
+        modelArgs: ['run', '--agent', 'formic-readonly', '--auto', '--format', 'json', '--model', OPENCODE_MODEL, PROMPT],
+      },
+      {
+        name: 'messaging',
+        buildArgs: (prompt, model) => buildMessagingAssistantArgs(prompt, model ? { model } : undefined),
+        defaultArgs: ['run', '--agent', 'formic-readonly', '--auto', '--format', 'json', PROMPT],
+        modelArgs: ['run', '--agent', 'formic-readonly', '--auto', '--format', 'json', '--model', OPENCODE_MODEL, PROMPT],
+      },
+    ],
+  },
+];
+
+describe('agent adapter model argument builders', () => {
+  for (const matrix of AGENT_BUILDER_MATRICES) {
+    for (const builder of matrix.builders) {
+      it(`${matrix.agentType} ${builder.name} preserves default arguments without a model`, () => {
+        process.env.AGENT_TYPE = matrix.agentType;
+        assert.deepStrictEqual(builder.buildArgs(PROMPT), builder.defaultArgs);
+      });
+
+      it(`${matrix.agentType} ${builder.name} places --model before the prompt`, () => {
+        process.env.AGENT_TYPE = matrix.agentType;
+        assert.deepStrictEqual(builder.buildArgs(PROMPT, matrix.model), builder.modelArgs);
+      });
+    }
+  }
+});
+
+describe('opencode invalid model fallback', () => {
+  for (const builder of AGENT_BUILDER_MATRICES[2].builders) {
+    it(`omits an invalid model and warns for the ${builder.name} builder`, () => {
+      process.env.AGENT_TYPE = 'opencode';
+      const warnings: unknown[][] = [];
+      const originalWarn = console.warn;
+      console.warn = (...args: unknown[]): void => {
+        warnings.push(args);
+      };
+
+      try {
+        assert.deepStrictEqual(builder.buildArgs(PROMPT, 'sonnet-5'), builder.defaultArgs);
+      } finally {
+        console.warn = originalWarn;
+      }
+
+      assert.deepStrictEqual(warnings, [[
+        '[AgentAdapter] Invalid opencode model id (expected provider/model): sonnet-5 — using agent default',
+      ]]);
+    });
+  }
+});
+
+describe('model catalog and step resolution', () => {
+  const savedStepModels = engineConfig.stepModels;
+
+  afterEach(() => {
+    engineConfig.stepModels = savedStepModels;
+  });
+
+  it('returns only the catalog for the active agent', () => {
+    process.env.AGENT_TYPE = 'claude';
+    assert.deepStrictEqual(getAvailableModels()[0], { id: '', label: 'Agent default' });
+    assert.equal(getAvailableModels()[1]?.id, 'claude-opus-4-8');
+
+    process.env.AGENT_TYPE = 'opencode';
+    assert.deepStrictEqual(getAvailableModels()[1], {
+      id: 'anthropic/claude-sonnet-5',
+      label: 'Claude Sonnet 5 (Anthropic)',
+    });
+  });
+
+  it('resolves models only from the active agent namespace', () => {
+    engineConfig.stepModels = {
+      claude: { brief: 'claude-opus-4-8' },
+      opencode: { brief: 'anthropic/claude-sonnet-5' },
+    };
+
+    process.env.AGENT_TYPE = 'claude';
+    assert.equal(getModelForStep('brief'), 'claude-opus-4-8');
+    assert.equal(getModelForStep('execute'), '');
+
+    process.env.AGENT_TYPE = 'opencode';
+    assert.equal(getModelForStep('brief'), 'anthropic/claude-sonnet-5');
   });
 });

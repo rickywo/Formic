@@ -2,6 +2,12 @@ export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'declarin
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' | 'verify' | 'architect' | 'complete';
 export type TaskType = 'standard' | 'quick' | 'goal';
+export type AgentType = 'claude' | 'copilot' | 'opencode';
+
+export const MODEL_STEPS = ['brief', 'plan', 'declare', 'execute', 'architect', 'assistant'] as const;
+export type ModelStep = typeof MODEL_STEPS[number];
+/** Model id per step. Empty string / missing key = agent CLI default (no flag passed). */
+export type StepModelConfig = Partial<Record<ModelStep, string>>;
 
 export interface WorkflowLogs {
   brief?: string | string[];
@@ -389,6 +395,8 @@ export interface ConfigSettings {
   watchdogIntervalMs: number;
   // Execution retry limit (prevents infinite re-queue on repeated failures)
   maxExecutionRetries?: number;
+  /** Per-agent per-step model overrides. Missing/empty = agent CLI default. */
+  stepModels?: Partial<Record<AgentType, StepModelConfig>>;
 }
 
 /** Root schema for ~/.formic/config.json */
