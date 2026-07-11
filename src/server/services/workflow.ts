@@ -5,7 +5,7 @@ import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask, withBoard } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt, OVERRIDE_PREAMBLE } from './skillReader.js';
-import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
+import { getAgentCommand, buildAgentArgs, getAgentDisplayName, getModelForStep } from './agentAdapter.js';
 import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder } from './leaseManager.js';
 import {
   loadSubtasks,
@@ -17,7 +17,7 @@ import {
 import { getWorkspacePath, getFormicDir, getTaskLogsDir } from '../utils/paths.js';
 import { createSafePoint, getChangedFilesSince } from '../utils/gitUtils.js';
 import { checkoutFilesFromCommit } from '../utils/safeGit.js';
-import type { LogMessage, Task, WorkflowStep } from '../../types/index.js';
+import type { LogMessage, ModelStep, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
 import { broadcastBoardUpdate, broadcastKillSwitch, broadcastTaskCompleted } from './boardNotifier.js';
 import { stopQueueProcessor, removeInFlightTask } from './queueProcessor.js';
@@ -438,7 +438,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
       const resultPromise = new Promise<boolean>((resolve) => {
         const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', skillResult.content, (success) => {
           resolve(success);
-        });
+        }, 'declare');
         pidPromise = pidPersisted;
 
         if (child.pid) {
@@ -524,13 +524,17 @@ function runWorkflowStep(
   taskId: string,
   step: 'brief' | 'plan' | 'execute',
   prompt: string,
-  onComplete: (success: boolean) => void
+  onComplete: (success: boolean) => void,
+  modelStep?: ModelStep
 ): { child: ChildProcess; pidPersisted: Promise<void> } {
   console.warn(`[Workflow] Starting ${step} step for task ${taskId}`);
 
   // Use agent adapter for CLI invocation
+  const effectiveModelStep: ModelStep = modelStep ?? (step === 'brief' ? 'brief' : step === 'plan' ? 'plan' : 'execute');
+  const model = getModelForStep(effectiveModelStep);
+  console.warn(`[Workflow] ${step} step for task ${taskId} using model: ${model || '(agent default)'}`);
   const agentCommand = getAgentCommand();
-  const agentArgs = buildAgentArgs(prompt);
+  const agentArgs = buildAgentArgs(prompt, model ? { model } : undefined);
 
   const child = spawn(agentCommand, agentArgs, {
     cwd: getWorkspacePath(),
@@ -863,6 +867,7 @@ async function executeVerifyStep(taskId: string): Promise<{ success: boolean; st
   const logBuffer: string[] = [];
   const stderrLines: string[] = [];
 
+  // Verification runs engineConfig.verifyCommand (a shell command), not an AI agent.
   let child: ReturnType<typeof spawn>;
   try {
     child = spawn(cmd, args, {
@@ -1050,10 +1055,11 @@ function parseReflectionOutput(output: string): ReflectionEntry[] {
 }
 
 /** Spawn the agent with a one-shot prompt and collect all output as a string. */
-function runAgentForOutput(prompt: string): Promise<string> {
+function runAgentForOutput(prompt: string, model?: string): Promise<string> {
   return new Promise((resolve) => {
     const agentCommand = getAgentCommand();
-    const agentArgs = buildAgentArgs(prompt);
+    console.warn(`[Workflow] One-shot agent using model: ${model || '(agent default)'}`);
+    const agentArgs = buildAgentArgs(prompt, model ? { model } : undefined);
 
     const child = spawn(agentCommand, agentArgs, {
       cwd: getWorkspacePath(),
@@ -1110,7 +1116,7 @@ Example:
   { "type": "pitfall", "content": "ESM imports require .js extension even for .ts source files", "relevance_tags": ["typescript", "esm", "imports"] }
 ]`;
 
-    const output = await runAgentForOutput(prompt);
+    const output = await runAgentForOutput(prompt, getModelForStep('execute'));
     const entries = parseReflectionOutput(output);
 
     const memoryIds: string[] = [];
@@ -1158,7 +1164,7 @@ Example:
   { "name": "run-tests", "description": "Run the full test suite", "command": "npm test", "created_by": "${task.title}" }
 ]`;
 
-    const output = await runAgentForOutput(prompt);
+    const output = await runAgentForOutput(prompt, getModelForStep('execute'));
     const rawEntries = parseToolForgeOutput(output);
     const entries = rawEntries.filter((item): item is ToolForgeEntry => {
       if (isToolForgeEntry(item)) return true;
@@ -2116,7 +2122,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       const resultPromise = new Promise<boolean>((resolve) => {
         const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
           resolve(stepSuccess);
-        });
+        }, 'architect');
         pidPromise = pidPersisted;
 
         if (child.pid) {
