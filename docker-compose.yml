@@ -2,12 +2,29 @@ version: '3.8'
 
 services:
   formic:
-    build: .
+    # Pin to the published registry image for production deployments.
+    # For local development, uncomment `build: .` and comment out `image:`.
+    image: ghcr.io/rickywo/formic:0.8.0
+    # build: .
     ports:
       - "${PORT:-8000}:8000"
     volumes:
       # Mount your project directory as the workspace
       - ${WORKSPACE_PATH:-./_workspace}:/app/workspace
+    # Read-only root filesystem — the workspace volume is the only writable
+    # path. A tmpfs on /tmp allows agent CLIs and the Node runtime to create
+    # temporary files without granting persistent write access to the image.
+    read_only: true
+    tmpfs:
+      - /tmp:exec,size=256M
+    security_opt:
+      - no-new-privileges:true
+    # Example memory limit — adjust to your workload. Agent CLIs can be
+    # memory-hungry, especially during long planning/execution runs.
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 4G
     environment:
       # API key is required for Docker deployments
       # OAuth credentials are stored in system keychain and not accessible in Docker

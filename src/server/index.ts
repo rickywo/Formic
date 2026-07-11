@@ -26,6 +26,7 @@ import { loadConfig, getActiveWorkspace as getActiveConfigWorkspace } from './se
 import { recoverStuckTasks, loadBoard } from './services/store.js';
 import { getMessagingConfig } from './services/messagingAdapter.js';
 import { initializeStatusCache } from './services/messagingNotifier.js';
+import { timingSafeEqualStrings } from './utils/security.js';
 import type { ServerOptions } from '../types/index.js';
 import { setBoundPort } from './services/runner.js';
 
@@ -143,7 +144,7 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
     fastify.addHook('onRequest', async (request, reply) => {
       const header = request.headers.authorization ?? '';
       const expectedHeader = 'Bearer ' + authToken;
-      if (header !== expectedHeader) {
+      if (!timingSafeEqualStrings(header, expectedHeader)) {
         return reply.status(401).send({ error: 'Unauthorized' });
       }
     });

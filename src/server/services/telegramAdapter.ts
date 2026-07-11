@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 import type {
   IncomingMessage,
   OutgoingMessage,
@@ -11,7 +12,7 @@ import {
   getMessagingConfig,
   parseCommand,
 } from './messagingAdapter.js';
-import { getSessionAI } from './messagingStore.js';
+import { getSessionAI, loadMessagingStore, saveMessagingStore } from './messagingStore.js';
 
 /**
  * Telegram Adapter Service
@@ -552,15 +553,43 @@ export function handleTelegramWebhookAsync(
 }
 
 /**
+ * Resolve the webhook secret used to authenticate incoming Telegram updates.
+ *
+ * Priority: TELEGRAM_WEBHOOK_SECRET env var, then a previously persisted
+ * value in messaging.json, else a fresh random secret that is persisted for
+ * subsequent restarts. Telegram echoes this value back on every update in
+ * the X-Telegram-Bot-Api-Secret-Token header.
+ */
+export async function getTelegramWebhookSecret(): Promise<string> {
+  const envSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+  if (envSecret && envSecret.length > 0) {
+    return envSecret;
+  }
+
+  const store = await loadMessagingStore();
+  if (store.telegramWebhookSecret && store.telegramWebhookSecret.length > 0) {
+    return store.telegramWebhookSecret;
+  }
+
+  const secret = randomBytes(32).toString('hex');
+  store.telegramWebhookSecret = secret;
+  await saveMessagingStore(store);
+  console.warn('[TelegramAdapter] Generated and persisted a new webhook secret (set TELEGRAM_WEBHOOK_SECRET to override)');
+  return secret;
+}
+
+/**
  * Set the webhook URL for the bot
  */
 export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
   try {
+    const secretToken = await getTelegramWebhookSecret();
     await callTelegramApi('setWebhook', {
       url: webhookUrl,
       allowed_updates: ['message', 'callback_query'],
+      secret_token: secretToken,
     });
-    console.warn(`[TelegramAdapter] Webhook set to: ${webhookUrl}`);
+    console.warn(`[TelegramAdapter] Webhook set to: ${webhookUrl} (secret token registered)`);
     return true;
   } catch (error) {
     const err = error as Error;
