@@ -8,13 +8,37 @@ import {
   getSetting,
   setSetting,
 } from '../services/configStore.js';
-import type { FormicConfig, ConfigSettings } from '../../types/index.js';
+import { getAgentType, getAvailableModels } from '../services/agentAdapter.js';
+import { refreshEngineConfig } from '../services/engineConfig.js';
+import { detectAgents } from '../services/agentAvailability.js';
+import { resetConversation } from '../services/assistantManager.js';
+import { MODEL_STEPS } from '../../types/index.js';
+import type { AgentType, ConfigSettings, FormicConfig, ModelStep, StepModelConfig } from '../../types/index.js';
+
+const SUPPORTED_AGENT_TYPES: ReadonlySet<AgentType> = new Set(['claude', 'copilot', 'opencode']);
+
+function isStepModelConfig(value: unknown): value is StepModelConfig {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
 
 export async function configRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/config - Return full config
   fastify.get('/api/config', async (_request, reply) => {
     const config = await loadConfig();
     return reply.send(config);
+  });
+
+  // GET /api/models - Return the catalog for the configured agent
+  fastify.get('/api/models', async (_request, reply) => {
+    await refreshEngineConfig();
+    return reply.send({ agentType: getAgentType(), models: getAvailableModels() });
+  });
+
+  // GET /api/agents - Return provider availability and current selection
+  fastify.get('/api/agents', async (request, reply) => {
+    const refresh = typeof (request.query as Record<string, string>).refresh === 'string';
+    const agents = await detectAgents(refresh);
+    return reply.send({ current: getAgentType(), agents });
   });
 
   // POST /api/config/workspaces - Add a workspace
@@ -85,6 +109,8 @@ export async function configRoutes(fastify: FastifyInstance): Promise<void> {
         'maxYieldCount',
         'leaseDurationMs',
         'watchdogIntervalMs',
+        'stepModels',
+        'agentType',
       ];
 
       if (!validKeys.includes(key as keyof ConfigSettings)) {
@@ -115,6 +141,8 @@ export async function configRoutes(fastify: FastifyInstance): Promise<void> {
         'maxYieldCount',
         'leaseDurationMs',
         'watchdogIntervalMs',
+        'stepModels',
+        'agentType',
       ];
 
       if (!validKeys.includes(key as keyof ConfigSettings)) {
@@ -125,10 +153,48 @@ export async function configRoutes(fastify: FastifyInstance): Promise<void> {
         return reply.status(400).send({ error: 'Value is required' });
       }
 
+      if (key === 'stepModels') {
+        if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+          return reply.status(400).send({ error: 'Invalid stepModels value: expected an object' });
+        }
+
+        for (const [agentType, stepConfig] of Object.entries(value)) {
+          if (!SUPPORTED_AGENT_TYPES.has(agentType as AgentType)) {
+            return reply.status(400).send({ error: `Invalid stepModels agent key: ${agentType}` });
+          }
+
+          if (!isStepModelConfig(stepConfig)) {
+            return reply.status(400).send({ error: `Invalid stepModels value for agent: ${agentType}` });
+          }
+
+          for (const [step, modelId] of Object.entries(stepConfig)) {
+            if (!MODEL_STEPS.includes(step as ModelStep)) {
+              return reply.status(400).send({ error: `Invalid stepModels step key: ${step}` });
+            }
+
+            if (typeof modelId !== 'string') {
+              return reply.status(400).send({ error: `Invalid stepModels model value for step: ${step}` });
+            }
+          }
+        }
+      }
+
+      if (key === 'agentType') {
+        if (typeof value !== 'string' || !SUPPORTED_AGENT_TYPES.has(value as AgentType)) {
+          return reply.status(400).send({ error: `Invalid agentType: must be one of ${[...SUPPORTED_AGENT_TYPES].join(', ')}` });
+        }
+      }
+
       await setSetting(
         key as keyof ConfigSettings,
         value as ConfigSettings[keyof ConfigSettings]
       );
+
+      if (key === 'agentType') {
+        await refreshEngineConfig();
+        resetConversation();
+      }
+
       return reply.send({ success: true });
     }
   );

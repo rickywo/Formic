@@ -1,5 +1,5 @@
-import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { detectAgents } from '../services/agentAvailability.js';
 
 export interface StartupInfo {
   port: number;
@@ -72,46 +72,31 @@ interface CheckResult {
   hint?: string;
 }
 
-function tryExec(cmd: string): string | null {
-  try {
-    const output = execSync(cmd, { stdio: 'pipe' }).toString().trim();
-    return output.split('\n')[0]?.trim() ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function runDependencyChecks(info: StartupInfo): CheckResult[] {
+async function runDependencyChecks(info: StartupInfo): Promise<CheckResult[]> {
   const results: CheckResult[] = [];
 
-  // 1. Claude Code CLI
-  const claudeVersion = tryExec('claude --version');
-  if (claudeVersion !== null) {
-    results.push({ label: `Claude Code CLI ${dim(claudeVersion)}`, ok: true });
-  } else {
-    results.push({
-      label: 'Claude Code CLI not found',
-      ok: false,
-      hint: 'Install: npm install -g @anthropic-ai/claude-code',
-    });
+  // 1-3. CLI availability via async service (cached, non-blocking)
+  const agents = await detectAgents();
+  for (const agent of agents) {
+    if (agent.installed && agent.version) {
+      results.push({ label: `${agent.displayName} ${dim(agent.version)}`, ok: true });
+    } else {
+      results.push({
+        label: `${agent.displayName} not found`,
+        ok: false,
+        hint: agent.hint,
+      });
+    }
   }
 
-  // 2. GitHub Copilot CLI
-  const copilotVersion = tryExec('gh copilot --version') ?? tryExec('copilot --version');
-  if (copilotVersion !== null) {
-    const cleanVersion = copilotVersion.replace(/^GitHub Copilot CLI\s*/i, '');
-    results.push({ label: `GitHub Copilot CLI ${dim(cleanVersion)}`, ok: true });
-  } else {
-    results.push({
-      label: 'GitHub Copilot CLI not found',
-      ok: false,
-      hint: 'Install: gh extension install github/gh-copilot',
-    });
-  }
-
-  // 3. API key / agent check
+  // 4. API key / agent check
   if (info.agentType === 'copilot') {
     results.push({ label: 'GitHub Copilot OAuth (no key required)', ok: true });
+  } else if (info.agentType === 'opencode') {
+    const anyKey = Boolean(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY || process.env.DEEPSEEK_API_KEY);
+    results.push(anyKey
+      ? { label: 'OpenCode provider key detected', ok: true }
+      : { label: 'No provider key found — run `opencode auth login`', ok: true });
   } else {
     const keySet = Boolean(process.env.ANTHROPIC_API_KEY);
     if (keySet) {
@@ -125,7 +110,7 @@ function runDependencyChecks(info: StartupInfo): CheckResult[] {
     }
   }
 
-  // 4. Workspace
+  // 5. Workspace
   const boardExists = existsSync(`${info.workspacePath}/.formic/board.json`);
   if (boardExists) {
     results.push({ label: `Workspace ${dim(info.workspacePath)} ${dim('(.formic initialized)')}`, ok: true });
@@ -138,7 +123,7 @@ function runDependencyChecks(info: StartupInfo): CheckResult[] {
     });
   }
 
-  // 5. Node.js version
+  // 6. Node.js version
   const nodeVersion = process.versions.node;
   const major = parseInt(nodeVersion.split('.')[0] ?? '0', 10);
   if (major >= 20) {
@@ -193,7 +178,7 @@ export async function printStartupBanner(info: StartupInfo): Promise<void> {
   lines.push(`  ${bold('System Checks')}`);
   lines.push(hr());
 
-  const checks = runDependencyChecks(info);
+  const checks = await runDependencyChecks(info);
   for (const check of checks) {
     lines.push(checkRow(check));
     if (check.hint) {

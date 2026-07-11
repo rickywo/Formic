@@ -1,10 +1,15 @@
 import { readFile, writeFile, mkdir, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { getFormicDir, getSkillsDir, getBundledSkillsPath } from '../utils/paths.js';
+import { getFormicDir, getSkillsDir, getBundledSkillsPath, getOpenCodeAgentDir, getBundledTemplatesPath } from '../utils/paths.js';
 
 /**
  * Get the path to the workspace skills directory (.claude/skills/)
+ *
+ * This single path serves claude, copilot, and opencode identically — opencode
+ * auto-discovers .claude/skills/**\/SKILL.md natively (spike-confirmed, see
+ * docs/OPENCODE_INTEGRATION_PLAN.md Item 4/§10.4), so no agent-type branching
+ * or per-agent copy step belongs in this file.
  */
 export function getWorkspaceSkillsPath(): string {
   return getSkillsDir();
@@ -137,4 +142,57 @@ export async function getSkillContent(skillName: string): Promise<string | null>
   }
 
   return await readFile(skillPath, 'utf-8');
+}
+
+async function syncOpenCodeProfile(profileName: 'executor' | 'readonly'): Promise<{ copied: boolean }> {
+  const targetDir = getOpenCodeAgentDir();
+  const targetFile = path.join(targetDir, `formic-${profileName}.md`);
+
+  const bundledTemplatesPath = getBundledTemplatesPath();
+  const sourceFile = path.join(bundledTemplatesPath, `opencode-${profileName}-agent.md`);
+
+  if (!existsSync(sourceFile)) {
+    console.warn(`[Skills] Bundled opencode ${profileName} profile not found at:`, sourceFile);
+    return { copied: false };
+  }
+
+  try {
+    const sourceContent = await readFile(sourceFile, 'utf-8');
+    let targetContent: string | undefined;
+    try {
+      targetContent = await readFile(targetFile, 'utf-8');
+    } catch (error) {
+      if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') {
+        throw error;
+      }
+    }
+
+    if (targetContent === sourceContent) {
+      console.warn(`[Skills] OpenCode ${profileName} profile is already current, skipping copy`);
+      return { copied: false };
+    }
+
+    await mkdir(targetDir, { recursive: true });
+    await writeFile(targetFile, sourceContent, 'utf-8');
+
+    console.warn(`[Skills] Updated opencode ${profileName} profile in workspace .opencode/agent/formic-${profileName}.md`);
+    return { copied: true };
+  } catch (error) {
+    console.error(`[Skills] Error synchronizing opencode ${profileName} profile:`, error);
+    return { copied: false };
+  }
+}
+
+/**
+ * Synchronize the bundled opencode executor profile with the workspace copy.
+ */
+export async function copyOpenCodeExecutorProfile(): Promise<{ copied: boolean }> {
+  return await syncOpenCodeProfile('executor');
+}
+
+/**
+ * Synchronize the bundled opencode read-only profile with the workspace copy.
+ */
+export async function copyOpenCodeReadOnlyProfile(): Promise<{ copied: boolean }> {
+  return await syncOpenCodeProfile('readonly');
 }

@@ -32,13 +32,13 @@ export async function assistantWebSocket(fastify: FastifyInstance): Promise<void
     }
 
     // Handle incoming messages from client
-    socket.on('message', (data: Buffer) => {
+    socket.on('message', async (data: Buffer) => {
       try {
         const message = JSON.parse(data.toString());
 
         if (message.type === 'message' && message.content) {
           // Send user message to the assistant process
-          const sent = sendUserMessage(message.content);
+          const sent = await sendUserMessage(message.content);
           if (!sent) {
             socket.send(JSON.stringify({
               type: 'error',

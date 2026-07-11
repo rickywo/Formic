@@ -192,8 +192,34 @@ The server will automatically detect this format and create the task via the For
 **Project:** Formic
 **Repository:** /Users/rickywo/WebstormProjects/Formic
 
+### Todo
+  - [t-25] Persist stepModels config and expose GET /api/models with settings validation
+  - [t-111] Make AI provider selectable from the Kanban UI with availability-aware switcher (replaces AGENT_TYPE env-only selection)
+
 ### Review
   - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
+  - [t-2] !Rewrite root README.md as a concise onboarding guide with demo video
+  - [t-3] !Spike: characterize opencode run output, permissions, and skill discovery
+  - [t-4] !Add opencode to AgentType union and agent exec/assistant/messaging config
+  - [t-5] !Add opencode output parser and wire parseAgentOutput / usesJsonOutput
+  - [t-6] !Make Formic skills discoverable by opencode (inline or copy strategy)
+  - [t-7] Add opencode auth/env validation and banner health check
+  - [t-8] -Add opencode usage reporting branch (graceful unknown)
+  - [t-9] -Surface opencode in CLI help, banner, README, and .env.example
+  - [t-10] Add opencode unit tests and integration smoke run
+  - [t-12] Consolidate task 'active/running' status checks in client into a single source of truth
+  - [t-13] !Fix opencode permission flag: replace --dangerously-skip-permissions with --auto
+  - [t-14] !Isolate workflow execution agents from the read-only Task Manager persona in AGENTS.md/CLAUDE.md
+  - [t-15] !Ship and materialize the .opencode/agent/formic-readonly.md restricted agent profile
+  - [t-16] Add no-diff verification gate: fail tasks whose declared files were never modified
+  - [t-17] !Fix invalid frontmatter in opencode agent profile templates (model: inherit crashes opencode)
+  - [t-18] !Prevent duplicate task IDs: reconcile nextTaskId with existing max task ID on create
+  - [t-23] Fix environment-dependent unit test in noDiffVerification.test.ts (build a temp git fixture)
+  - [t-24] Add per-step model types, catalog, and --model arg support to agentAdapter
+  - [t-26] Thread per-step model selection through workflow, runner, and reflection spawns
+  - [t-27] Apply assistant model selection to chat and messaging agent spawns
+  - [t-28] Add Agent Models section to Settings panel and assistant-panel model selector
+  - [t-29] -Add model-selection E2E test and README/docs updates
 
 ## Formic Workflow
 

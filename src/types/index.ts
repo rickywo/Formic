@@ -2,6 +2,21 @@ export type TaskStatus = 'todo' | 'queued' | 'briefing' | 'planning' | 'declarin
 export type TaskPriority = 'low' | 'medium' | 'high';
 export type WorkflowStep = 'pending' | 'brief' | 'plan' | 'declare' | 'execute' | 'verify' | 'architect' | 'complete';
 export type TaskType = 'standard' | 'quick' | 'goal';
+export type AgentType = 'claude' | 'copilot' | 'opencode';
+
+/** Installation state reported for a supported agent CLI. */
+export interface AgentAvailability {
+  type: AgentType;
+  displayName: string;
+  installed: boolean;
+  version?: string;
+  hint?: string;
+}
+
+export const MODEL_STEPS = ['brief', 'plan', 'declare', 'execute', 'architect', 'assistant'] as const;
+export type ModelStep = typeof MODEL_STEPS[number];
+/** Model id per step. Empty string / missing key = agent CLI default (no flag passed). */
+export type StepModelConfig = Partial<Record<ModelStep, string>>;
 
 export interface WorkflowLogs {
   brief?: string | string[];
@@ -191,6 +206,10 @@ export interface Task {
   fixForTaskId?: string | null;
   /** IDs of memory entries created by the reflection step for this task */
   reflectionMemories?: string[];
+  /** Human-readable warning set by the no-diff verification gate when the execute
+   * step produced zero changes to declared files (or zero changes at all for
+   * quick tasks).  Undefined means verification passed or wasn't performed. */
+  verificationWarning?: string;
 }
 
 export interface BoardMeta {
@@ -244,6 +263,8 @@ export interface UpdateTaskInput {
   reflectionMemories?: string[];
   startedAt?: string;
   completedAt?: string;
+  /** Verification warning set by the no-diff gate (patchable for retry/reset) */
+  verificationWarning?: string;
 }
 
 export interface LogMessage {
@@ -383,6 +404,10 @@ export interface ConfigSettings {
   watchdogIntervalMs: number;
   // Execution retry limit (prevents infinite re-queue on repeated failures)
   maxExecutionRetries?: number;
+  /** Per-agent per-step model overrides. Missing/empty = agent CLI default. */
+  stepModels?: Partial<Record<AgentType, StepModelConfig>>;
+  /** Selected agent CLI provider. Missing = fall back to AGENT_TYPE env var, then claude. */
+  agentType?: AgentType;
 }
 
 /** Root schema for ~/.formic/config.json */

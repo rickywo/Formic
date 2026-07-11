@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, appendTaskLogs, getTask } from './store.js';
-import { getAgentCommand, buildAgentArgs, getAgentDisplayName } from './agentAdapter.js';
+import { getAgentCommand, buildAgentArgs, getAgentDisplayName, getModelForStep } from './agentAdapter.js';
 import { getWorkspacePath } from '../utils/paths.js';
 import { releaseLeases } from './leaseManager.js';
 import { createSafePoint } from '../utils/gitUtils.js';
@@ -164,7 +164,9 @@ All code changes MUST comply with the project development guidelines provided ab
   // Spawn agent CLI process using the configured agent adapter
   // stdin is set to 'ignore' since non-interactive mode doesn't need input
   const agentCommand = getAgentCommand();
-  const agentArgs = buildAgentArgs(prompt);
+  const model = getModelForStep('execute');
+  console.warn(`[Runner] using model: ${model || '(agent default)'}`);
+  const agentArgs = buildAgentArgs(prompt, model ? { model } : undefined);
 
   // Create a git safe-point commit before spawning the agent for rollback support
   await createSafePoint(taskId);

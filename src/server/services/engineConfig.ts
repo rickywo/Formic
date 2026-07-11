@@ -5,8 +5,10 @@
  * (workflow execution, queue poll tick, watchdog scan) to pick up config changes.
  */
 import { loadConfig } from './configStore.js';
+import type { AgentType, StepModelConfig } from '../../types/index.js';
 
 export interface EngineConfig {
+  agentType: AgentType;
   maxConcurrentTasks: number;
   verifyCommand: string;
   skipVerify: boolean;
@@ -17,9 +19,11 @@ export interface EngineConfig {
   maxExecuteIterations: number;
   stepTimeoutMs: number;
   maxExecutionRetries: number;
+  stepModels: Partial<Record<AgentType, StepModelConfig>>;
 }
 
 export const engineConfig: EngineConfig = {
+  agentType: normalizeAgentType(process.env.AGENT_TYPE) ?? 'claude',
   maxConcurrentTasks: 1,
   verifyCommand: '',
   skipVerify: false,
@@ -30,11 +34,24 @@ export const engineConfig: EngineConfig = {
   maxExecuteIterations: 5,
   stepTimeoutMs: 6000000,
   maxExecutionRetries: 3,
+  stepModels: {},
 };
+
+/** Normalize a user or environment supplied provider name. */
+export function normalizeAgentType(value: unknown): AgentType | null {
+  if (typeof value !== 'string') return null;
+  const agentType = value.toLowerCase();
+  return agentType === 'claude' || agentType === 'copilot' || agentType === 'opencode'
+    ? agentType
+    : null;
+}
 
 export async function refreshEngineConfig(): Promise<void> {
   const config = await loadConfig();
   const s = config.settings;
+  engineConfig.agentType = normalizeAgentType(s.agentType)
+    ?? normalizeAgentType(process.env.AGENT_TYPE)
+    ?? 'claude';
   engineConfig.maxConcurrentTasks = s.maxConcurrentSessions ?? 1;
   engineConfig.verifyCommand = s.verifyCommand ?? '';
   engineConfig.skipVerify = s.skipVerify ?? false;
@@ -45,4 +62,5 @@ export async function refreshEngineConfig(): Promise<void> {
   engineConfig.maxExecuteIterations = s.maxExecuteIterations ?? 5;
   engineConfig.stepTimeoutMs = s.stepTimeoutMs ?? 6000000;
   engineConfig.maxExecutionRetries = s.maxExecutionRetries ?? 3;
+  engineConfig.stepModels = s.stepModels ?? {};
 }

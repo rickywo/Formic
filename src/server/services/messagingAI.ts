@@ -22,7 +22,9 @@ import {
   getAgentDisplayName,
   buildMessagingAssistantArgs,
   supportsConversationContinue,
+  getModelForStep,
 } from './agentAdapter.js';
+import { refreshEngineConfig } from './engineConfig.js';
 import { parseAgentOutput, usesJsonOutput, cleanAgentOutput } from './outputParser.js';
 import {
   takeScreenshotWithMCP,
@@ -363,6 +365,8 @@ export async function generateMessagingContext(): Promise<string> {
 export async function processAIMessage(
   message: IncomingMessage
 ): Promise<OutgoingMessage> {
+  await refreshEngineConfig();
+
   const { platform, chatId, text } = message;
   const sessionKey = `${platform}:${chatId}`;
 
@@ -592,13 +596,19 @@ function spawnAgentAndGetResponse(
     // Determine if we should use --continue
     const hasStarted = conversationStarted.get(sessionKey) ?? false;
     const useContinue = hasStarted && supportsConversationContinue();
+    const model = getModelForStep('assistant');
 
     // Build args for messaging assistant mode (no MCP Playwright tools)
-    const args = buildMessagingAssistantArgs(prompt, { continue: useContinue });
+    const args = buildMessagingAssistantArgs(prompt, {
+      continue: useContinue,
+      ...(model ? { model } : {}),
+    });
 
     console.warn('[MessagingAI] Spawning agent:', agentCommand);
     console.warn('[MessagingAI] Working directory:', workspacePath);
     console.warn('[MessagingAI] Using --continue:', useContinue);
+    console.warn(`[MessagingAI] Model: ${model || '(agent default)'}`);
+    console.warn('[MessagingAI] Args:', args.join(' ').substring(0, 100));
 
     const child = spawn(agentCommand, args, {
       cwd: workspacePath,

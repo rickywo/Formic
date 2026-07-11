@@ -122,3 +122,11 @@ export function getTaskLogsDir(taskId: string): string {
 export function getSkillsDir(): string {
   return path.join(getWorkspacePath(), '.claude', 'skills');
 }
+
+/**
+ * Get the .opencode/agent directory path inside workspace
+ * This is where opencode agent profiles (e.g. formic-executor.md) are materialized.
+ */
+export function getOpenCodeAgentDir(): string {
+  return path.join(getWorkspacePath(), '.opencode', 'agent');
+}

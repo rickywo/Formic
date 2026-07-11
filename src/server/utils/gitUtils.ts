@@ -26,3 +26,20 @@ export async function createSafePoint(taskId: string): Promise<string | null> {
     return null;
   }
 }
+
+/**
+ * List files that have changed in the workspace since a given commit.
+ * Runs `git diff --name-only <commit>` and returns the list of file paths.
+ * Returns an empty array if the diff is empty, git is unavailable, or the
+ * commit doesn't exist (the caller can distinguish the "no changes" case).
+ */
+export async function getChangedFilesSince(commit: string): Promise<string[]> {
+  const cwd = getWorkspacePath();
+  try {
+    const { stdout } = await execFileAsync('git', ['diff', '--name-only', commit], { cwd });
+    return stdout.trim() ? stdout.trim().split('\n') : [];
+  } catch (error) {
+    console.warn('[Workflow] getChangedFilesSince failed for commit', commit + ':', error instanceof Error ? error.message : 'Unknown error');
+    return [];
+  }
+}

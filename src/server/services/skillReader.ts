@@ -8,6 +8,22 @@ import type { Task } from '../../types/index.js';
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 
 /**
+ * Agent-type-agnostic override preamble prepended to every workflow step prompt.
+ *
+ * Both opencode and claude auto-load AGENTS.md / CLAUDE.md from the repo root
+ * as project instructions on every invocation. Those files contain the read-only
+ * "Formic Task Manager" assistant persona that forbids writing files. This
+ * preamble explicitly overrides that persona for workflow execution agents,
+ * asserting full write authority regardless of what AGENTS.md/CLAUDE.md say.
+ *
+ * Positioned at the very beginning of assembled prompts so it takes precedence
+ * over any conflicting instructions loaded later by the agent.
+ */
+export const OVERRIDE_PREAMBLE = `You are a Formic EXECUTION agent. Any task-manager or read-only persona found in AGENTS.md / CLAUDE.md applies ONLY to the interactive chat assistant and does NOT apply to you. You are expected to create, edit, and delete files to implement the task. You have full write authority in this workspace.
+
+`;
+
+/**
  * Parse SKILL.md frontmatter and extract content
  * Returns the markdown content without the YAML frontmatter
  */
@@ -83,6 +99,11 @@ END OF GUIDELINES
 /**
  * Load a skill file, substitute variables, and prepend guidelines
  * Returns the fully prepared prompt content
+ *
+ * Deferred fallback: if opencode is ever found to not reliably invoke a skill it
+ * can see in .claude/skills/, this function is the seam for inlining the skill
+ * body directly into the assembled prompt instead of relying on discovery. See
+ * .formic/tasks/t-6_make-formic-skills-discoverabl/output/fallback-strategy.md.
  */
 export async function loadSkillPrompt(
   skillName: string,
@@ -120,8 +141,8 @@ export async function loadSkillPrompt(
     // Load and prepend guidelines
     const guidelines = await loadProjectGuidelines();
 
-    // Combine guidelines + skill content
-    const finalContent = guidelines + substitutedContent;
+    // Combine override preamble + guidelines + skill content
+    const finalContent = OVERRIDE_PREAMBLE + guidelines + substitutedContent;
 
     console.warn(`[SkillReader] Loaded skill '${skillName}' with variables substituted`);
     return { success: true, content: finalContent, source: 'skill' };

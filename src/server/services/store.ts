@@ -10,7 +10,7 @@ import {
   BOOTSTRAP_TASK_ID,
   BOOTSTRAP_TASK_SLUG,
 } from './bootstrap.js';
-import { copySkillsToWorkspace } from './skills.js';
+import { copySkillsToWorkspace, copyOpenCodeExecutorProfile, copyOpenCodeReadOnlyProfile } from './skills.js';
 import { calculateTaskProgress, loadSubtasks, getCompletionStats } from './subtasks.js';
 import { releaseLeases, clearWait } from './leaseManager.js';
 import { broadcastDependencyResolved, broadcastToTask } from './boardNotifier.js';
@@ -246,6 +246,16 @@ export async function getBoardWithBootstrap(): Promise<Board> {
   // This happens BEFORE bootstrap check so skills are available for all tasks
   await copySkillsToWorkspace();
 
+  // Step 1b: Materialize opencode executor agent profile
+  // This ensures the write-capable executor profile is available for opencode
+  // workflow runs, overriding the read-only Task Manager persona in AGENTS.md/CLAUDE.md
+  await copyOpenCodeExecutorProfile();
+
+  // Step 1c: Materialize opencode read-only agent profile
+  // This ensures the restricted read-only profile is available for opencode
+  // assistant and messaging sessions, enforcing deny rules for write tools
+  await copyOpenCodeReadOnlyProfile();
+
   // Step 2: Check bootstrap status
   const bootstrapStatus = checkBootstrapRequired();
 
@@ -365,14 +375,26 @@ export async function getTask(taskId: string): Promise<Task | undefined> {
 export async function createTask(input: CreateTaskInput): Promise<Task> {
   return withBoard(async (board) => {
     // Generate next task ID from a persistent monotonic counter so deleting the
-    // highest-numbered task (or restoring an older board) never causes ID reuse.
-    // Seed the counter from the current max ID on first use (covers boards saved
-    // before this field existed); BOOTSTRAP_TASK_ID ('t-bootstrap') is excluded
-    // naturally since parseInt('bootstrap', 10) is not finite.
-    const seeded = board.meta.nextTaskId ?? board.tasks.reduce((max, task) => {
+    // highest-numbered task never causes ID reuse. Reconcile it with the board's
+    // existing IDs as a defensive measure against a stale restored board.
+    // BOOTSTRAP_TASK_ID ('t-bootstrap') is excluded naturally since
+    // parseInt('bootstrap', 10) is not finite.
+    const maxExisting = board.tasks.reduce((max, task) => {
       const num = parseInt(task.id.replace('t-', ''), 10);
       return Number.isFinite(num) && num > max ? num : max;
-    }, 0) + 1;
+    }, 0);
+
+    const persistedCounter = board.meta.nextTaskId ?? 0;
+    // A missing counter is expected for legacy boards and is safely seeded from
+    // the existing IDs below. Warn only when an actually persisted value is
+    // unsafe, so brand-new and legacy boards do not produce false alarms.
+    if (board.meta.nextTaskId !== undefined && persistedCounter <= maxExisting) {
+      console.warn(
+        `[Store] Task ID counter regression detected: nextTaskId ${persistedCounter} is behind existing task ID t-${maxExisting}; reconciling counter`,
+      );
+    }
+
+    const seeded = Math.max(persistedCounter, maxExisting + 1);
 
     const taskId = `t-${seeded}`;
     board.meta.nextTaskId = seeded + 1;

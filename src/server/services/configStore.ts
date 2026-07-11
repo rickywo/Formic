@@ -44,6 +44,7 @@ function createDefaultConfig(): FormicConfig {
       maxYieldCount: 50,
       leaseDurationMs: 300000,
       watchdogIntervalMs: 30000,
+      stepModels: {},
     },
   };
 }

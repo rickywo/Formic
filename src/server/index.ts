@@ -15,6 +15,7 @@ import { logsWebSocket } from './ws/logs.js';
 import { assistantWebSocket } from './ws/assistant.js';
 import { readFile } from 'node:fs/promises';
 import { getAgentType, getAgentCommand, getAgentDisplayName } from './services/agentAdapter.js';
+import { refreshEngineConfig } from './services/engineConfig.js';
 import { startQueueProcessor, getQueueProcessorConfig } from './services/queueProcessor.js';
 import { printStartupBanner } from './utils/banner.js';
 import type { StartupInfo } from './utils/banner.js';
@@ -196,6 +197,10 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
 
     // Register the live bound port so agent prompts always target the correct address
     setBoundPort(port);
+
+    // Refresh engine config so the startup banner reflects any persisted agentType
+    // from ~/.formic/config.json, not just the AGENT_TYPE env var.
+    await refreshEngineConfig();
 
     // Log agent configuration
     const agentType = getAgentType();

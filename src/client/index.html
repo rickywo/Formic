@@ -801,6 +801,55 @@
       border-color: rgba(139, 92, 246, 0.4);
     }
 
+    /* Light theme — Agent Provider Switcher */
+    [data-theme="light"] .agent-trigger {
+      background: rgba(0, 0, 0, 0.03);
+      border-color: rgba(0, 0, 0, 0.08);
+    }
+
+    [data-theme="light"] .agent-trigger:hover {
+      background: rgba(0, 0, 0, 0.06);
+      border-color: rgba(0, 0, 0, 0.12);
+    }
+
+    [data-theme="light"] .agent-trigger-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .agent-trigger-chevron {
+      color: rgba(0, 0, 0, 0.4);
+    }
+
+    [data-theme="light"] .agent-dropdown {
+      background: rgba(255, 255, 255, 0.98);
+      border-color: rgba(0, 0, 0, 0.1);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    }
+
+    [data-theme="light"] .agent-item:hover:not(.disabled) {
+      background: rgba(0, 0, 0, 0.04);
+    }
+
+    [data-theme="light"] .agent-item.active {
+      background: rgba(139, 92, 246, 0.1);
+    }
+
+    [data-theme="light"] .agent-item-name {
+      color: rgba(0, 0, 0, 0.85);
+    }
+
+    [data-theme="light"] .agent-item-meta {
+      color: rgba(0, 0, 0, 0.45);
+    }
+
+    [data-theme="light"] .agent-item.disabled .agent-item-name {
+      color: rgba(0, 0, 0, 0.3);
+    }
+
+    [data-theme="light"] .agent-item.disabled .agent-item-meta {
+      color: rgba(0, 0, 0, 0.2);
+    }
+
     [data-theme="light"] .add-workspace-form-title {
       color: rgba(0, 0, 0, 0.6);
     }
@@ -1745,6 +1794,161 @@
       cursor: not-allowed;
     }
 
+    /* Agent Provider Switcher */
+    .agent-switcher {
+      position: relative;
+      z-index: 99;
+    }
+
+    .agent-trigger {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .agent-trigger:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .agent-trigger-icon {
+      font-size: 14px;
+      line-height: 1;
+    }
+
+    .agent-trigger-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .agent-trigger-chevron {
+      font-size: 9px;
+      color: rgba(255, 255, 255, 0.5);
+      transition: transform 0.2s ease;
+    }
+
+    .agent-switcher.open .agent-trigger-chevron {
+      transform: rotate(180deg);
+    }
+
+    .agent-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      min-width: 280px;
+      max-height: 260px;
+      overflow-y: auto;
+      background: rgba(15, 15, 15, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      transition: all 0.2s ease;
+    }
+
+    .agent-switcher.open .agent-dropdown {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    .agent-dropdown-list {
+      padding: 8px;
+    }
+
+    .agent-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .agent-item:hover:not(.disabled) {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .agent-item.active {
+      background: rgba(139, 92, 246, 0.15);
+    }
+
+    .agent-item.disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .agent-item-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .agent-item-dot.installed {
+      background: #22c55e;
+      box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
+    }
+
+    .agent-item-dot.not-installed {
+      background: #6b7280;
+    }
+
+    .agent-item-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .agent-item-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .agent-item-meta {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.45);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .agent-item.disabled .agent-item-name {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    .agent-item.disabled .agent-item-meta {
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    .agent-item-check {
+      font-size: 12px;
+      color: #8b5cf6;
+      opacity: 0;
+    }
+
+    .agent-item.active .agent-item-check {
+      opacity: 1;
+    }
+
     /* Toast Notifications */
     .toast-container {
       position: fixed;
@@ -2243,6 +2447,26 @@
       color: #b45309;
       background: rgba(245, 158, 11, 0.08);
       border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    /* Verification warning banner (no-diff gate fired) */
+    .verification-warning-banner {
+      font-size: 11px;
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 6px;
+      padding: 6px 10px;
+      margin-bottom: 10px;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+
+    [data-theme="light"] .verification-warning-banner {
+      color: #b45309;
+      background: rgba(245, 158, 11, 0.08);
+      border-color: rgba(245, 158, 11, 0.35);
+      font-weight: 500;
     }
 
     .task-actions {
@@ -3521,6 +3745,27 @@
       padding: 6px 10px;
       font-size: 10px;
       border-radius: 8px;
+    }
+
+    .assistant-model-controls {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .assistant-model-controls .settings-text-input {
+      width: 112px;
+      padding: 6px 8px;
+      font-size: 10px;
+    }
+
+    .assistant-model-hint {
+      position: absolute;
+      top: calc(100% + 6px);
+      right: 0;
+      width: max-content;
+      z-index: 1;
     }
 
     /* Messages Container */
@@ -4894,6 +5139,11 @@
 
       .settings-panel.open {
         box-shadow: none;
+      }
+
+      /* Hide agent switcher on mobile — use Settings panel */
+      .agent-switcher {
+        display: none;
       }
 
       /* Help panel - full screen on mobile with stacked layout */
@@ -6987,6 +7237,19 @@
     </div>
 
     <div class="desktop-header-right">
+      <!-- Agent Provider Switcher -->
+      <div class="agent-switcher" id="agent-switcher">
+        <button class="agent-trigger" id="agent-trigger" onclick="toggleAgentDropdown()" title="Switch AI provider">
+          <span class="agent-trigger-icon" id="agent-trigger-icon">🤖</span>
+          <span class="agent-trigger-name" id="agent-trigger-name">Loading...</span>
+          <span class="agent-trigger-chevron" id="agent-trigger-chevron">▼</span>
+        </button>
+        <div class="agent-dropdown" id="agent-dropdown">
+          <div class="agent-dropdown-list" id="agent-dropdown-list">
+            <!-- Agent items rendered here -->
+          </div>
+        </div>
+      </div>
       <div class="usage-meter usage-unknown" id="usage-meter" title="Loading usage...">
         <span class="usage-icon">⚡</span>
         <span class="usage-label" id="usage-label">—</span>
@@ -7272,6 +7535,16 @@
         <span class="assistant-status idle" id="assistant-status">Idle</span>
       </div>
       <div class="assistant-header-actions">
+        <div class="assistant-model-controls">
+          <select class="settings-text-input" id="assistant-model-select" title="Assistant model" onchange="handleModelSelectChange('assistant', 'assistant')">
+            <option value="">Agent default</option>
+            <option value="__custom__">Custom…</option>
+          </select>
+          <input type="text" class="settings-text-input" id="assistant-model-custom" placeholder="Custom model ID" hidden
+            onblur="saveCustomStepModel('assistant', 'assistant')"
+            onkeydown="handleCustomModelKeydown(event, 'assistant', 'assistant')">
+          <span class="settings-hint assistant-model-hint" id="assistant-model-hint" hidden>takes effect from your next message</span>
+        </div>
         <button class="btn" id="assistant-expand-btn" onclick="toggleAssistantExpand()" title="Expand panel">⤢</button>
         <button class="btn" id="assistant-restart-btn" onclick="restartAssistant()" title="Restart session">↻</button>
         <button class="btn" onclick="closeAssistant()">×</button>
@@ -7560,6 +7833,14 @@
             <li><strong>Max Concurrent Sessions</strong> — How many AI agent sessions can run in parallel. Increase this to process more tasks simultaneously. The default is 1 (sequential). Higher values require more system resources.</li>
           </ul>
 
+          <h3>AI Provider</h3>
+          <ul>
+            <li>Switch the active AI agent backend from the <strong>header dropdown</strong> (next to the usage meter) or from <strong>Settings → Agent Models → AI Provider</strong>. The dropdown shows which CLIs are installed and their versions.</li>
+            <li>Only installed providers are selectable. Uninstalled providers show an install hint.</li>
+            <li>Switching while tasks are running or queued shows a confirmation prompt — in-flight tasks finish with the current provider, and subsequent tasks use the new one.</li>
+            <li>The selection persists across server restarts. The <code>AGENT_TYPE</code> environment variable acts as a headless fallback.</li>
+          </ul>
+
           <h3>Workspaces</h3>
           <ul>
             <li>Formic can manage tasks across multiple code repositories. Add a workspace by pasting an absolute path to a local repository and clicking <strong>+ Add</strong>.</li>
@@ -7678,6 +7959,102 @@
         </div>
       </div>
 
+      <!-- Agent Models Section -->
+      <div class="settings-section">
+        <div class="settings-section-title">Agent Models</div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="settings-agent-type">AI Provider</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="settings-agent-type" onchange="selectAgentType(this.value)">
+              <option value="claude">Claude Code CLI</option>
+              <option value="copilot">GitHub Copilot CLI</option>
+              <option value="opencode">OpenCode CLI</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-brief">Briefing</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-brief" onchange="handleModelSelectChange('settings', 'brief')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-brief" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'brief')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'brief')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-plan">Planning</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-plan" onchange="handleModelSelectChange('settings', 'plan')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-plan" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'plan')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'plan')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-declare">Declaring</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-declare" onchange="handleModelSelectChange('settings', 'declare')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-declare" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'declare')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'declare')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-execute">Executing</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-execute" onchange="handleModelSelectChange('settings', 'execute')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-execute" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'execute')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'execute')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-architect">Architecting</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-architect" onchange="handleModelSelectChange('settings', 'architect')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-architect" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'architect')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'architect')">
+          </div>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="step-model-assistant">Chat Assistant</label>
+          <div class="settings-input-group">
+            <select class="settings-text-input" id="step-model-assistant" onchange="handleModelSelectChange('settings', 'assistant')">
+              <option value="">Agent default</option>
+              <option value="__custom__">Custom…</option>
+            </select>
+            <input type="text" class="settings-text-input" id="step-model-custom-assistant" placeholder="Custom model ID" hidden
+              onblur="saveCustomStepModel('settings', 'assistant')"
+              onkeydown="handleCustomModelKeydown(event, 'settings', 'assistant')">
+          </div>
+        </div>
+
+        <div class="settings-hint" id="agent-models-caption"></div>
+      </div>
+
       <!-- Queue & Concurrency Section -->
       <div class="settings-section">
         <div class="settings-section-title">Queue &amp; Concurrency</div>
@@ -7766,6 +8143,18 @@
     </div>
   </div>
 
+  <!-- Confirm Modal (in-app confirmation dialog) -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal" style="max-width: 420px;">
+      <h2 style="margin-bottom: 12px;">Confirm</h2>
+      <p id="confirm-modal-message" style="font-size: 14px; color: rgba(255, 255, 255, 0.75); margin-bottom: 20px; line-height: 1.5;"></p>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-secondary" id="confirm-modal-cancel" onclick="closeConfirmModal(false)">Cancel</button>
+        <button class="btn btn-primary" id="confirm-modal-ok" onclick="closeConfirmModal(true)">Continue</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
   <script src="/configStore.js"></script>
@@ -7775,6 +8164,11 @@
     let currentWs = null;
     let draggedTaskId = null;
     const BOOTSTRAP_TASK_ID = 't-bootstrap';
+    const ACTIVE_STATUSES = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
+
+    function isTaskActive(status) {
+      return ACTIVE_STATUSES.includes(status);
+    }
 
     // Theme Management (using configStore)
     function getStoredTheme() {
@@ -8265,18 +8659,236 @@
         if (workspaceDropdownOpen && switcher && !switcher.contains(e.target)) {
           closeWorkspaceDropdown();
         }
+        const agentSwitcher = document.getElementById('agent-switcher');
+        if (agentDropdownOpen && agentSwitcher && !agentSwitcher.contains(e.target)) {
+          closeAgentDropdown();
+        }
       });
 
       // Escape key handler
       document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && workspaceDropdownOpen) {
-          closeWorkspaceDropdown();
+        if (e.key === 'Escape') {
+          if (workspaceDropdownOpen) closeWorkspaceDropdown();
+          if (agentDropdownOpen) closeAgentDropdown();
         }
       });
     }
 
     // ============================================
     // End Workspace Switcher Functions
+    // ============================================
+
+    /**
+     * Show an in-app confirmation modal. Returns a Promise that resolves to true
+     * if the user clicked Continue, false otherwise.
+     * @param {string} message - Message to display
+     * @returns {Promise<boolean>}
+     */
+    function showConfirmModal(message) {
+      return new Promise((resolve) => {
+        const overlay = document.getElementById('confirm-modal');
+        const messageEl = document.getElementById('confirm-modal-message');
+        const cancelBtn = document.getElementById('confirm-modal-cancel');
+        const okBtn = document.getElementById('confirm-modal-ok');
+
+        messageEl.textContent = message;
+        overlay.classList.add('open');
+
+        window._confirmModalResolve = (result) => {
+          overlay.classList.remove('open');
+          delete window._confirmModalResolve;
+          resolve(result);
+        };
+
+        cancelBtn.onclick = () => window._confirmModalResolve(false);
+        okBtn.onclick = () => window._confirmModalResolve(true);
+
+        // Close on overlay click
+        overlay.onclick = (e) => {
+          if (e.target === overlay) window._confirmModalResolve(false);
+        };
+      });
+    }
+
+    function closeConfirmModal(result) {
+      if (window._confirmModalResolve) {
+        window._confirmModalResolve(result);
+      }
+    }
+
+    // ============================================
+    // Agent Provider Switcher Functions
+    // ============================================
+
+    let agentDropdownOpen = false;
+
+    /** Fetch agent availability from the server */
+    async function fetchAgents(refresh = false) {
+      try {
+        const url = refresh ? '/api/agents?refresh=1' : '/api/agents';
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        return await res.json();
+      } catch (err) {
+        console.warn('[AgentSwitcher] Failed to fetch agents:', err);
+        return null;
+      }
+    }
+
+    /** Update the header pill display */
+    function updateAgentPill(data) {
+      const nameEl = document.getElementById('agent-trigger-name');
+      const settingsSelect = document.getElementById('settings-agent-type');
+      if (!data || !data.current) return;
+
+      const names = { claude: 'Claude Code', copilot: 'Copilot', opencode: 'OpenCode' };
+      nameEl.textContent = names[data.current] || data.current;
+
+      if (settingsSelect) {
+        settingsSelect.value = data.current;
+      }
+    }
+
+    /** Toggle the agent dropdown open/closed */
+    async function toggleAgentDropdown() {
+      if (agentDropdownOpen) {
+        closeAgentDropdown();
+      } else {
+        const switcher = document.getElementById('agent-switcher');
+        switcher.classList.add('open');
+        agentDropdownOpen = true;
+        await renderAgentDropdown();
+      }
+    }
+
+    /** Close the agent dropdown */
+    function closeAgentDropdown() {
+      const switcher = document.getElementById('agent-switcher');
+      if (switcher) switcher.classList.remove('open');
+      agentDropdownOpen = false;
+    }
+
+    /** Render agent items in the dropdown */
+    async function renderAgentDropdown() {
+      const data = await fetchAgents(true);
+      if (!data) return;
+
+      const listEl = document.getElementById('agent-dropdown-list');
+      if (!listEl) return;
+
+      const icons = { claude: '🧠', copilot: '🦾', opencode: '🔧' };
+      listEl.innerHTML = data.agents.map(agent => {
+        const isActive = agent.type === data.current;
+        const disabledClass = agent.installed ? '' : 'disabled';
+        const metaText = agent.installed
+          ? `✓ v${agent.version}`
+          : (agent.hint || 'Not installed');
+        const onclick = agent.installed
+          ? `onclick="selectAgentType('${agent.type}')"`
+          : '';
+
+        return `
+          <div class="agent-item ${isActive ? 'active' : ''} ${disabledClass}"
+               ${onclick}
+               ${agent.installed ? '' : 'aria-disabled="true"'}>
+            <span class="agent-trigger-icon">${icons[agent.type] || '🤖'}</span>
+            <div class="agent-item-info">
+              <div class="agent-item-name">${escapeHtml(agent.displayName)}</div>
+              <div class="agent-item-meta">${escapeHtml(metaText)}</div>
+            </div>
+            ${isActive ? '<span class="agent-item-check">✓</span>' : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    /**
+     * Switch the active AI provider.
+     * @param {string} newType - One of 'claude', 'copilot', 'opencode'
+     */
+    async function selectAgentType(newType) {
+      // Check if we need to confirm (active/queued tasks)
+      const activeOrQueued = board.tasks.filter(
+        t => isTaskActive(t.status) || t.status === 'queued'
+      );
+
+      if (activeOrQueued.length > 0) {
+        const currentName = document.getElementById('agent-trigger-name').textContent;
+        const names = { claude: 'Claude Code', copilot: 'Copilot', opencode: 'OpenCode' };
+        const newName = names[newType] || newType;
+        const confirmed = await showConfirmModal(
+          `${activeOrQueued.length} task(s) are running or queued. Steps already in progress will finish with ${currentName}; subsequent steps will use ${newName}. Continue?`
+        );
+        if (!confirmed) {
+          // Restore settings select to current value
+          const data = await fetchAgents();
+          if (data) updateAgentPill(data);
+          return;
+        }
+      }
+
+      try {
+        const res = await fetch('/api/config/settings/agentType', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value: newType }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Failed to switch provider');
+        }
+
+        // Update UI
+        const names = { claude: 'Claude Code', copilot: 'Copilot', opencode: 'OpenCode' };
+        document.getElementById('agent-trigger-name').textContent = names[newType] || newType;
+        const settingsSelect = document.getElementById('settings-agent-type');
+        if (settingsSelect) settingsSelect.value = newType;
+
+        closeAgentDropdown();
+        showToast(`Switched to ${names[newType] || newType}`, 'success');
+
+        // Refresh model controls in settings
+        if (typeof loadModelControls === 'function') {
+          loadModelControls('settings').catch(() => {});
+        }
+
+        // If assistant panel is open, show notice
+        const assistantPanel = document.getElementById('assistant-panel');
+        if (assistantPanel && assistantPanel.classList.contains('open')) {
+          const messagesContainer = document.getElementById('assistant-messages');
+          if (messagesContainer) {
+            const notice = document.createElement('div');
+            notice.className = 'assistant-message assistant-message-system';
+            notice.innerHTML = `<div class="message-content">Provider switched to ${names[newType] || newType} — conversation restarted.</div>`;
+            messagesContainer.appendChild(notice);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          }
+        }
+
+        // Refresh usage meter
+        if (typeof fetchUsageInfo === 'function') {
+          fetchUsageInfo().catch(() => {});
+        }
+      } catch (err) {
+        console.error('[AgentSwitcher] Switch failed:', err);
+        showToast(err.message || 'Failed to switch provider', 'error');
+        // Restore settings select
+        const data = await fetchAgents();
+        if (data) updateAgentPill(data);
+      }
+    }
+
+    /** Initialize the agent switcher on page load */
+    async function initAgentSwitcher() {
+      const data = await fetchAgents();
+      if (data) {
+        updateAgentPill(data);
+      }
+    }
+
+    // ============================================
+    // End Agent Provider Switcher Functions
     // ============================================
 
     // ============================================
@@ -8469,6 +9081,9 @@
       // Initialize workspace switcher
       initWorkspaceSwitcher();
 
+      // Initialize agent provider switcher
+      initAgentSwitcher();
+
       // Initialize project brief panel
       await initProjectBriefPanel();
     }
@@ -8620,9 +9235,9 @@
       const columns = ['todo', 'queued', 'running', 'verifying', 'review', 'done'];
 
       // Map workflow statuses to columns
-      // briefing, planning, running all go to the 'running' column
-      function getColumnForStatus(status) {
-        if (status === 'briefing' || status === 'planning' || status === 'declaring' || status === 'running' || status === 'architecting') {
+       // Active workflow states all go to the 'running' column.
+       function getColumnForStatus(status) {
+         if (isTaskActive(status)) {
           return 'running';
         }
         if (status === 'blocked') {
@@ -8687,7 +9302,7 @@
 
           // Build workflow step indicator for active workflow tasks
           const workflowSteps = ['brief', 'plan', 'execute'];
-          const isWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
+          const isWorkflowActive = isTaskActive(task.status);
           const workflowStep = task.workflowStep || 'pending';
           const isQuickTask = task.type === 'quick';
           const isGoalTask = task.type === 'goal';
@@ -8749,7 +9364,7 @@
           }
 
           // Check if task is in any running state
-          const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying';
+          const isRunning = isTaskActive(task.status);
 
           // Build progress bar HTML
           const progress = task.progress || 0;
@@ -8791,6 +9406,7 @@
               </div>
               ${depsHtml}
               ${workflowIndicator}
+              ${task.verificationWarning ? `<div class="verification-warning-banner" title="${escapeHtml(task.verificationWarning)}">⚠ ${escapeHtml(task.verificationWarning)}</div>` : ''}
               ${(task.status === 'todo' && task.yieldReason) ? `<div class="task-yield-reason" title="Task fell out of the queue. Reason: ${escapeHtml(task.yieldReason)}">⚠ Queue capped: ${escapeHtml(task.yieldReason)}</div>` : ''}
               <div class="task-context">${contextText}</div>
               ${task.startedAt ? (isRunning
@@ -9060,7 +9676,7 @@
 
       // Duration display
       const durationEl = document.getElementById('detail-duration');
-      const isActiveStatus = ['briefing', 'planning', 'running', 'architecting'].includes(task.status);
+      const isActiveStatus = isTaskActive(task.status);
       if (task.startedAt && isActiveStatus) {
         durationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
         durationEl.className = 'task-duration task-duration-active';
@@ -9080,7 +9696,7 @@
       const workflowEl = document.getElementById('detail-workflow');
       const workflowSteps = ['brief', 'plan', 'execute'];
       const workflowStep = task.workflowStep || 'pending';
-      const isDetailWorkflowActive = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting';
+      const isDetailWorkflowActive = isTaskActive(task.status);
       if (task.type === 'goal' && (workflowStep === 'architect' || workflowStep === 'complete')) {
         // Goal tasks show only Architect step
         const architectClass = (workflowStep === 'architect' && isDetailWorkflowActive) ? 'active' : 'completed';
@@ -9103,7 +9719,7 @@
 
       // Run button visibility
       const runBtn = document.getElementById('detail-run-btn');
-      const isRunning = task.status === 'briefing' || task.status === 'planning' || task.status === 'running' || task.status === 'architecting' || task.status === 'verifying';
+      const isRunning = isTaskActive(task.status);
       runBtn.textContent = task.status === 'queued' ? 'Run Now' : 'Run Task';
 
       // Load subtasks
@@ -9177,7 +9793,7 @@
         childrenStats.textContent = `${doneCount}/${children.length} tasks complete`;
 
         childrenList.innerHTML = children.map(child => {
-          const statusIcon = child.status === 'done' ? '✅' : child.status === 'review' ? '🔍' : child.status === 'running' || child.status === 'briefing' || child.status === 'planning' ? '🔄' : '⬜';
+          const statusIcon = child.status === 'done' ? '✅' : child.status === 'review' ? '🔍' : isTaskActive(child.status) ? '🔄' : '⬜';
           const completedClass = child.status === 'done' ? 'completed' : '';
           return `
             <div class="subtask-item ${completedClass}" onclick="openDetailModal('${child.id}', event)" style="cursor:pointer">
@@ -9249,6 +9865,7 @@
         panel.classList.add('open');
         fab.classList.add('active');
         connectAssistantWebSocket();
+        loadModelControls('assistant');
         document.getElementById('assistant-input').focus();
       }
     }
@@ -9313,6 +9930,7 @@
       panel.classList.add('open');
       backdrop.classList.add('open');
       initializeSettingsPanel();
+      loadModelControls('settings');
     }
 
     function closeSettings() {
@@ -9415,6 +10033,207 @@
 
       // Render workspace list
       renderWorkspaceList();
+    }
+
+    const MODEL_CONTROL_STEPS = ['brief', 'plan', 'declare', 'execute', 'architect', 'assistant'];
+    let assistantModelHintTimeout = null;
+
+    function getModelControlIds(surface, step) {
+      if (surface === 'assistant') {
+        return { select: 'assistant-model-select', custom: 'assistant-model-custom' };
+      }
+      return { select: `step-model-${step}`, custom: `step-model-custom-${step}` };
+    }
+
+    function getAgentDisplayName(agentType) {
+      const names = {
+        claude: 'Claude Code',
+        copilot: 'GitHub Copilot',
+        opencode: 'OpenCode',
+      };
+      return names[agentType] || agentType;
+    }
+
+    function normalizeStepModels(value) {
+      if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+        return {};
+      }
+
+      const stepModels = {};
+      Object.entries(value).forEach(([agentType, stepConfig]) => {
+        if (stepConfig === null || typeof stepConfig !== 'object' || Array.isArray(stepConfig)) {
+          return;
+        }
+
+        const models = {};
+        Object.entries(stepConfig).forEach(([step, modelId]) => {
+          if (typeof modelId === 'string') {
+            models[step] = modelId;
+          }
+        });
+        stepModels[agentType] = models;
+      });
+      return stepModels;
+    }
+
+    async function fetchStepModels() {
+      const response = await fetch('/api/config/settings/stepModels');
+      if (response.status === 404) {
+        return {};
+      }
+      if (!response.ok) {
+        throw new Error(`Unable to load model settings (${response.status})`);
+      }
+      const payload = await response.json();
+      return normalizeStepModels(payload ? payload.value : null);
+    }
+
+    async function fetchModelCatalog() {
+      const response = await fetch('/api/models');
+      if (!response.ok) {
+        throw new Error(`Unable to load model catalog (${response.status})`);
+      }
+      const payload = await response.json();
+      if (!payload || typeof payload.agentType !== 'string' || !Array.isArray(payload.models)) {
+        throw new Error('Unable to load model catalog');
+      }
+
+      const models = payload.models.filter(model =>
+        model && typeof model.id === 'string' && typeof model.label === 'string'
+      );
+      return { agentType: payload.agentType, models };
+    }
+
+    function renderModelControl(surface, step, catalog, selectedModelId) {
+      const ids = getModelControlIds(surface, step);
+      const select = document.getElementById(ids.select);
+      const customInput = document.getElementById(ids.custom);
+      if (!select || !customInput) {
+        return;
+      }
+
+      const hasCatalogValue = catalog.models.some(model => model.id === selectedModelId);
+      const isCustom = selectedModelId !== '' && !hasCatalogValue;
+      select.innerHTML = `${catalog.models.map(model =>
+        `<option value="${escapeHtml(model.id)}">${escapeHtml(model.label)}</option>`
+      ).join('')}<option value="__custom__">Custom…</option>`;
+      select.value = isCustom ? '__custom__' : selectedModelId;
+      select.dataset.agentType = catalog.agentType;
+      select.dataset.savedValue = selectedModelId;
+      customInput.hidden = !isCustom;
+      customInput.value = isCustom ? selectedModelId : '';
+      customInput.dataset.agentType = catalog.agentType;
+    }
+
+    async function loadModelControls(surface) {
+      try {
+        const [catalog, stepModels] = await Promise.all([fetchModelCatalog(), fetchStepModels()]);
+        const currentModels = stepModels[catalog.agentType] || {};
+        const steps = surface === 'assistant' ? ['assistant'] : MODEL_CONTROL_STEPS;
+        steps.forEach(step => renderModelControl(surface, step, catalog, currentModels[step] || ''));
+
+        if (surface === 'settings') {
+          const caption = document.getElementById('agent-models-caption');
+          caption.textContent = `Models apply to the ${getAgentDisplayName(catalog.agentType)} agent. Each provider keeps its own model set.`;
+        }
+      } catch (error) {
+        console.warn('[Settings] Failed to load agent models:', error);
+        showToast('Could not load agent models', 'error');
+      }
+    }
+
+    async function persistStepModel(agentType, step, modelId) {
+      const stepModels = await fetchStepModels();
+      const agentModels = { ...(stepModels[agentType] || {}) };
+      if (modelId === '') {
+        delete agentModels[step];
+      } else {
+        agentModels[step] = modelId;
+      }
+
+      if (Object.keys(agentModels).length === 0) {
+        delete stepModels[agentType];
+      } else {
+        stepModels[agentType] = agentModels;
+      }
+
+      const response = await fetch('/api/config/settings/stepModels', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: stepModels }),
+      });
+      if (!response.ok) {
+        throw new Error(`Unable to save model setting (${response.status})`);
+      }
+    }
+
+    async function saveStepModel(surface, step, modelId) {
+      const ids = getModelControlIds(surface, step);
+      const select = document.getElementById(ids.select);
+      if (!select || !select.dataset.agentType) {
+        return;
+      }
+
+      try {
+        await persistStepModel(select.dataset.agentType, step, modelId);
+        select.dataset.savedValue = modelId;
+        if (surface === 'assistant') {
+          showAssistantModelHint();
+        }
+      } catch (error) {
+        console.warn('[Settings] Failed to save agent model:', error);
+        showToast('Could not save agent model', 'error');
+        loadModelControls(surface);
+      }
+    }
+
+    function handleModelSelectChange(surface, step) {
+      const ids = getModelControlIds(surface, step);
+      const select = document.getElementById(ids.select);
+      const customInput = document.getElementById(ids.custom);
+      if (!select || !customInput) {
+        return;
+      }
+
+      if (select.value === '__custom__') {
+        customInput.hidden = false;
+        customInput.value = select.dataset.savedValue || '';
+        customInput.focus();
+        customInput.select();
+        return;
+      }
+
+      customInput.hidden = true;
+      customInput.value = '';
+      saveStepModel(surface, step, select.value);
+    }
+
+    function saveCustomStepModel(surface, step) {
+      const ids = getModelControlIds(surface, step);
+      const select = document.getElementById(ids.select);
+      const customInput = document.getElementById(ids.custom);
+      if (!select || !customInput || select.value !== '__custom__') {
+        return;
+      }
+      saveStepModel(surface, step, customInput.value);
+    }
+
+    function handleCustomModelKeydown(event, surface, step) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        event.target.blur();
+      }
+    }
+
+    function showAssistantModelHint() {
+      const hint = document.getElementById('assistant-model-hint');
+      hint.hidden = false;
+      if (assistantModelHintTimeout) {
+        clearTimeout(assistantModelHintTimeout);
+      }
+      assistantModelHintTimeout = setTimeout(() => {
+        hint.hidden = true;
+      }, 3000);
     }
 
     function updateThemeSelector(theme) {
@@ -10105,9 +10924,7 @@
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
       // Get the first running task to connect to its logs
-      const runningTasks = board.tasks.filter(t =>
-        t.status === 'running' || t.status === 'briefing' || t.status === 'planning'
-      );
+      const runningTasks = board.tasks.filter(t => isTaskActive(t.status));
 
       if (runningTasks.length === 0) {
         updateTacticalConnectionStatus('disconnected');
@@ -10214,9 +11031,7 @@
       renderTacticalActions();
 
       // Reconnect to WebSocket if we have running tasks
-      const runningTasks = board.tasks.filter(t =>
-        t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'queued'
-      );
+      const runningTasks = board.tasks.filter(t => isTaskActive(t.status) || t.status === 'queued');
 
       if (runningTasks.length > 0 && (!tacticalWs || tacticalWs.readyState !== WebSocket.OPEN)) {
         connectTacticalWebSocket();
@@ -10230,9 +11045,7 @@
       if (!container) return;
 
       // Get running and queued tasks
-      const activeTasks = board.tasks.filter(t =>
-        t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'queued'
-      );
+      const activeTasks = board.tasks.filter(t => isTaskActive(t.status) || t.status === 'queued');
 
       if (activeTasks.length === 0) {
         container.innerHTML = `
@@ -10394,12 +11207,10 @@
         const countEl = document.getElementById(`mobile-${status}-count`);
         if (!container) return;
 
-        // Include briefing and planning tasks in running column
+        // Include all active workflow tasks in the running column.
         let tasks;
         if (status === 'running') {
-          tasks = board.tasks.filter(t =>
-            t.status === 'running' || t.status === 'briefing' || t.status === 'planning' || t.status === 'architecting' || t.status === 'declaring'
-          );
+          tasks = board.tasks.filter(t => isTaskActive(t.status));
         } else {
           tasks = board.tasks.filter(t => t.status === status);
         }
@@ -10416,13 +11227,13 @@
 
         container.innerHTML = tasks.map(task => {
           let statusClass = '';
-          if (task.status === 'running' || task.status === 'briefing' || task.status === 'planning' || task.status === 'architecting' || task.status === 'verifying') {
+          if (isTaskActive(task.status)) {
             statusClass = 'running';
           } else if (task.status === 'queued') {
             statusClass = 'queued';
           }
 
-          const isActive = task.status === 'running' || task.status === 'briefing' || task.status === 'planning' || task.status === 'architecting' || task.status === 'verifying';
+          const isActive = isTaskActive(task.status);
           const durationHtml = task.startedAt ? (isActive
             ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, null)}</span>`
             : (task.completedAt ? `<span class="task-duration" style="margin-left:8px;font-size:9px">⏱ ${formatDuration(task.startedAt, task.completedAt)}</span>` : ''))
@@ -10468,7 +11279,7 @@
 
       // Duration display
       const mobileDurationEl = document.getElementById('mobile-sheet-duration');
-      const isActiveForDuration = ['briefing', 'planning', 'running', 'architecting', 'verifying'].includes(task.status);
+      const isActiveForDuration = isTaskActive(task.status);
       if (task.startedAt && isActiveForDuration) {
         mobileDurationEl.textContent = '⏱ ' + formatDuration(task.startedAt, null);
         mobileDurationEl.className = 'task-duration task-duration-active';
@@ -10490,7 +11301,7 @@
       const actionsContainer = document.getElementById('mobile-sheet-actions');
       let actionsHtml = '';
 
-      const isRunning = ['running', 'briefing', 'planning', 'architecting', 'verifying'].includes(task.status);
+      const isRunning = isTaskActive(task.status);
 
       if (task.status === 'todo') {
         actionsHtml = `
