@@ -4316,6 +4316,7 @@
       padding: 20px 24px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       background: rgba(255, 255, 255, 0.01);
+      flex-shrink: 0;
     }
 
     .settings-header-left {
@@ -4359,7 +4360,12 @@
     /* Settings Content */
     .settings-content {
       flex: 1;
+      min-height: 0;
+      min-width: 0;
       overflow-y: auto;
+      overflow-x: hidden;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
       padding: 24px;
     }
 
@@ -4386,12 +4392,16 @@
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
+      gap: 16px;
+      min-width: 0;
       padding: 12px 0;
     }
 
     .settings-label {
       font-size: 13px;
       color: rgba(255, 255, 255, 0.8);
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
 
     /* Theme Selector */
@@ -4564,6 +4574,14 @@
       display: flex;
       align-items: center;
       gap: 6px;
+      min-width: 0;
+      max-width: 100%;
+      flex-shrink: 1;
+    }
+
+    .settings-input-group .settings-text-input {
+      min-width: 0;
+      max-width: 100%;
     }
 
     .settings-unit {
@@ -4577,6 +4595,8 @@
       display: flex;
       flex-direction: column;
       gap: 3px;
+      min-width: 0;
+      flex: 1;
     }
 
     .settings-hint {
@@ -5139,6 +5159,18 @@
 
       .settings-panel.open {
         box-shadow: none;
+      }
+
+      .settings-content {
+        padding: 20px;
+      }
+
+      .settings-row {
+        flex-wrap: wrap;
+      }
+
+      .settings-row > .settings-input-group {
+        margin-left: auto;
       }
 
       /* Hide agent switcher on mobile — use Settings panel */
@@ -8039,19 +8071,6 @@
           </div>
         </div>
 
-        <div class="settings-row">
-          <label class="settings-label" for="step-model-assistant">Chat Assistant</label>
-          <div class="settings-input-group">
-            <select class="settings-text-input" id="step-model-assistant" onchange="handleModelSelectChange('settings', 'assistant')">
-              <option value="">Agent default</option>
-              <option value="__custom__">Custom…</option>
-            </select>
-            <input type="text" class="settings-text-input" id="step-model-custom-assistant" placeholder="Custom model ID" hidden
-              onblur="saveCustomStepModel('settings', 'assistant')"
-              onkeydown="handleCustomModelKeydown(event, 'settings', 'assistant')">
-          </div>
-        </div>
-
         <div class="settings-hint" id="agent-models-caption"></div>
       </div>
 
@@ -10035,8 +10054,9 @@
       renderWorkspaceList();
     }
 
-    const MODEL_CONTROL_STEPS = ['brief', 'plan', 'declare', 'execute', 'architect', 'assistant'];
+    const MODEL_CONTROL_STEPS = ['brief', 'plan', 'declare', 'execute', 'architect'];
     let assistantModelHintTimeout = null;
+    let assistantModelSaveSequence = 0;
 
     function getModelControlIds(surface, step) {
       if (surface === 'assistant') {
@@ -10114,7 +10134,7 @@
 
       const hasCatalogValue = catalog.models.some(model => model.id === selectedModelId);
       const isCustom = selectedModelId !== '' && !hasCatalogValue;
-      select.innerHTML = `${catalog.models.map(model =>
+      select.innerHTML = `<option value="">Agent default</option>${catalog.models.map(model =>
         `<option value="${escapeHtml(model.id)}">${escapeHtml(model.label)}</option>`
       ).join('')}<option value="__custom__">Custom…</option>`;
       select.value = isCustom ? '__custom__' : selectedModelId;
@@ -10174,8 +10194,13 @@
         return;
       }
 
+      const saveSequence = surface === 'assistant' ? ++assistantModelSaveSequence : 0;
+      select.disabled = true;
       try {
         await persistStepModel(select.dataset.agentType, step, modelId);
+        if (surface === 'assistant' && saveSequence !== assistantModelSaveSequence) {
+          return;
+        }
         select.dataset.savedValue = modelId;
         if (surface === 'assistant') {
           showAssistantModelHint();
@@ -10183,11 +10208,15 @@
       } catch (error) {
         console.warn('[Settings] Failed to save agent model:', error);
         showToast('Could not save agent model', 'error');
-        loadModelControls(surface);
+        await loadModelControls(surface);
+      } finally {
+        if (surface !== 'assistant' || saveSequence === assistantModelSaveSequence) {
+          select.disabled = false;
+        }
       }
     }
 
-    function handleModelSelectChange(surface, step) {
+    async function handleModelSelectChange(surface, step) {
       const ids = getModelControlIds(surface, step);
       const select = document.getElementById(ids.select);
       const customInput = document.getElementById(ids.custom);
@@ -10205,17 +10234,22 @@
 
       customInput.hidden = true;
       customInput.value = '';
-      saveStepModel(surface, step, select.value);
+      await saveStepModel(surface, step, select.value);
     }
 
-    function saveCustomStepModel(surface, step) {
+    async function saveCustomStepModel(surface, step) {
       const ids = getModelControlIds(surface, step);
       const select = document.getElementById(ids.select);
       const customInput = document.getElementById(ids.custom);
       if (!select || !customInput || select.value !== '__custom__') {
         return;
       }
-      saveStepModel(surface, step, customInput.value);
+      const modelId = customInput.value.trim();
+      if (!modelId) {
+        await loadModelControls(surface);
+        return;
+      }
+      await saveStepModel(surface, step, modelId);
     }
 
     function handleCustomModelKeydown(event, surface, step) {

@@ -196,9 +196,6 @@ The server will automatically detect this format and create the task via the For
   - [t-25] Persist stepModels config and expose GET /api/models with settings validation
   - [t-111] Make AI provider selectable from the Kanban UI with availability-aware switcher (replaces AGENT_TYPE env-only selection)
 
-### Running
-  - [t-112] !Harden npm and Docker publishing: secure Dockerfiles, release CI guardrails, webhook and auth fixes
-
 ### Review
   - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
   - [t-2] !Rewrite root README.md as a concise onboarding guide with demo video
@@ -223,6 +220,9 @@ The server will automatically detect this format and create the task via the For
   - [t-27] Apply assistant model selection to chat and messaging agent spawns
   - [t-28] Add Agent Models section to Settings panel and assistant-panel model selector
   - [t-29] -Add model-selection E2E test and README/docs updates
+  - [t-112] !Harden npm and Docker publishing: secure Dockerfiles, release CI guardrails, webhook and auth fixes
+  - [t-113] !Fix t-112 release-pipeline and container gaps: CI dist build, gitleaks config, artifact upload, auth-exempt health endpoint, read-only config volume, test registration
+  - [t-114] !Fix release pipeline gating, webhook auth exemptions, devcontainer version race, and agent-adapter unit tests
 
 ## Formic Workflow
 
