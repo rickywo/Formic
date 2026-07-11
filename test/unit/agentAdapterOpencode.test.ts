@@ -17,23 +17,20 @@ import {
   supportsConversationContinue,
   validateAgentEnv,
 } from '../../src/server/services/agentAdapter.js';
-import { engineConfig } from '../../src/server/services/engineConfig.js';
+import { engineConfig, normalizeAgentType } from '../../src/server/services/engineConfig.js';
 
 // ---------------------------------------------------------------------------
-// Env isolation helpers
+// Engine config isolation helpers — getAgentType() reads engineConfig.agentType,
+// not process.env.AGENT_TYPE, so tests must mutate engineConfig directly.
 // ---------------------------------------------------------------------------
-let savedAgentType: string | undefined;
+let savedAgentType: string;
 
 beforeEach(() => {
-  savedAgentType = process.env.AGENT_TYPE;
+  savedAgentType = engineConfig.agentType;
 });
 
 afterEach(() => {
-  if (savedAgentType === undefined) {
-    delete process.env.AGENT_TYPE;
-  } else {
-    process.env.AGENT_TYPE = savedAgentType;
-  }
+  engineConfig.agentType = savedAgentType;
 });
 
 // ---------------------------------------------------------------------------
@@ -41,34 +38,28 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 describe('getAgentType (opencode)', () => {
   it("returns 'opencode' when AGENT_TYPE=opencode", () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     assert.equal(getAgentType(), 'opencode');
   });
 
   it("returns 'claude' when AGENT_TYPE is unset (default)", () => {
-    delete process.env.AGENT_TYPE;
+    engineConfig.agentType = 'claude';
     assert.equal(getAgentType(), 'claude');
   });
 
   it("returns 'copilot' correctly (regression)", () => {
-    process.env.AGENT_TYPE = 'copilot';
+    engineConfig.agentType = 'copilot';
     assert.equal(getAgentType(), 'copilot');
   });
 
-  it('handles case-insensitivity', () => {
-    process.env.AGENT_TYPE = 'OPENCODE';
-    assert.equal(getAgentType(), 'opencode');
-
-    process.env.AGENT_TYPE = 'Opencode';
-    assert.equal(getAgentType(), 'opencode');
-
-    process.env.AGENT_TYPE = 'Copilot';
-    assert.equal(getAgentType(), 'copilot');
+  it('handles case-insensitivity via normalizeAgentType', () => {
+    assert.equal(normalizeAgentType('OPENCODE'), 'opencode');
+    assert.equal(normalizeAgentType('Opencode'), 'opencode');
+    assert.equal(normalizeAgentType('Copilot'), 'copilot');
   });
 
-  it("returns 'claude' for unknown agent types", () => {
-    process.env.AGENT_TYPE = 'nonexistent';
-    assert.equal(getAgentType(), 'claude');
+  it("returns 'claude' for unknown agent types (normalizeAgentType returns null)", () => {
+    assert.equal(normalizeAgentType('nonexistent'), null);
   });
 });
 
@@ -77,25 +68,25 @@ describe('getAgentType (opencode)', () => {
 // ---------------------------------------------------------------------------
 describe('getAgentConfig (opencode)', () => {
   it("returns command='opencode' for opencode", () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const config = getAgentConfig();
     assert.equal(config.command, 'opencode');
   });
 
   it("returns skillsDir='.claude/skills' for opencode", () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const config = getAgentConfig();
     assert.equal(config.skillsDir, '.claude/skills');
   });
 
   it('returns empty envVars object for opencode', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const config = getAgentConfig();
     assert.deepStrictEqual(config.envVars, {});
   });
 
   it('respects AGENT_COMMAND override for opencode', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     process.env.AGENT_COMMAND = '/custom/path/opencode';
     const config = getAgentConfig();
     assert.equal(config.command, '/custom/path/opencode');
@@ -108,31 +99,31 @@ describe('getAgentConfig (opencode)', () => {
 // ---------------------------------------------------------------------------
 describe('getAgentDisplayName (opencode)', () => {
   it("returns 'OpenCode CLI' for opencode", () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     assert.equal(getAgentDisplayName(), 'OpenCode CLI');
   });
 
   it("returns 'Claude Code CLI' for claude", () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     assert.equal(getAgentDisplayName(), 'Claude Code CLI');
   });
 
   it("returns 'GitHub Copilot CLI' for copilot", () => {
-    process.env.AGENT_TYPE = 'copilot';
+    engineConfig.agentType = 'copilot';
     assert.equal(getAgentDisplayName(), 'GitHub Copilot CLI');
   });
 });
 
 describe('getAgentCommand (opencode)', () => {
   it("returns 'opencode' when AGENT_TYPE=opencode", () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     assert.equal(getAgentCommand(), 'opencode');
   });
 });
 
 describe('getAgentSkillsDir (opencode)', () => {
   it("returns '.claude/skills' when AGENT_TYPE=opencode", () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     assert.equal(getAgentSkillsDir(), '.claude/skills');
   });
 });
@@ -142,13 +133,13 @@ describe('getAgentSkillsDir (opencode)', () => {
 // ---------------------------------------------------------------------------
 describe('buildAgentArgs (opencode)', () => {
   it("produces ['run','--agent','formic-executor','--auto','--format','json','<prompt>'] for opencode", () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const args = buildAgentArgs('fix the bug');
     assert.deepStrictEqual(args, ['run', '--agent', 'formic-executor', '--auto', '--format', 'json', 'fix the bug']);
   });
 
   it('appends any prompt string to the opencode args array', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const args = buildAgentArgs('hello world 123');
     assert.deepStrictEqual(args, ['run', '--agent', 'formic-executor', '--auto', '--format', 'json', 'hello world 123']);
   });
@@ -159,13 +150,13 @@ describe('buildAgentArgs (opencode)', () => {
 // ---------------------------------------------------------------------------
 describe('validateAgentEnv (opencode)', () => {
   it('returns empty array (opencode has no required env vars)', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const missing = validateAgentEnv();
     assert.deepStrictEqual(missing, []);
   });
 
   it('still reports missing keys for claude when ANTHROPIC_API_KEY is unset', () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     const saved = process.env.ANTHROPIC_API_KEY;
     // opencode env is empty, but claude's env requires ANTHROPIC_API_KEY.
     // The config's envVars already captured process.env.ANTHROPIC_API_KEY at
@@ -187,19 +178,19 @@ describe('validateAgentEnv (opencode)', () => {
 // ---------------------------------------------------------------------------
 describe('getAssistantConfig (opencode)', () => {
   it("returns outputFormat='json' for opencode", () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const config = getAssistantConfig();
     assert.equal(config.outputFormat, 'json');
   });
 
   it('returns supportsConversationContinue=true for opencode', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const config = getAssistantConfig();
     assert.equal(config.supportsConversationContinue, true);
   });
 
   it('returns readOnlyTools matching OPENCODE_ASSISTANT_TOOLS', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const config = getAssistantConfig();
     const expected = ['read', 'glob', 'grep', 'webfetch', 'websearch'];
     assert.deepStrictEqual(config.readOnlyTools, expected);
@@ -211,7 +202,7 @@ describe('getAssistantConfig (opencode)', () => {
 // ---------------------------------------------------------------------------
 describe('buildAssistantArgs (opencode)', () => {
   it('includes --agent formic-readonly --auto --format json for opencode', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const args = buildAssistantArgs('summarize the repo');
     assert.deepStrictEqual(args, [
       'run',
@@ -225,7 +216,7 @@ describe('buildAssistantArgs (opencode)', () => {
   });
 
   it('includes --continue flag when options.continue is true', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const args = buildAssistantArgs('continue work', { continue: true });
     assert.deepStrictEqual(args, [
       'run',
@@ -240,7 +231,7 @@ describe('buildAssistantArgs (opencode)', () => {
   });
 
   it('omits --continue flag when options.continue is false', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const args = buildAssistantArgs('fresh prompt', { continue: false });
     assert.deepStrictEqual(args, [
       'run',
@@ -254,7 +245,7 @@ describe('buildAssistantArgs (opencode)', () => {
   });
 
   it('omits --continue flag when options is undefined', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const args = buildAssistantArgs('fresh prompt');
     assert.deepStrictEqual(args, [
       'run',
@@ -273,7 +264,7 @@ describe('buildAssistantArgs (opencode)', () => {
 // ---------------------------------------------------------------------------
 describe('buildMessagingAssistantArgs (opencode)', () => {
   it('includes --agent formic-readonly --auto --format json for opencode', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const args = buildMessagingAssistantArgs('board status');
     assert.deepStrictEqual(args, [
       'run',
@@ -287,7 +278,7 @@ describe('buildMessagingAssistantArgs (opencode)', () => {
   });
 
   it('includes --continue flag when options.continue is true', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const args = buildMessagingAssistantArgs('board status', { continue: true });
     assert.deepStrictEqual(args, [
       'run',
@@ -304,17 +295,17 @@ describe('buildMessagingAssistantArgs (opencode)', () => {
 
 describe('supportsConversationContinue (opencode)', () => {
   it('returns true for opencode', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     assert.equal(supportsConversationContinue(), true);
   });
 
   it('returns true for claude (regression)', () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     assert.equal(supportsConversationContinue(), true);
   });
 
   it('returns true for copilot (regression)', () => {
-    process.env.AGENT_TYPE = 'copilot';
+    engineConfig.agentType = 'copilot';
     assert.equal(supportsConversationContinue(), true);
   });
 });
@@ -324,24 +315,24 @@ describe('supportsConversationContinue (opencode)', () => {
 // ---------------------------------------------------------------------------
 describe('getAssistantOutputFormat (opencode)', () => {
   it("returns 'json' for opencode", () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     assert.equal(getAssistantOutputFormat(), 'json');
   });
 
   it("returns 'stream-json' for claude", () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     assert.equal(getAssistantOutputFormat(), 'stream-json');
   });
 
   it('returns null for copilot', () => {
-    process.env.AGENT_TYPE = 'copilot';
+    engineConfig.agentType = 'copilot';
     assert.equal(getAssistantOutputFormat(), null);
   });
 });
 
 describe('getAssistantReadOnlyTools (opencode)', () => {
   it('returns the opencode read-only tool list', () => {
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     const tools = getAssistantReadOnlyTools();
     assert.deepStrictEqual(tools, ['read', 'glob', 'grep', 'webfetch', 'websearch']);
   });
@@ -352,22 +343,22 @@ describe('getAssistantReadOnlyTools (opencode)', () => {
 // ---------------------------------------------------------------------------
 describe('regression guard (claude defaults)', () => {
   it("returns 'claude' from getAgentType after restoring AGENT_TYPE", () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     assert.equal(getAgentType(), 'claude');
   });
 
   it("returns 'Claude Code CLI' from getAgentDisplayName after restoring", () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     assert.equal(getAgentDisplayName(), 'Claude Code CLI');
   });
 
   it("returns 'claude' from getAgentCommand after restoring", () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     assert.equal(getAgentCommand(), 'claude');
   });
 
   it('buildAgentArgs uses --print for claude (not opencode style)', () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     const args = buildAgentArgs('fix the bug');
     assert.deepStrictEqual(args, [
       '--print',
@@ -377,7 +368,7 @@ describe('regression guard (claude defaults)', () => {
   });
 
   it('buildAssistantArgs uses --print and --output-format stream-json for claude', () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     const args = buildAssistantArgs('explain');
     assert.ok(args.includes('--print'), 'claude assistant must use --print');
     assert.ok(args.includes('--output-format'), 'claude assistant must use --output-format');
@@ -385,12 +376,12 @@ describe('regression guard (claude defaults)', () => {
   });
 
   it("getAssistantOutputFormat returns 'stream-json' for claude", () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     assert.equal(getAssistantOutputFormat(), 'stream-json');
   });
 
   it('buildMessagingAssistantArgs uses --print for claude (not opencode style)', () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     const args = buildMessagingAssistantArgs('board status');
     assert.ok(args.includes('--print'), 'claude messaging must use --print');
     assert.ok(args.includes('--output-format'), 'claude messaging must use --output-format');
@@ -499,12 +490,12 @@ describe('agent adapter model argument builders', () => {
   for (const matrix of AGENT_BUILDER_MATRICES) {
     for (const builder of matrix.builders) {
       it(`${matrix.agentType} ${builder.name} preserves default arguments without a model`, () => {
-        process.env.AGENT_TYPE = matrix.agentType;
+        engineConfig.agentType = matrix.agentType;
         assert.deepStrictEqual(builder.buildArgs(PROMPT), builder.defaultArgs);
       });
 
       it(`${matrix.agentType} ${builder.name} places --model before the prompt`, () => {
-        process.env.AGENT_TYPE = matrix.agentType;
+        engineConfig.agentType = matrix.agentType;
         assert.deepStrictEqual(builder.buildArgs(PROMPT, matrix.model), builder.modelArgs);
       });
     }
@@ -514,7 +505,7 @@ describe('agent adapter model argument builders', () => {
 describe('opencode invalid model fallback', () => {
   for (const builder of AGENT_BUILDER_MATRICES[2].builders) {
     it(`omits an invalid model and warns for the ${builder.name} builder`, () => {
-      process.env.AGENT_TYPE = 'opencode';
+      engineConfig.agentType = 'opencode';
       const warnings: unknown[][] = [];
       const originalWarn = console.warn;
       console.warn = (...args: unknown[]): void => {
@@ -542,11 +533,11 @@ describe('model catalog and step resolution', () => {
   });
 
   it('returns only the catalog for the active agent', () => {
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     assert.deepStrictEqual(getAvailableModels()[0], { id: '', label: 'Agent default' });
     assert.equal(getAvailableModels()[1]?.id, 'claude-opus-4-8');
 
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     assert.deepStrictEqual(getAvailableModels()[1], {
       id: 'anthropic/claude-sonnet-5',
       label: 'Claude Sonnet 5 (Anthropic)',
@@ -559,11 +550,11 @@ describe('model catalog and step resolution', () => {
       opencode: { brief: 'anthropic/claude-sonnet-5' },
     };
 
-    process.env.AGENT_TYPE = 'claude';
+    engineConfig.agentType = 'claude';
     assert.equal(getModelForStep('brief'), 'claude-opus-4-8');
     assert.equal(getModelForStep('execute'), '');
 
-    process.env.AGENT_TYPE = 'opencode';
+    engineConfig.agentType = 'opencode';
     assert.equal(getModelForStep('brief'), 'anthropic/claude-sonnet-5');
   });
 });

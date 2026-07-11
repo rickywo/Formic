@@ -146,7 +146,17 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
       // can probe the container without a bearer token. The endpoint is
       // deliberately data-free — it returns only { status: 'ok' }, no
       // version, workspace path, or task data.
-      if (request.url === '/api/health') {
+      //
+      // Exempt Telegram and LINE webhook routes — external services (Telegram
+      // Bot API, LINE Platform) cannot send an Authorization: Bearer header.
+      // Each route enforces its own credential:
+      //   - Telegram: constant-time comparison of X-Telegram-Bot-Api-Secret-Token
+      //   - LINE:     HMAC signature verification via verifyLineSignature
+      if (
+        request.url === '/api/health' ||
+        request.url === '/api/webhooks/telegram' ||
+        request.url === '/api/webhooks/line'
+      ) {
         return;
       }
 

@@ -35,6 +35,9 @@ LABEL org.opencontainers.image.source="https://github.com/rickywo/Formic" \
 # System dependencies
 # ---------------------------------------------------------------------------
 # git is required at runtime for auto-save commits during task execution.
+# hadolint ignore=DL3008
+# (pinned base image digest provides reproducibility; apt package version
+# pinning would break on Debian point-release mirror churn.)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
@@ -81,7 +84,7 @@ ENV PORT=8000
 ENV WORKSPACE_PATH=/app/workspace
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD node -e "const r=require('http').get('http://localhost:8000/api/health',(res)=>{process.exit(res.statusCode===200?0:1)});r.on('error',()=>process.exit(1))"
+  CMD node -e "fetch('http://localhost:8000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "dist/server/index.js"]
 

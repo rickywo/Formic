@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, chmod } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import type {
@@ -79,7 +79,10 @@ export async function loadMessagingStore(): Promise<MessagingStore> {
 export async function saveMessagingStore(store: MessagingStore): Promise<void> {
   await ensureFormicDir();
   const messagingPath = getMessagingPath();
-  await writeFile(messagingPath, JSON.stringify(store, null, 2), 'utf-8');
+  await writeFile(messagingPath, JSON.stringify(store, null, 2), { mode: 0o600, encoding: 'utf-8' });
+  // Tighten pre-existing file permissions — writeFile mode only applies when
+  // creating a new file, so chmod catches files created before this hardening.
+  await chmod(messagingPath, 0o600);
 }
 
 /**

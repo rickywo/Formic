@@ -35,6 +35,9 @@ LABEL org.opencontainers.image.source="https://github.com/rickywo/Formic" \
 # ---------------------------------------------------------------------------
 # System dependencies (interactive tooling)
 # ---------------------------------------------------------------------------
+# hadolint ignore=DL3008
+# (pinned base image digest provides reproducibility; apt package version
+# pinning would break on Debian point-release mirror churn.)
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git \

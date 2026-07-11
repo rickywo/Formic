@@ -82,12 +82,16 @@ def stop_server(proc):
 
 
 def test_auth_token_enforcement():
-    """Non-loopback bind: 401 without Bearer token, 200 with it."""
+    """Non-loopback bind: 401 without Bearer token, 200 with it.
+    Also verifies webhook routes are exempt from the global bearer check
+    while their own credential enforcement remains intact."""
     print('\n--- Auth token enforcement (HOST=0.0.0.0 + FORMIC_AUTH_TOKEN) ---')
     workspace = tempfile.mkdtemp(prefix='formic-sec-auth-')
     proc = start_server(AUTH_PORT, {
         'HOST': '0.0.0.0',
         'FORMIC_AUTH_TOKEN': AUTH_TOKEN,
+        'TELEGRAM_BOT_TOKEN': 'dummy-bot-token-for-tests',
+        'TELEGRAM_WEBHOOK_SECRET': WEBHOOK_SECRET,
     }, workspace)
     try:
         if not wait_for_server(AUTH_PORT, proc):
@@ -122,6 +126,39 @@ def test_auth_token_enforcement():
             print(f'❌ Expected 200 with valid token, got {r.status_code}')
             return False
         print('✅ 200 with valid Bearer token')
+
+        # --- Non-loopback webhook auth exemption assertions ---
+        # Telegram delivers to POST /api/webhooks/telegram with the secret
+        # in the X-Telegram-Bot-Api-Secret-Token header. The global bearer
+        # hook must exempt this route; the route's own constant-time secret
+        # check enforces the credential.
+        telegram_update = {'update_id': 1}
+
+        # Correct secret + no bearer → 200 (NOT 401 from the global hook)
+        r = requests.post(f'{base}/api/webhooks/telegram', json=telegram_update,
+                          headers={'X-Telegram-Bot-Api-Secret-Token': WEBHOOK_SECRET},
+                          timeout=5)
+        if r.status_code != 200:
+            print(f'❌ Expected 200 for webhook with correct secret (no bearer), got {r.status_code}')
+            return False
+        print('✅ POST /api/webhooks/telegram with correct secret returns 200 (exempt from bearer)')
+
+        # Wrong secret → 401 (route-level enforcement, not global hook)
+        r = requests.post(f'{base}/api/webhooks/telegram', json=telegram_update,
+                          headers={'X-Telegram-Bot-Api-Secret-Token': 'wrong-secret'},
+                          timeout=5)
+        if r.status_code != 401:
+            print(f'❌ Expected 401 for webhook with wrong secret, got {r.status_code}')
+            return False
+        print('✅ POST /api/webhooks/telegram with wrong secret returns 401')
+
+        # Board without bearer still returns 401 (exemption doesn't leak)
+        r = requests.get(f'{base}/api/board', timeout=5)
+        if r.status_code != 401:
+            print(f'❌ Expected 401 for /api/board without bearer (exemption must not leak), got {r.status_code}')
+            return False
+        print('✅ GET /api/board without bearer still returns 401')
+
         return True
     finally:
         stop_server(proc)
