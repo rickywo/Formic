@@ -29,15 +29,19 @@ export async function createSafePoint(taskId: string): Promise<string | null> {
 
 /**
  * List files that have changed in the workspace since a given commit.
- * Runs `git diff --name-only <commit>` and returns the list of file paths.
+ * Includes untracked files as well, so newly created task deliverables are
+ * visible to verification before an agent stages them.
  * Returns an empty array if the diff is empty, git is unavailable, or the
  * commit doesn't exist (the caller can distinguish the "no changes" case).
  */
 export async function getChangedFilesSince(commit: string): Promise<string[]> {
   const cwd = getWorkspacePath();
   try {
-    const { stdout } = await execFileAsync('git', ['diff', '--name-only', commit], { cwd });
-    return stdout.trim() ? stdout.trim().split('\n') : [];
+    const [{ stdout: diffOutput }, { stdout: untrackedOutput }] = await Promise.all([
+      execFileAsync('git', ['diff', '--name-only', commit], { cwd }),
+      execFileAsync('git', ['ls-files', '--others', '--exclude-standard'], { cwd }),
+    ]);
+    return [...new Set([...diffOutput.split('\n'), ...untrackedOutput.split('\n')].filter(Boolean))];
   } catch (error) {
     console.warn('[Workflow] getChangedFilesSince failed for commit', commit + ':', error instanceof Error ? error.message : 'Unknown error');
     return [];

@@ -71,3 +71,6 @@ hello*.txt
 docs/11_chat_agent_context/
 docs/NPM_PUBLISH_GUIDE.md
 kanban-development-guideline.md
+
+# Some other common ignores
+token-monitor/

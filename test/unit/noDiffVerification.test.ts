@@ -195,4 +195,73 @@ describe('checkNoDiffVerification', () => {
       await rm(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it('fails when a declared test file is missing despite another exclusive change', async () => {
+    const task = makeTask({
+      id: 't-test', docsPath: NO_DOCS, safePointCommit,
+      declaredFiles: { exclusive: [FIXTURE_FILE, 'test/missing.test.ts'], shared: [] },
+    });
+    const warning = await checkNoDiffVerification('t-test', task);
+    assert.match(warning ?? '', /declared test file is missing.*test\/missing\.test\.ts/);
+  });
+
+  it('accepts a newly created declared test file', async () => {
+    await mkdir(path.join(workspacePath, 'test'), { recursive: true });
+    await writeFile(path.join(workspacePath, 'test', 'created.test.ts'), 'export {};\n', 'utf-8');
+    const task = makeTask({
+      id: 't-test', docsPath: NO_DOCS, safePointCommit,
+      declaredFiles: { exclusive: [FIXTURE_FILE, './test/created.test.ts'], shared: [] },
+    });
+    assert.strictEqual(await checkNoDiffVerification('t-test', task), null);
+  });
+
+  it('fails when an existing declared test file was not changed', async () => {
+    await mkdir(path.join(workspacePath, 'test'), { recursive: true });
+    await writeFile(path.join(workspacePath, 'test', 'unchanged.test.ts'), 'export {};\n', 'utf-8');
+    await execFileAsync('git', ['add', 'test/unchanged.test.ts'], { cwd: workspacePath });
+    await execFileAsync('git', ['commit', '-m', 'add test fixture'], { cwd: workspacePath });
+    const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: workspacePath });
+    safePointCommit = stdout.trim();
+    const task = makeTask({
+      id: 't-test', docsPath: NO_DOCS, safePointCommit,
+      declaredFiles: { exclusive: [FIXTURE_FILE, 'test/unchanged.test.ts'], shared: [] },
+    });
+    const warning = await checkNoDiffVerification('t-test', task);
+    assert.match(warning ?? '', /was not created or changed.*unchanged\.test\.ts/);
+  });
+
+  it('validates test files declared as shared', async () => {
+    const task = makeTask({
+      id: 't-test', docsPath: NO_DOCS, safePointCommit,
+      declaredFiles: { exclusive: [FIXTURE_FILE], shared: ['tests/shared.spec.ts'] },
+    });
+    assert.match(await checkNoDiffVerification('t-test', task) ?? '', /missing.*tests\/shared\.spec\.ts/);
+  });
+
+  it('accepts a created test file declared as shared', async () => {
+    await mkdir(path.join(workspacePath, 'tests'), { recursive: true });
+    await writeFile(path.join(workspacePath, 'tests', 'shared.spec.ts'), 'export {};\n', 'utf-8');
+    const task = makeTask({
+      id: 't-test', docsPath: NO_DOCS, safePointCommit,
+      declaredFiles: { exclusive: [FIXTURE_FILE], shared: ['tests/shared.spec.ts'] },
+    });
+    assert.strictEqual(await checkNoDiffVerification('t-test', task), null);
+  });
+
+  it('does not require a declared test directory as if it were a file', async () => {
+    await mkdir(path.join(workspacePath, 'test'), { recursive: true });
+    const task = makeTask({
+      id: 't-test', docsPath: NO_DOCS, safePointCommit,
+      declaredFiles: { exclusive: [FIXTURE_FILE, 'test'], shared: [] },
+    });
+    assert.strictEqual(await checkNoDiffVerification('t-test', task), null);
+  });
+
+  it('rejects a declared test path that escapes the workspace', async () => {
+    const task = makeTask({
+      id: 't-test', docsPath: NO_DOCS, safePointCommit,
+      declaredFiles: { exclusive: [FIXTURE_FILE, '../outside.test.ts'], shared: [] },
+    });
+    assert.match(await checkNoDiffVerification('t-test', task) ?? '', /outside the workspace/);
+  });
 });

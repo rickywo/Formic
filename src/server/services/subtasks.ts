@@ -7,6 +7,38 @@ import { getWorkspacePath } from '../utils/paths.js';
 const SUBTASKS_FILENAME = 'subtasks.json';
 
 /**
+ * Automated engineering work must be performed by the agent, not deferred to
+ * review.  These expressions intentionally include commands as well as their
+ * natural-language descriptions so a subtask cannot bypass the policy by
+ * calling `npm test` a "manual check".
+ */
+const AUTOMATED_SUBTASK_PATTERNS: RegExp[] = [
+  /\b(?:write|add|create|implement|update)\b.{0,80}\b(?:test|tests|spec|specs|fixture|fixtures)\b/i,
+  /\b(?:run|execute)\b.{0,80}\b(?:test|tests|spec|specs|type[ -]?check|tsc|build|compile|lint|fixture|fixtures)\b/i,
+  /\b(?:unit|integration|e2e|end[ -]?to[ -]?end|regression)\s+tests?\b/i,
+  /\b(?:type[ -]?check|tsc|npm\s+(?:run\s+)?(?:test|build|lint)|pnpm\s+(?:run\s+)?(?:test|build|lint)|yarn\s+(?:test|build|lint)|pytest|playwright)\b/i,
+  /\b(?:build|compile|lint)\b/i,
+  /\blocal(?:ly)?\b.{0,80}\b(?:fixture|test|verification)\b/i,
+];
+
+/** Returns skipped subtasks that represent locally automatable engineering work. */
+export function getInvalidSkippedSubtasks(subtasks: SubtasksFile): Subtask[] {
+  return subtasks.subtasks.filter((subtask) =>
+    subtask.status === 'skipped' && AUTOMATED_SUBTASK_PATTERNS.some((pattern) => pattern.test(subtask.content))
+  );
+}
+
+/** Formats a deterministic, actionable warning suitable for a verification gate. */
+export function formatInvalidSkippedSubtasksWarning(taskId: string, subtasks: SubtasksFile): string | null {
+  const invalid = getInvalidSkippedSubtasks(subtasks);
+  if (invalid.length === 0) return null;
+
+  const offenders = invalid.map((subtask) => `${subtask.id} (${subtask.content})`).join('; ');
+  return `Verification failed for ${taskId}: skipped automated subtask(s): ${offenders}. ` +
+    'Complete locally automatable engineering work instead of marking it skipped.';
+}
+
+/**
  * Get the path to the subtasks.json file for a task
  */
 export function getSubtasksPath(docsPath: string): string {

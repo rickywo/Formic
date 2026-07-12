@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { readFile, mkdir, appendFile, access } from 'node:fs/promises';
+import { readFile, mkdir, appendFile, access, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask, withBoard } from './store.js';
@@ -12,6 +12,7 @@ import {
   isAllComplete,
   getCompletionStats,
   formatIncompleteSubtasksForPrompt,
+  formatInvalidSkippedSubtasksWarning,
   subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir, getTaskLogsDir } from '../utils/paths.js';
@@ -99,13 +100,16 @@ export async function checkNoDiffVerification(taskId: string, task: Task): Promi
     return null;
   }
 
-  let warnings: string[] = [];
+  const warnings: string[] = [];
 
   // -- Primary gate: changed files vs safe point ---------------------------
   let primaryWarning: string | null = null;
 
   const changedFiles = await getChangedFilesSince(safePoint);
-  const declaredExclusive = task.declaredFiles?.exclusive ?? [];
+  const workspacePath = getWorkspacePath();
+  const declaredExclusive = (task.declaredFiles?.exclusive ?? [])
+    .map((declaredPath) => normalizeWorkspaceRelativeFilePath(declaredPath, workspacePath))
+    .filter((declaredPath): declaredPath is string => declaredPath !== null);
   if (declaredExclusive.length > 0) {
     // Standard / declare-path task — check that at least one exclusive file
     // appears in the diff.
@@ -126,6 +130,36 @@ export async function checkNoDiffVerification(taskId: string, task: Task): Promi
     }
   }
 
+  // Every explicitly declared test file is a required deliverable.  Do this
+  // independently from the broad "one exclusive file changed" check so an
+  // unrelated source edit cannot hide an omitted test.
+  const declaredFiles = [...(task.declaredFiles?.exclusive ?? []), ...(task.declaredFiles?.shared ?? [])];
+  for (const declaredFile of declaredFiles) {
+    const normalizedPath = normalizeWorkspaceRelativeFilePath(declaredFile, workspacePath);
+    if (!normalizedPath) {
+      if (isConventionalTestPath(declaredFile)) {
+        warnings.push(`declared test path is outside the workspace or invalid: ${declaredFile}`);
+      }
+      continue;
+    }
+    if (!isConventionalTestPath(normalizedPath)) continue;
+
+    const absolutePath = path.join(workspacePath, normalizedPath);
+    let isRegularFile = false;
+    try {
+      isRegularFile = (await stat(absolutePath)).isFile();
+    } catch {
+      // A missing declared test is an explicit verification failure below.
+    }
+    if (!isRegularFile) {
+      warnings.push(`declared test file is missing or not a regular file: ${normalizedPath}`);
+      continue;
+    }
+    if (!changedFiles.includes(normalizedPath)) {
+      warnings.push(`declared test file was not created or changed since safe point: ${normalizedPath}`);
+    }
+  }
+
   // -- Secondary gate: missing subtasks.json --------------------------------
   // This is always logged but only contributes to the verificationWarning
   // message when the primary (diff) gate also fired — it amplifies the
@@ -135,16 +169,10 @@ export async function checkNoDiffVerification(taskId: string, task: Task): Promi
     console.warn(`[Workflow] subtasks.json is missing for ${taskId} (plan step may have failed silently)`);
   }
 
-  if (primaryWarning === null) {
-    // Diff gate passed — everything is fine.
-    return null;
-  }
-
-  // Diff gate fired — build the full warning message.
   if (primaryWarning) {
     warnings.push(primaryWarning);
   }
-  if (missingSubtasks) {
+  if (primaryWarning && missingSubtasks) {
     warnings.push(`subtasks.json is missing (plan step may have failed silently)`);
   }
 
@@ -153,6 +181,48 @@ export async function checkNoDiffVerification(taskId: string, task: Task): Promi
   const message = `Verification failed for ${taskId}: ${warnings.join('; ')}`;
   console.warn(`[Workflow] ${message}`);
   return message;
+}
+
+/** Normalize a declared path without allowing it to escape the workspace. */
+function normalizeWorkspaceRelativeFilePath(declaredPath: string, workspacePath: string): string | null {
+  if (!declaredPath || path.isAbsolute(declaredPath)) return null;
+  const absolutePath = path.resolve(workspacePath, declaredPath);
+  const relativePath = path.relative(workspacePath, absolutePath);
+  if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
+    return null;
+  }
+  return relativePath.split(path.sep).join('/');
+}
+
+/** Identifies conventional, explicitly named test files rather than directories. */
+function isConventionalTestPath(filePath: string): boolean {
+  const normalizedPath = filePath.replaceAll('\\', '/').replace(/^\.\//, '');
+  const basename = path.posix.basename(normalizedPath);
+  return /\.(?:test|spec)\.[^/]+$/i.test(basename) ||
+    (/(?:^|\/)(?:test|tests|__tests__)\//i.test(normalizedPath) && path.posix.extname(basename) !== '');
+}
+
+/** Validates skipped subtasks immediately before task completion. */
+export async function checkSkippedSubtaskVerification(taskId: string, docsPath: string): Promise<string | null> {
+  const subtasks = await loadSubtasks(docsPath);
+  return subtasks ? formatInvalidSkippedSubtasksWarning(taskId, subtasks) : null;
+}
+
+/** Runs all deterministic completion gates and persists an actionable warning. */
+async function hasVerificationFailure(taskId: string, task: Task): Promise<boolean> {
+  const warnings = [
+    await checkSkippedSubtaskVerification(taskId, task.docsPath),
+    await checkNoDiffVerification(taskId, task),
+  ].filter((warning): warning is string => warning !== null);
+  if (warnings.length === 0) return false;
+
+  const warning = warnings.join('; ');
+  console.warn(`[Workflow] ${warning}`);
+  await updateTask(taskId, { verificationWarning: warning });
+  broadcastToTask(taskId, { type: 'error', data: `\n[VERIFICATION FAILED] ${warning}\n`, timestamp: new Date().toISOString() });
+  await incrementRetryCount(taskId, 'workflow.verification_gate');
+  await updateTaskStatus(taskId, 'todo', null, 'workflow.verification_gate');
+  return true;
 }
 
 // Store WebSocket connections per task (shared with runner)
@@ -337,7 +407,7 @@ Context: ${task.context}
 
 Follow the PLAN.md step by step. As you complete each subtask, update its status in subtasks.json to "completed".
 
-IMPORTANT: For subtasks that require manual verification, interactive testing, or cannot be automated (e.g., "Test with different environment variables", "Verify manually", "Test in browser"), mark their status as "skipped" instead of leaving them pending. This indicates the subtask needs human verification during review.
+IMPORTANT: Mark a subtask "skipped" only when it genuinely requires subjective human judgment or unavailable external-system access. Never skip writing or running tests, type-checking, builds, linting, or local fixture verification. Required local commands remain non-skippable even if setup is needed or a prior attempt failed.
 
 All code changes MUST comply with the project development guidelines provided above.`;
 }
@@ -370,7 +440,7 @@ Context: ${task.context}
 
 Please continue working on the incomplete subtasks listed above. As you complete each one, update its status in subtasks.json to "completed".
 
-IMPORTANT: If a subtask requires manual verification, interactive testing, or cannot be automated (e.g., requires different environment variables, needs a running server, requires human verification), mark its status as "skipped" in subtasks.json. Do not leave them pending if you cannot complete them.
+IMPORTANT: Only subjective human review or unavailable external-system access may be "skipped". Locally automatable work—including creating tests, running tests, type-checking, builds, linting, and fixture verification—must be completed, even when setup is required or an earlier command failed.
 
 All code changes MUST comply with the project development guidelines provided above.`;
 }
@@ -1352,11 +1422,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
       }
 
       if (success) {
-        // No-diff verification gate: warn if the execute step changed nothing
-        const noDiffWarning = await checkNoDiffVerification(taskId, task);
-        if (noDiffWarning) {
-          await updateTask(taskId, { verificationWarning: noDiffWarning });
-        }
+        if (await hasVerificationFailure(taskId, task)) return;
 
         const verifyResult = await executeVerifyStep(taskId);
         if (!verifyResult.success) {
@@ -1470,10 +1536,8 @@ export async function executeSingleStep(
           // All subtasks complete - move to review
           console.warn(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
 
-          // No-diff verification gate: warn if the execute step changed nothing
-          const noDiffWarning = await checkNoDiffVerification(taskId, task);
-          if (noDiffWarning) {
-            await updateTask(taskId, { verificationWarning: noDiffWarning });
+          if (await hasVerificationFailure(taskId, task)) {
+            return { success: false, pid: process.pid };
           }
 
           await updateWorkflowStep(taskId, 'complete');
@@ -1486,10 +1550,8 @@ export async function executeSingleStep(
           // Max iterations reached but not all complete - still move to review with warning
           console.warn(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
 
-          // No-diff verification gate: warn if the execute step changed nothing
-          const noDiffWarning = await checkNoDiffVerification(taskId, task);
-          if (noDiffWarning) {
-            await updateTask(taskId, { verificationWarning: noDiffWarning });
+          if (await hasVerificationFailure(taskId, task)) {
+            return { success: false, pid: process.pid };
           }
 
           await updateWorkflowStep(taskId, 'complete');
@@ -1791,11 +1853,7 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         // Guard against stale status updates: check if watchdog has already re-queued the task
         const latestTask = await getTask(taskId);
         if (latestTask && latestTask.status === 'running') {
-          // No-diff verification gate: warn if the execute step changed nothing
-          const noDiffWarning = await checkNoDiffVerification(taskId, latestTask);
-          if (noDiffWarning) {
-            await updateTask(taskId, { verificationWarning: noDiffWarning });
-          }
+          if (await hasVerificationFailure(taskId, latestTask)) return;
 
           const verifyResult = await executeVerifyStep(taskId);
           if (!verifyResult.success) {
@@ -1937,11 +1995,7 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
         if (executeResult.success) {
           const latestTask = await getTask(taskId);
           if (latestTask && latestTask.status === 'running') {
-            // No-diff verification gate: warn if the execute step changed nothing
-            const noDiffWarning = await checkNoDiffVerification(taskId, latestTask);
-            if (noDiffWarning) {
-              await updateTask(taskId, { verificationWarning: noDiffWarning });
-            }
+            if (await hasVerificationFailure(taskId, latestTask)) return;
 
             const verifyResult = await executeVerifyStep(taskId);
             if (!verifyResult.success) {
