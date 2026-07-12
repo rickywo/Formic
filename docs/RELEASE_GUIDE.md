@@ -64,7 +64,8 @@ You need:
 - An npm account allowed to publish `@rickywo/formic`
 - GitHub CLI installed and authenticated
 - Docker installed if you want to test images locally
-- Node.js 20 or later
+- Node.js 20 or later — but the release workflow and both Dockerfiles use **Node.js 22**. Install Node.js 22 locally so your build and test results match CI exactly.
+- `ripgrep` (the `rg` command), used by the version-search steps in section 5. Install it with `brew install ripgrep` (macOS) or `sudo apt-get install ripgrep` (Debian/Ubuntu). If you cannot install it, every `rg` command below has a `grep` fallback noted inline.
 
 Check the installed tools:
 
@@ -74,7 +75,10 @@ npm --version
 git --version
 gh --version
 docker --version
+rg --version
 ```
+
+`node --version` should print `v22.x` (or at minimum `v20.x`).
 
 Check GitHub authentication:
 
@@ -280,6 +284,12 @@ Find old references:
 rg -n "0\\.8\\.0|v0\\.8\\.0" README.md
 ```
 
+If you do not have `ripgrep`, use `grep` instead:
+
+```bash
+grep -nE "0\.8\.0|v0\.8\.0" README.md
+```
+
 Do not change unrelated dependency versions such as:
 
 ```text
@@ -300,7 +310,33 @@ rg -n "0\\.8\\.0|v0\\.8\\.0" \
   docker-compose.yml
 ```
 
+Without `ripgrep`, use `grep`:
+
+```bash
+grep -nE "0\.8\.0|v0\.8\.0" \
+  package.json \
+  package-lock.json \
+  README.md \
+  Dockerfile \
+  Dockerfile.devcontainer \
+  docker-compose.yml
+```
+
 Review every result. Historical release documentation may keep old versions where appropriate.
+
+### 5.7 Add an in-repo release notes file
+
+Formic keeps a release notes file per version in the repository root
+(`RELEASE_NOTES_v0.7.3.md` and earlier). Create one for this release so the
+history stays complete:
+
+```bash
+cp RELEASE_NOTES_v0.7.3.md RELEASE_NOTES_v0.9.0.md
+```
+
+Edit `RELEASE_NOTES_v0.9.0.md` to describe this version's changes. You will
+reuse this content for the GitHub Release page in section 10. Include this file
+in the release-preparation commit in section 7.2.
 
 ---
 
@@ -337,6 +373,13 @@ npm run build
 ```bash
 npm test
 ```
+
+> **Do not skip this.** The automated release workflow does **not** run the unit
+> test suite — it only gates on secret scanning and the tarball audit. This
+> local `npm test` is the *only* thing standing between a broken build and a
+> published npm version, and npm versions cannot be overwritten once published.
+> Every test must pass (the final line should report `fail 0`) before you
+> continue. If any test fails, stop and fix it before releasing.
 
 ### 6.4 Audit the npm package
 
@@ -422,6 +465,7 @@ README.md
 Dockerfile
 Dockerfile.devcontainer
 docker-compose.yml
+RELEASE_NOTES_v0.9.0.md
 ```
 
 Do not include unrelated files.
@@ -435,7 +479,8 @@ git add \
   README.md \
   Dockerfile \
   Dockerfile.devcontainer \
-  docker-compose.yml
+  docker-compose.yml \
+  RELEASE_NOTES_v0.9.0.md
 ```
 
 Review the staged changes:
@@ -531,6 +576,11 @@ git ls-remote --tags origin v0.9.0
 Both commands should return nothing. If the tag exists, stop. Never reuse a published version.
 
 ### 8.4 Create and inspect the tag
+
+> The workflow's first job (`validate-release`) fails immediately if the tag
+> version does not exactly match the `version` field in `package.json`. Because
+> you release `v0.9.0`, `package.json` must contain `0.9.0` (confirmed in
+> section 8.2). The tag carries the `v` prefix; `package.json` does not.
 
 ```bash
 git tag -a v0.9.0 -m "Release v0.9.0"
@@ -702,6 +752,33 @@ formic --version
 
 ## 12. Verify the Docker images
 
+### 12.0 First release only: make the GHCR packages public
+
+**The very first time an image is pushed, GitHub creates the GHCR package as
+private.** A private package cannot be pulled by other people (or by an
+unauthenticated `docker pull`), so the verification commands below will fail
+with a `denied` / `not found` error until you change the visibility. You only
+need to do this once per package — later releases inherit the setting.
+
+All tags — `0.9.0`, `0.9`, `latest`, and `0.9.0-devcontainer` — live under a
+single GHCR package named `formic`, so you only change visibility once:
+
+1. Open your packages list:
+
+   ```text
+   https://github.com/users/rickywo/packages
+   ```
+
+2. Click the `formic` container package.
+3. Open **Package settings** (right-hand side).
+4. Under **Danger Zone → Change visibility**, set it to **Public** and confirm.
+5. Under **Manage Actions access** (or **Repository access**), confirm the
+   `rickywo/Formic` repository is linked so future workflow runs can push.
+
+If you are logged in to GHCR locally (`docker login ghcr.io`), a private image
+will still pull for *you* — always test the visibility from an incognito
+context or ask someone else to pull, or run `docker logout ghcr.io` first.
+
 ### 12.1 Verify the runtime image
 
 ```bash
@@ -758,12 +835,27 @@ docker ps --filter name=formic-release-test
 docker logs formic-release-test
 ```
 
-Check its health endpoint:
+Check its health endpoint. `/api/health` is deliberately exempt from
+authentication (it is the Docker health-check target and returns no sensitive
+data), so **no** token is needed and it should return `{"status":"ok"}`:
 
 ```bash
-curl \
+curl http://localhost:8001/api/health
+```
+
+Now confirm authentication is actually enforced on the real API. Without a
+token, `/api/board` must return `401 Unauthorized`:
+
+```bash
+curl -o /dev/null -w "%{http_code}\n" http://localhost:8001/api/board
+```
+
+With the correct token, the same endpoint returns `200`:
+
+```bash
+curl -o /dev/null -w "%{http_code}\n" \
   -H "Authorization: Bearer $FORMIC_AUTH_TOKEN" \
-  http://localhost:8001/api/health
+  http://localhost:8001/api/board
 ```
 
 Stop it:
@@ -785,8 +877,9 @@ The release is complete only when every applicable item is checked:
 - [ ] Both Dockerfiles use `FORMIC_VERSION=0.9.0`
 - [ ] Docker Compose uses `ghcr.io/rickywo/formic:0.9.0`
 - [ ] README release references and notes are updated
+- [ ] `RELEASE_NOTES_v0.9.0.md` added to the repository
 - [ ] `npm run build` passes
-- [ ] `npm test` passes
+- [ ] `npm test` passes locally (CI does **not** run it)
 - [ ] npm tarball audit passes
 - [ ] Tag `v0.9.0` points to the merged release commit on `main`
 - [ ] GitHub release workflow is completely green
@@ -794,6 +887,7 @@ The release is complete only when every applicable item is checked:
 - [ ] npm `latest` points to `0.9.0`
 - [ ] Runtime images `0.9.0`, `0.9`, and `latest` exist
 - [ ] Dev-container image `0.9.0-devcontainer` exists
+- [ ] GHCR package visibility is **Public** (first release only)
 - [ ] GitHub Release page exists
 - [ ] Published CLI works
 - [ ] Runtime container health check succeeds
@@ -822,6 +916,39 @@ Rerun only failed jobs:
 gh run rerun RUN_ID --failed
 gh run watch RUN_ID --exit-status
 ```
+
+### The Docker job failed on a Trivy vulnerability scan
+
+The `docker` and `devcontainer` jobs build the image, scan it with Trivy, and
+push **only if the scan is clean**. The scan fails the job on any `HIGH` or
+`CRITICAL` finding, and it is configured with `ignore-unfixed: false`, so it
+also fails on vulnerabilities that have **no fix available yet** — these come
+from the `node:22` base image, not from Formic's own code, and there may be
+nothing you can directly patch.
+
+If a release is blocked this way:
+
+1. Read the Trivy output in the failed job log to see which package and CVE
+   triggered it, and whether a fixed version exists.
+2. If a fix exists, bump the base image. Pull the latest digest and update the
+   `FROM node:22-slim@sha256:...` line in `Dockerfile` (and the
+   `node:22-bookworm` line in `Dockerfile.devcontainer`):
+
+   ```bash
+   docker pull node:22-slim
+   docker inspect node:22-slim --format='{{ index .RepoDigests 0 }}'
+   ```
+
+   Commit the new digest via a patch release and re-tag.
+3. If the finding is **unfixable** (no upstream patch) and you accept the risk,
+   either add a Trivy ignore entry for that specific CVE (a `.trivyignore`
+   file listing the CVE ID) or, as a last resort, set `ignore-unfixed: true`
+   on the Trivy steps in `.github/workflows/release.yml`. Prefer the
+   per-CVE `.trivyignore` so unrelated new vulnerabilities are still caught.
+4. Because npm may already have published by the time the Docker job runs,
+   fix the scan issue and **rerun only the failed jobs** (below) rather than
+   cutting a new npm version — unless you also changed `Dockerfile`, which
+   requires a new patch tag.
 
 ### npm succeeded but Docker failed
 
