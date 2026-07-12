@@ -4,7 +4,7 @@ services:
   formic:
     # Pin to the published registry image for production deployments.
     # For local development, uncomment `build: .` and comment out `image:`.
-    image: ghcr.io/rickywo/formic:0.8.0
+    image: docker.io/rickywo/formic:0.9.0
     # build: .
     ports:
       - "${PORT:-8000}:8000"
