@@ -48,9 +48,47 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
+# Starship prompt — installed from a pinned GitHub release binary and verified
+# against its published SHA-256. We deliberately do NOT use the upstream
+# `curl … | sh` installer (unpinned remote code execution at build time) or
+# `sudo` (not present in this image by design). arm64 Linux ships only a musl
+# build; x86_64 ships gnu.
+# ---------------------------------------------------------------------------
+ARG STARSHIP_VERSION=1.26.0
+RUN set -eux; \
+    arch="$(dpkg --print-architecture)"; \
+    case "$arch" in \
+      amd64) target="x86_64-unknown-linux-gnu" ;; \
+      arm64) target="aarch64-unknown-linux-musl" ;; \
+      *) echo "unsupported architecture: $arch" >&2; exit 1 ;; \
+    esac; \
+    base="https://github.com/starship/starship/releases/download/v${STARSHIP_VERSION}"; \
+    curl -fsSL -o /tmp/starship.tar.gz "${base}/starship-${target}.tar.gz"; \
+    curl -fsSL -o /tmp/starship.sha256 "${base}/starship-${target}.tar.gz.sha256"; \
+    printf '%s  /tmp/starship.tar.gz\n' "$(cut -d' ' -f1 /tmp/starship.sha256)" | sha256sum -c -; \
+    tar -xzf /tmp/starship.tar.gz -C /usr/local/bin starship; \
+    rm -f /tmp/starship.tar.gz /tmp/starship.sha256; \
+    starship --version
+
+# ---------------------------------------------------------------------------
 # Developer user (NO sudoers entry — no NOPASSWD:ALL, no wheel group)
 # ---------------------------------------------------------------------------
 RUN useradd --create-home --shell /usr/bin/zsh developer
+
+# ---------------------------------------------------------------------------
+# Developer home: pre-create the XDG directories the agent CLIs write to and
+# ship a .zshrc. Pre-creating the OpenCode mount points (and ~/.local/state)
+# as developer-owned stops Docker from auto-creating their parents as root at
+# runtime — which is what made ~/.local/state unwritable (EACCES) when the
+# host volumes were bind-mounted. Shipping .zshrc also enables the starship
+# prompt and suppresses zsh's first-run setup wizard.
+# ---------------------------------------------------------------------------
+RUN mkdir -p /home/developer/.config/opencode \
+             /home/developer/.local/share/opencode \
+             /home/developer/.local/state \
+             /home/developer/.cache \
+    && printf 'eval "$(starship init zsh)"\n' > /home/developer/.zshrc \
+    && chown -R developer:developer /home/developer
 
 # ---------------------------------------------------------------------------
 # Agent CLIs (globally installed, pinned by exact version)
