@@ -4,9 +4,30 @@ This guide explains the complete release process for a non-technical maintainer,
 
 - GitHub Releases
 - npm (`@rickywo/formic`)
-- GitHub Container Registry (`ghcr.io/rickywo/formic`)
+- Docker Hub (`docker.io/rickywo/formic`)
 
-The repository automatically publishes npm and Docker releases through `.github/workflows/release.yml` when a version tag such as `v0.9.0` is pushed. During a normal release, do **not** run `npm publish` or `docker push` manually.
+## Two ways to release
+
+There are two supported release paths. **Use one or the other for a given
+version — never both**, or they will try to publish the same artifacts twice.
+
+1. **Automated (CI) — the default.** Push a version tag such as `v0.9.0` and
+   `.github/workflows/release.yml` publishes npm and both Docker images
+   automatically. Sections 3–14 below describe this path in full. During a CI
+   release, do **not** run `npm publish` or `docker push` manually.
+
+2. **Interactive local script — for hands-on 2FA.** Run `./scripts/release.sh`
+   to publish from your own machine, entering your npm one-time password (2FA)
+   and Docker Hub login interactively when prompted. Every publish/push step is
+   an individual yes/no prompt, so you can let it do everything or skip whatever
+   you'd rather CI handle. See **section 15**.
+
+   > If you publish with the script **and** push the tag, the CI workflow will
+   > fire and try to publish the same version — its publish steps then fail with
+   > "already exists" (harmless but noisy). Pick one path per version.
+
+Either way, complete the version bump and release-preparation PR (sections 4–7)
+first so `package.json`, the Dockerfiles, and the docs all carry the new version.
 
 The examples below release version `0.9.0`. Replace `0.9.0` everywhere if you are releasing another version.
 
@@ -103,11 +124,12 @@ https://github.com/rickywo/Formic/settings/secrets/actions
 Confirm these repository secrets exist:
 
 - `NPM_TOKEN`: an npm automation or granular token allowed to publish `@rickywo/formic`
-- `REGISTRY_TOKEN`: a GitHub personal access token with at least `write:packages`
+- `DOCKERHUB_USERNAME`: your Docker Hub account name (the namespace of the image repo, e.g. `rickywo`)
+- `DOCKERHUB_TOKEN`: a Docker Hub access token with at least **Read, Write, Delete** scope, created at <https://hub.docker.com/settings/security>
 
-The registry token may also require `read:packages` and `repo` when private resources are involved.
+Create the Docker Hub repository `rickywo/formic` in advance (or enable auto-create on push) so the first release has somewhere to publish.
 
-Never paste either token into a source file, terminal command stored in Git, pull request, issue, or release note.
+Never paste any of these tokens into a source file, terminal command stored in Git, pull request, issue, or release note.
 
 ### 2.3 Check the npm release environment
 
@@ -265,7 +287,7 @@ ARG FORMIC_VERSION=0.9.0
 In `docker-compose.yml`, change the Formic image to:
 
 ```yaml
-image: ghcr.io/rickywo/formic:0.9.0
+image: docker.io/rickywo/formic:0.9.0
 ```
 
 ### 5.5 Update README.md
@@ -641,15 +663,15 @@ Expected npm package:
 Expected runtime Docker tags:
 
 ```text
-ghcr.io/rickywo/formic:0.9.0
-ghcr.io/rickywo/formic:0.9
-ghcr.io/rickywo/formic:latest
+docker.io/rickywo/formic:0.9.0
+docker.io/rickywo/formic:0.9
+docker.io/rickywo/formic:latest
 ```
 
 Expected dev-container tag:
 
 ```text
-ghcr.io/rickywo/formic:0.9.0-devcontainer
+docker.io/rickywo/formic:0.9.0-devcontainer
 ```
 
 The current workflow builds `linux/amd64`, not a multi-platform image.
@@ -686,13 +708,13 @@ npm install -g @rickywo/formic@0.9.0
 ## Docker runtime
 
 ```bash
-docker pull ghcr.io/rickywo/formic:0.9.0
+docker pull docker.io/rickywo/formic:0.9.0
 ```
 
 ## Dev container
 
 ```bash
-docker pull ghcr.io/rickywo/formic:0.9.0-devcontainer
+docker pull docker.io/rickywo/formic:0.9.0-devcontainer
 ```
 ````
 
@@ -752,38 +774,35 @@ formic --version
 
 ## 12. Verify the Docker images
 
-### 12.0 First release only: make the GHCR packages public
+### 12.0 First release only: confirm the Docker Hub repo is public
 
-**The very first time an image is pushed, GitHub creates the GHCR package as
-private.** A private package cannot be pulled by other people (or by an
-unauthenticated `docker pull`), so the verification commands below will fail
-with a `denied` / `not found` error until you change the visibility. You only
-need to do this once per package — later releases inherit the setting.
+**The first push auto-creates the `rickywo/formic` repository on Docker Hub, and
+its visibility follows your account default — which may be private.** A private
+repository cannot be pulled by other people (or by an unauthenticated
+`docker pull`), so the verification commands below will fail with a
+`denied` / `not found` error until you make it public. You only need to do this
+once — later releases reuse the same repository and its setting.
 
-All tags — `0.9.0`, `0.9`, `latest`, and `0.9.0-devcontainer` — live under a
-single GHCR package named `formic`, so you only change visibility once:
+All tags — `0.9.0`, `0.9`, `latest`, and `0.9.0-devcontainer` — live under the
+single repository `rickywo/formic`, so you change visibility once:
 
-1. Open your packages list:
+1. Open the repository settings:
 
    ```text
-   https://github.com/users/rickywo/packages
+   https://hub.docker.com/r/rickywo/formic/settings
    ```
 
-2. Click the `formic` container package.
-3. Open **Package settings** (right-hand side).
-4. Under **Danger Zone → Change visibility**, set it to **Public** and confirm.
-5. Under **Manage Actions access** (or **Repository access**), confirm the
-   `rickywo/Formic` repository is linked so future workflow runs can push.
+2. Under **Visibility settings**, set it to **Public** and confirm.
 
-If you are logged in to GHCR locally (`docker login ghcr.io`), a private image
-will still pull for *you* — always test the visibility from an incognito
-context or ask someone else to pull, or run `docker logout ghcr.io` first.
+If you are logged in to Docker Hub locally (`docker login docker.io`), a private
+image will still pull for *you* — always test the visibility from an incognito
+context or ask someone else to pull, or run `docker logout docker.io` first.
 
 ### 12.1 Verify the runtime image
 
 ```bash
-docker pull ghcr.io/rickywo/formic:0.9.0
-docker inspect ghcr.io/rickywo/formic:0.9.0 \
+docker pull docker.io/rickywo/formic:0.9.0
+docker inspect docker.io/rickywo/formic:0.9.0 \
   --format '{{ index .Config.Labels "org.opencontainers.image.version" }}'
 ```
 
@@ -792,16 +811,16 @@ The label must print `0.9.0`.
 Pull the floating runtime tags:
 
 ```bash
-docker pull ghcr.io/rickywo/formic:0.9
-docker pull ghcr.io/rickywo/formic:latest
+docker pull docker.io/rickywo/formic:0.9
+docker pull docker.io/rickywo/formic:latest
 ```
 
 ### 12.2 Verify the dev-container
 
 ```bash
-docker pull ghcr.io/rickywo/formic:0.9.0-devcontainer
+docker pull docker.io/rickywo/formic:0.9.0-devcontainer
 docker run --rm \
-  ghcr.io/rickywo/formic:0.9.0-devcontainer \
+  docker.io/rickywo/formic:0.9.0-devcontainer \
   formic --version
 ```
 
@@ -825,7 +844,7 @@ docker run --rm -d \
   -e HOST=0.0.0.0 \
   -e FORMIC_AUTH_TOKEN="$FORMIC_AUTH_TOKEN" \
   -v /tmp/formic-release-workspace:/app/workspace \
-  ghcr.io/rickywo/formic:0.9.0
+  docker.io/rickywo/formic:0.9.0
 ```
 
 Inspect it:
@@ -875,7 +894,7 @@ The release is complete only when every applicable item is checked:
 - [ ] `package.json` contains `0.9.0`
 - [ ] Both package-lock version fields contain `0.9.0`
 - [ ] Both Dockerfiles use `FORMIC_VERSION=0.9.0`
-- [ ] Docker Compose uses `ghcr.io/rickywo/formic:0.9.0`
+- [ ] Docker Compose uses `docker.io/rickywo/formic:0.9.0`
 - [ ] README release references and notes are updated
 - [ ] `RELEASE_NOTES_v0.9.0.md` added to the repository
 - [ ] `npm run build` passes
@@ -887,7 +906,7 @@ The release is complete only when every applicable item is checked:
 - [ ] npm `latest` points to `0.9.0`
 - [ ] Runtime images `0.9.0`, `0.9`, and `latest` exist
 - [ ] Dev-container image `0.9.0-devcontainer` exists
-- [ ] GHCR package visibility is **Public** (first release only)
+- [ ] Docker Hub repo `rickywo/formic` visibility is **Public** (first release only)
 - [ ] GitHub Release page exists
 - [ ] Published CLI works
 - [ ] Runtime container health check succeeds
@@ -965,4 +984,63 @@ npm deprecate @rickywo/formic@0.9.0 "Please upgrade to 0.9.1"
 ```
 
 Do not delete or reuse the `v0.9.0` tag after npm or Docker artifacts have been published. Create a new patch release instead.
+
+---
+
+## 15. Alternative: the interactive local release script
+
+If you prefer to publish from your own machine and enter your npm 2FA one-time
+password and Docker Hub login by hand, use `./scripts/release.sh` instead of the
+CI path. Reminder: **use the script or a CI tag push for a given version, not
+both.**
+
+### 15.1 Prerequisites
+
+- Everything in section 2.1 (`node`, `npm`, `docker`, `git`, `gh`), plus the
+  version bump / release-prep PR from sections 4–7 already merged so
+  `package.json` contains `0.9.0`.
+- Logged-in-capable accounts: an npm account with publish rights (2FA is fine —
+  the script prompts for the OTP), a Docker Hub account that can push to
+  `rickywo/formic`, and `gh` for the Release page.
+- Optional: `trivy` installed locally. If present, the script scans each image
+  before pushing; if absent, it warns and skips the local scan (CI still scans).
+
+### 15.2 Run it
+
+```bash
+./scripts/release.sh
+```
+
+The script walks through, pausing for a yes/no answer before each action:
+
+1. **Preflight** — verifies the tools, that `package.json` and
+   `package-lock.json` agree on `0.9.0`, that the working tree is clean, and
+   that the `v0.9.0` tag does not already exist.
+2. **Build, test, audit** — `npm ci`, `npm run build`, `npm test`, and the
+   tarball audit. The release stops here if any fail.
+3. **npm publish** — logs you in if needed and runs `npm publish --access public`.
+   When 2FA is enabled, npm prompts for your one-time password at this point.
+   (Local publishes do not attach provenance; only the CI path does.)
+4. **npm propagation** — polls the registry until `0.9.0` is visible, because
+   the dev-container image installs Formic from npm.
+5. **Docker** — `docker login docker.io`, then builds, optionally scans, and
+   pushes the runtime tags (`0.9.0`, `0.9`, `latest`) and the
+   `0.9.0-devcontainer` tag.
+6. **Git tag** — creates and pushes `v0.9.0` (with the CI-collision warning).
+7. **GitHub Release** — creates the Release page from
+   `RELEASE_NOTES_v0.9.0.md`.
+
+### 15.3 Override the image namespace
+
+To publish under a different Docker Hub namespace or repository:
+
+```bash
+DOCKER_IMAGE=youraccount/formic ./scripts/release.sh
+```
+
+### 15.4 After the script
+
+Run the same verification as sections 11–12 (npm version, `docker pull`,
+container health check) and, for the first release, set the Docker Hub repo to
+**Public** (section 12.0).
 
