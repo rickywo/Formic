@@ -470,6 +470,12 @@ export interface MessagingSession {
 export interface MessagingStore {
   version: string;
   sessions: MessagingSession[];
+  /**
+   * Random secret registered with Telegram as `secret_token` and required on
+   * incoming webhook updates. Only persisted when TELEGRAM_WEBHOOK_SECRET is
+   * not provided via the environment.
+   */
+  telegramWebhookSecret?: string;
 }
 
 /** Parsed command from a messaging platform */

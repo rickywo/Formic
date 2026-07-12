@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 import type {
   IncomingMessage,
   OutgoingMessage,
@@ -11,7 +12,7 @@ import {
   getMessagingConfig,
   parseCommand,
 } from './messagingAdapter.js';
-import { getSessionAI } from './messagingStore.js';
+import { getSessionAI, updateMessagingStore } from './messagingStore.js';
 
 /**
  * Telegram Adapter Service
@@ -552,15 +553,76 @@ export function handleTelegramWebhookAsync(
 }
 
 /**
+ * Resolve the webhook secret used to authenticate incoming Telegram updates.
+ *
+ * Priority: TELEGRAM_WEBHOOK_SECRET env var (format-validated), then a
+ * previously persisted value in messaging.json, else a fresh random secret
+ * that is persisted for subsequent restarts. Telegram echoes this value back
+ * on every update in the X-Telegram-Bot-Api-Secret-Token header.
+ *
+ * Concurrent first calls converge on a single generated-and-persisted secret
+ * via promise-based memoization — no load-generate-save races.
+ */
+
+/** Telegram secret_token format: 1-256 chars, A-Za-z0-9_- only. */
+const TELEGRAM_SECRET_TOKEN_RE = /^[A-Za-z0-9_-]{1,256}$/;
+
+let webhookSecretPromise: Promise<string> | null = null;
+
+export async function getTelegramWebhookSecret(): Promise<string> {
+  // Return cached promise if already in flight or resolved — this prevents
+  // concurrent first calls from each generating+persisting a different secret.
+  if (webhookSecretPromise) {
+    return webhookSecretPromise;
+  }
+
+  webhookSecretPromise = (async () => {
+    try {
+      const envSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+      if (envSecret && envSecret.length > 0) {
+        if (!TELEGRAM_SECRET_TOKEN_RE.test(envSecret)) {
+          console.error(
+            '[TelegramAdapter] TELEGRAM_WEBHOOK_SECRET has invalid format ' +
+            '(allowed: A-Za-z0-9_-, 1-256 chars) — ignoring env value'
+          );
+          // Fall through to persisted/generated secret
+        } else {
+          return envSecret;
+        }
+      }
+
+      return updateMessagingStore((store) => {
+        if (store.telegramWebhookSecret && store.telegramWebhookSecret.length > 0) {
+          return store.telegramWebhookSecret;
+        }
+
+        const secret = randomBytes(32).toString('hex');
+        store.telegramWebhookSecret = secret;
+        console.warn('[TelegramAdapter] Generated and persisted a new webhook secret (set TELEGRAM_WEBHOOK_SECRET to override)');
+        return secret;
+      });
+    } catch (err) {
+      // Reset on rejection so a subsequent call can retry
+      webhookSecretPromise = null;
+      throw err;
+    }
+  })();
+
+  return webhookSecretPromise;
+}
+
+/**
  * Set the webhook URL for the bot
  */
 export async function setTelegramWebhook(webhookUrl: string): Promise<boolean> {
   try {
+    const secretToken = await getTelegramWebhookSecret();
     await callTelegramApi('setWebhook', {
       url: webhookUrl,
       allowed_updates: ['message', 'callback_query'],
+      secret_token: secretToken,
     });
-    console.warn(`[TelegramAdapter] Webhook set to: ${webhookUrl}`);
+    console.warn(`[TelegramAdapter] Webhook set to: ${webhookUrl} (secret token registered)`);
     return true;
   } catch (error) {
     const err = error as Error;

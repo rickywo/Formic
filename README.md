@@ -32,7 +32,7 @@ AI coding agents are powerful but chaotic. Without structure, they skip planning
 - A supported AI agent CLI:
   - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) — `npm install -g @anthropic-ai/claude-code`
   - [GitHub Copilot CLI](https://docs.github.com/en/copilot/using-github-copilot/using-github-copilot-in-the-command-line) — `gh extension install github/gh-copilot`
-  - [OpenCode CLI](https://github.com/opencode-ai/opencode) — `npm install -g opencode`
+  - [OpenCode CLI](https://github.com/opencode-ai/opencode) — `npm install -g opencode-ai`
 
 ## Getting Started
 
@@ -55,7 +55,7 @@ Formic supports three AI agent backends. Switch between them from the **Kanban h
 **Precedence:** UI selection > `AGENT_TYPE` env var > `claude` (default). The env var acts as a headless/startup fallback.
 
 **OpenCode notes:**
-- Install: `npm install -g opencode`
+- Install: `npm install -g opencode-ai`
 - Auth: `opencode auth login` (supports Anthropic, OpenAI, and other providers)
 - Set `OPENCODE_DISABLE_AUTOUPDATE=1` in your `.env` for headless/CI stability
 - ⚠️ Formic runs opencode with `--auto` (auto-approves permissions). Only run on trusted, isolated workspaces.
@@ -78,6 +78,85 @@ HOST=0.0.0.0 FORMIC_AUTH_TOKEN=your-secret-token formic start
 Without a token, starting on a non-loopback host will exit immediately with an error — the API (`POST /api/tasks`, `POST /api/tools`) can execute arbitrary code in your workspace, so it must never be reachable without authentication. When a token is configured, every HTTP request and WebSocket connection must set the `Authorization` header to `Bearer`, followed by a space and the token value, or the server responds with `401 Unauthorized`.
 
 **Recommended for remote access:** rather than exposing the port directly, use an SSH tunnel (e.g. `ssh -L 8000:localhost:8000 user@host`) and keep the server bound to loopback.
+
+## Deploying Publicly
+
+Formic exposes an API that executes arbitrary code in your workspace by design — treat it as a security-critical service. Follow these guidelines when deploying beyond your local machine.
+
+### Docker Images
+
+Two purpose-built images are published to **GitHub Container Registry** (`ghcr.io/rickywo/formic`):
+
+| Tag | Purpose | Base | User |
+|-----|---------|------|------|
+| `0.8.0` (default / `latest`) | Headless runtime | `node:22-slim` (digest-pinned) | `node` (non-root) |
+| `0.8.0-devcontainer` | Interactive development shell | `node:22-bookworm` (digest-pinned) | `developer` (non-root) |
+
+Both images:
+- Run as **non-root** — no sudoers entries of any kind
+- Install agent CLIs from **npm with exact version pins** — no `curl \| bash` pipelines
+- Never embed secrets at build time — all credentials are runtime-only env vars
+- Default to `127.0.0.1` binding — a bare `docker run` cannot accidentally expose an unauthenticated API
+
+#### Runtime image (headless deployment)
+
+```bash
+docker run -d \
+  -p 8000:8000 \
+  -e ANTHROPIC_API_KEY=sk-ant-... \
+  -e HOST=0.0.0.0 \
+  -e FORMIC_AUTH_TOKEN=your-strong-secret \
+  -v /path/to/your/project:/app/workspace \
+  ghcr.io/rickywo/formic:0.8.0
+```
+
+⚠️ `HOST=0.0.0.0` **requires** `FORMIC_AUTH_TOKEN` — the server will refuse to start otherwise.
+
+#### Dev-container image (interactive shell)
+
+```bash
+docker run -it --rm \
+  -v /path/to/your/project:/workspace \
+  ghcr.io/rickywo/formic:0.8.0-devcontainer
+```
+
+This drops you into a `zsh` shell with the Formic CLI and all agent CLIs pre-installed. It is **not intended for headless deployment**.
+
+### Docker Compose
+
+The included `docker-compose.yml` references the published image and applies additional hardening:
+
+- `read_only: true` root filesystem (tmpfs on `/tmp`)
+- `no-new-privileges:true` security option
+- `FORMIC_AUTH_TOKEN` enforced via `${FORMIC_AUTH_TOKEN:?...}` — Compose will refuse to start without it
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+export FORMIC_AUTH_TOKEN=$(openssl rand -hex 32)
+export WORKSPACE_PATH=/path/to/your/project
+docker compose up -d
+```
+
+### Webhook Secret Configuration
+
+If you use Telegram messaging, set a webhook secret to authenticate incoming updates:
+
+```bash
+export TELEGRAM_BOT_TOKEN=your-bot-token
+export TELEGRAM_WEBHOOK_SECRET=$(openssl rand -hex 32)
+```
+
+When configured, the Telegram webhook endpoint (`POST /api/webhooks/telegram`) requires the `X-Telegram-Bot-Api-Secret-Token` header to match. If not set, Formic generates and persists a random secret automatically. See `.env.example` for all options.
+
+### Runtime-Only Secrets
+
+These environment variables are **never embedded in the image** — always pass them at container runtime:
+
+- `ANTHROPIC_API_KEY` — Claude Code agent
+- `FORMIC_AUTH_TOKEN` — API authentication (required for `HOST=0.0.0.0`)
+- `TELEGRAM_BOT_TOKEN` / `TELEGRAM_WEBHOOK_SECRET` — Telegram messaging
+- `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_CHANNEL_SECRET` — LINE messaging
+- `OPENAI_API_KEY` / `DEEPSEEK_API_KEY` — OpenCode with other providers
 
 ## Self-hosting Formic on its own repo
 

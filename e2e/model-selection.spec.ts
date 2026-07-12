@@ -20,6 +20,12 @@ async function openSettings(page: Page) {
 test.describe('per-step model selection', () => {
   test('persists catalog and custom model selections', async ({ page }) => {
     await page.goto('/');
+    const catalogResponse = await page.request.get('/api/models');
+    expect(catalogResponse.ok()).toBe(true);
+    const catalog = await catalogResponse.json() as { models: Array<{ id: string }> };
+    expect(catalog.models.length).toBeGreaterThan(0);
+    expect(catalog.models.every((model) => model.id !== '')).toBe(true);
+    expect(new Set(catalog.models.map((model) => model.id)).size).toBe(catalog.models.length);
     await openSettings(page);
 
     const modelControls = [
@@ -28,12 +34,13 @@ test.describe('per-step model selection', () => {
       ['Declaring', '#step-model-declare'],
       ['Executing', '#step-model-execute'],
       ['Architecting', '#step-model-architect'],
-      ['Chat Assistant', '#step-model-assistant'],
     ] as const;
 
     for (const [label, selector] of modelControls) {
       await expect(page.getByLabel(label, { exact: true })).toHaveAttribute('id', selector.slice(1));
-      await expect(page.locator(`${selector} option`).first()).toHaveText('Agent default');
+      const defaultOptions = page.locator(`${selector} option[value=""]`);
+      await expect(defaultOptions).toHaveCount(1);
+      await expect(defaultOptions).toHaveText('Agent default');
     }
 
     try {
@@ -71,5 +78,69 @@ test.describe('per-step model selection', () => {
       await page.locator('#step-model-brief').selectOption('');
       await resetBriefing;
     }
+  });
+
+  test('persists the chat model from the assistant panel', async ({ page }) => {
+    await page.goto('/');
+    await page.locator('#assistant-fab').click();
+
+    const assistantSelect = page.locator('#assistant-model-select');
+    const defaultOptions = assistantSelect.locator('option[value=""]');
+    await expect(defaultOptions).toHaveCount(1);
+    await expect(defaultOptions).toHaveText('Agent default');
+    await expect(assistantSelect.locator('option').nth(1)).not.toHaveAttribute('value', '__custom__');
+    const chosenModel = await assistantSelect.locator('option').nth(1).getAttribute('value');
+    expect(chosenModel).not.toBeNull();
+
+    try {
+      const catalogSave = waitForStepModelsSave(page);
+      await assistantSelect.selectOption(chosenModel!);
+      await catalogSave;
+      await expect(assistantSelect).toHaveValue(chosenModel!);
+      await expect(page.locator('#assistant-model-hint')).toBeVisible();
+
+      await page.reload();
+      await page.locator('#assistant-fab').click();
+      await expect(page.locator('#assistant-model-select')).toHaveValue(chosenModel!);
+
+      await page.locator('#assistant-model-select').selectOption('__custom__');
+      const customInput = page.locator('#assistant-model-custom');
+      await expect(customInput).toBeVisible();
+      await customInput.fill('my/custom-chat-model');
+      const customSave = waitForStepModelsSave(page);
+      await customInput.press('Enter');
+      await customSave;
+
+      await page.reload();
+      await page.locator('#assistant-fab').click();
+      await expect(page.locator('#assistant-model-select')).toHaveValue('__custom__');
+      await expect(page.locator('#assistant-model-custom')).toHaveValue('my/custom-chat-model');
+    } finally {
+      await page.reload();
+      await page.locator('#assistant-fab').click();
+      await expect(page.locator('#assistant-model-select option').nth(1)).not.toHaveAttribute('value', '__custom__');
+      const resetAssistant = waitForStepModelsSave(page);
+      await page.locator('#assistant-model-select').selectOption('');
+      await resetAssistant;
+    }
+  });
+
+  test('keeps all settings content reachable without horizontal clipping', async ({ page }) => {
+    await page.setViewportSize({ width: 800, height: 500 });
+    await page.goto('/');
+    await openSettings(page);
+
+    const content = page.locator('.settings-content');
+    const dimensions = await content.evaluate((element) => ({
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+    expect(dimensions.scrollHeight).toBeGreaterThan(dimensions.clientHeight);
+
+    await content.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+    await expect(page.locator('#settings-panel .settings-section-title', { hasText: 'Workspaces' })).toBeVisible();
   });
 });

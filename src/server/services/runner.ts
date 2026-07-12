@@ -3,7 +3,9 @@ import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, appendTaskLogs, getTask } from './store.js';
-import { getAgentCommand, buildAgentArgs, getAgentDisplayName, getModelForStep } from './agentAdapter.js';
+import { getAgentCommand, buildAgentArgs, getAgentDisplayName, getModelForStep, getAgentType } from './agentAdapter.js';
+import type { AgentType } from './agentAdapter.js';
+import { parseAgentOutput } from './outputParser.js';
 import { getWorkspacePath } from '../utils/paths.js';
 import { releaseLeases } from './leaseManager.js';
 import { createSafePoint } from '../utils/gitUtils.js';
@@ -14,6 +16,68 @@ import { listTools } from './tools.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
+
+/**
+ * Converts stdout chunks into complete, user-visible log entries. OpenCode's
+ * JSONL output must be buffered by line because stream chunks do not preserve
+ * event boundaries. Other agents deliberately retain their chunk-based output.
+ */
+export class AgentStdoutFormatter {
+  private partialLine = '';
+
+  constructor(private readonly agentType: AgentType) {}
+
+  push(chunk: string): string[] {
+    if (this.agentType !== 'opencode') {
+      return chunk.length > 0 ? [chunk] : [];
+    }
+
+    const complete = `${this.partialLine}${chunk}`.split('\n');
+    this.partialLine = complete.pop() ?? '';
+    return complete.flatMap(line => this.formatOpencodeLine(line));
+  }
+
+  flush(): string[] {
+    if (this.agentType !== 'opencode' || this.partialLine.length === 0) {
+      return [];
+    }
+
+    const finalLine = this.partialLine;
+    this.partialLine = '';
+    return this.formatOpencodeLine(finalLine);
+  }
+
+  private formatOpencodeLine(line: string): string[] {
+    const parsed = parseAgentOutput(line, this.agentType);
+    if ((parsed.type !== 'text' && parsed.type !== 'status' && parsed.type !== 'result')
+      || !parsed.content?.trim()) {
+      return [];
+    }
+
+    // Status labels are terminal annotations, not prose. Keep them on one line
+    // even when an OpenCode-provided title contains embedded newlines.
+    const content = parsed.type === 'status'
+      ? parsed.content.replace(/\s+/g, ' ').trim()
+      : parsed.content;
+    return content.trim() ? [content] : [];
+  }
+}
+
+/**
+ * Delivers already-sanitized entries to persistence and live-log consumers.
+ * Keeping this fan-out in one place guarantees both destinations receive the
+ * same content and makes the runner logging contract independently testable.
+ */
+export function emitAgentStdoutEntries(
+  entries: string[],
+  appendEntry: (entry: string) => void,
+  broadcastEntry: (entry: string) => void
+): void {
+  for (const entry of entries) {
+    appendEntry(entry);
+    broadcastEntry(entry);
+  }
+}
 
 /**
  * Load the project development guidelines if they exist
@@ -164,6 +228,7 @@ All code changes MUST comply with the project development guidelines provided ab
   // Spawn agent CLI process using the configured agent adapter
   // stdin is set to 'ignore' since non-interactive mode doesn't need input
   const agentCommand = getAgentCommand();
+  const agentType = getAgentType();
   const model = getModelForStep('execute');
   console.warn(`[Runner] using model: ${model || '(agent default)'}`);
   const agentArgs = buildAgentArgs(prompt, model ? { model } : undefined);
@@ -178,6 +243,19 @@ All code changes MUST comply with the project development guidelines provided ab
   });
 
   const logBuffer: string[] = [];
+  const stdoutFormatter = new AgentStdoutFormatter(agentType);
+
+  const emitOpenCodeStdout = (entries: string[]): void => {
+    emitAgentStdoutEntries(
+      entries,
+      entry => logBuffer.push(entry),
+      entry => broadcastToTask(taskId, {
+        type: 'stdout',
+        data: `${entry}\n`,
+        timestamp: new Date().toISOString(),
+      })
+    );
+  };
 
   // --- Spawn confirmation phase ---
   // On Unix, spawn() can return successfully but then emit an 'error' event
@@ -257,6 +335,11 @@ All code changes MUST comply with the project development guidelines provided ab
   // Handle stdout
   child.stdout?.on('data', (data: Buffer) => {
     const text = data.toString();
+    if (agentType === 'opencode') {
+      emitOpenCodeStdout(stdoutFormatter.push(text));
+      return;
+    }
+
     const lines = text.split('\n').filter(line => line.length > 0);
     logBuffer.push(...lines);
 
@@ -285,6 +368,10 @@ All code changes MUST comply with the project development guidelines provided ab
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
     console.warn(`[Runner] Released leases for task ${taskId} (close handler)`);
+
+    // OpenCode may exit without a trailing newline. Parse that final complete
+    // JSON event before persisting so live output and history stay identical.
+    emitOpenCodeStdout(stdoutFormatter.flush());
 
     // Save logs to task
     await appendTaskLogs(taskId, logBuffer);

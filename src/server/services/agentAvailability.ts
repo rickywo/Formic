@@ -19,7 +19,7 @@ interface AgentProbe {
 const PROBES: AgentProbe[] = [
   { type: 'claude', command: 'claude', args: ['--version'], hint: 'Install: npm install -g @anthropic-ai/claude-code' },
   { type: 'copilot', command: 'gh', args: ['copilot', '--version'], fallback: { command: 'copilot', args: ['--version'] }, hint: 'Install: gh extension install github/gh-copilot' },
-  { type: 'opencode', command: 'opencode', args: ['--version'], hint: 'Install: npm install -g opencode' },
+  { type: 'opencode', command: 'opencode', args: ['--version'], hint: 'Install: npm install -g opencode-ai' },
 ];
 
 async function probe(command: string, args: string[]): Promise<string | null> {

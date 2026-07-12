@@ -1,0 +1,85 @@
+# ==============================================================================
+# Formic — Dev-Container Image (Interactive Development Shell)
+# ==============================================================================
+# This image is for interactive development — it provides zsh, git, jq, vim,
+# and the agent CLIs in a full bookworm environment. It is NOT intended for
+# headless deployment; use the runtime image (Dockerfile) for that.
+#
+# Published under the `-devcontainer` tag alongside the runtime image.
+#
+# To update the base image digest, run:
+#   docker pull node:22-bookworm
+#   docker inspect node:22-bookworm --format='{{index .RepoDigests 0}}'
+# ==============================================================================
+
+FROM node:22-bookworm@sha256:a25c9934ff6382cd4f08b6bc26c82bf4ea69b1e6f8dabfb2ead457374127c365
+
+# ---------------------------------------------------------------------------
+# Build arguments (NOT persisted as env)
+# ---------------------------------------------------------------------------
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Agent CLI versions — pinned for reproducible builds.
+ARG CLAUDE_CODE_VERSION=2.1.207
+ARG OPENCODE_AI_VERSION=1.17.18
+ARG FORMIC_VERSION=0.8.0
+
+# ---------------------------------------------------------------------------
+# OCI labels
+# ---------------------------------------------------------------------------
+LABEL org.opencontainers.image.source="https://github.com/rickywo/Formic" \
+      org.opencontainers.image.version="${FORMIC_VERSION}" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.description="Formic — AI-powered task manager and agent orchestration platform (interactive dev-container)"
+
+# ---------------------------------------------------------------------------
+# System dependencies (interactive tooling)
+# ---------------------------------------------------------------------------
+# hadolint ignore=DL3008
+# (pinned base image digest provides reproducibility; apt package version
+# pinning would break on Debian point-release mirror churn.)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git \
+        zsh \
+        jq \
+        vim \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# Developer user (NO sudoers entry — no NOPASSWD:ALL, no wheel group)
+# ---------------------------------------------------------------------------
+RUN useradd --create-home --shell /usr/bin/zsh developer
+
+# ---------------------------------------------------------------------------
+# Agent CLIs (globally installed, pinned by exact version)
+# ---------------------------------------------------------------------------
+RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
+    && npm install -g opencode-ai@${OPENCODE_AI_VERSION} \
+    && npm install -g @rickywo/formic@${FORMIC_VERSION}
+
+# ---------------------------------------------------------------------------
+# Working directory
+# ---------------------------------------------------------------------------
+WORKDIR /workspace
+RUN chown -R developer:developer /workspace
+
+# ---------------------------------------------------------------------------
+# Drop privileges
+# ---------------------------------------------------------------------------
+USER developer
+
+# ---------------------------------------------------------------------------
+# Runtime
+# ---------------------------------------------------------------------------
+EXPOSE 8000
+
+CMD ["zsh"]
+
+# ---------------------------------------------------------------------------
+# Secrets are RUNTIME-ONLY. Never set these at build time:
+#   ANTHROPIC_API_KEY, FORMIC_AUTH_TOKEN, TELEGRAM_BOT_TOKEN,
+#   TELEGRAM_WEBHOOK_SECRET, LINE_CHANNEL_ACCESS_TOKEN, LINE_CHANNEL_SECRET,
+#   OPENAI_API_KEY, DEEPSEEK_API_KEY
+# ---------------------------------------------------------------------------

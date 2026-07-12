@@ -4,7 +4,9 @@ import {
   isTelegramConfigured,
   getTelegramBotInfo,
   setTelegramWebhook,
+  getTelegramWebhookSecret,
 } from '../services/telegramAdapter.js';
+import { timingSafeEqualStrings } from '../utils/security.js';
 import {
   handleLineWebhook,
   verifyLineSignature,
@@ -39,9 +41,21 @@ export async function webhookRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     try {
+      // Telegram echoes the secret_token registered via setWebhook in this
+      // header on every update. Reject anything that doesn't carry it —
+      // otherwise anyone who can reach this endpoint can inject bot commands.
+      // Mirrors the LINE signature check below (header-only, no raw body).
+      const secret = await getTelegramWebhookSecret();
+      const headerValue = request.headers['x-telegram-bot-api-secret-token'];
+      const receivedToken = typeof headerValue === 'string' ? headerValue : '';
+      if (!timingSafeEqualStrings(receivedToken, secret)) {
+        console.warn('[Webhooks] Telegram webhook secret token missing or invalid');
+        return reply.status(401).send({ error: 'Invalid secret token' });
+      }
+
       const update = request.body;
 
-      // Telegram doesn't use signatures, but we validate the update structure
+      // Validate the update structure
       if (!update || typeof update !== 'object') {
         return reply.status(400).send({ error: 'Invalid update format' });
       }

@@ -56,6 +56,7 @@ def main():
         ("Self-Healing QA Tests", "test_selfhealing.py"),
         ("Tool Forging Tests", "test_tool_forging.py"),
         ("UI Tests (Playwright)", "test_formic.py"),
+        ("Security Tests", "test_security.py"),
     ]
 
     # AGI evolution test suites (opt-in via --agi flag or AGI_TESTS=true)

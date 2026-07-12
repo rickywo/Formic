@@ -26,6 +26,7 @@ import { loadConfig, getActiveWorkspace as getActiveConfigWorkspace } from './se
 import { recoverStuckTasks, loadBoard } from './services/store.js';
 import { getMessagingConfig } from './services/messagingAdapter.js';
 import { initializeStatusCache } from './services/messagingNotifier.js';
+import { timingSafeEqualStrings } from './utils/security.js';
 import type { ServerOptions } from '../types/index.js';
 import { setBoundPort } from './services/runner.js';
 
@@ -141,9 +142,27 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   // the existing unauthenticated local development experience.
   if (!isLoopback) {
     fastify.addHook('onRequest', async (request, reply) => {
+      // Exempt the health-check endpoint from auth so Docker HEALTHCHECK
+      // can probe the container without a bearer token. The endpoint is
+      // deliberately data-free — it returns only { status: 'ok' }, no
+      // version, workspace path, or task data.
+      //
+      // Exempt Telegram and LINE webhook routes — external services (Telegram
+      // Bot API, LINE Platform) cannot send an Authorization: Bearer header.
+      // Each route enforces its own credential:
+      //   - Telegram: constant-time comparison of X-Telegram-Bot-Api-Secret-Token
+      //   - LINE:     HMAC signature verification via verifyLineSignature
+      if (
+        request.url === '/api/health' ||
+        request.url === '/api/webhooks/telegram' ||
+        request.url === '/api/webhooks/line'
+      ) {
+        return;
+      }
+
       const header = request.headers.authorization ?? '';
       const expectedHeader = 'Bearer ' + authToken;
-      if (header !== expectedHeader) {
+      if (!timingSafeEqualStrings(header, expectedHeader)) {
         return reply.status(401).send({ error: 'Unauthorized' });
       }
     });
@@ -169,8 +188,13 @@ export async function startServer(options: ServerOptions = {}): Promise<void> {
   await fastify.register(logsWebSocket);
   await fastify.register(assistantWebSocket);
 
-  // Health check endpoint
+  // Health check endpoints.
+  // /api/health is the Docker HEALTHCHECK target — it is exempted from the
+  // global onRequest auth hook so the container can be probed without a
+  // bearer token. The response is deliberately data-free (no version, no
+  // workspace path, no task data).
   fastify.get('/health', async () => ({ status: 'ok' }));
+  fastify.get('/api/health', async () => ({ status: 'ok' }));
 
   // Demo mode entry point — serves the static showcase HTML
   fastify.get('/demo', async (_req, reply) => {

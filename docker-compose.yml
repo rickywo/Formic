@@ -2,12 +2,37 @@ version: '3.8'
 
 services:
   formic:
-    build: .
+    # Pin to the published registry image for production deployments.
+    # For local development, uncomment `build: .` and comment out `image:`.
+    image: ghcr.io/rickywo/formic:0.8.0
+    # build: .
     ports:
       - "${PORT:-8000}:8000"
     volumes:
       # Mount your project directory as the workspace
       - ${WORKSPACE_PATH:-./_workspace}:/app/workspace
+      # The root filesystem is read-only (see below); this named volume is the
+      # only writable path besides the workspace mount and /tmp. It covers the
+      # entire /home/node directory so agent CLIs (Claude Code writes ~/.claude
+      # and ~/.claude.json; OpenCode writes ~/.config/opencode, ~/.local/share,
+      # ~/.cache) have writable paths under read_only: true. It also persists
+      # UI settings (~/.formic/config.json) across container restarts.
+      - formic-home:/home/node
+    # Read-only root filesystem — the workspace volume, formic-home volume,
+    # and /tmp tmpfs are the only writable paths. A tmpfs on /tmp allows agent
+    # CLIs and the Node runtime to create temporary files without granting
+    # persistent write access to the image.
+    read_only: true
+    tmpfs:
+      - /tmp:exec,size=256M
+    security_opt:
+      - no-new-privileges:true
+    # Example memory limit — adjust to your workload. Agent CLIs can be
+    # memory-hungry, especially during long planning/execution runs.
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 4G
     environment:
       # API key is required for Docker deployments
       # OAuth credentials are stored in system keychain and not accessible in Docker
@@ -20,6 +45,9 @@ services:
       - HOST=0.0.0.0
       - FORMIC_AUTH_TOKEN=${FORMIC_AUTH_TOKEN:?FORMIC_AUTH_TOKEN must be set for container deployments}
     restart: unless-stopped
+
+volumes:
+  formic-home:
 
 # Usage:
 # 1. Set your API key: export ANTHROPIC_API_KEY=your-key
