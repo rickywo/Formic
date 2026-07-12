@@ -100,6 +100,27 @@ export interface UsageInfo {
   status: UsageStatus;
 }
 
+/** Usage is derived from Claude Code transcript entries. */
+export type UsageSource = 'transcript';
+
+/** Token usage attributed to one agent transcript message. */
+export interface UsageEvent {
+  /** `${sessionId}:${messageId}` */
+  id: string;
+  timestamp: string;
+  taskId: string;
+  /** 'brief' | 'plan' | 'execute' | 'quick' | 'reflection' */
+  step: string;
+  agentType: AgentType;
+  source: UsageSource;
+  sessionId: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+}
+
 // ==================== Long-Term Memory Types ====================
 
 /** Type of memory: learned pattern, known pitfall, or user preference */
