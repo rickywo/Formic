@@ -26,6 +26,7 @@ import { broadcastToWorkspace } from './messagingNotifier.js';
 import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
 import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
+import { beginTaskRun, endTaskRun } from './usageCollector.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
@@ -611,6 +612,7 @@ function runWorkflowStep(
     env: { ...process.env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
+  beginTaskRun(taskId, step);
 
   // Persist child.pid to board.json so the OS process is identifiable for running tasks.
   // We read the task's current status and re-write it together with the PID in a single
@@ -663,6 +665,7 @@ function runWorkflowStep(
 
     console.warn(`[Workflow] ${step} step error: ${errorMessage}`);
     await appendWorkflowLogs(taskId, step, [`Error: ${errorMessage}`]);
+    await endTaskRun(taskId);
 
     broadcastToTask(taskId, {
       type: 'error',
@@ -705,6 +708,7 @@ function runWorkflowStep(
 
     console.warn(`[Workflow] ${step} step completed with code ${code}`);
     await appendWorkflowLogs(taskId, step, logBuffer);
+    await endTaskRun(taskId);
 
     broadcastToTask(taskId, {
       type: 'exit',
@@ -1184,9 +1188,16 @@ Example:
 [
   { "type": "pattern", "content": "Always use writeFile with { recursive: true } when creating nested dirs", "relevance_tags": ["node:fs", "file-system"] },
   { "type": "pitfall", "content": "ESM imports require .js extension even for .ts source files", "relevance_tags": ["typescript", "esm", "imports"] }
-]`;
+]
+(Task ref: ${task.docsPath})`;
 
-    const output = await runAgentForOutput(prompt, getModelForStep('execute'));
+    beginTaskRun(taskId, 'reflection');
+    let output: string;
+    try {
+      output = await runAgentForOutput(prompt, getModelForStep('execute'));
+    } finally {
+      await endTaskRun(taskId);
+    }
     const entries = parseReflectionOutput(output);
 
     const memoryIds: string[] = [];

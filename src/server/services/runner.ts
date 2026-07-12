@@ -14,6 +14,7 @@ import path from 'node:path';
 import { getRelevantMemories } from './memory.js';
 import { listTools } from './tools.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
+import { beginTaskRun, endTaskRun } from './usageCollector.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 
@@ -174,8 +175,9 @@ export async function runAgent(taskId: string, title: string, context: string, d
 
   // Retrieve relevant memories for this task
   let pastExperienceSection = '';
+  let task: Task | undefined;
   try {
-    const task = await getTask(taskId);
+    task = await getTask(taskId);
     if (task !== undefined) {
       const memories = await getRelevantMemories(task);
       if (memories.length > 0) {
@@ -308,6 +310,7 @@ All code changes MUST comply with the project development guidelines provided ab
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
     console.warn(`[Runner] Released leases for task ${taskId} (error handler)`);
+    await endTaskRun(taskId);
 
     // Provide helpful error messages for common issues
     const agentName = getAgentDisplayName();
@@ -328,6 +331,7 @@ All code changes MUST comply with the project development guidelines provided ab
   });
 
   activeProcesses.set(taskId, child);
+  beginTaskRun(taskId, task?.type === 'quick' ? 'quick' : 'execute');
 
   // Update task status
   await updateTaskStatus(taskId, 'running', child.pid, 'runner.process_spawned');
@@ -368,6 +372,7 @@ All code changes MUST comply with the project development guidelines provided ab
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
     console.warn(`[Runner] Released leases for task ${taskId} (close handler)`);
+    await endTaskRun(taskId);
 
     // OpenCode may exit without a trailing newline. Parse that final complete
     // JSON event before persisting so live output and history stay identical.
