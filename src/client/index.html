@@ -8182,6 +8182,7 @@
     let terminal = null;
     let currentWs = null;
     let draggedTaskId = null;
+    let taskUsageMap = {};
     const BOOTSTRAP_TASK_ID = 't-bootstrap';
     const ACTIVE_STATUSES = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
 
@@ -10643,6 +10644,8 @@
           console.log('[Assistant] Board updated, refreshing...');
           loadBoard();
           refreshProjectBriefPanel();
+        } else if (data.type === 'usage-updated') {
+          refreshUsageBadges(data.taskIds);
         } else if (data.type === 'dependency-resolved') {
           console.log(`[Assistant] Dependency resolved for task ${data.taskId}, refreshing board...`);
           loadBoard();
@@ -11886,6 +11889,8 @@
           console.log('[MobileChat] Board updated, refreshing...');
           loadBoard();
           refreshProjectBriefPanel();
+        } else if (data.type === 'usage-updated') {
+          refreshUsageBadges(data.taskIds);
         } else if (data.type === 'dependency-resolved') {
           console.log(`[MobileChat] Dependency resolved for task ${data.taskId}, refreshing board...`);
           loadBoard();
@@ -12037,6 +12042,18 @@
     });
 
     // ==================== Usage Meter ====================
+
+    async function refreshUsageBadges(taskIds) {
+      try {
+        const res = await fetch('/api/usage/tasks');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        taskUsageMap = data.tasks || {};
+        console.debug('[Usage] Usage updated for tasks:', taskIds, taskUsageMap);
+      } catch (err) {
+        console.warn('[Usage] Failed to refresh task usage:', err);
+      }
+    }
 
     async function fetchUsageInfo() {
       try {

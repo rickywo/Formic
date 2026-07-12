@@ -78,6 +78,23 @@ export function broadcastBoardUpdate(): void {
 }
 
 /**
+ * Broadcast task usage changes to all connected clients.
+ */
+export function broadcastUsageUpdated(taskIds: string[]): void {
+  const message = JSON.stringify({ type: 'usage-updated', taskIds });
+
+  let sentCount = 0;
+  for (const ws of boardConnections) {
+    if (ws.readyState === 1) { // WebSocket.OPEN
+      ws.send(message);
+      sentCount++;
+    }
+  }
+
+  console.warn('[BoardNotifier] Broadcast usage-updated to', sentCount, 'clients');
+}
+
+/**
  * Broadcast a dependency-resolved event when a blocked task is automatically unblocked
  */
 export function broadcastDependencyResolved(taskId: string, parentGoalId: string): void {
