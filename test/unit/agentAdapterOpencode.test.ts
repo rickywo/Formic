@@ -533,9 +533,13 @@ describe('model catalog and step resolution', () => {
   });
 
   it('returns only the catalog for the active agent', () => {
-    engineConfig.agentType = 'claude';
-    assert.equal(getAvailableModels()[0]?.id, 'claude-opus-4-8');
-    assert.ok(getAvailableModels().every((model) => model.id !== ''));
+    for (const agentType of ['claude', 'copilot', 'opencode'] as const) {
+      engineConfig.agentType = agentType;
+      const models = getAvailableModels();
+      assert.ok(models.length > 0);
+      assert.ok(models.every((model) => model.id !== ''));
+      assert.equal(new Set(models.map((model) => model.id)).size, models.length);
+    }
 
     engineConfig.agentType = 'opencode';
     assert.deepStrictEqual(getAvailableModels()[0], {

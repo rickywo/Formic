@@ -20,6 +20,12 @@ async function openSettings(page: Page) {
 test.describe('per-step model selection', () => {
   test('persists catalog and custom model selections', async ({ page }) => {
     await page.goto('/');
+    const catalogResponse = await page.request.get('/api/models');
+    expect(catalogResponse.ok()).toBe(true);
+    const catalog = await catalogResponse.json() as { models: Array<{ id: string }> };
+    expect(catalog.models.length).toBeGreaterThan(0);
+    expect(catalog.models.every((model) => model.id !== '')).toBe(true);
+    expect(new Set(catalog.models.map((model) => model.id)).size).toBe(catalog.models.length);
     await openSettings(page);
 
     const modelControls = [

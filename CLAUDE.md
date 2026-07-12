@@ -223,6 +223,7 @@ The server will automatically detect this format and create the task via the For
   - [t-112] !Harden npm and Docker publishing: secure Dockerfiles, release CI guardrails, webhook and auth fixes
   - [t-113] !Fix t-112 release-pipeline and container gaps: CI dist build, gitleaks config, artifact upload, auth-exempt health endpoint, read-only config volume, test registration
   - [t-114] !Fix release pipeline gating, webhook auth exemptions, devcontainer version race, and agent-adapter unit tests
+  - [t-115] Fix duplicate Agent default model options
 
 ## Formic Workflow
 

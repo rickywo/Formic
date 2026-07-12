@@ -10118,9 +10118,15 @@
         throw new Error('Unable to load model catalog');
       }
 
-      const models = payload.models.filter(model =>
-        model && typeof model.id === 'string' && typeof model.label === 'string'
-      );
+      const seenModelIds = new Set();
+      const models = payload.models.filter(model => {
+        if (!model || typeof model.id !== 'string' || typeof model.label !== 'string'
+          || model.id === '' || model.id === '__custom__' || seenModelIds.has(model.id)) {
+          return false;
+        }
+        seenModelIds.add(model.id);
+        return true;
+      });
       return { agentType: payload.agentType, models };
     }
 
