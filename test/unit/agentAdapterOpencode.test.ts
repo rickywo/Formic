@@ -534,11 +534,11 @@ describe('model catalog and step resolution', () => {
 
   it('returns only the catalog for the active agent', () => {
     engineConfig.agentType = 'claude';
-    assert.deepStrictEqual(getAvailableModels()[0], { id: '', label: 'Agent default' });
-    assert.equal(getAvailableModels()[1]?.id, 'claude-opus-4-8');
+    assert.equal(getAvailableModels()[0]?.id, 'claude-opus-4-8');
+    assert.ok(getAvailableModels().every((model) => model.id !== ''));
 
     engineConfig.agentType = 'opencode';
-    assert.deepStrictEqual(getAvailableModels()[1], {
+    assert.deepStrictEqual(getAvailableModels()[0], {
       id: 'anthropic/claude-sonnet-5',
       label: 'Claude Sonnet 5 (Anthropic)',
     });

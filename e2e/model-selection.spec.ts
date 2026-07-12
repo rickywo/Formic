@@ -32,7 +32,9 @@ test.describe('per-step model selection', () => {
 
     for (const [label, selector] of modelControls) {
       await expect(page.getByLabel(label, { exact: true })).toHaveAttribute('id', selector.slice(1));
-      await expect(page.locator(`${selector} option`).first()).toHaveText('Agent default');
+      const defaultOptions = page.locator(`${selector} option[value=""]`);
+      await expect(defaultOptions).toHaveCount(1);
+      await expect(defaultOptions).toHaveText('Agent default');
     }
 
     try {
@@ -77,6 +79,9 @@ test.describe('per-step model selection', () => {
     await page.locator('#assistant-fab').click();
 
     const assistantSelect = page.locator('#assistant-model-select');
+    const defaultOptions = assistantSelect.locator('option[value=""]');
+    await expect(defaultOptions).toHaveCount(1);
+    await expect(defaultOptions).toHaveText('Agent default');
     await expect(assistantSelect.locator('option').nth(1)).not.toHaveAttribute('value', '__custom__');
     const chosenModel = await assistantSelect.locator('option').nth(1).getAttribute('value');
     expect(chosenModel).not.toBeNull();

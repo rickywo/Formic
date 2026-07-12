@@ -64,19 +64,19 @@ def test_model_config() -> bool:
             models_body = models_response.json()
             models = models_body.get("models")
             agent_type = models_body.get("agentType")
-            first_model = models[0] if isinstance(models, list) and models else None
             models_ok = (
                 agent_type in {"claude", "copilot", "opencode"}
                 and isinstance(models, list)
                 and len(models) > 0
-                and isinstance(first_model, dict)
-                and first_model.get("id") == ""
                 and all(
-                    isinstance(model.get("id"), str) and isinstance(model.get("label"), str)
+                    isinstance(model.get("id"), str)
+                    and model.get("id") != ""
+                    and isinstance(model.get("label"), str)
                     for model in models
                     if isinstance(model, dict)
                 )
                 and all(isinstance(model, dict) for model in models)
+                and len({model["id"] for model in models}) == len(models)
             )
         report(results, "GET /api/models catalog", models_ok, str(models_response.status_code))
     except requests.RequestException as error:
