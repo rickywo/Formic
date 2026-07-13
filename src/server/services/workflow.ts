@@ -5,7 +5,7 @@ import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask, withBoard } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt, OVERRIDE_PREAMBLE } from './skillReader.js';
-import { getAgentCommand, buildAgentArgs, getAgentDisplayName, getModelForStep, getAgentType } from './agentAdapter.js';
+import { getAgentCommand, buildAgentArgs, getAgentDisplayName, getModelForStep } from './agentAdapter.js';
 import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder } from './leaseManager.js';
 import {
   loadSubtasks,
@@ -26,8 +26,7 @@ import { broadcastToWorkspace } from './messagingNotifier.js';
 import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
 import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
-import { beginTaskRun, endTaskRun, ingestOpenCodeUsageRecords } from './usageCollector.js';
-import { OpenCodeUsageStreamCollector } from './opencodeJsonUsage.js';
+import { beginTaskRun } from './usageCollector.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
@@ -510,7 +509,7 @@ async function executeDeclareAndAcquireLeases(taskId: string, task: Task): Promi
       const resultPromise = new Promise<boolean>((resolve) => {
         const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', skillResult.content, (success) => {
           resolve(success);
-        }, 'declare');
+        }, 'declare', 'declare');
         pidPromise = pidPersisted;
 
         if (child.pid) {
@@ -597,7 +596,8 @@ function runWorkflowStep(
   step: 'brief' | 'plan' | 'execute',
   prompt: string,
   onComplete: (success: boolean) => void,
-  modelStep?: ModelStep
+  modelStep?: ModelStep,
+  semanticUsageStep?: string
 ): { child: ChildProcess; pidPersisted: Promise<void> } {
   console.warn(`[Workflow] Starting ${step} step for task ${taskId}`);
 
@@ -613,7 +613,7 @@ function runWorkflowStep(
     env: { ...process.env },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  beginTaskRun(taskId, step);
+  const usageInvocation = beginTaskRun(taskId, semanticUsageStep ?? step, model);
 
   // Persist child.pid to board.json so the OS process is identifiable for running tasks.
   // We read the task's current status and re-write it together with the PID in a single
@@ -633,8 +633,25 @@ function runWorkflowStep(
   })();
 
   const logBuffer: string[] = [];
-  const openCodeUsageCollector = getAgentType() === 'opencode' ? new OpenCodeUsageStreamCollector() : null;
   let hasCompleted = false;
+  let hasFinalized = false;
+
+  const finalize = async (success: boolean, errorMessage?: string): Promise<void> => {
+    if (hasFinalized) return;
+    hasFinalized = true;
+    hasCompleted = true;
+    clearTimeout(timeout);
+    if (activeWorkflows.get(taskId)?.process === child) activeWorkflows.delete(taskId);
+    await usageInvocation.finalize();
+    if (errorMessage !== undefined) {
+      await appendWorkflowLogs(taskId, step, [`Error: ${errorMessage}`]);
+      broadcastToTask(taskId, { type: 'error', data: `[${step.toUpperCase()}] ${errorMessage}`, timestamp: new Date().toISOString() });
+    } else {
+      await appendWorkflowLogs(taskId, step, logBuffer);
+      broadcastToTask(taskId, { type: 'exit', data: `[${step.toUpperCase()}] Step completed with code ${success ? 0 : 'non-zero'}`, timestamp: new Date().toISOString() });
+    }
+    onComplete(success);
+  };
 
   // Set up timeout to kill hanging processes
   const timeout = setTimeout(() => {
@@ -655,10 +672,6 @@ function runWorkflowStep(
   }, engineConfig.stepTimeoutMs);
 
   child.on('error', async (err: NodeJS.ErrnoException) => {
-    hasCompleted = true;
-    clearTimeout(timeout);
-    activeWorkflows.delete(taskId);
-
     const agentName = getAgentDisplayName();
     let errorMessage = err.message;
     if (err.code === 'ENOENT') {
@@ -666,26 +679,12 @@ function runWorkflowStep(
     }
 
     console.warn(`[Workflow] ${step} step error: ${errorMessage}`);
-    await appendWorkflowLogs(taskId, step, [`Error: ${errorMessage}`]);
-    await endTaskRun(taskId);
-
-    broadcastToTask(taskId, {
-      type: 'error',
-      data: `[${step.toUpperCase()}] ${errorMessage}`,
-      timestamp: new Date().toISOString(),
-    });
-
-    onComplete(false);
+    await finalize(false, errorMessage);
   });
 
   child.stdout?.on('data', (data: Buffer) => {
     const text = data.toString();
-    if (openCodeUsageCollector !== null) {
-      const records = openCodeUsageCollector.push(text);
-      void ingestOpenCodeUsageRecords(taskId, step, records).catch((error: unknown) => {
-        console.warn(`[Workflow] Failed to persist OpenCode usage: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      });
-    }
+    usageInvocation.ingestOpenCodeStdout(text);
     const lines = text.split('\n').filter(line => line.length > 0);
     logBuffer.push(...lines);
 
@@ -711,23 +710,8 @@ function runWorkflowStep(
   });
 
   child.on('close', async (code) => {
-    hasCompleted = true;
-    clearTimeout(timeout);
-
     console.warn(`[Workflow] ${step} step completed with code ${code}`);
-    if (openCodeUsageCollector !== null) {
-      await ingestOpenCodeUsageRecords(taskId, step, openCodeUsageCollector.flush());
-    }
-    await appendWorkflowLogs(taskId, step, logBuffer);
-    await endTaskRun(taskId);
-
-    broadcastToTask(taskId, {
-      type: 'exit',
-      data: `[${step.toUpperCase()}] Step completed with code ${code}`,
-      timestamp: new Date().toISOString(),
-    });
-
-    onComplete(code === 0);
+    await finalize(code === 0);
   });
 
   return { child, pidPersisted };
@@ -1153,18 +1137,20 @@ function runAgentForOutput(prompt: string, model?: string, usageContext?: { task
     });
 
     const chunks: string[] = [];
-    const openCodeUsageCollector = usageContext !== undefined && getAgentType() === 'opencode'
-      ? new OpenCodeUsageStreamCollector()
-      : null;
+    const usageInvocation = usageContext === undefined
+      ? null
+      : beginTaskRun(usageContext.taskId, usageContext.step, model);
+    let finalized = false;
+    const finalize = async (): Promise<void> => {
+      if (finalized) return;
+      finalized = true;
+      await usageInvocation?.finalize();
+    };
 
     child.stdout?.on('data', (data: Buffer) => {
       const text = data.toString();
       chunks.push(text);
-      if (openCodeUsageCollector !== null && usageContext !== undefined) {
-        void ingestOpenCodeUsageRecords(usageContext.taskId, usageContext.step, openCodeUsageCollector.push(text)).catch((error: unknown) => {
-          console.warn(`[Workflow] Failed to persist OpenCode usage: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        });
-      }
+      usageInvocation?.ingestOpenCodeStdout(text);
     });
 
     child.stderr?.on('data', (data: Buffer) => {
@@ -1175,16 +1161,15 @@ function runAgentForOutput(prompt: string, model?: string, usageContext?: { task
       child.kill('SIGTERM');
     }, 3 * 60 * 1000); // 3-minute timeout for reflection
 
-    child.on('error', () => {
+    child.on('error', async () => {
       clearTimeout(timeout);
+      await finalize();
       resolve(chunks.join(''));
     });
 
     child.on('close', async () => {
       clearTimeout(timeout);
-      if (openCodeUsageCollector !== null && usageContext !== undefined) {
-        await ingestOpenCodeUsageRecords(usageContext.taskId, usageContext.step, openCodeUsageCollector.flush());
-      }
+      await finalize();
       resolve(chunks.join(''));
     });
   });
@@ -1214,13 +1199,7 @@ Example:
 ]
 (Task ref: ${task.docsPath})`;
 
-    beginTaskRun(taskId, 'reflection');
-    let output: string;
-    try {
-      output = await runAgentForOutput(prompt, getModelForStep('execute'), { taskId, step: 'reflection' });
-    } finally {
-      await endTaskRun(taskId);
-    }
+    const output = await runAgentForOutput(prompt, getModelForStep('execute'), { taskId, step: 'reflection' });
     const entries = parseReflectionOutput(output);
 
     const memoryIds: string[] = [];
@@ -1268,7 +1247,7 @@ Example:
   { "name": "run-tests", "description": "Run the full test suite", "command": "npm test", "created_by": "${task.title}" }
 ]`;
 
-    const output = await runAgentForOutput(prompt, getModelForStep('execute'));
+    const output = await runAgentForOutput(prompt, getModelForStep('execute'), { taskId, step: 'tool-forge' });
     const rawEntries = parseToolForgeOutput(output);
     const entries = rawEntries.filter((item): item is ToolForgeEntry => {
       if (isToolForgeEntry(item)) return true;
@@ -1431,7 +1410,7 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
       const resultPromise = new Promise<boolean>((resolve) => {
         const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (success) => {
           resolve(success);
-        });
+        }, 'execute', 'quick');
         pidPromise = pidPersisted;
 
         if (child.pid) {
@@ -2210,7 +2189,7 @@ export async function executeGoalWorkflow(taskId: string): Promise<{ pid: number
       const resultPromise = new Promise<boolean>((resolve) => {
         const { child, pidPersisted } = runWorkflowStep(taskId, 'execute', prompt, (stepSuccess) => {
           resolve(stepSuccess);
-        }, 'architect');
+        }, 'architect', 'architect');
         pidPromise = pidPersisted;
 
         if (child.pid) {

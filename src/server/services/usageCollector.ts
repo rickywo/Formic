@@ -4,12 +4,14 @@ import type { UsageEvent } from '../../types/index.js';
 import { getAgentType } from './agentAdapter.js';
 import { internalEvents, USAGE_UPDATED } from './internalEvents.js';
 import { readOpenCodeUsage } from './opencodeUsage.js';
-import { openCodeRecordToUsageEvent, type OpenCodeUsageRecord } from './opencodeJsonUsage.js';
+import { openCodeRecordToUsageEvent, OpenCodeUsageStreamCollector, type OpenCodeUsageRecord } from './opencodeJsonUsage.js';
 import { claudeProjectDir, extractTaskMarker, extractUsageRecords } from './transcriptUsage.js';
 import { appendUsageEvent } from './usageStore.js';
 import { getWorkspacePath } from '../utils/paths.js';
 
 interface ActiveRun {
+  invocationId: string;
+  taskId: string;
   step: string;
   startedAt: number;
 }
@@ -51,6 +53,16 @@ function earliestRunStart(): number | null {
   return earliest;
 }
 
+function activeRunForTask(taskId: string): ActiveRun | undefined {
+  let newest: ActiveRun | undefined;
+  for (const run of activeRuns.values()) {
+    if (run.taskId === taskId && (newest === undefined || run.startedAt > newest.startedAt)) {
+      newest = run;
+    }
+  }
+  return newest;
+}
+
 function findTaskMarker(chunk: string): string | null {
   for (const line of chunk.split(/\r?\n/)) {
     const marker = extractTaskMarker(line);
@@ -89,11 +101,11 @@ async function scanSession(sessionId: string, filePath: string, affectedTaskIds:
   if (!session.markerChecked) {
     session.markerChecked = true;
     const marker = findTaskMarker(chunk);
-    session.taskId = marker !== null && activeRuns.has(marker) ? marker : null;
+    session.taskId = marker !== null && activeRunForTask(marker) !== undefined ? marker : null;
   }
 
   if (session.taskId === null || chunk.length === 0) return;
-  const run = activeRuns.get(session.taskId);
+  const run = activeRunForTask(session.taskId);
   if (!run) return;
 
   for (const record of extractUsageRecords(chunk, sessionId, session.seen)) {
@@ -127,8 +139,8 @@ async function scanOpenCodeUsage(affectedTaskIds: Set<string>): Promise<void> {
   const openCodeSessions = await readOpenCodeUsage({ cwd: getWorkspacePath() });
   for (const openCodeSession of openCodeSessions) {
     const taskId = markerFromOpenCodeText(openCodeSession.markerText);
-    if (taskId === null || !activeRuns.has(taskId)) continue;
-    const run = activeRuns.get(taskId);
+    if (taskId === null || activeRunForTask(taskId) === undefined) continue;
+    const run = activeRunForTask(taskId);
     if (run === undefined) continue;
     const seen = openCodeSeen.get(openCodeSession.sessionId) ?? new Set<string>();
     openCodeSeen.set(openCodeSession.sessionId, seen);
@@ -177,6 +189,61 @@ export async function ingestOpenCodeUsageRecords(taskId: string, step: string, r
   }
   if (affectedTaskIds.size > 0) {
     internalEvents.emit(USAGE_UPDATED, { taskIds: [...affectedTaskIds] });
+  }
+}
+
+/**
+ * One task-scoped agent invocation. OpenCode stdout persistence is serialized
+ * with finalization so a close/error/signal cannot race trailing JSONL writes.
+ */
+export class TaskUsageInvocation {
+  readonly id: string;
+  private readonly openCodeCollector = getAgentType() === 'opencode' ? new OpenCodeUsageStreamCollector() : null;
+  private pending: Promise<void> = Promise.resolve();
+  private finalized = false;
+
+  constructor(readonly taskId: string, readonly step: string, private readonly selectedModel?: string) {
+    this.id = `${taskId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    activeRuns.set(this.id, { invocationId: this.id, taskId, step, startedAt: Date.now() });
+    ensureScanInterval();
+  }
+
+  ingestOpenCodeStdout(chunk: string): void {
+    if (this.openCodeCollector === null || this.finalized) return;
+    const records = this.openCodeCollector.push(chunk);
+    this.enqueueRecords(records);
+  }
+
+  private enqueueRecords(records: OpenCodeUsageRecord[]): void {
+    if (records.length === 0) return;
+    const selectedModel = this.selectedModel;
+    const attributedRecords = selectedModel === undefined
+      ? records
+      : records.map(record => record.model === 'unknown' ? { ...record, model: selectedModel } : record);
+    this.pending = this.pending
+      .catch(() => undefined)
+      .then(() => ingestOpenCodeUsageRecords(this.taskId, this.step, attributedRecords))
+      .catch((error: unknown) => {
+        console.warn(`[UsageCollector] Failed to persist OpenCode usage for ${this.taskId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      });
+  }
+
+  async finalize(): Promise<void> {
+    if (this.finalized) {
+      await this.pending;
+      return;
+    }
+    this.finalized = true;
+    if (this.openCodeCollector !== null) this.enqueueRecords(this.openCodeCollector.flush());
+    await this.pending;
+    try {
+      await queueScan();
+    } catch (error) {
+      console.warn(`[UsageCollector] Final scan failed for ${this.taskId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      activeRuns.delete(this.id);
+      stopScanIntervalWhenIdle();
+    }
   }
 }
 
@@ -230,8 +297,7 @@ function queueScan(): Promise<void> {
   return scanChain;
 }
 
-export function beginTaskRun(taskId: string, step: string): void {
-  activeRuns.set(taskId, { step, startedAt: Date.now() });
+function ensureScanInterval(): void {
   if (intervalHandle === null) {
     intervalHandle = setInterval(() => {
       void queueScan();
@@ -239,16 +305,40 @@ export function beginTaskRun(taskId: string, step: string): void {
   }
 }
 
-export async function endTaskRun(taskId: string): Promise<void> {
-  try {
-    await queueScan();
-  } catch (error) {
-    console.warn(`[UsageCollector] Final scan failed for ${taskId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  } finally {
-    activeRuns.delete(taskId);
-    if (activeRuns.size === 0 && intervalHandle !== null) {
-      clearInterval(intervalHandle);
-      intervalHandle = null;
+function stopScanIntervalWhenIdle(): void {
+  if (activeRuns.size === 0 && intervalHandle !== null) {
+    clearInterval(intervalHandle);
+    intervalHandle = null;
+  }
+}
+
+export function beginTaskRun(taskId: string, step: string, selectedModel?: string): TaskUsageInvocation {
+  return new TaskUsageInvocation(taskId, step, selectedModel);
+}
+
+/** @deprecated Pass the invocation returned by beginTaskRun to avoid ambiguity. */
+export async function endTaskRun(invocation: TaskUsageInvocation | string): Promise<void> {
+  if (invocation instanceof TaskUsageInvocation) {
+    await invocation.finalize();
+    return;
+  }
+  const activeRun = activeRunForTask(invocation);
+  if (activeRun === undefined) return;
+  // Legacy callers do not retain their invocation. Finalize the most recent
+  // matching run without removing overlapping runs for the same task.
+  const legacyInvocation = new LegacyTaskUsageInvocation(activeRun);
+  await legacyInvocation.finalize();
+}
+
+class LegacyTaskUsageInvocation {
+  constructor(private readonly activeRun: ActiveRun) {}
+
+  async finalize(): Promise<void> {
+    try {
+      await queueScan();
+    } finally {
+      activeRuns.delete(this.activeRun.invocationId);
+      stopScanIntervalWhenIdle();
     }
   }
 }

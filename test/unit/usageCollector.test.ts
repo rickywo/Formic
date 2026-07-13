@@ -171,6 +171,70 @@ describe('usageCollector', () => {
     assert.deepStrictEqual(notifications, [['t-direct']]);
   });
 
+  it('keeps overlapping same-task OpenCode invocations isolated by semantic step', async () => {
+    engineConfig.agentType = 'opencode';
+    const declareRun = beginTaskRun('t-overlap', 'declare');
+    const executeRun = beginTaskRun('t-overlap', 'execute');
+    const declareLine = JSON.stringify({
+      type: 'step_finish', sessionID: 'declare-session',
+      part: { id: 'declare-part', messageID: 'declare-message', modelID: 'provider/declare', tokens: { input: 3, output: 2 } },
+    });
+    const executeLine = JSON.stringify({
+      type: 'step_finish', sessionID: 'execute-session',
+      part: { id: 'execute-part', messageID: 'execute-message', modelID: 'provider/execute', tokens: { input: 5, output: 4 } },
+    });
+
+    declareRun.ingestOpenCodeStdout(`${declareLine}\n`);
+    executeRun.ingestOpenCodeStdout(`${executeLine}\n`);
+    await Promise.all([declareRun.finalize(), executeRun.finalize()]);
+
+    const events = await readUsageEvents({ taskId: 't-overlap' });
+    assert.strictEqual(events.length, 2);
+    assert.deepStrictEqual(events.map(event => [event.sessionId, event.step, event.model]).sort(), [
+      ['declare-session', 'declare', 'provider/declare'],
+      ['execute-session', 'execute', 'provider/execute'],
+    ]);
+  });
+
+  it('flushes a trailing OpenCode JSONL record exactly once during finalization', async () => {
+    engineConfig.agentType = 'opencode';
+    const invocation = beginTaskRun('t-partial', 'reflection');
+    invocation.ingestOpenCodeStdout(JSON.stringify({
+      type: 'step_finish', sessionID: 'partial-session',
+      part: { id: 'partial-part', messageID: 'partial-message', tokens: { input: 7, output: 1 } },
+    }));
+
+    await Promise.all([invocation.finalize(), invocation.finalize()]);
+
+    const events = await readUsageEvents({ taskId: 't-partial' });
+    assert.strictEqual(events.length, 1);
+    assert.strictEqual(events[0].step, 'reflection');
+    assert.strictEqual(events[0].inputTokens, 7);
+  });
+
+  it('finalizes usage for workflow termination outcomes without losing semantic attribution', async () => {
+    engineConfig.agentType = 'opencode';
+    const outcomes = ['normal-close', 'spawn-error', 'runtime-error', 'timeout', 'sigterm', 'sigkill', 'retry', 'architect', 'quick', 'reflection'];
+    const invocations = outcomes.map((step, index) => {
+      const invocation = beginTaskRun(`t-${step}`, step, `provider/${step}`);
+      invocation.ingestOpenCodeStdout(JSON.stringify({
+        type: 'step_finish', sessionID: `session-${step}`,
+        part: { id: `part-${step}`, messageID: `message-${step}`, tokens: { input: index + 1, output: 1 } },
+      }));
+      return invocation;
+    });
+
+    await Promise.all(invocations.map(invocation => invocation.finalize()));
+
+    for (const [index, step] of outcomes.entries()) {
+      const events = await readUsageEvents({ taskId: `t-${step}` });
+      assert.strictEqual(events.length, 1, step);
+      assert.strictEqual(events[0].step, step);
+      assert.strictEqual(events[0].model, `provider/${step}`);
+      assert.strictEqual(events[0].inputTokens, index + 1);
+    }
+  });
+
   it('attributes OpenCode SQLite rows once to the active task and current step', async () => {
     if (!isAvailable()) return;
 
