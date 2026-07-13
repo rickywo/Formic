@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { UsageEvent } from '../../types/index.js';
 import { getAgentType } from './agentAdapter.js';
 import { internalEvents, USAGE_UPDATED } from './internalEvents.js';
+import { readOpenCodeUsage } from './opencodeUsage.js';
 import { claudeProjectDir, extractTaskMarker, extractUsageRecords } from './transcriptUsage.js';
 import { appendUsageEvent } from './usageStore.js';
 import { getWorkspacePath } from '../utils/paths.js';
@@ -24,6 +25,7 @@ const SESSION_MTIME_GRACE_MS = 5_000;
 
 const activeRuns = new Map<string, ActiveRun>();
 const sessions = new Map<string, TranscriptSession>();
+const openCodeSeen = new Map<string, Set<string>>();
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let scanChain: Promise<void> = Promise.resolve();
 let projectDirResolver: () => string = () => claudeProjectDir(getWorkspacePath());
@@ -112,10 +114,48 @@ async function scanSession(sessionId: string, filePath: string, affectedTaskIds:
   }
 }
 
-async function scanUsage(): Promise<void> {
-  const earliestStart = earliestRunStart();
-  if (earliestStart === null) return;
+function markerFromOpenCodeText(markerText: string | null): string | null {
+  if (markerText === null) return null;
+  // Reuse the same JSONL marker parser without allowing arbitrary Claude
+  // transcript lines to become task markers.
+  return extractTaskMarker(JSON.stringify({ type: 'user', message: { content: markerText } }));
+}
 
+async function scanOpenCodeUsage(affectedTaskIds: Set<string>): Promise<void> {
+  const openCodeSessions = await readOpenCodeUsage({ cwd: getWorkspacePath() });
+  for (const openCodeSession of openCodeSessions) {
+    const taskId = markerFromOpenCodeText(openCodeSession.markerText);
+    if (taskId === null || !activeRuns.has(taskId)) continue;
+    const run = activeRuns.get(taskId);
+    if (run === undefined) continue;
+    const seen = openCodeSeen.get(openCodeSession.sessionId) ?? new Set<string>();
+    openCodeSeen.set(openCodeSession.sessionId, seen);
+
+    for (const record of openCodeSession.records) {
+      const recordKey = record.messageId ?? record.requestId;
+      if (recordKey === null || seen.has(recordKey)) continue;
+      seen.add(recordKey);
+      const event: UsageEvent = {
+        id: `${openCodeSession.sessionId}:${recordKey}`,
+        timestamp: record.timestamp || new Date().toISOString(),
+        taskId,
+        step: run.step,
+        agentType: 'opencode',
+        source: 'transcript',
+        sessionId: openCodeSession.sessionId,
+        model: record.model || 'unknown',
+        inputTokens: record.inputTokens,
+        outputTokens: record.outputTokens,
+        cacheCreationTokens: record.cacheCreationTokens,
+        cacheReadTokens: record.cacheReadTokens,
+      };
+      await appendUsageEvent(event);
+      affectedTaskIds.add(taskId);
+    }
+  }
+}
+
+async function scanClaudeUsage(earliestStart: number, affectedTaskIds: Set<string>): Promise<void> {
   let fileNames: string[];
   try {
     fileNames = await readdir(projectDirResolver());
@@ -126,7 +166,6 @@ async function scanUsage(): Promise<void> {
     return;
   }
 
-  const affectedTaskIds = new Set<string>();
   for (const fileName of fileNames) {
     if (!fileName.endsWith('.jsonl')) continue;
     const filePath = path.join(projectDirResolver(), fileName);
@@ -139,6 +178,19 @@ async function scanUsage(): Promise<void> {
         console.warn(`[UsageCollector] Failed to scan transcript ${fileName}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
     }
+  }
+
+}
+
+async function scanUsage(): Promise<void> {
+  const earliestStart = earliestRunStart();
+  if (earliestStart === null) return;
+
+  const affectedTaskIds = new Set<string>();
+  if (getAgentType() === 'opencode') {
+    await scanOpenCodeUsage(affectedTaskIds);
+  } else {
+    await scanClaudeUsage(earliestStart, affectedTaskIds);
   }
 
   if (affectedTaskIds.size > 0) {
@@ -181,6 +233,7 @@ export function stopUsageCollector(): void {
   intervalHandle = null;
   activeRuns.clear();
   sessions.clear();
+  openCodeSeen.clear();
   scanChain = Promise.resolve();
 }
 

@@ -13,10 +13,13 @@ import {
 } from '../../src/server/services/usageCollector.js';
 import { readUsageEvents } from '../../src/server/services/usageStore.js';
 import { getWorkspacePath, setWorkspacePath } from '../../src/server/utils/paths.js';
+import { engineConfig } from '../../src/server/services/engineConfig.js';
+import { isAvailable, setOpenCodeUsageDatabasePathForTests } from '../../src/server/services/opencodeUsage.js';
 
 let savedWorkspacePath: string;
 let workspacePath: string;
 let transcriptDir: string;
+let savedAgentType: typeof engineConfig.agentType;
 
 function userLine(taskReference?: string): string {
   return JSON.stringify({
@@ -50,11 +53,14 @@ beforeEach(async () => {
   transcriptDir = path.join(workspacePath, 'claude-transcripts');
   setWorkspacePath(workspacePath);
   setUsageCollectorProjectDirResolverForTests(() => transcriptDir);
+  savedAgentType = engineConfig.agentType;
 });
 
 afterEach(async () => {
   stopUsageCollector();
   setUsageCollectorProjectDirResolverForTests(null);
+  setOpenCodeUsageDatabasePathForTests(null);
+  engineConfig.agentType = savedAgentType;
   setWorkspacePath(savedWorkspacePath);
   await rm(workspacePath, { recursive: true, force: true });
 });
@@ -132,5 +138,61 @@ describe('usageCollector', () => {
 
     await assert.doesNotReject(scanUsageCollectorForTests());
     assert.deepStrictEqual(await readUsageEvents(), []);
+  });
+
+  it('attributes OpenCode SQLite rows once to the active task and current step', async () => {
+    if (!isAvailable()) return;
+
+    const databasePath = path.join(workspacePath, 'opencode.db');
+    const dynamicImport = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<unknown>;
+    const sqlite = await dynamicImport('node:sqlite') as {
+      DatabaseSync: new (location: string) => {
+        exec(sql: string): void;
+        prepare(sql: string): { run(...parameters: unknown[]): void };
+        close(): void;
+      };
+    };
+    const database = new sqlite.DatabaseSync(databasePath);
+    try {
+      database.exec('CREATE TABLE session (id TEXT PRIMARY KEY, cwd TEXT); CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT, role TEXT, data TEXT);');
+      database.prepare('INSERT INTO session (id, cwd) VALUES (?, ?)').run('open-session', workspacePath);
+      database.prepare('INSERT INTO message (id, session_id, role, data) VALUES (?, ?, ?, ?)').run(
+        'open-user', 'open-session', 'user', JSON.stringify({ role: 'user', parts: [{ text: 'Use .formic/tasks/t-130_open-code.' }] }),
+      );
+      database.prepare('INSERT INTO message (id, session_id, role, data) VALUES (?, ?, ?, ?)').run(
+        'open-assistant', 'open-session', 'assistant', JSON.stringify({
+          role: 'assistant',
+          metadata: { time: { created: Date.now() }, assistant: { modelID: 'test', tokens: { input: 9, output: 4, cache: { read: 2, write: 1 } } } },
+        }),
+      );
+    } finally {
+      database.close();
+    }
+
+    engineConfig.agentType = 'opencode';
+    setOpenCodeUsageDatabasePathForTests(databasePath);
+    beginTaskRun('t-130', 'execute');
+    await scanUsageCollectorForTests();
+    const updatedDatabase = new sqlite.DatabaseSync(databasePath);
+    try {
+      updatedDatabase.prepare('INSERT INTO message (id, session_id, role, data) VALUES (?, ?, ?, ?)').run(
+        'open-assistant-2', 'open-session', 'assistant', JSON.stringify({
+          role: 'assistant',
+          metadata: { time: { created: Date.now() }, assistant: { modelID: 'test', tokens: { input: 12, output: 6, cache: { read: 0, write: 0 } } } },
+        }),
+      );
+    } finally {
+      updatedDatabase.close();
+    }
+    await scanUsageCollectorForTests();
+    await scanUsageCollectorForTests();
+
+    const events = await readUsageEvents({ taskId: 't-130' });
+    assert.strictEqual(events.length, 2);
+    assert.strictEqual(events[0].id, 'open-session:open-assistant');
+    assert.strictEqual(events[0].step, 'execute');
+    assert.strictEqual(events[0].agentType, 'opencode');
+    assert.strictEqual(events[0].inputTokens, 9);
+    assert.strictEqual(events[1].id, 'open-session:open-assistant-2');
   });
 });
