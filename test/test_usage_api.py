@@ -23,8 +23,14 @@ def fixture_events():
          'cacheCreationTokens': 0, 'cacheReadTokens': 0},
         {'id': 'usage-api-2', 'timestamp': '2026-07-12T10:00:40.000Z', 'taskId': 't-usage-api',
          'step': 'plan', 'agentType': 'claude', 'source': 'transcript', 'sessionId': 'session-plan',
-         'model': 'unknown/model', 'inputTokens': 0, 'outputTokens': 1000000,
-         'cacheCreationTokens': 0, 'cacheReadTokens': 0},
+          'model': 'unknown/model', 'inputTokens': 0, 'outputTokens': 1000000,
+          'cacheCreationTokens': 0, 'cacheReadTokens': 0},
+        # Proxy-era record shape persisted before UsageEvent added agentType,
+        # source, sessionId, and step under their current names.
+        {'id': 'usage-api-legacy-1', 'timestamp': '2026-07-12T10:01:00.000Z',
+         'agentId': 'brief', 'taskId': 't-usage-api-legacy', 'provider': 'anthropic',
+         'model': 'claude-sonnet-5', 'inputTokens': 10, 'outputTokens': 20,
+         'cacheCreationTokens': 30, 'cacheReadTokens': 40, 'requestId': 'legacy-request'},
     ]
 
 
@@ -50,10 +56,14 @@ def run_tests():
         task = summary['groups']['t-usage-api']
         assert task['inputTokens'] == 1000000 and task['outputTokens'] == 1000000
         assert task['requests'] == 2 and task['estCostUsd'] is None
+        legacy_task = summary['groups']['t-usage-api-legacy']
+        assert legacy_task['inputTokens'] == 10 and legacy_task['outputTokens'] == 20
+        assert legacy_task['requests'] == 1
 
         tasks_response = requests.get(f'{BASE_URL}/api/usage/tasks', timeout=5)
         assert_status(tasks_response, 200, 'task totals')
         assert tasks_response.json()['tasks']['t-usage-api']['requests'] == 2
+        assert tasks_response.json()['tasks']['t-usage-api-legacy']['requests'] == 1
 
         task_response = requests.get(f'{BASE_URL}/api/usage/task/t-usage-api', timeout=5)
         assert_status(task_response, 200, 'task breakdown')
@@ -61,6 +71,10 @@ def run_tests():
         assert breakdown['total']['requests'] == 2
         assert breakdown['byModel']['unknown/model']['estCostUsd'] is None
         assert breakdown['bySession']['session-execute']['inputTokens'] == 1000000
+
+        legacy_task_response = requests.get(f'{BASE_URL}/api/usage/task/t-usage-api-legacy', timeout=5)
+        assert_status(legacy_task_response, 200, 'legacy task breakdown')
+        assert legacy_task_response.json()['total']['cacheReadTokens'] == 40
 
         for endpoint in ('/api/usage/summary?period=invalid', '/api/usage/summary?groupBy=invalid'):
             assert_status(requests.get(BASE_URL + endpoint, timeout=5), 400, endpoint)

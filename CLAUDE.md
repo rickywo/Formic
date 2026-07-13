@@ -195,7 +195,7 @@ The server will automatically detect this format and create the task via the For
 ### Todo
   - [t-122] Token Usage Phase 4: append-only usage store, pricing config, and aggregation API
   - [t-129] Render per-card token badges and usage dashboard panel
-  - [t-130] -Add OpenCode usage extraction via node:sqlite (optional)
+  - [t-154] !Fix malformed usage events preventing Usage panel data
 
 ### Review
   - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
@@ -239,6 +239,7 @@ The server will automatically detect this format and create the task via the For
   - [t-126] !Add usage store, pricing config, and aggregation API
   - [t-127] !Wire usage collector into runner and workflow lifecycles
   - [t-128] Broadcast usage updates over WebSocket to the board
+  - [t-130] -Add OpenCode usage extraction via node:sqlite (optional)
 
 ## Formic Workflow
 

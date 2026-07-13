@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
@@ -23,6 +23,15 @@ function usageEvent(overrides: Partial<UsageEvent> = {}): UsageEvent {
   };
 }
 
+function legacyUsageEvent(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'legacy-event-1', timestamp: '2026-07-12T10:00:00.000Z', agentId: 'brief', taskId: 't-legacy',
+    provider: 'anthropic', model: 'unknown', inputTokens: 10, outputTokens: 20,
+    cacheCreationTokens: 30, cacheReadTokens: 40, latencyMs: 100, partial: false, requestId: 'legacy-request-1',
+    ...overrides,
+  };
+}
+
 describe('usageStore', () => {
   let workspacePath: string;
   let savedWorkspacePath: string;
@@ -37,6 +46,16 @@ describe('usageStore', () => {
     setWorkspacePath(savedWorkspacePath);
     await rm(workspacePath, { recursive: true, force: true });
   });
+
+  async function writeEvents(records: Array<Record<string, unknown> | string>): Promise<void> {
+    const usageDir = path.join(workspacePath, '.formic', 'usage');
+    await mkdir(usageDir, { recursive: true });
+    await writeFile(
+      path.join(usageDir, 'events.ndjson'),
+      `${records.map((record) => typeof record === 'string' ? record : JSON.stringify(record)).join('\n')}\n`,
+      'utf8',
+    );
+  }
 
   it('serializes appends and reads valid filtered events', async () => {
     await Promise.all([
@@ -95,5 +114,84 @@ describe('usageStore', () => {
     assert.equal(today.groups['after-midnight'].requests, 1);
     assert.equal(month.groups['before-month'], undefined);
     assert.equal(month.groups['after-month'].requests, 1);
+  });
+
+  it('normalizes the observed proxy-era event shape without changing current collector events', async () => {
+    const current = usageEvent({ id: 'collector-event', taskId: 't-current', sessionId: 'collector-session' });
+    await writeEvents([legacyUsageEvent(), current]);
+
+    const events = await readUsageEvents();
+    assert.deepEqual(events, [
+      {
+        id: 'legacy-event-1', timestamp: '2026-07-12T10:00:00.000Z', taskId: 't-legacy', step: 'brief',
+        agentType: 'claude', source: 'transcript', sessionId: 'legacy-request-1', model: 'unknown',
+        inputTokens: 10, outputTokens: 20, cacheCreationTokens: 30, cacheReadTokens: 40,
+      },
+      current,
+    ]);
+  });
+
+  it('skips corrupt JSON and legacy records with missing attribution, unsupported providers, or invalid tokens', async () => {
+    await writeEvents([
+      '{not JSON',
+      legacyUsageEvent({ id: 'missing-request', requestId: '' }),
+      legacyUsageEvent({ id: 'unsupported-provider', provider: 'other-provider', requestId: 'request-2' }),
+      legacyUsageEvent({ id: 'negative-tokens', inputTokens: -1, requestId: 'request-3' }),
+      legacyUsageEvent({ id: 'non-finite-tokens', outputTokens: 'NaN', requestId: 'request-4' }),
+      usageEvent({ id: 'invalid-current-agent', taskId: 't-invalid', agentType: 'invalid' as UsageEvent['agentType'] }),
+    ]);
+
+    assert.deepEqual(await readUsageEvents(), []);
+  });
+
+  it('aggregates valid current and legacy events in a mixed file while filtering corrupt neighbors', async () => {
+    await writeEvents([
+      usageEvent({ id: 'mixed-current', taskId: 't-mixed', sessionId: 'current-session', model: 'claude-sonnet-5', inputTokens: 100, outputTokens: 200 }),
+      legacyUsageEvent({ id: 'mixed-legacy', taskId: 't-mixed', requestId: 'legacy-session', model: 'claude-sonnet-5', inputTokens: 300, outputTokens: 400, cacheCreationTokens: 5, cacheReadTokens: 6 }),
+      '{malformed',
+      legacyUsageEvent({ id: 'mixed-corrupt', taskId: 't-mixed', requestId: 'bad-session', cacheReadTokens: -1 }),
+    ]);
+
+    const summary = await summarizeUsage({ period: 'all', groupBy: 'model' });
+    const totals = await taskUsageTotals();
+    const breakdown = await taskUsageBreakdown('t-mixed');
+    assert.equal(summary.groups['claude-sonnet-5'].requests, 2);
+    assert.equal(summary.groups['claude-sonnet-5'].inputTokens, 400);
+    assert.equal(summary.groups['claude-sonnet-5'].outputTokens, 600);
+    assert.equal(summary.groups['claude-sonnet-5'].cacheCreationTokens, 5);
+    assert.equal(summary.groups['claude-sonnet-5'].cacheReadTokens, 6);
+    assert.equal(totals['t-mixed'].requests, 2);
+    assert.equal(breakdown.total.inputTokens, 400);
+    assert.equal(breakdown.bySession['current-session'].requests, 1);
+    assert.equal(breakdown.bySession['legacy-session'].requests, 1);
+  });
+
+  it('reports non-sensitive line-specific diagnostics once across repeated reads', async () => {
+    const sensitivePayload = 'do-not-log-this-transcript-content';
+    await writeEvents([
+      usageEvent({ id: 'warning-valid', taskId: 't-warning' }),
+      usageEvent({ id: 'warning-valid-2', taskId: 't-warning' }),
+      usageEvent({ id: 'warning-valid-3', taskId: 't-warning' }),
+      usageEvent({ id: 'warning-valid-4', taskId: 't-warning' }),
+      usageEvent({ id: 'warning-valid-5', taskId: 't-warning' }),
+      usageEvent({ id: 'warning-valid-6', taskId: 't-warning' }),
+      JSON.stringify({ ...legacyUsageEvent({ id: 'warning-invalid', requestId: '' }), transcript: sensitivePayload }),
+    ]);
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (message: unknown): void => {
+      warnings.push(String(message));
+    };
+    try {
+      await readUsageEvents();
+      await readUsageEvents();
+    } finally {
+      console.warn = originalWarn;
+    }
+
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /line 7/);
+    assert.match(warnings[0], /requestId/);
+    assert.doesNotMatch(warnings[0], new RegExp(sensitivePayload));
   });
 });

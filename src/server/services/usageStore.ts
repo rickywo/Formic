@@ -1,6 +1,6 @@
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { UsageEvent } from '../../types/index.js';
+import type { AgentType, UsageEvent } from '../../types/index.js';
 import { getBundledTemplatesPath, getFormicDir } from '../utils/paths.js';
 
 export type UsagePeriod = 'today' | 'month' | 'all';
@@ -35,6 +35,8 @@ export interface PeriodWindows {
 }
 
 let appendLock: Promise<void> = Promise.resolve();
+const MAX_REPORTED_MALFORMED_LINES = 100;
+const reportedMalformedLines = new Set<string>();
 
 function getUsageDir(): string {
   return path.join(getFormicDir(), 'usage');
@@ -56,21 +58,120 @@ function isFiniteNonNegativeNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value >= 0;
 }
 
+function isAgentType(value: unknown): value is AgentType {
+  return value === 'claude' || value === 'copilot' || value === 'opencode';
+}
+
+function recordOf(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function usageEventIssues(value: unknown): string[] {
+  const event = recordOf(value);
+  if (event === null) return ['record'];
+
+  const issues: string[] = [];
+  if (!isNonEmptyString(event.id)) issues.push('id');
+  if (!isNonEmptyString(event.timestamp)) issues.push('timestamp');
+  if (!isNonEmptyString(event.taskId)) issues.push('taskId');
+  if (!isNonEmptyString(event.step)) issues.push('step');
+  if (!isAgentType(event.agentType)) issues.push('agentType');
+  if (event.source !== 'transcript') issues.push('source');
+  if (!isNonEmptyString(event.sessionId)) issues.push('sessionId');
+  if (!isNonEmptyString(event.model)) issues.push('model');
+  if (!isFiniteNonNegativeNumber(event.inputTokens)) issues.push('inputTokens');
+  if (!isFiniteNonNegativeNumber(event.outputTokens)) issues.push('outputTokens');
+  if (!isFiniteNonNegativeNumber(event.cacheCreationTokens)) issues.push('cacheCreationTokens');
+  if (!isFiniteNonNegativeNumber(event.cacheReadTokens)) issues.push('cacheReadTokens');
+  return issues;
+}
+
 function isUsageEvent(value: unknown): value is UsageEvent {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
-  const event = value as Record<string, unknown>;
-  return isNonEmptyString(event.id)
-    && isNonEmptyString(event.timestamp)
-    && isNonEmptyString(event.taskId)
-    && isNonEmptyString(event.step)
-    && isNonEmptyString(event.agentType)
-    && event.source === 'transcript'
-    && isNonEmptyString(event.sessionId)
-    && isNonEmptyString(event.model)
-    && isFiniteNonNegativeNumber(event.inputTokens)
-    && isFiniteNonNegativeNumber(event.outputTokens)
-    && isFiniteNonNegativeNumber(event.cacheCreationTokens)
-    && isFiniteNonNegativeNumber(event.cacheReadTokens);
+  return usageEventIssues(value).length === 0;
+}
+
+function isValidLegacyTimestamp(value: unknown): value is string {
+  return isNonEmptyString(value) && !Number.isNaN(new Date(value).getTime());
+}
+
+function legacyAgentType(provider: unknown): AgentType | null {
+  // The previous proxy stored Anthropic usage without an agent type. It was
+  // exclusively Claude usage, so this mapping is intentionally narrow.
+  return provider === 'anthropic' ? 'claude' : null;
+}
+
+interface LegacyNormalizationResult {
+  event: UsageEvent | null;
+  issues: string[];
+}
+
+function isLegacyUsageRecord(value: Record<string, unknown>): boolean {
+  return Object.hasOwn(value, 'agentId') || Object.hasOwn(value, 'provider') || Object.hasOwn(value, 'requestId');
+}
+
+function normalizeLegacyUsageEvent(value: Record<string, unknown>): LegacyNormalizationResult {
+  const { id, timestamp, taskId, agentId, provider, requestId, model } = value;
+  const { inputTokens, outputTokens, cacheCreationTokens, cacheReadTokens } = value;
+  const agentType = legacyAgentType(provider);
+  const issues: string[] = [];
+  if (!isNonEmptyString(id)) issues.push('id');
+  if (!isValidLegacyTimestamp(timestamp)) issues.push('timestamp');
+  if (!isNonEmptyString(taskId)) issues.push('taskId');
+  if (!isNonEmptyString(agentId)) issues.push('agentId');
+  if (agentType === null) issues.push('provider');
+  if (!isNonEmptyString(requestId)) issues.push('requestId');
+  if (!isNonEmptyString(model)) issues.push('model');
+  if (!isFiniteNonNegativeNumber(inputTokens)) issues.push('inputTokens');
+  if (!isFiniteNonNegativeNumber(outputTokens)) issues.push('outputTokens');
+  if (!isFiniteNonNegativeNumber(cacheCreationTokens)) issues.push('cacheCreationTokens');
+  if (!isFiniteNonNegativeNumber(cacheReadTokens)) issues.push('cacheReadTokens');
+  if (issues.length > 0) return { event: null, issues };
+
+  // The field checks above make the legacy-to-current mapping safe. Keep this
+  // guard explicit so TypeScript preserves that proof at the conversion point.
+  if (!isNonEmptyString(id) || !isValidLegacyTimestamp(timestamp) || !isNonEmptyString(taskId)
+    || !isNonEmptyString(agentId) || agentType === null || !isNonEmptyString(requestId)
+    || !isNonEmptyString(model) || !isFiniteNonNegativeNumber(inputTokens)
+    || !isFiniteNonNegativeNumber(outputTokens) || !isFiniteNonNegativeNumber(cacheCreationTokens)
+    || !isFiniteNonNegativeNumber(cacheReadTokens)) {
+    return { event: null, issues: ['record'] };
+  }
+
+  return {
+    event: {
+      id,
+      timestamp,
+      taskId,
+      step: agentId,
+      agentType,
+      source: 'transcript',
+      sessionId: requestId,
+      model,
+      inputTokens,
+      outputTokens,
+      cacheCreationTokens,
+      cacheReadTokens,
+    },
+    issues: [],
+  };
+}
+
+function parseUsageEventRecord(value: unknown): LegacyNormalizationResult {
+  if (isUsageEvent(value)) return { event: value, issues: [] };
+  const record = recordOf(value);
+  if (record !== null && isLegacyUsageRecord(record)) return normalizeLegacyUsageEvent(record);
+  return { event: null, issues: usageEventIssues(value) };
+}
+
+function reportMalformedUsageLine(lineNumber: number, issues: string[]): void {
+  const issueList = issues.length > 0 ? issues.join(', ') : 'record';
+  const warningKey = `${getEventsPath()}:${lineNumber}:${issueList}`;
+  if (reportedMalformedLines.has(warningKey)) return;
+  if (reportedMalformedLines.size >= MAX_REPORTED_MALFORMED_LINES) return;
+  reportedMalformedLines.add(warningKey);
+  console.warn(`[UsageStore] Skipping malformed usage event at events.ndjson line ${lineNumber}: invalid or missing fields: ${issueList}`);
 }
 
 function isModelPricing(value: unknown): value is ModelPricing {
@@ -204,18 +305,19 @@ export async function readUsageEvents(filter: UsageEventFilter = {}): Promise<Us
   try {
     const contents = await readFile(getEventsPath(), 'utf8');
     const events: UsageEvent[] = [];
-    let malformedLogged = false;
-    for (const line of contents.split('\n')) {
+    const lines = contents.split('\n');
+    for (const [index, line] of lines.entries()) {
       if (!line.trim()) continue;
       try {
         const parsed: unknown = JSON.parse(line);
-        if (!isUsageEvent(parsed)) throw new Error('record does not match the UsageEvent schema');
-        if (matchesFilter(parsed, filter)) events.push(parsed);
-      } catch (err) {
-        if (!malformedLogged) {
-          malformedLogged = true;
-          console.warn(`[UsageStore] Skipping malformed usage event: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        const result = parseUsageEventRecord(parsed);
+        if (result.event === null) {
+          reportMalformedUsageLine(index + 1, result.issues);
+          continue;
         }
+        if (matchesFilter(result.event, filter)) events.push(result.event);
+      } catch {
+        reportMalformedUsageLine(index + 1, ['invalid JSON']);
       }
     }
     return events;
