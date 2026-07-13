@@ -4308,6 +4308,31 @@
         -20px 0 60px -10px rgba(0, 0, 0, 0.5);
     }
 
+    .task-usage-badge { display: inline-flex; align-items: center; margin-top: 10px; padding: 3px 7px; border: 1px solid rgba(167, 139, 250, 0.24); border-radius: 999px; background: rgba(124, 58, 237, 0.12); color: rgba(221, 214, 254, 0.95); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .usage-panel { width: 560px; }
+    .usage-content { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; }
+    .usage-controls { display: grid; gap: 16px; margin-bottom: 20px; }
+    .usage-control-label { display: block; margin-bottom: 7px; color: rgba(255, 255, 255, 0.5); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+    .usage-toggle { display: flex; gap: 4px; }
+    .usage-toggle button { padding: 6px 10px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 7px; background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.6); cursor: pointer; font-size: 12px; }
+    .usage-toggle button.active { border-color: rgba(167, 139, 250, 0.55); background: rgba(124, 58, 237, 0.24); color: #ede9fe; }
+    .usage-summary-status { color: rgba(255, 255, 255, 0.55); font-size: 13px; }
+    .usage-summary-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .usage-summary-table th, .usage-summary-table td { padding: 10px 7px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); text-align: right; font-variant-numeric: tabular-nums; }
+    .usage-summary-table th { color: rgba(255, 255, 255, 0.48); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .usage-summary-table th:first-child, .usage-summary-table td:first-child { max-width: 150px; overflow-wrap: anywhere; text-align: left; color: rgba(255, 255, 255, 0.86); }
+    .usage-summary-table tfoot td { border-bottom: 0; border-top: 1px solid rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.92); font-weight: 700; }
+    .usage-cost-basis { display: block; margin-top: 2px; color: rgba(255, 255, 255, 0.42); font-size: 9px; font-weight: 700; letter-spacing: 0.05em; }
+    .usage-cost-disclaimer { margin-top: 12px; color: rgba(255, 255, 255, 0.4); font-size: 11px; }
+    [data-theme="light"] .task-usage-badge { border-color: rgba(109, 40, 217, 0.25); background: rgba(124, 58, 237, 0.08); color: #5b21b6; }
+    [data-theme="light"] .usage-control-label, [data-theme="light"] .usage-summary-status, [data-theme="light"] .usage-cost-disclaimer, [data-theme="light"] .usage-summary-table th { color: rgba(0, 0, 0, 0.5); }
+    [data-theme="light"] .usage-toggle button { border-color: rgba(0, 0, 0, 0.12); background: rgba(0, 0, 0, 0.03); color: rgba(0, 0, 0, 0.65); }
+    [data-theme="light"] .usage-toggle button.active { color: #4c1d95; background: rgba(124, 58, 237, 0.12); }
+    [data-theme="light"] .usage-summary-table th, [data-theme="light"] .usage-summary-table td { border-color: rgba(0, 0, 0, 0.08); }
+    [data-theme="light"] .usage-summary-table th:first-child, [data-theme="light"] .usage-summary-table td:first-child { color: rgba(0, 0, 0, 0.82); }
+    [data-theme="light"] .usage-summary-table tfoot td { border-color: rgba(0, 0, 0, 0.16); color: rgba(0, 0, 0, 0.86); }
+    [data-theme="light"] .usage-cost-basis { color: rgba(0, 0, 0, 0.46); }
+
     /* Settings Header */
     .settings-header {
       display: flex;
@@ -7286,6 +7311,7 @@
         <span class="usage-icon">⚡</span>
         <span class="usage-label" id="usage-label">—</span>
       </div>
+      <button class="btn settings-btn" id="usage-btn" onclick="openUsagePanel()" title="Token usage" aria-label="Open token usage dashboard"><span class="settings-icon">📊</span></button>
       <button class="btn theme-toggle" id="theme-toggle" onclick="cycleTheme()" title="Toggle theme">
         <span class="theme-icon" id="theme-icon"></span>
         <span class="theme-label" id="theme-label">Dark</span>
@@ -8162,6 +8188,19 @@
     </div>
   </div>
 
+  <!-- Token Usage Dashboard -->
+  <div class="settings-backdrop" id="usage-backdrop" onclick="closeUsagePanel()"></div>
+  <aside class="settings-panel usage-panel" id="usage-panel" aria-label="Token usage dashboard" aria-hidden="true">
+    <div class="settings-header"><div class="settings-header-left"><span class="settings-icon-header">📊</span><span class="settings-title">Token Usage</span></div><button class="settings-close-btn" onclick="closeUsagePanel()" aria-label="Close token usage dashboard">×</button></div>
+    <div class="usage-content">
+      <div class="usage-controls">
+        <div><span class="usage-control-label">Period</span><div class="usage-toggle" id="usage-period-toggle"><button type="button" data-period="today" aria-pressed="false" onclick="setUsagePeriod('today')">Today</button><button type="button" data-period="month" aria-pressed="false" onclick="setUsagePeriod('month')">Month</button><button type="button" data-period="all" aria-pressed="false" onclick="setUsagePeriod('all')">All</button></div></div>
+        <div><span class="usage-control-label">Group by</span><div class="usage-toggle" id="usage-group-toggle"><button type="button" data-group="model" aria-pressed="false" onclick="setUsageGroupBy('model')">Model</button><button type="button" data-group="task" aria-pressed="false" onclick="setUsageGroupBy('task')">Task</button><button type="button" data-group="session" aria-pressed="false" onclick="setUsageGroupBy('session')">Session</button></div></div>
+      </div>
+      <div id="usage-summary-content" class="usage-summary-status" aria-live="polite">Open the dashboard to load usage.</div>
+    </div>
+  </aside>
+
   <!-- Confirm Modal (in-app confirmation dialog) -->
   <div class="modal-overlay" id="confirm-modal">
     <div class="modal" style="max-width: 420px;">
@@ -8183,6 +8222,8 @@
     let currentWs = null;
     let draggedTaskId = null;
     let taskUsageMap = {};
+    let usagePeriod = 'all';
+    let usageGroupBy = 'model';
     const BOOTSTRAP_TASK_ID = 't-bootstrap';
     const ACTIVE_STATUSES = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
 
@@ -9079,6 +9120,7 @@
 
       applyTheme(getStoredTheme());
       await loadBoard();
+      await refreshUsageBadges();
       terminal = new Terminal({
         theme: getTerminalTheme(),
         fontSize: 13,
@@ -9319,6 +9361,7 @@
           const contextText = isBootstrap
             ? 'Analyzes your codebase and generates AI development guidelines tailored to your project.'
             : escapeHtml(task.context);
+          const usageBadge = renderTaskUsageBadge(taskUsageMap[task.id]);
 
           // Build workflow step indicator for active workflow tasks
           const workflowSteps = ['brief', 'plan', 'execute'];
@@ -9429,6 +9472,7 @@
               ${task.verificationWarning ? `<div class="verification-warning-banner" title="${escapeHtml(task.verificationWarning)}">⚠ ${escapeHtml(task.verificationWarning)}</div>` : ''}
               ${(task.status === 'todo' && task.yieldReason) ? `<div class="task-yield-reason" title="Task fell out of the queue. Reason: ${escapeHtml(task.yieldReason)}">⚠ Queue capped: ${escapeHtml(task.yieldReason)}</div>` : ''}
               <div class="task-context">${contextText}</div>
+              ${usageBadge}
               ${task.startedAt ? (isRunning
                 ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}">⏱ ${formatDuration(task.startedAt, null)}</span>`
                 : (task.completedAt ? `<span class="task-duration">⏱ ${formatDuration(task.startedAt, task.completedAt)}</span>` : ''))
@@ -9960,6 +10004,53 @@
       backdrop.classList.remove('open');
       closeAllColorPickers();
       editingWorkspaceId = null;
+    }
+
+    function isUsagePanelOpen() {
+      return document.getElementById('usage-panel').classList.contains('open');
+    }
+
+    function openUsagePanel() {
+      closeSettings();
+      closeHelp();
+      const panel = document.getElementById('usage-panel');
+      panel.classList.add('open');
+      panel.setAttribute('aria-hidden', 'false');
+      document.getElementById('usage-backdrop').classList.add('open');
+      updateUsageToggleState();
+      fetchUsageSummary();
+    }
+
+    function closeUsagePanel() {
+      const panel = document.getElementById('usage-panel');
+      panel.classList.remove('open');
+      panel.setAttribute('aria-hidden', 'true');
+      document.getElementById('usage-backdrop').classList.remove('open');
+    }
+
+    function setUsagePeriod(period) {
+      usagePeriod = period;
+      updateUsageToggleState();
+      fetchUsageSummary();
+    }
+
+    function setUsageGroupBy(groupBy) {
+      usageGroupBy = groupBy;
+      updateUsageToggleState();
+      fetchUsageSummary();
+    }
+
+    function updateUsageToggleState() {
+      document.querySelectorAll('#usage-period-toggle [data-period]').forEach((button) => {
+        const isActive = button.dataset.period === usagePeriod;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
+      document.querySelectorAll('#usage-group-toggle [data-group]').forEach((button) => {
+        const isActive = button.dataset.group === usageGroupBy;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-pressed', String(isActive));
+      });
     }
 
     // ============================================
@@ -10544,12 +10635,15 @@
       renderWorkspaceList();
     }
 
-    // Close settings or help panel on Escape key
+    // Close the topmost slide-over panel on Escape key
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         const helpPanel = document.getElementById('help-panel');
         const settingsPanel = document.getElementById('settings-panel');
-        if (helpPanel.classList.contains('open')) {
+        const usagePanel = document.getElementById('usage-panel');
+        if (usagePanel.classList.contains('open')) {
+          closeUsagePanel();
+        } else if (helpPanel.classList.contains('open')) {
           closeHelp();
         } else if (settingsPanel.classList.contains('open')) {
           closeSettings();
@@ -12043,13 +12137,85 @@
 
     // ==================== Usage Meter ====================
 
+    function usageTotalTokens(usage) {
+      return (usage.inputTokens || 0) + (usage.outputTokens || 0) + (usage.cacheCreationTokens || 0) + (usage.cacheReadTokens || 0);
+    }
+
+    function formatUsageTokens(tokens) {
+      if (tokens >= 1_000_000) return (tokens / 1_000_000).toFixed(1) + 'M';
+      if (tokens >= 1_000) return (tokens / 1_000).toFixed(1) + 'k';
+      return String(Math.round(tokens));
+    }
+
+    function formatUsageCost(cost) {
+      return '$' + cost.toFixed(2);
+    }
+
+    function usageCacheHitPercent(usage) {
+      const denominator = (usage.inputTokens || 0) + (usage.cacheReadTokens || 0);
+      return denominator > 0 ? Math.round(((usage.cacheReadTokens || 0) / denominator) * 100) : 0;
+    }
+
+    function usageTooltip(usage) {
+      return `Input: ${formatUsageTokens(usage.inputTokens || 0)}\nOutput: ${formatUsageTokens(usage.outputTokens || 0)}\nCache read: ${formatUsageTokens(usage.cacheReadTokens || 0)}\nCache write: ${formatUsageTokens(usage.cacheCreationTokens || 0)}\nCache hit: ${usageCacheHitPercent(usage)}%`;
+    }
+
+    function renderTaskUsageBadge(usage) {
+      if (!usage) return '';
+      const cost = usage.estCostUsd === null || usage.estCostUsd === undefined ? '' : ` · ${formatUsageCost(usage.estCostUsd)}`;
+      return `<span class="task-usage-badge" title="${escapeHtml(usageTooltip(usage))}">⚡ ${formatUsageTokens(usageTotalTokens(usage))}${cost}</span>`;
+    }
+
+    async function fetchUsageSummary() {
+      if (!isUsagePanelOpen()) return;
+      const content = document.getElementById('usage-summary-content');
+      content.textContent = 'Loading usage…';
+      try {
+        const response = await fetch(`/api/usage/summary?period=${encodeURIComponent(usagePeriod)}&groupBy=${encodeURIComponent(usageGroupBy)}`);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        renderUsageSummary(data.groups || {});
+      } catch (err) {
+        console.warn('[Usage] Failed to load usage summary:', err);
+        content.textContent = 'Unable to load usage summary.';
+      }
+    }
+
+    function renderUsageSummary(groups) {
+      const content = document.getElementById('usage-summary-content');
+      const rows = Object.entries(groups);
+      if (rows.length === 0) {
+        content.textContent = 'No usage data for this period.';
+        return;
+      }
+      const label = usageGroupBy.charAt(0).toUpperCase() + usageGroupBy.slice(1);
+      const total = rows.reduce((summary, [, usage]) => ({
+        inputTokens: summary.inputTokens + (usage.inputTokens || 0),
+        outputTokens: summary.outputTokens + (usage.outputTokens || 0),
+        cacheCreationTokens: summary.cacheCreationTokens + (usage.cacheCreationTokens || 0),
+        cacheReadTokens: summary.cacheReadTokens + (usage.cacheReadTokens || 0),
+        estCostUsd: summary.estCostUsd === null || usage.estCostUsd === null || usage.estCostUsd === undefined
+          ? null
+          : summary.estCostUsd + usage.estCostUsd,
+      }), { inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, estCostUsd: 0 });
+      const renderCost = (usage) => {
+        if (usage.estCostUsd === null || usage.estCostUsd === undefined) return '—';
+        const basis = usage.costBasis === 'ESTIMATED' ? '<span class="usage-cost-basis">ESTIMATED</span>' : '';
+        return `${formatUsageCost(usage.estCostUsd)}${basis}`;
+      };
+      content.innerHTML = `<table class="usage-summary-table"><thead><tr><th>${label}</th><th>Tokens</th><th>Cost</th><th>Cache hit</th></tr></thead><tbody>${rows.map(([key, usage]) => {
+        return `<tr><td>${escapeHtml(key)}</td><td>${formatUsageTokens(usageTotalTokens(usage))}</td><td>${renderCost(usage)}</td><td>${usageCacheHitPercent(usage)}%</td></tr>`;
+      }).join('')}</tbody><tfoot><tr><td>Total</td><td>${formatUsageTokens(usageTotalTokens(total))}</td><td>${renderCost({ ...total, costBasis: 'ESTIMATED' })}</td><td>${usageCacheHitPercent(total)}%</td></tr></tfoot></table><p class="usage-cost-disclaimer">Costs are estimated where pricing is available.</p>`;
+    }
+
     async function refreshUsageBadges(taskIds) {
       try {
         const res = await fetch('/api/usage/tasks');
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         taskUsageMap = data.tasks || {};
-        console.debug('[Usage] Usage updated for tasks:', taskIds, taskUsageMap);
+        renderBoard();
+        if (isUsagePanelOpen()) fetchUsageSummary();
       } catch (err) {
         console.warn('[Usage] Failed to refresh task usage:', err);
       }
