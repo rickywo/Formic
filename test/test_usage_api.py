@@ -78,7 +78,6 @@ def run_tests():
 
         for endpoint in ('/api/usage/summary?period=invalid', '/api/usage/summary?groupBy=invalid'):
             assert_status(requests.get(BASE_URL + endpoint, timeout=5), 400, endpoint)
-        assert_status(requests.get(f'{BASE_URL}/api/usage', timeout=5), 200, 'account usage')
         print('Usage API Tests: passed')
         return True
     except (AssertionError, requests.RequestException) as error:

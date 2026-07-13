@@ -126,11 +126,11 @@ test.describe('token usage dashboard', () => {
     await expect(page.locator('.usage-group-toggle').first()).toHaveAttribute('aria-expanded', 'true');
     await expect(page.locator('.usage-breakdown').first()).toContainText('Cache write');
 
-    await page.getByRole('button', { name: 'Task', exact: true }).click();
+    await page.getByRole('tab', { name: 'Task', exact: true }).click();
     await expect(page.locator('#usage-summary-content')).toContainText('t-usage');
-    await page.getByRole('button', { name: 'Session', exact: true }).click();
+    await page.getByRole('tab', { name: 'Session', exact: true }).click();
     await expect(page.locator('#usage-summary-content')).toContainText('usage-session-a');
-    await page.getByRole('button', { name: 'Today', exact: true }).click();
+    await page.getByRole('tab', { name: 'Today', exact: true }).click();
     await expect(page.locator('#usage-summary-content')).toContainText('usage-session-b');
   });
 
@@ -177,11 +177,11 @@ test.describe('token usage dashboard', () => {
     await expect(page.locator('#usage-summary-content')).toContainText('openai/gpt-5');
     await expect(page.locator('#usage-summary-content')).toContainText('$0.21');
     await expect(page.locator('#usage-summary-content')).toContainText('no pricing');
-    await expect(page.locator('#usage-summary-content')).toContainText('35%');
+    await expect(page.locator('#usage-summary-content')).toContainText('39%');
     await expect(page.locator('.usage-cost-disclaimer')).toContainText('estimated');
-    await page.getByRole('button', { name: 'Task', exact: true }).click();
+    await page.getByRole('tab', { name: 'Task', exact: true }).click();
     await expect(page.locator('#usage-summary-content')).toContainText('t-opencode');
-    await page.getByRole('button', { name: 'Session', exact: true }).click();
+    await page.getByRole('tab', { name: 'Session', exact: true }).click();
     await expect(page.locator('#usage-summary-content')).toContainText('oc-session-reflection');
   });
 

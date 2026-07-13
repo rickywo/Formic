@@ -39,6 +39,11 @@ test.describe('agent provider selection', () => {
   });
 
   test.beforeEach(async ({ page }) => {
+    // Provider switching prompts when a real board has active work. Keep these
+    // control tests isolated from whichever task happens to be running locally.
+    await page.route('**/api/board', route => route.fulfill({ json: {
+      meta: {}, bootstrapRequired: false, tasks: [],
+    } }));
     await page.goto('/');
     originalType = await getCurrentAgentType(page);
   });
@@ -61,6 +66,7 @@ test.describe('agent provider selection', () => {
     await page.locator('#agent-trigger').click();
     const dropdown = page.locator('#agent-dropdown');
     await expect(dropdown).toBeVisible();
+    await expect(page.locator('.agent-item')).toHaveCount(3);
 
     const items = page.locator('.agent-item');
     await expect(items).toHaveCount(3);
@@ -80,8 +86,7 @@ test.describe('agent provider selection', () => {
     // We don't assert count since it depends on what's installed,
     // but the structure should be correct
     const allItems = page.locator('.agent-item');
-    const count = await allItems.count();
-    expect(count).toBe(3);
+    await expect(allItems).toHaveCount(3);
 
     // At least one should NOT be disabled (current provider should be installed)
     const clickableItems = page.locator('.agent-item:not(.disabled)');
@@ -101,7 +106,9 @@ test.describe('agent provider selection', () => {
 
     // Pill should update
     const pill = page.locator('#agent-trigger-name');
-    await expect(pill).toContainText(itemName!);
+    const headerName = itemName === 'Claude Code CLI' ? 'Claude Code'
+      : itemName === 'GitHub Copilot CLI' ? 'Copilot' : 'OpenCode';
+    await expect(pill).toContainText(headerName);
   });
 
   test('persists provider across page reload', async ({ page }) => {
@@ -146,7 +153,7 @@ test.describe('agent provider selection', () => {
     await saveP;
 
     // Close settings
-    await page.locator('.settings-close-btn').click();
+    await page.getByLabel('Close settings').click();
 
     // Header pill should show Claude
     const pill = page.locator('#agent-trigger-name');

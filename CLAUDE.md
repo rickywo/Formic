@@ -196,6 +196,12 @@ The server will automatically detect this format and create the task via the For
   - [t-122] Token Usage Phase 4: append-only usage store, pricing config, and aggregation API
   - [t-129] Render per-card token badges and usage dashboard panel
   - [t-154] !Fix malformed usage events preventing Usage panel data
+  - [t-157] !Track OpenCode token usage directly from JSONL output
+  - [t-158] !Capture OpenCode usage across every task workflow step
+  - [t-159] !Track OpenCode usage for assistant and messaging sessions
+  - [t-160] !Normalize OpenCode provider models tokens and pricing
+  - [t-161] !Validate OpenCode usage dashboard end to end
+  - [t-162] Refactor token usage dashboard and settings panel into a unified, polished panel UI
 
 ### Review
   - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
@@ -240,6 +246,9 @@ The server will automatically detect this format and create the task via the For
   - [t-127] !Wire usage collector into runner and workflow lifecycles
   - [t-128] Broadcast usage updates over WebSocket to the board
   - [t-130] -Add OpenCode usage extraction via node:sqlite (optional)
+  - [t-155] -Token usage smoke test — no-op
+  - [t-156] -Verify package metadata
+  - [t-163] Remove legacy account-quota usage meter, keep transcript token-usage feature
 
 ## Formic Workflow
 

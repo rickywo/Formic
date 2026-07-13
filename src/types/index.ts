@@ -79,27 +79,6 @@ export interface MergeResult {
   conflicts: FileConflict[];
 }
 
-// ==================== Usage Meter Types ====================
-
-/** Status of the agent usage meter */
-export type UsageStatus = 'ok' | 'warning' | 'critical' | 'unknown';
-
-/** Usage information returned by the /api/usage endpoint */
-export interface UsageInfo {
-  /** Configured agent type */
-  agent: string;
-  /** Credits or units consumed */
-  used: number;
-  /** Total credit/unit limit */
-  limit: number;
-  /** Percentage of limit consumed (0–100) */
-  percentage: number;
-  /** Human-readable label (e.g., "1,847 / 2,500 credits") */
-  label: string;
-  /** Threshold status: ok (>50% remaining), warning (10–50%), critical (<10%), unknown */
-  status: UsageStatus;
-}
-
 /** Source used to observe an agent usage record. */
 export type UsageSource = 'transcript';
 

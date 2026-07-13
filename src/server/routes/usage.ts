@@ -1,21 +1,10 @@
 import type { FastifyInstance } from 'fastify';
-import { getUsageInfo } from '../services/usage.js';
 import { summarizeUsage, taskUsageBreakdown, taskUsageTotals } from '../services/usageStore.js';
 
 const VALID_PERIODS = new Set(['today', 'month', 'all']);
 const VALID_GROUPS = new Set(['model', 'task', 'session']);
 
 export async function usageRoutes(fastify: FastifyInstance): Promise<void> {
-  fastify.get('/api/usage', async (_request, reply) => {
-    try {
-      const usage = await getUsageInfo();
-      return reply.send(usage);
-    } catch (err) {
-      console.error(`[Usage] Route error: ${err instanceof Error ? err.message : 'Unknown error'}`);
-      return reply.status(500).send({ error: 'Failed to fetch usage info' });
-    }
-  });
-
   fastify.get('/api/usage/summary', async (request, reply) => {
     try {
       const query = request.query as { period?: string; groupBy?: string };
