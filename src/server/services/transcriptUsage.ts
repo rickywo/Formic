@@ -9,6 +9,7 @@ export interface TranscriptUsageRecord {
   timestamp: string;
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
 }
@@ -107,6 +108,7 @@ export function extractUsageRecords(
       timestamp: stringOrNull(entry.timestamp) ?? '',
       inputTokens: usageValue(usage, ['input_tokens', 'inputTokens', 'input']),
       outputTokens: usageValue(usage, ['output_tokens', 'outputTokens', 'output']),
+      reasoningTokens: usageValue(usage, ['reasoning_tokens', 'reasoningTokens', 'reasoning']),
       cacheCreationTokens: usageValue(usage, [
         'cache_creation_input_tokens',
         'cacheCreationInputTokens',

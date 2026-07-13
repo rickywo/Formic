@@ -2,6 +2,7 @@ import { access } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import type { TranscriptUsageRecord } from './transcriptUsage.js';
+import { normalizeOpenCodeModel, recordValue } from './opencodeModel.js';
 
 interface SqliteStatement {
   all(...parameters: unknown[]): unknown[];
@@ -142,12 +143,13 @@ function tableName(database: SqliteDatabase, candidates: string[]): string | nul
 }
 
 function modelValue(message: JsonRecord, data: JsonRecord): string {
-  const direct = stringValue(message.model);
-  if (direct !== null) return direct;
-  const modelId = stringValue(nestedValue(data, ['metadata', 'assistant', 'modelID']));
-  const providerId = stringValue(nestedValue(data, ['metadata', 'assistant', 'providerID']));
-  if (modelId === null) return '';
-  return providerId === null ? modelId : `${providerId}/${modelId}`;
+  const assistant = nestedValue(data, ['metadata', 'assistant']);
+  const metadata = isRecord(assistant) ? assistant : {};
+  return normalizeOpenCodeModel({
+    providerId: recordValue(metadata, 'providerID', 'providerId', 'provider_id'),
+    modelId: recordValue(metadata, 'modelID', 'modelId', 'model_id'),
+    model: message.model ?? data.model,
+  });
 }
 
 /** Whether this runtime can read OpenCode's SQLite store. */
@@ -232,6 +234,7 @@ export async function readOpenCodeUsage(options: ReadOpenCodeUsageOptions): Prom
             timestamp,
             inputTokens: numberValue(tokens.input ?? message.input_tokens),
             outputTokens: numberValue(tokens.output ?? message.output_tokens),
+            reasoningTokens: numberValue(tokens.reasoning ?? message.reasoning_tokens),
             cacheCreationTokens: numberValue(cache.write ?? message.cache_creation_tokens),
             cacheReadTokens: numberValue(cache.read ?? message.cache_read_tokens),
           });

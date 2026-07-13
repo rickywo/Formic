@@ -1,4 +1,5 @@
 import type { NonTaskUsageEvent, UsageEvent } from '../../types/index.js';
+import { normalizeOpenCodeModel, recordValue } from './opencodeModel.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -10,6 +11,7 @@ export interface OpenCodeUsageRecord {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
 }
@@ -37,8 +39,8 @@ function timestampValue(value: unknown): string {
 
 /**
  * Normalizes one OpenCode `step_finish` JSONL event. OpenCode reports reasoning
- * tokens separately, while Formic has one output field, so reasoning is folded
- * into output. `tokens.total` is deliberately informational and never counted.
+ * tokens separately. `tokens.total` is deliberately informational and never
+ * counted because it overlaps the additive categories below.
  */
 export function parseOpenCodeUsageLine(line: string): OpenCodeUsageRecord | null {
   try {
@@ -54,19 +56,25 @@ export function parseOpenCodeUsageLine(line: string): OpenCodeUsageRecord | null
 
     const cache = isRecord(tokens.cache) ? tokens.cache : {};
     const inputTokens = tokenValue(tokens.input);
-    const outputTokens = tokenValue(tokens.output) + tokenValue(tokens.reasoning);
+    const outputTokens = tokenValue(tokens.output);
+    const reasoningTokens = tokenValue(tokens.reasoning);
     const cacheCreationTokens = tokenValue(cache.write);
     const cacheReadTokens = tokenValue(cache.read);
-    if (inputTokens === 0 && outputTokens === 0 && cacheCreationTokens === 0 && cacheReadTokens === 0) return null;
+    if (inputTokens === 0 && outputTokens === 0 && reasoningTokens === 0 && cacheCreationTokens === 0 && cacheReadTokens === 0) return null;
 
     return {
       id: `${sessionId}:${messageId}:${partId}`,
       sessionId,
       messageId,
       timestamp: timestampValue(event.timestamp),
-      model: stringValue(part.modelID) ?? stringValue(event.model) ?? 'unknown',
+      model: normalizeOpenCodeModel({
+        providerId: recordValue(part, 'providerID', 'providerId', 'provider_id') ?? recordValue(event, 'providerID', 'providerId', 'provider_id'),
+        modelId: recordValue(part, 'modelID', 'modelId', 'model_id'),
+        model: part.model ?? event.model,
+      }),
       inputTokens,
       outputTokens,
+      reasoningTokens,
       cacheCreationTokens,
       cacheReadTokens,
     };
@@ -112,6 +120,7 @@ export function openCodeRecordToUsageEvent(record: OpenCodeUsageRecord, attribut
     model: record.model,
     inputTokens: record.inputTokens,
     outputTokens: record.outputTokens,
+    reasoningTokens: record.reasoningTokens,
     cacheCreationTokens: record.cacheCreationTokens,
     cacheReadTokens: record.cacheReadTokens,
   };

@@ -18,7 +18,7 @@ function usageEvent(overrides: Partial<UsageEvent> = {}): UsageEvent {
   return {
     id: 'event-1', timestamp: '2026-07-12T10:00:00.000Z', scope: 'task', taskId: 't-1', step: 'execute',
     agentType: 'claude', source: 'transcript', sessionId: 'session-1', model: 'claude-sonnet-5',
-    inputTokens: 1_000_000, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0,
+    inputTokens: 1_000_000, outputTokens: 0, reasoningTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0,
     ...overrides,
   };
 }
@@ -75,6 +75,35 @@ describe('usageStore', () => {
     assert.equal(unknown.groups['unknown/model'].estCostUsd, null);
   });
 
+  it('uses explicit additive totals and provider-safe canonical pricing aliases', async () => {
+    const usageDir = path.join(workspacePath, '.formic', 'usage');
+    await mkdir(usageDir, { recursive: true });
+    await writeFile(path.join(usageDir, 'pricing.json'), JSON.stringify({
+      'anthropic/claude-sonnet-5': { inputPerMTok: 1, outputPerMTok: 2, cacheWritePerMTok: 3, cacheReadPerMTok: 4, aliases: ['anthropic/claude-sonnet-5-latest'] },
+      'openai/gpt-5': { inputPerMTok: 9, outputPerMTok: 9, cacheWritePerMTok: 9, cacheReadPerMTok: 9, aliases: ['shared-alias'] },
+      'google/gemini-2.5-pro': { inputPerMTok: 8, outputPerMTok: 8, cacheWritePerMTok: 8, cacheReadPerMTok: 8, aliases: ['shared-alias'] },
+    }), 'utf8');
+    await writeEvents([
+      usageEvent({ id: 'priced', model: 'anthropic/claude-sonnet-5-latest', inputTokens: 1_000_000, outputTokens: 2_000_000, reasoningTokens: 3_000_000, cacheCreationTokens: 4_000_000, cacheReadTokens: 5_000_000 }),
+      usageEvent({ id: 'unknown-provider', model: 'google/gpt-5', inputTokens: 7 }),
+      usageEvent({ id: 'ambiguous', model: 'shared-alias', inputTokens: 7 }),
+      usageEvent({ id: 'unqualified-opencode', agentType: 'opencode', model: 'gpt-5', inputTokens: 7 }),
+    ]);
+    const summary = await summarizeUsage({ period: 'all', groupBy: 'model' });
+    assert.equal(summary.groups['anthropic/claude-sonnet-5-latest'].totalTokens, 15_000_000);
+    assert.equal(summary.groups['anthropic/claude-sonnet-5-latest'].estCostUsd, 43);
+    assert.equal(summary.groups['google/gpt-5'].totalTokens, 7);
+    assert.equal(summary.groups['google/gpt-5'].estCostUsd, null);
+    assert.equal(summary.groups['shared-alias'].estCostUsd, null);
+    assert.equal(summary.groups['gpt-5'].estCostUsd, null);
+    // Restore the records used by the existing grouping regression test.
+    await writeEvents([
+      usageEvent(),
+      usageEvent({ id: 'event-2', taskId: 't-2', sessionId: 'session-2' }),
+      usageEvent({ id: 'event-unknown', model: 'unknown/model' }),
+    ]);
+  });
+
   it('groups usage by model, task, and session', async () => {
     const byModel = await summarizeUsage({ period: 'all', groupBy: 'model' });
     const byTask = await taskUsageTotals();
@@ -125,7 +154,7 @@ describe('usageStore', () => {
       {
         id: 'legacy-event-1', timestamp: '2026-07-12T10:00:00.000Z', scope: 'task', taskId: 't-legacy', step: 'brief',
         agentType: 'claude', source: 'transcript', sessionId: 'legacy-request-1', model: 'unknown',
-        inputTokens: 10, outputTokens: 20, cacheCreationTokens: 30, cacheReadTokens: 40,
+        inputTokens: 10, outputTokens: 20, reasoningTokens: 0, cacheCreationTokens: 30, cacheReadTokens: 40,
       },
       current,
     ]);

@@ -2,6 +2,7 @@ import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { AgentType, UsageEvent, UsageScope } from '../../types/index.js';
 import { getBundledTemplatesPath, getFormicDir } from '../utils/paths.js';
+import { normalizeOpenCodeModel } from './opencodeModel.js';
 
 export type UsagePeriod = 'today' | 'month' | 'all';
 export type UsageGroupBy = 'model' | 'task' | 'session';
@@ -17,13 +18,17 @@ interface ModelPricing {
   outputPerMTok: number;
   cacheWritePerMTok: number;
   cacheReadPerMTok: number;
+  aliases?: string[];
 }
 
 export interface GroupSummary {
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
+  /** Additive total: input + output + reasoning + cache write + cache read. */
+  totalTokens: number;
   requests: number;
   estCostUsd: number | null;
   costBasis: 'ESTIMATED';
@@ -94,6 +99,7 @@ function usageEventIssues(value: unknown): string[] {
   if (!isNonEmptyString(event.model)) issues.push('model');
   if (!isFiniteNonNegativeNumber(event.inputTokens)) issues.push('inputTokens');
   if (!isFiniteNonNegativeNumber(event.outputTokens)) issues.push('outputTokens');
+  if (!isFiniteNonNegativeNumber(event.reasoningTokens)) issues.push('reasoningTokens');
   if (!isFiniteNonNegativeNumber(event.cacheCreationTokens)) issues.push('cacheCreationTokens');
   if (!isFiniteNonNegativeNumber(event.cacheReadTokens)) issues.push('cacheReadTokens');
   return issues;
@@ -163,6 +169,7 @@ function normalizeLegacyUsageEvent(value: Record<string, unknown>): LegacyNormal
       model,
       inputTokens,
       outputTokens,
+      reasoningTokens: 0,
       cacheCreationTokens,
       cacheReadTokens,
     },
@@ -171,16 +178,32 @@ function normalizeLegacyUsageEvent(value: Record<string, unknown>): LegacyNormal
 }
 
 function parseUsageEventRecord(value: unknown): LegacyNormalizationResult {
-  if (isUsageEvent(value)) return { event: value, issues: [] };
+  if (isUsageEvent(value)) return { event: normalizeUsageEvent(value), issues: [] };
   const record = recordOf(value);
+  // Reasoning tokens were added after the first usage event schema. Existing
+  // events used output as their complete output bucket, so zero is the only
+  // compatible, non-invented value when the field is absent.
+  if (record !== null && !Object.hasOwn(record, 'reasoningTokens')) {
+    const normalized = { ...record, reasoningTokens: 0 };
+    if (isUsageEvent(normalized)) return { event: normalizeUsageEvent(normalized), issues: [] };
+    if (!Object.hasOwn(normalized, 'scope') && !isLegacyUsageRecord(normalized)) {
+      const preScope = { ...normalized, scope: 'task' };
+      if (isUsageEvent(preScope)) return { event: normalizeUsageEvent(preScope), issues: [] };
+    }
+  }
   // Current pre-scope records were always task usage. Normalize them at read
   // time so existing NDJSON files remain valid without a migration write.
   if (record !== null && !Object.hasOwn(record, 'scope') && !isLegacyUsageRecord(record)) {
     const normalized = { ...record, scope: 'task' };
-    if (isUsageEvent(normalized)) return { event: normalized, issues: [] };
+    if (isUsageEvent(normalized)) return { event: normalizeUsageEvent(normalized), issues: [] };
   }
   if (record !== null && isLegacyUsageRecord(record)) return normalizeLegacyUsageEvent(record);
   return { event: null, issues: usageEventIssues(value) };
+}
+
+function normalizeUsageEvent(event: UsageEvent): UsageEvent {
+  if (event.agentType !== 'opencode') return event;
+  return { ...event, model: normalizeOpenCodeModel({ model: event.model }) };
 }
 
 function reportMalformedUsageLine(lineNumber: number, issues: string[]): void {
@@ -198,26 +221,52 @@ function isModelPricing(value: unknown): value is ModelPricing {
   return isFiniteNonNegativeNumber(pricing.inputPerMTok)
     && isFiniteNonNegativeNumber(pricing.outputPerMTok)
     && isFiniteNonNegativeNumber(pricing.cacheWritePerMTok)
-    && isFiniteNonNegativeNumber(pricing.cacheReadPerMTok);
+    && isFiniteNonNegativeNumber(pricing.cacheReadPerMTok)
+    && (pricing.aliases === undefined || (Array.isArray(pricing.aliases) && pricing.aliases.every(isNonEmptyString)));
 }
 
-function parsePricing(contents: string): Record<string, ModelPricing> | null {
+interface PricingCatalog {
+  models: Record<string, ModelPricing>;
+  aliases: Record<string, string>;
+}
+
+function isPricingIdentifier(value: string): boolean {
+  return value === value.trim() && value.length > 0 && !/\s/.test(value);
+}
+
+function parsePricing(contents: string): PricingCatalog | null {
   try {
     const parsed: unknown = JSON.parse(contents);
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null;
-    const pricing: Record<string, ModelPricing> = {};
+    const models: Record<string, ModelPricing> = {};
+    const aliases: Record<string, string> = {};
     for (const [model, value] of Object.entries(parsed)) {
-      if (!isModelPricing(value)) return null;
-      pricing[model] = value;
+      if (!isPricingIdentifier(model) || !isModelPricing(value)) return null;
+      if (model in aliases) {
+        console.warn(`[UsageStore] Ignoring ambiguous pricing alias: ${model}`);
+        delete aliases[model];
+      }
+      models[model] = value;
+      for (const alias of value.aliases ?? []) {
+        if (!isPricingIdentifier(alias)) return null;
+        // An alias must point to exactly one canonical price. Ignore an
+        // ambiguous collision rather than assigning a potentially wrong rate.
+        if (alias in models || (alias in aliases && aliases[alias] !== model)) {
+          console.warn(`[UsageStore] Ignoring ambiguous pricing alias: ${alias}`);
+          delete aliases[alias];
+          continue;
+        }
+        aliases[alias] = model;
+      }
     }
-    return pricing;
+    return { models, aliases };
   } catch (err) {
     console.warn(`[UsageStore] Invalid pricing file: ${err instanceof Error ? err.message : 'Unknown error'}`);
     return null;
   }
 }
 
-async function loadPricing(): Promise<Record<string, ModelPricing>> {
+async function loadPricing(): Promise<PricingCatalog> {
   try {
     const workspacePricing = parsePricing(await readFile(getPricingPath(), 'utf8'));
     if (workspacePricing) return workspacePricing;
@@ -232,7 +281,7 @@ async function loadPricing(): Promise<Record<string, ModelPricing>> {
   try {
     const bundledContents = await readFile(path.join(getBundledTemplatesPath(), 'pricing.json'), 'utf8');
     const bundledPricing = parsePricing(bundledContents);
-    if (!bundledPricing) return {};
+    if (!bundledPricing) return { models: {}, aliases: {} };
     await mkdir(getUsageDir(), { recursive: true });
     await appendFile(getPricingPath(), bundledContents, { encoding: 'utf8', flag: 'wx' }).catch((err: unknown) => {
       const error = err as NodeJS.ErrnoException;
@@ -241,7 +290,7 @@ async function loadPricing(): Promise<Record<string, ModelPricing>> {
     return bundledPricing;
   } catch (err) {
     console.warn(`[UsageStore] Failed to load bundled pricing: ${err instanceof Error ? err.message : 'Unknown error'}`);
-    return {};
+    return { models: {}, aliases: {} };
   }
 }
 
@@ -252,7 +301,7 @@ function matchesFilter(event: UsageEvent, filter: UsageEventFilter): boolean {
 }
 
 function emptySummary(): GroupSummary {
-  return { inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, requests: 0, estCostUsd: null, costBasis: 'ESTIMATED' };
+  return { inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, requests: 0, estCostUsd: null, costBasis: 'ESTIMATED' };
 }
 
 function groupKey(event: UsageEvent, groupBy: UsageGroupBy): string {
@@ -261,7 +310,7 @@ function groupKey(event: UsageEvent, groupBy: UsageGroupBy): string {
   return event.scope === 'task' ? event.sessionId : event.scopeId;
 }
 
-function summarizeEvents(events: UsageEvent[], groupBy: UsageGroupBy, pricing: Record<string, ModelPricing>): Record<string, GroupSummary> {
+function summarizeEvents(events: UsageEvent[], groupBy: UsageGroupBy, pricing: PricingCatalog): Record<string, GroupSummary> {
   const groups: Record<string, GroupSummary> = {};
   const unpricedGroups = new Set<string>();
   for (const event of events) {
@@ -269,16 +318,23 @@ function summarizeEvents(events: UsageEvent[], groupBy: UsageGroupBy, pricing: R
     const summary = groups[key] ?? (groups[key] = emptySummary());
     summary.inputTokens += event.inputTokens;
     summary.outputTokens += event.outputTokens;
+    summary.reasoningTokens += event.reasoningTokens;
     summary.cacheCreationTokens += event.cacheCreationTokens;
     summary.cacheReadTokens += event.cacheReadTokens;
+    summary.totalTokens += event.inputTokens + event.outputTokens + event.reasoningTokens + event.cacheCreationTokens + event.cacheReadTokens;
     summary.requests += 1;
-    const modelPricing = pricing[event.model];
+    // OpenCode can use several providers. Never apply an unqualified generic
+    // rate to it: only its canonical provider/model key (or an approved alias)
+    // can identify a price safely.
+    const canPrice = event.agentType !== 'opencode' || event.model.includes('/');
+    const modelPricing = canPrice ? pricing.models[event.model] ?? pricing.models[pricing.aliases[event.model] ?? ''] : undefined;
     if (!modelPricing) {
       unpricedGroups.add(key);
       continue;
     }
     const cost = (event.inputTokens * modelPricing.inputPerMTok
       + event.outputTokens * modelPricing.outputPerMTok
+      + event.reasoningTokens * modelPricing.outputPerMTok
       + event.cacheCreationTokens * modelPricing.cacheWritePerMTok
       + event.cacheReadTokens * modelPricing.cacheReadPerMTok) / 1_000_000;
     summary.estCostUsd = (summary.estCostUsd ?? 0) + cost;

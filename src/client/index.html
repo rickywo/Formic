@@ -12138,7 +12138,10 @@
     // ==================== Usage Meter ====================
 
     function usageTotalTokens(usage) {
-      return (usage.inputTokens || 0) + (usage.outputTokens || 0) + (usage.cacheCreationTokens || 0) + (usage.cacheReadTokens || 0);
+      // Server summaries define the additive total. The fallback keeps older
+      // servers readable using the same non-overlapping categories.
+      if (typeof usage.totalTokens === 'number') return usage.totalTokens;
+      return (usage.inputTokens || 0) + (usage.outputTokens || 0) + (usage.reasoningTokens || 0) + (usage.cacheCreationTokens || 0) + (usage.cacheReadTokens || 0);
     }
 
     function formatUsageTokens(tokens) {
@@ -12157,7 +12160,7 @@
     }
 
     function usageTooltip(usage) {
-      return `Input: ${formatUsageTokens(usage.inputTokens || 0)}\nOutput: ${formatUsageTokens(usage.outputTokens || 0)}\nCache read: ${formatUsageTokens(usage.cacheReadTokens || 0)}\nCache write: ${formatUsageTokens(usage.cacheCreationTokens || 0)}\nCache hit: ${usageCacheHitPercent(usage)}%`;
+      return `Input: ${formatUsageTokens(usage.inputTokens || 0)}\nOutput: ${formatUsageTokens(usage.outputTokens || 0)}\nReasoning: ${formatUsageTokens(usage.reasoningTokens || 0)}\nCache read: ${formatUsageTokens(usage.cacheReadTokens || 0)}\nCache write: ${formatUsageTokens(usage.cacheCreationTokens || 0)}\nCache hit: ${usageCacheHitPercent(usage)}%`;
     }
 
     function renderTaskUsageBadge(usage) {
@@ -12192,12 +12195,14 @@
       const total = rows.reduce((summary, [, usage]) => ({
         inputTokens: summary.inputTokens + (usage.inputTokens || 0),
         outputTokens: summary.outputTokens + (usage.outputTokens || 0),
+        reasoningTokens: summary.reasoningTokens + (usage.reasoningTokens || 0),
         cacheCreationTokens: summary.cacheCreationTokens + (usage.cacheCreationTokens || 0),
         cacheReadTokens: summary.cacheReadTokens + (usage.cacheReadTokens || 0),
+        totalTokens: summary.totalTokens + usageTotalTokens(usage),
         estCostUsd: summary.estCostUsd === null || usage.estCostUsd === null || usage.estCostUsd === undefined
           ? null
           : summary.estCostUsd + usage.estCostUsd,
-      }), { inputTokens: 0, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, estCostUsd: 0 });
+      }), { inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, estCostUsd: 0 });
       const renderCost = (usage) => {
         if (usage.estCostUsd === null || usage.estCostUsd === undefined) return '—';
         const basis = usage.costBasis === 'ESTIMATED' ? '<span class="usage-cost-basis">ESTIMATED</span>' : '';

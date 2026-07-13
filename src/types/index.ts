@@ -119,6 +119,8 @@ interface BaseUsageEvent {
   model: string;
   inputTokens: number;
   outputTokens: number;
+  /** Provider-reported thinking/reasoning tokens, charged at the output rate. */
+  reasoningTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
 }

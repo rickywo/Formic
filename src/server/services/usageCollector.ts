@@ -121,6 +121,7 @@ async function scanSession(sessionId: string, filePath: string, affectedTaskIds:
       model: record.model || 'unknown',
       inputTokens: record.inputTokens,
       outputTokens: record.outputTokens,
+      reasoningTokens: record.reasoningTokens,
       cacheCreationTokens: record.cacheCreationTokens,
       cacheReadTokens: record.cacheReadTokens,
     };
@@ -164,6 +165,7 @@ async function scanOpenCodeUsage(affectedTaskIds: Set<string>): Promise<void> {
         model: record.model || 'unknown',
         inputTokens: record.inputTokens,
         outputTokens: record.outputTokens,
+        reasoningTokens: record.reasoningTokens,
         cacheCreationTokens: record.cacheCreationTokens,
         cacheReadTokens: record.cacheReadTokens,
       };

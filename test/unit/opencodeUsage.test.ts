@@ -81,7 +81,7 @@ describe('opencodeUsage', () => {
             assistant: {
               providerID: 'anthropic',
               modelID: 'claude-sonnet-test',
-              tokens: { input: 11, output: 7, cache: { read: 5, write: 3 } },
+              tokens: { total: 30, input: 11, output: 7, reasoning: 4, cache: { read: 5, write: 3 } },
             },
           },
         }),
@@ -103,8 +103,37 @@ describe('opencodeUsage', () => {
       timestamp: '2026-07-14T03:33:20.000Z',
       inputTokens: 11,
       outputTokens: 7,
+      reasoningTokens: 4,
       cacheCreationTokens: 3,
       cacheReadTokens: 5,
     }]);
+  });
+
+  it('keeps provider-qualified identities distinct and retains useful unknown models', async () => {
+    if (!isAvailable()) return;
+    temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), 'formic-opencode-usage-test-'));
+    const databasePath = path.join(temporaryDirectory, 'opencode.db');
+    const { DatabaseSync } = await sqliteModule();
+    const database = new DatabaseSync(databasePath);
+    try {
+      database.exec('CREATE TABLE session (id TEXT PRIMARY KEY, cwd TEXT); CREATE TABLE message (id TEXT PRIMARY KEY, session_id TEXT, role TEXT, data TEXT);');
+      database.prepare('INSERT INTO session (id, cwd) VALUES (?, ?)').run('ses-1', '/workspace');
+      for (const [id, providerID, modelID] of [
+        ['anthropic', 'anthropic', 'claude-sonnet-5'],
+        ['openai', 'openai', 'gpt-5'],
+        ['google', 'google', 'gemini-2.5-pro'],
+        ['unknown-provider', 'gateway-x', 'custom-model'],
+        ['qualified-fallback', null, 'custom-provider/custom-model'],
+      ]) {
+        database.prepare('INSERT INTO message (id, session_id, role, data) VALUES (?, ?, ?, ?)').run(id, 'ses-1', 'assistant', JSON.stringify({ role: 'assistant', metadata: { assistant: { providerID, modelID, tokens: { input: 1 } } } }));
+      }
+    } finally {
+      database.close();
+    }
+    setOpenCodeUsageDatabasePathForTests(databasePath);
+    const [session] = await readOpenCodeUsage({ cwd: '/workspace' });
+    assert.deepEqual(session.records.map(record => record.model), [
+      'anthropic/claude-sonnet-5', 'openai/gpt-5', 'google/gemini-2.5-pro', 'gateway-x/custom-model', 'custom-provider/custom-model',
+    ]);
   });
 });
