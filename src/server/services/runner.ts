@@ -14,6 +14,7 @@ import path from 'node:path';
 import { getRelevantMemories } from './memory.js';
 import { listTools } from './tools.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
+import { beginTaskRun } from './usageCollector.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 
@@ -174,8 +175,9 @@ export async function runAgent(taskId: string, title: string, context: string, d
 
   // Retrieve relevant memories for this task
   let pastExperienceSection = '';
+  let task: Task | undefined;
   try {
-    const task = await getTask(taskId);
+    task = await getTask(taskId);
     if (task !== undefined) {
       const memories = await getRelevantMemories(task);
       if (memories.length > 0) {
@@ -244,6 +246,14 @@ All code changes MUST comply with the project development guidelines provided ab
 
   const logBuffer: string[] = [];
   const stdoutFormatter = new AgentStdoutFormatter(agentType);
+  const usageStep = task?.type === 'quick' ? 'quick' : 'execute';
+  const usageInvocation = beginTaskRun(taskId, usageStep, model);
+  let usageFinalized = false;
+  const finalizeUsage = async (): Promise<void> => {
+    if (usageFinalized) return;
+    usageFinalized = true;
+    await usageInvocation.finalize();
+  };
 
   const emitOpenCodeStdout = (entries: string[]): void => {
     emitAgentStdoutEntries(
@@ -277,6 +287,7 @@ All code changes MUST comply with the project development guidelines provided ab
     // Spawn failed — clean up without ever adding to activeProcesses.
     // No activeProcesses entry means no leaked concurrency slot.
     releaseLeases(taskId);
+    await finalizeUsage();
     console.warn(`[Runner] Released leases for task ${taskId} (spawn error)`);
 
     const agentName = getAgentDisplayName();
@@ -308,6 +319,7 @@ All code changes MUST comply with the project development guidelines provided ab
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
     console.warn(`[Runner] Released leases for task ${taskId} (error handler)`);
+    await finalizeUsage();
 
     // Provide helpful error messages for common issues
     const agentName = getAgentDisplayName();
@@ -328,6 +340,7 @@ All code changes MUST comply with the project development guidelines provided ab
   });
 
   activeProcesses.set(taskId, child);
+  beginTaskRun(taskId, task?.type === 'quick' ? 'quick' : 'execute');
 
   // Update task status
   await updateTaskStatus(taskId, 'running', child.pid, 'runner.process_spawned');
@@ -336,6 +349,7 @@ All code changes MUST comply with the project development guidelines provided ab
   child.stdout?.on('data', (data: Buffer) => {
     const text = data.toString();
     if (agentType === 'opencode') {
+      usageInvocation.ingestOpenCodeStdout(text);
       emitOpenCodeStdout(stdoutFormatter.push(text));
       return;
     }
@@ -368,9 +382,9 @@ All code changes MUST comply with the project development guidelines provided ab
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
     console.warn(`[Runner] Released leases for task ${taskId} (close handler)`);
-
     // OpenCode may exit without a trailing newline. Parse that final complete
     // JSON event before persisting so live output and history stay identical.
+    await finalizeUsage();
     emitOpenCodeStdout(stdoutFormatter.flush());
 
     // Save logs to task

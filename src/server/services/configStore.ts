@@ -36,8 +36,6 @@ function createDefaultConfig(): FormicConfig {
       theme: 'dark',
       notificationsEnabled: true,
       projectBriefCollapsed: false,
-      verifyCommand: '',
-      skipVerify: false,
       maxExecuteIterations: 5,
       stepTimeoutMs: 6000000,
       queuePollIntervalMs: 5000,

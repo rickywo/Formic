@@ -275,7 +275,7 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     }
 
     // Only stop tasks that are in an active state
-    const activeStatuses = ['running', 'briefing', 'planning', 'declaring', 'architecting', 'verifying', 'queued'];
+    const activeStatuses = ['running', 'briefing', 'planning', 'declaring', 'architecting', 'queued'];
     if (!activeStatuses.includes(task.status)) {
       return reply.status(400).send({ error: 'Task is not in an active state' });
     }
@@ -379,7 +379,7 @@ export async function taskRoutes(fastify: FastifyInstance): Promise<void> {
     // Resolve workflowLogs: file-path strings → string[] for backward compat
     const rawLogs = task.workflowLogs || {};
     const resolvedLogs: Record<string, string[]> = {};
-    const steps = ['brief', 'plan', 'execute', 'verify', 'architect'] as const;
+    const steps = ['brief', 'plan', 'execute', 'architect'] as const;
 
     for (const step of steps) {
       const value = rawLogs[step];

@@ -27,6 +27,12 @@ test.describe('per-step model selection', () => {
     expect(catalog.models.every((model) => model.id !== '')).toBe(true);
     expect(new Set(catalog.models.map((model) => model.id)).size).toBe(catalog.models.length);
     await openSettings(page);
+    await expect(page.locator('.settings-nav')).toHaveAttribute('role', 'tablist');
+    await page.getByRole('tab', { name: 'Leases' }).click();
+    await expect(page.locator('#settings-section-leases')).toBeInViewport();
+    await page.getByRole('tab', { name: 'Leases' }).press('ArrowRight');
+    await expect(page.getByRole('tab', { name: 'Workspaces' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#settings-section-workspaces')).toBeInViewport();
 
     const modelControls = [
       ['Briefing', '#step-model-brief'],
@@ -51,6 +57,7 @@ test.describe('per-step model selection', () => {
       const catalogSave = waitForStepModelsSave(page);
       await executingSelect.selectOption({ index: 1 });
       await catalogSave;
+      await expect(page.locator('#settings-save-chip')).toHaveClass(/visible/);
 
       await page.reload();
       await openSettings(page);

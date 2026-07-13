@@ -78,6 +78,24 @@ export function broadcastBoardUpdate(): void {
 }
 
 /**
+ * Broadcast usage changes to all connected clients. An empty task list means
+ * the change is non-task usage and therefore must not update any task badge.
+ */
+export function broadcastUsageUpdated(taskIds: string[]): void {
+  const message = JSON.stringify({ type: 'usage-updated', taskIds });
+
+  let sentCount = 0;
+  for (const ws of boardConnections) {
+    if (ws.readyState === 1) { // WebSocket.OPEN
+      ws.send(message);
+      sentCount++;
+    }
+  }
+
+  console.warn('[BoardNotifier] Broadcast usage-updated to', sentCount, 'clients');
+}
+
+/**
  * Broadcast a dependency-resolved event when a blocked task is automatically unblocked
  */
 export function broadcastDependencyResolved(taskId: string, parentGoalId: string): void {
@@ -92,23 +110,6 @@ export function broadcastDependencyResolved(taskId: string, parentGoalId: string
   }
 
   console.warn(`[BoardNotifier] Broadcast dependency-resolved for task ${taskId} (goal ${parentGoalId}) to ${sentCount} clients`);
-}
-
-/**
- * Broadcast a kill-switch event when the self-healing loop exhausts retries
- */
-export function broadcastKillSwitch(taskId: string): void {
-  const message = JSON.stringify({ type: 'kill-switch', taskId });
-
-  let sentCount = 0;
-  for (const ws of boardConnections) {
-    if (ws.readyState === 1) { // WebSocket.OPEN
-      ws.send(message);
-      sentCount++;
-    }
-  }
-
-  console.warn(`[BoardNotifier] Broadcast kill-switch for task ${taskId} to ${sentCount} clients`);
 }
 
 /**

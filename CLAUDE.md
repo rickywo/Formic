@@ -193,9 +193,16 @@ The server will automatically detect this format and create the task via the For
 **Repository:** /Users/rickywo/WebstormProjects/Formic
 
 ### Todo
-  - [t-25] Persist stepModels config and expose GET /api/models with settings validation
-  - [t-111] Make AI provider selectable from the Kanban UI with availability-aware switcher (replaces AGENT_TYPE env-only selection)
-  - [t-117] Test readable OpenCode workflow log formatting
+  - [t-122] Token Usage Phase 4: append-only usage store, pricing config, and aggregation API
+  - [t-129] Render per-card token badges and usage dashboard panel
+  - [t-154] !Fix malformed usage events preventing Usage panel data
+  - [t-157] !Track OpenCode token usage directly from JSONL output
+  - [t-158] !Capture OpenCode usage across every task workflow step
+  - [t-159] !Track OpenCode usage for assistant and messaging sessions
+  - [t-160] !Normalize OpenCode provider models tokens and pricing
+  - [t-161] !Validate OpenCode usage dashboard end to end
+  - [t-162] Refactor token usage dashboard and settings panel into a unified, polished panel UI
+  - [t-164] !Remove the verification gate and Verify Command QA step entirely (frontend, backend, tests)
 
 ### Review
   - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
@@ -217,15 +224,32 @@ The server will automatically detect this format and create the task via the For
   - [t-18] !Prevent duplicate task IDs: reconcile nextTaskId with existing max task ID on create
   - [t-23] Fix environment-dependent unit test in noDiffVerification.test.ts (build a temp git fixture)
   - [t-24] Add per-step model types, catalog, and --model arg support to agentAdapter
+  - [t-25] Persist stepModels config and expose GET /api/models with settings validation
   - [t-26] Thread per-step model selection through workflow, runner, and reflection spawns
   - [t-27] Apply assistant model selection to chat and messaging agent spawns
   - [t-28] Add Agent Models section to Settings panel and assistant-panel model selector
   - [t-29] -Add model-selection E2E test and README/docs updates
+  - [t-111] Make AI provider selectable from the Kanban UI with availability-aware switcher (replaces AGENT_TYPE env-only selection)
   - [t-112] !Harden npm and Docker publishing: secure Dockerfiles, release CI guardrails, webhook and auth fixes
   - [t-113] !Fix t-112 release-pipeline and container gaps: CI dist build, gitleaks config, artifact upload, auth-exempt health endpoint, read-only config volume, test registration
   - [t-114] !Fix release pipeline gating, webhook auth exemptions, devcontainer version race, and agent-adapter unit tests
   - [t-115] Fix duplicate Agent default model options
   - [t-116] Format OpenCode workflow logs as readable output
+  - [t-117] Test readable OpenCode workflow log formatting
+  - [t-118] !Render OpenCode task logs as readable output
+  - [t-119] !Token Usage Phase 1: passthrough proxy with upstream adapter seam
+  - [t-120] !Token Usage Phase 2: Anthropic usage extraction (SSE + JSON) with fixture tests
+  - [t-121] !Token Usage Phase 3: wire proxy into agent spawns with fail-loud lifecycle
+  - [t-123] Token Usage Phase 5: usage dashboard panel and per-card token badges in the Kanban UI
+  - [t-124] !Enforce non-skippable automated verification subtasks
+  - [t-125] !Add transcript usage extraction library with fixtures
+  - [t-126] !Add usage store, pricing config, and aggregation API
+  - [t-127] !Wire usage collector into runner and workflow lifecycles
+  - [t-128] Broadcast usage updates over WebSocket to the board
+  - [t-130] -Add OpenCode usage extraction via node:sqlite (optional)
+  - [t-155] -Token usage smoke test — no-op
+  - [t-156] -Verify package metadata
+  - [t-163] Remove legacy account-quota usage meter, keep transcript token-usage feature
 
 ## Formic Workflow
 

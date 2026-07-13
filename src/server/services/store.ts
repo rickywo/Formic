@@ -68,7 +68,6 @@ export const ACTIVE_STATUSES: ReadonlySet<Task['status']> = new Set([
   'declaring',
   'running',
   'architecting',
-  'verifying',
 ]);
 
 /**
@@ -124,7 +123,7 @@ async function ensureFormicDir(): Promise<void> {
 /** All valid TaskStatus values for runtime validation (mirrors the TaskStatus union type) */
 export const VALID_TASK_STATUSES: string[] = [
   'todo', 'queued', 'briefing', 'planning', 'declaring', 'running',
-  'architecting', 'verifying', 'review', 'done', 'blocked',
+  'architecting', 'review', 'done', 'blocked',
 ];
 
 /** All valid TaskPriority values for runtime validation (mirrors the TaskPriority union type) */
@@ -587,10 +586,10 @@ export async function updateTaskStatus(taskId: string, status: Task['status'], p
       board.tasks[taskIndex].startedAt = undefined;
       board.tasks[taskIndex].completedAt = undefined;
 
-      // Workflow resumption: if brief+plan are already done (workflowStep is 'declare',
-      // 'execute', or 'verify'), mark the task to resume from declare on re-queue so it
+      // Workflow resumption: if brief+plan are already done (workflowStep is 'declare'
+      // or 'execute'), mark the task to resume from declare on re-queue so it
       // skips brief and plan instead of starting over from scratch.
-      const stepsPastPlan: WorkflowStep[] = ['declare', 'execute', 'verify'];
+      const stepsPastPlan: WorkflowStep[] = ['declare', 'execute'];
       const currentStep = board.tasks[taskIndex].workflowStep;
       if (currentStep && stepsPastPlan.includes(currentStep) && !board.tasks[taskIndex].resumeFromStep) {
         board.tasks[taskIndex].resumeFromStep = 'declare';
@@ -721,7 +720,7 @@ export async function getRunningTasksCount(): Promise<number> {
   const board = await loadBoard();
   // NOTE: 'blocked' is intentionally excluded from active statuses — blocked tasks consume no runner slot.
   return board.tasks.filter(t =>
-    t.status === 'briefing' || t.status === 'planning' || t.status === 'declaring' || t.status === 'running' || t.status === 'architecting' || t.status === 'verifying'
+    t.status === 'briefing' || t.status === 'planning' || t.status === 'declaring' || t.status === 'running' || t.status === 'architecting'
   ).length;
 }
 
@@ -744,7 +743,7 @@ export async function getChildTasks(parentGoalId: string): Promise<Task[]> {
 /**
  * Recover interrupted tasks on server startup.
  * Tasks can get stuck in active execution states (briefing, planning, declaring, running,
- * architecting, verifying) when the server restarts mid-execution. This function re-queues
+ * architecting) when the server restarts mid-execution. This function re-queues
  * them so the queue processor picks them up automatically on restart.
  *
  * Each re-queue goes through updateTaskStatus() so a [StatusTransition] log entry and
@@ -768,7 +767,7 @@ export async function getChildTasks(parentGoalId: string): Promise<Task[]> {
  * @returns The number of tasks that were recovered
  */
 export async function recoverStuckTasks(): Promise<number> {
-  const interruptedStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
+  const interruptedStatuses: Task['status'][] = ['briefing', 'planning', 'declaring', 'running', 'architecting'];
 
   // Phase 1: collect interrupted task info inside withBoard WITHOUT mutating the board.
   // This respects the withBoard nesting rule — updateTaskStatus / updateTask called

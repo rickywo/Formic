@@ -18,6 +18,7 @@ import {
 import { refreshEngineConfig } from './engineConfig.js';
 import { parseAgentOutput, usesJsonOutput, cleanAgentOutput } from './outputParser.js';
 import { loadProjectGuidelines } from './skillReader.js';
+import { beginOpenCodeUsageInvocation } from './usageCollector.js';
 
 // Session state
 let session: AssistantSession = {
@@ -39,6 +40,8 @@ const MAX_HISTORY = 100;
 
 // Flag to track if this is the first message (don't use --continue)
 let isFirstMessage = true;
+/** Stable identity for the active UI assistant session, never a task ID. */
+let assistantUsageSessionId: string | null = null;
 
 // Pattern to detect task creation in assistant responses.
 // Closing ``` must be preceded by a real newline so triple-backticks
@@ -607,6 +610,9 @@ async function processMessage(content: string): Promise<void> {
     continue: useContinue,
     ...(model ? { model } : {}),
   });
+  const usageInvocation = agentType === 'opencode'
+    ? beginOpenCodeUsageInvocation({ scope: 'assistant', scopeId: assistantUsageSessionId ?? `assistant:${session.startedAt ?? Date.now()}` }, model || undefined)
+    : null;
 
   console.warn('[AssistantManager] Processing message in:', workspacePath);
   console.warn('[AssistantManager] Agent:', agentType, '| Command:', agentCommand);
@@ -650,6 +656,7 @@ async function processMessage(content: string): Promise<void> {
       timestamp: new Date().toISOString(),
     };
     broadcastMessage(errorMessage);
+    void usageInvocation?.finalize();
   });
 
   // Handle stdout - parse output using agent-specific parser
@@ -658,6 +665,7 @@ async function processMessage(content: string): Promise<void> {
 
   child.stdout?.on('data', (data: Buffer) => {
     const chunk = data.toString();
+    usageInvocation?.ingestOpenCodeStdout(chunk);
     console.warn('[AssistantManager] STDOUT chunk received, length:', chunk.length);
     outputBuffer += chunk;
 
@@ -816,6 +824,7 @@ async function processMessage(content: string): Promise<void> {
       };
       broadcastMessage(errorMessage);
     }
+    void usageInvocation?.finalize();
   });
 }
 
@@ -841,6 +850,7 @@ export async function startAssistant(): Promise<AssistantSession> {
     };
 
     isFirstMessage = true;  // Reset for new session
+    assistantUsageSessionId = `assistant:${Date.now()}:${Math.random().toString(36).slice(2)}`;
     isProcessing = false;
 
     broadcastStatus();
@@ -890,6 +900,7 @@ export async function stopAssistant(): Promise<AssistantSession> {
   };
 
   isProcessing = false;
+  assistantUsageSessionId = null;
   broadcastStatus();
 
   const message: AssistantMessage = {
@@ -917,6 +928,7 @@ export async function restartAssistant(): Promise<AssistantSession> {
   // Clear message history on restart
   messageHistory.length = 0;
   isFirstMessage = true;
+  assistantUsageSessionId = null;
   isProcessing = false;
 
   // Start fresh
@@ -931,4 +943,5 @@ export async function restartAssistant(): Promise<AssistantSession> {
 export function resetConversation(): void {
   console.warn('[AssistantManager] Agent type changed — conversation reset');
   isFirstMessage = true;
+  assistantUsageSessionId = `assistant:${Date.now()}:${Math.random().toString(36).slice(2)}`;
 }

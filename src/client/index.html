@@ -36,12 +36,21 @@
   </script>
   <style>
     :root {
-      --bg-primary: #050505;
-      --bg-secondary: #0a0a0a;
-      --bg-tertiary: #111111;
-      --border-color: rgba(255, 255, 255, 0.05);
-      --text-primary: #e6edf3;
-      --text-secondary: #6b7280;
+      /* Core surfaces */
+      --bg-primary: #050507;
+      --bg-secondary: #0a0a0d;
+      --bg-tertiary: #131317;
+      --bg-elevated: #17171d;
+      --border-color: rgba(255, 255, 255, 0.06);
+      --border-color-strong: rgba(255, 255, 255, 0.12);
+      --text-primary: #eef1f6;
+      --text-secondary: #8b93a3;
+      --text-tertiary: #565d6b;
+
+      /* Accent palette — indigo/violet brand accent + status colors */
+      --accent-primary: #7c8cff;
+      --accent-primary-strong: #9aa5ff;
+      --accent-violet: #a78bfa;
       --accent-blue: #58a6ff;
       --accent-green: #3fb950;
       --accent-yellow: #d29922;
@@ -49,6 +58,60 @@
       --card-gradient-start: rgba(255, 255, 255, 0.08);
       --card-gradient-end: rgba(255, 255, 255, 0.01);
       --shadow-opacity: 0.3;
+
+      /* Spacing scale */
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-8: 32px;
+
+      /* Radius scale */
+      --radius-2xs: 2px;
+      --radius-xs: 4px;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 10px;
+      --radius-xl: 12px;
+      --radius-2xl: 14px;
+      --radius-3xl: 16px;
+      --radius-4xl: 20px;
+      --radius-5xl: 24px;
+      --radius-full: 9999px;
+
+      /* Typography scale (Inter) */
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --text-xs: 11px;
+      --text-sm: 12.5px;
+      --text-base: 14px;
+      --text-md: 15px;
+      --text-lg: 17px;
+      --text-xl: 20px;
+      --text-2xl: 24px;
+      --weight-normal: 400;
+      --weight-medium: 500;
+      --weight-semibold: 600;
+      --weight-bold: 700;
+
+      /* Elevation */
+      --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.18);
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.22), inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
+      --shadow-md: 0 6px 20px -4px rgba(0, 0, 0, 0.35), inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+      --shadow-lg: 0 12px 32px -8px rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+      --shadow-xl: 0 24px 60px -12px rgba(0, 0, 0, 0.55);
+      --shadow-glow: 0 0 0 1px rgba(124, 140, 255, 0.15), 0 8px 30px -6px rgba(124, 140, 255, 0.25);
+
+      /* Motion */
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+      --duration-fast: 0.12s;
+      --duration-base: 0.2s;
+      --duration-slow: 0.35s;
+      --transition-fast: var(--duration-fast) var(--ease-out);
+      --transition-base: var(--duration-base) var(--ease-out);
+      --transition-slow: var(--duration-slow) var(--ease-out);
     }
 
     /* Custom Scrollbar - Luminous Void */
@@ -63,7 +126,7 @@
 
     ::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.1);
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
     }
 
     ::-webkit-scrollbar-thumb:hover {
@@ -78,19 +141,35 @@
     /* Light Theme - Luminous Light Design */
     [data-theme="light"] {
       --bg-primary: #fafafa;
-      --bg-secondary: #f5f5f5;
-      --bg-tertiary: #eeeeee;
+      --bg-secondary: #f5f5f6;
+      --bg-tertiary: #eeeef0;
+      --bg-elevated: #ffffff;
       --border-color: rgba(0, 0, 0, 0.08);
-      --text-primary: #1a1a1a;
-      --text-secondary: #6b7280;
+      --border-color-strong: rgba(0, 0, 0, 0.14);
+      --text-primary: #17181c;
+      --text-secondary: #62697a;
+      --text-tertiary: #9198a8;
+      --accent-primary: #5b63e0;
+      --accent-primary-strong: #4750d1;
+      --accent-violet: #8b5cf6;
       --accent-blue: #2563eb;
       --accent-green: #16a34a;
       --accent-yellow: #ca8a04;
       --accent-red: #dc2626;
+
+      --shadow-xs: 0 1px 2px rgba(20, 20, 30, 0.04);
+      --shadow-sm: 0 2px 8px rgba(20, 20, 30, 0.05), inset 0 1px 0 0 rgba(255, 255, 255, 0.6);
+      --shadow-md: 0 6px 20px -4px rgba(20, 20, 30, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.7);
+      --shadow-lg: 0 12px 32px -8px rgba(20, 20, 30, 0.1), inset 0 1px 0 0 rgba(255, 255, 255, 0.8);
+      --shadow-xl: 0 24px 60px -12px rgba(20, 20, 30, 0.16);
+      --shadow-glow: 0 0 0 1px rgba(91, 99, 224, 0.15), 0 8px 30px -6px rgba(91, 99, 224, 0.18);
     }
 
     [data-theme="light"] body {
       background-color: #fafafa;
+      background-image: radial-gradient(circle at 15% -10%, rgba(91, 99, 224, 0.05), transparent 45%),
+        radial-gradient(circle at 85% 0%, rgba(139, 92, 246, 0.04), transparent 40%);
+      background-attachment: fixed;
       color: var(--text-primary);
     }
 
@@ -204,12 +283,6 @@
       border-top: 2px solid rgba(22, 163, 74, 0.4);
     }
     [data-theme="light"] .column[data-status="running"] .column-title { color: rgba(22, 163, 74, 0.8); }
-
-    [data-theme="light"] .column[data-status="verifying"] {
-      border-top: 1px solid rgba(124, 58, 237, 0.2);
-      background: linear-gradient(180deg, rgba(124, 58, 237, 0.05) 0%, transparent 100%);
-    }
-    [data-theme="light"] .column[data-status="verifying"] .column-title { color: rgba(124, 58, 237, 0.8); }
 
     [data-theme="light"] .column[data-status="review"] {
       border-top: 2px solid rgba(202, 138, 4, 0.4);
@@ -423,12 +496,6 @@
       background: rgba(147, 51, 234, 0.12);
       color: #7c3aed;
       border: 1px solid rgba(147, 51, 234, 0.15);
-    }
-
-    [data-theme="light"] .status-verifying {
-      background: rgba(124, 58, 237, 0.1);
-      color: #6d28d9;
-      border: 1px solid rgba(124, 58, 237, 0.15);
     }
 
     [data-theme="light"] .task-type-option label {
@@ -1412,11 +1479,29 @@
     }
 
     body {
-      font-family: 'Inter', system-ui, sans-serif;
-      background-color: #050505;
+      font-family: var(--font-sans);
+      background-color: var(--bg-primary);
+      background-image: radial-gradient(circle at 15% -10%, rgba(124, 140, 255, 0.05), transparent 45%),
+        radial-gradient(circle at 85% 0%, rgba(167, 139, 250, 0.04), transparent 40%);
+      background-attachment: fixed;
       color: var(--text-primary);
       min-height: 100vh;
       letter-spacing: 0.025em;
+    }
+
+    ::selection {
+      background: rgba(124, 140, 255, 0.35);
+      color: #fff;
+    }
+
+    [data-theme="light"] ::selection {
+      background: rgba(91, 99, 224, 0.25);
+      color: #17181c;
+    }
+
+    :focus-visible {
+      outline: 2px solid var(--accent-primary);
+      outline-offset: 2px;
     }
 
     /* Header - Minimal floating header for actions */
@@ -1476,13 +1561,13 @@
       align-items: center;
       gap: 10px;
       padding: 8px 14px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .workspace-trigger:hover {
@@ -1515,7 +1600,7 @@
     .workspace-trigger-chevron {
       font-size: 10px;
       color: rgba(255, 255, 255, 0.5);
-      transition: transform 0.2s ease;
+      transition: transform var(--transition-base);
     }
 
     .workspace-switcher.open .workspace-trigger-chevron {
@@ -1545,14 +1630,14 @@
       overflow-y: auto;
       background: rgba(15, 15, 15, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
+      border-radius: var(--radius-3xl);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
       opacity: 0;
       visibility: hidden;
       transform: translateY(-8px);
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .workspace-switcher.open .workspace-dropdown {
@@ -1570,9 +1655,9 @@
       align-items: center;
       gap: 12px;
       padding: 12px;
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
     }
 
     .workspace-item:hover {
@@ -1644,13 +1729,13 @@
       width: calc(100% - 16px);
       margin: 4px 8px 8px;
       padding: 12px;
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       border: 1px dashed rgba(139, 92, 246, 0.3);
       background: transparent;
       color: rgba(139, 92, 246, 0.8);
       font-size: 13px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
     }
 
     .workspace-add-btn:hover {
@@ -1716,7 +1801,7 @@
       width: 100%;
       padding: 12px 14px;
       padding-right: 40px;
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(255, 255, 255, 0.05);
       color: rgba(255, 255, 255, 0.95);
@@ -1774,14 +1859,14 @@
     .add-workspace-submit {
       flex: 1;
       padding: 10px 16px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       border: none;
       background: rgba(139, 92, 246, 0.3);
       color: #c4b5fd;
       font-size: 13px;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
     }
 
     .add-workspace-submit:hover:not(:disabled) {
@@ -1805,13 +1890,13 @@
       align-items: center;
       gap: 8px;
       padding: 8px 12px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .agent-trigger:hover {
@@ -1837,7 +1922,7 @@
     .agent-trigger-chevron {
       font-size: 9px;
       color: rgba(255, 255, 255, 0.5);
-      transition: transform 0.2s ease;
+      transition: transform var(--transition-base);
     }
 
     .agent-switcher.open .agent-trigger-chevron {
@@ -1853,14 +1938,14 @@
       overflow-y: auto;
       background: rgba(15, 15, 15, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 14px;
+      border-radius: var(--radius-2xl);
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
       opacity: 0;
       visibility: hidden;
       transform: translateY(-8px);
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .agent-switcher.open .agent-dropdown {
@@ -1878,9 +1963,9 @@
       align-items: center;
       gap: 10px;
       padding: 10px 12px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
     }
 
     .agent-item:hover:not(.disabled) {
@@ -1962,7 +2047,7 @@
 
     .toast {
       padding: 12px 16px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       background: rgba(15, 15, 15, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.1);
       backdrop-filter: blur(12px);
@@ -2031,21 +2116,34 @@
     /* Buttons - Glass Morphic Style */
     .btn {
       padding: 8px 16px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(255, 255, 255, 0.05);
       color: rgba(255, 255, 255, 0.8);
       cursor: pointer;
-      font-size: 13px;
-      font-weight: 500;
-      transition: all 0.2s ease;
+      font-size: var(--text-sm);
+      font-weight: var(--weight-medium);
+      transition: all var(--transition-base);
       backdrop-filter: blur(4px);
+      box-shadow: var(--shadow-xs);
     }
 
     .btn:hover {
       background: rgba(255, 255, 255, 0.1);
       border-color: rgba(255, 255, 255, 0.15);
       color: white;
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      transition-duration: var(--duration-fast);
+    }
+
+    .btn:focus-visible {
+      outline: 2px solid var(--accent-primary);
+      outline-offset: 2px;
     }
 
     .btn-primary {
@@ -2058,6 +2156,7 @@
       background: rgba(74, 222, 128, 0.3);
       border-color: rgba(74, 222, 128, 0.3);
       color: #bbf7d0;
+      box-shadow: 0 6px 20px -6px rgba(74, 222, 128, 0.35);
     }
 
     .btn-approve {
@@ -2070,6 +2169,7 @@
       background: rgba(63, 185, 80, 0.3);
       border-color: rgba(63, 185, 80, 0.3);
       color: var(--accent-green);
+      box-shadow: 0 6px 20px -6px rgba(63, 185, 80, 0.35);
     }
 
     .btn-danger {
@@ -2082,11 +2182,12 @@
       background: rgba(248, 113, 113, 0.3);
       border-color: rgba(248, 113, 113, 0.3);
       color: #fecaca;
+      box-shadow: 0 6px 20px -6px rgba(248, 113, 113, 0.35);
     }
 
     .btn-lg {
       padding: 12px 28px;
-      font-size: 15px;
+      font-size: var(--text-md);
     }
 
     /* Welcome Banner */
@@ -2099,7 +2200,7 @@
       padding: 80px 40px;
       background: var(--bg-secondary);
       border: 1px solid var(--bg-tertiary);
-      border-radius: 16px;
+      border-radius: var(--radius-3xl);
       margin: 40px auto;
       max-width: 560px;
       backdrop-filter: blur(8px);
@@ -2164,93 +2265,93 @@
     .board {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
-      gap: 24px;
-      padding: 32px;
+      gap: var(--space-6);
+      padding: var(--space-8);
       min-height: 100vh;
       padding-top: 80px;
     }
 
     /* Column Containers - Glass Morphic Swimlanes */
     .column {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 20px;
-      padding: 20px;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.03);
-      transition: all 0.3s ease;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.012) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-top-width: 2px;
+      border-radius: var(--radius-4xl);
+      padding: var(--space-5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition-slow);
     }
 
     .column:hover {
-      background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%);
-      border-color: rgba(255, 255, 255, 0.06);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+      border-color: rgba(255, 255, 255, 0.08);
+      box-shadow: var(--shadow-md);
     }
 
     .column-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: var(--space-5);
+      padding-bottom: var(--space-3);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
 
     /* Column Headers - Small, uppercase, tracking-widest */
     .column-title {
-      font-size: 11px;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
       text-transform: uppercase;
       letter-spacing: 0.15em;
-      color: rgba(255, 255, 255, 0.5);
+      color: rgba(255, 255, 255, 0.55);
     }
 
     .column-count {
       background-color: rgba(255, 255, 255, 0.08);
       padding: 4px 10px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       font-size: 10px;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.5);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-weight: var(--weight-semibold);
+      color: rgba(255, 255, 255, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: all var(--transition-base);
     }
 
     /* Column status accent colors - subtle top border glow */
     .column[data-status="todo"] {
-      border-top: 1px solid rgba(107, 114, 128, 0.3);
+      border-top-color: rgba(148, 163, 184, 0.45);
     }
-    .column[data-status="todo"] .column-title { color: rgba(156, 163, 175, 0.8); }
+    .column[data-status="todo"] .column-title { color: rgba(156, 163, 175, 0.85); }
 
     .column[data-status="queued"] {
-      border-top: 1px solid rgba(96, 165, 250, 0.3);
+      border-top-color: rgba(96, 165, 250, 0.45);
     }
-    .column[data-status="queued"] .column-title { color: rgba(147, 197, 253, 0.9); }
+    .column[data-status="queued"] .column-title { color: rgba(147, 197, 253, 0.95); }
     .column-subtitle {
-      font-size: 11px;
+      font-size: var(--text-xs);
       color: var(--text-secondary);
       margin-top: 4px;
-      font-weight: 400;
+      font-weight: var(--weight-normal);
       width: 100%;
     }
 
     .column[data-status="running"] {
-      border-top: 1px solid rgba(74, 222, 128, 0.3);
+      border-top-color: rgba(74, 222, 128, 0.45);
     }
-    .column[data-status="running"] .column-title { color: rgba(134, 239, 172, 0.9); }
+    .column[data-status="running"] .column-title { color: rgba(134, 239, 172, 0.95); }
 
-    .column[data-status="verifying"] {
-      border-top: 1px solid rgba(167, 139, 250, 0.3);
-      background: linear-gradient(180deg, rgba(167, 139, 250, 0.04) 0%, transparent 100%);
+
+    .column[data-status="review"] {
+      border-top-color: rgba(251, 191, 36, 0.45);
     }
-    .column[data-status="verifying"] .column-title { color: rgba(167, 139, 250, 0.9); }
-      border-top: 1px solid rgba(251, 191, 36, 0.3);
-    }
-    .column[data-status="review"] .column-title { color: rgba(253, 224, 71, 0.9); }
+    .column[data-status="review"] .column-title { color: rgba(253, 224, 71, 0.95); }
 
     .column[data-status="done"] {
-      border-top: 1px solid rgba(34, 197, 94, 0.3);
+      border-top-color: rgba(34, 197, 94, 0.45);
     }
-    .column[data-status="done"] .column-title { color: rgba(134, 239, 172, 0.9); }
+    .column[data-status="done"] .column-title { color: rgba(134, 239, 172, 0.95); }
 
     .tasks {
       display: flex;
@@ -2265,14 +2366,14 @@
       width: 100%;
       padding: 20px;
       padding-bottom: 24px;
-      border-radius: 24px;
+      border-radius: var(--radius-5xl);
       background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.01));
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all var(--transition-slow);
       overflow: hidden;
     }
 
@@ -2281,9 +2382,14 @@
     }
 
     .task-card:hover {
-      box-shadow: 0 0 20px -5px rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.1);
+      box-shadow: var(--shadow-lg);
+      border-color: rgba(255, 255, 255, 0.12);
       transform: translateY(-4px);
+    }
+
+    .task-card:focus-visible {
+      outline: 2px solid var(--accent-primary);
+      outline-offset: 2px;
     }
 
     .task-card.dragging {
@@ -2293,7 +2399,7 @@
     .drop-target-active {
       outline: 2px dashed var(--accent-blue);
       background: rgba(88, 166, 255, 0.05);
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
     }
 
     [data-theme="light"] .drop-target-active {
@@ -2305,11 +2411,11 @@
       position: relative;
       width: 100%;
       padding: 12px 16px;
-      border-radius: 16px;
+      border-radius: var(--radius-3xl);
       background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04));
       border: 2px dashed rgba(99, 102, 241, 0.3);
       cursor: pointer;
-      transition: all 0.3s ease;
+      transition: all var(--transition-slow);
       display: flex;
       flex-direction: row;
       align-items: center;
@@ -2321,7 +2427,12 @@
       background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
       border-color: rgba(99, 102, 241, 0.5);
       transform: translateY(-4px);
-      box-shadow: 0 8px 25px -5px rgba(99, 102, 241, 0.2);
+      box-shadow: var(--shadow-glow);
+    }
+
+    .create-task-card:focus-visible {
+      outline: 2px solid var(--accent-primary);
+      outline-offset: 2px;
     }
 
     .create-task-card .create-icon {
@@ -2336,7 +2447,7 @@
       font-size: 18px;
       font-weight: 300;
       color: rgba(99, 102, 241, 0.8);
-      transition: all 0.3s ease;
+      transition: all var(--transition-slow);
     }
 
     .create-task-card:hover .create-icon {
@@ -2365,10 +2476,10 @@
     }
 
     .task-title {
-      font-size: 14px;
-      font-weight: 500;
+      font-size: var(--text-base);
+      font-weight: var(--weight-medium);
       flex: 1;
-      color: rgba(255, 255, 255, 0.9);
+      color: rgba(255, 255, 255, 0.92);
       line-height: 1.4;
     }
 
@@ -2376,10 +2487,11 @@
     .priority-badge {
       font-size: 10px;
       padding: 4px 12px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       text-transform: uppercase;
-      font-weight: 700;
+      font-weight: var(--weight-bold);
       letter-spacing: 0.05em;
+      transition: all var(--transition-base);
     }
 
     .priority-low {
@@ -2403,7 +2515,7 @@
     .task-duration {
       font-size: 10px;
       padding: 3px 10px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       font-weight: 500;
       font-variant-numeric: tabular-nums;
       background: rgba(99, 102, 241, 0.08);
@@ -2436,7 +2548,7 @@
       color: #f59e0b;
       background: rgba(245, 158, 11, 0.1);
       border: 1px solid rgba(245, 158, 11, 0.25);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       padding: 6px 10px;
       margin-bottom: 10px;
       line-height: 1.4;
@@ -2449,26 +2561,6 @@
       border-color: rgba(245, 158, 11, 0.3);
     }
 
-    /* Verification warning banner (no-diff gate fired) */
-    .verification-warning-banner {
-      font-size: 11px;
-      color: #f59e0b;
-      background: rgba(245, 158, 11, 0.1);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      border-radius: 6px;
-      padding: 6px 10px;
-      margin-bottom: 10px;
-      line-height: 1.4;
-      word-break: break-word;
-    }
-
-    [data-theme="light"] .verification-warning-banner {
-      color: #b45309;
-      background: rgba(245, 158, 11, 0.08);
-      border-color: rgba(245, 158, 11, 0.35);
-      font-weight: 500;
-    }
-
     .task-actions {
       display: flex;
       justify-content: flex-end;
@@ -2479,7 +2571,7 @@
       padding: 6px 14px;
       font-size: 11px;
       font-weight: 600;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
     }
 
     /* Terminal Panel - Glass Morphic */
@@ -2543,9 +2635,9 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      background-color: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
       display: none;
       justify-content: center;
       align-items: center;
@@ -2554,22 +2646,34 @@
 
     .modal-overlay.open {
       display: flex;
+      animation: modal-overlay-in var(--transition-base);
+    }
+
+    @keyframes modal-overlay-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes modal-in {
+      from { opacity: 0; transform: translateY(8px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
     }
 
     .modal {
-      background: linear-gradient(to bottom right, rgba(20, 20, 20, 0.9), rgba(10, 10, 10, 0.95));
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 24px;
+      background: linear-gradient(to bottom right, rgba(22, 22, 24, 0.92), rgba(10, 10, 11, 0.96));
+      border: 1px solid var(--border-color-strong);
+      border-radius: var(--radius-5xl);
       padding: 28px;
       width: 100%;
       max-width: 500px;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      box-shadow: var(--shadow-xl);
+      animation: modal-in var(--transition-slow);
     }
 
     .modal h2 {
       margin-bottom: 20px;
-      font-size: 18px;
-      font-weight: 600;
+      font-size: var(--text-xl);
+      font-weight: var(--weight-semibold);
     }
 
     .form-group {
@@ -2579,8 +2683,8 @@
     .form-group label {
       display: block;
       margin-bottom: 8px;
-      font-size: 11px;
-      font-weight: 700;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
       text-transform: uppercase;
       letter-spacing: 0.1em;
       color: rgba(255, 255, 255, 0.5);
@@ -2593,18 +2697,19 @@
       padding: 12px 16px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       color: var(--text-primary);
-      font-size: 14px;
-      transition: all 0.2s ease;
+      font-size: var(--text-base);
+      transition: all var(--transition-base);
     }
 
     .form-group input:focus,
     .form-group textarea:focus,
     .form-group select:focus {
       outline: none;
-      border-color: rgba(255, 255, 255, 0.2);
+      border-color: var(--accent-primary);
       background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 0 0 3px rgba(124, 140, 255, 0.15);
     }
 
     .form-group textarea {
@@ -2644,8 +2749,8 @@
       width: 44px;
       height: 24px;
       background: rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      transition: all 0.2s ease;
+      border-radius: var(--radius-xl);
+      transition: all var(--transition-base);
     }
 
     .quick-task-toggle .toggle-slider-inline::before {
@@ -2657,7 +2762,7 @@
       top: 3px;
       background: rgba(255, 255, 255, 0.5);
       border-radius: 50%;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .quick-task-toggle .toggle-label input:checked + .toggle-slider-inline {
@@ -2708,11 +2813,11 @@
       align-items: center;
       gap: 12px;
       padding: 12px 14px;
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
     }
 
     .task-type-option label:hover {
@@ -2768,10 +2873,10 @@
       font-weight: 600;
       letter-spacing: 0.04em;
       padding: 2px 6px;
-      border-radius: 4px;
+      border-radius: var(--radius-xs);
       background: rgba(255, 255, 255, 0.07);
       color: rgba(255, 255, 255, 0.4);
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
     }
 
     .task-type-option .type-flow-arrow {
@@ -2855,14 +2960,14 @@
       right: 24px;
       height: 1px;
       background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.5), transparent);
-      border-radius: 24px 24px 0 0;
+      border-radius: var(--radius-5xl) 24px 0 0;
     }
 
     /* Bootstrap Badge - Ghost Pill */
     .bootstrap-badge {
       font-size: 10px;
       padding: 4px 12px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background: rgba(168, 85, 247, 0.2);
       color: #c4b5fd;
       border: 1px solid rgba(168, 85, 247, 0.1);
@@ -2876,7 +2981,7 @@
     .quick-badge {
       font-size: 10px;
       padding: 4px 12px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background: rgba(59, 130, 246, 0.2);
       color: #93c5fd;
       border: 1px solid rgba(59, 130, 246, 0.1);
@@ -2890,7 +2995,7 @@
     .manual-badge {
       font-size: 10px;
       padding: 4px 12px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background: rgba(245, 158, 11, 0.2);
       color: #fbbf24;
       border: 1px solid rgba(245, 158, 11, 0.1);
@@ -2914,7 +3019,7 @@
     .goal-badge {
       font-size: 10px;
       padding: 4px 12px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background: rgba(168, 85, 247, 0.2);
       color: #c4b5fd;
       border: 1px solid rgba(168, 85, 247, 0.1);
@@ -2928,7 +3033,7 @@
     .child-badge {
       font-size: 10px;
       padding: 4px 12px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background: rgba(129, 140, 248, 0.2);
       color: #a5b4fc;
       border: 1px solid rgba(129, 140, 248, 0.1);
@@ -2942,7 +3047,7 @@
     .blocked-badge {
       font-size: 10px;
       padding: 4px 12px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background: rgba(245, 158, 11, 0.25);
       color: #fcd34d;
       border: 1px solid rgba(245, 158, 11, 0.2);
@@ -2970,7 +3075,7 @@
       border: 1px solid rgba(245, 158, 11, 0.25);
       font-size: 10px;
       padding: 2px 8px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       margin-right: 4px;
     }
 
@@ -2986,12 +3091,12 @@
       padding: 8px 16px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       color: rgba(255, 255, 255, 0.5);
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .mode-btn:hover {
@@ -3032,7 +3137,7 @@
     .bootstrap-banner {
       background: linear-gradient(135deg, rgba(74, 222, 128, 0.15), rgba(74, 222, 128, 0.05));
       border: 1px solid rgba(74, 222, 128, 0.2);
-      border-radius: 16px;
+      border-radius: var(--radius-3xl);
       padding: 16px 24px;
       margin: 16px 32px;
       display: flex;
@@ -3067,34 +3172,10 @@
       background: rgba(74, 222, 128, 0.3);
     }
 
-    .emergency-stop-banner {
-      background: rgba(239, 68, 68, 0.15);
-      border: 1px solid rgba(239, 68, 68, 0.5);
-      border-radius: 8px;
-      padding: 12px 16px;
-      margin-bottom: 12px;
-      color: rgb(252, 165, 165);
-    }
-    .emergency-stop-banner-content {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .emergency-stop-dismiss {
-      background: rgba(239, 68, 68, 0.2);
-      border: 1px solid rgba(239, 68, 68, 0.4);
-      color: rgb(252, 165, 165);
-      border-radius: 4px;
-      padding: 4px 10px;
-      cursor: pointer;
-      font-size: 12px;
-      margin-left: auto;
-    }
     .project-brief-panel {
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
       border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 16px;
+      border-radius: var(--radius-3xl);
       margin: 72px 32px 0 32px; /* 56px header + 16px gap */
       padding: 16px 24px;
       backdrop-filter: blur(8px);
@@ -3129,7 +3210,7 @@
       font-family: Monaco, Menlo, "Ubuntu Mono", monospace;
       background: rgba(255, 255, 255, 0.05);
       padding: 6px 12px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       border: 1px solid rgba(255, 255, 255, 0.05);
       white-space: nowrap;
       overflow: hidden;
@@ -3148,7 +3229,7 @@
       font-size: 11px;
       font-weight: 600;
       padding: 4px 10px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       letter-spacing: 0.03em;
       display: flex;
       align-items: center;
@@ -3209,12 +3290,12 @@
       font-size: 11px;
       font-weight: 600;
       padding: 6px 14px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.08);
       color: rgba(255, 255, 255, 0.5);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
       white-space: nowrap;
     }
 
@@ -3261,7 +3342,7 @@
     .workflow-step {
       font-size: 10px;
       padding: 4px 12px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background-color: rgba(255, 255, 255, 0.05);
       color: rgba(255, 255, 255, 0.3);
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -3336,7 +3417,7 @@
     .status-badge {
       font-size: 10px;
       padding: 4px 12px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
@@ -3373,11 +3454,6 @@
       border: 1px solid rgba(168, 85, 247, 0.1);
     }
 
-    .status-verifying {
-      background-color: rgba(167, 139, 250, 0.2);
-      color: #a78bfa;
-      border: 1px solid rgba(167, 139, 250, 0.1);
-    }
     .task-card[data-status="queued"] {
       border-color: rgba(96, 165, 250, 0.2);
       animation: queue-pulse 3s ease-in-out infinite;
@@ -3395,7 +3471,7 @@
       left: 12px;
       width: 24px;
       height: 24px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background: rgba(96, 165, 250, 0.2);
       border: 1px solid rgba(96, 165, 250, 0.2);
       color: #93c5fd;
@@ -3433,7 +3509,7 @@
       padding: 6px 14px;
       font-size: 18px;
       line-height: 1;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
     }
 
     .detail-content {
@@ -3466,7 +3542,7 @@
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.05);
       padding: 16px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       font-size: 13px;
       white-space: pre-wrap;
       word-wrap: break-word;
@@ -3481,7 +3557,7 @@
       background: rgba(96, 165, 250, 0.1);
       border: 1px solid rgba(96, 165, 250, 0.1);
       padding: 10px 14px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       font-size: 12px;
       color: #93c5fd;
       font-family: 'Monaco', 'Menlo', monospace;
@@ -3497,14 +3573,14 @@
       flex: 1;
       height: 6px;
       background: rgba(255, 255, 255, 0.05);
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       overflow: hidden;
     }
 
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, #86efac, #4ade80);
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       transition: width 0.3s ease;
     }
 
@@ -3530,7 +3606,7 @@
       padding: 12px;
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       font-size: 13px;
     }
 
@@ -3557,7 +3633,7 @@
       right: 24px;
       width: 52px;
       height: 52px;
-      border-radius: 16px;
+      border-radius: var(--radius-3xl);
       background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
       border: 1px solid rgba(255, 255, 255, 0.08);
       box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 8px 32px -8px rgba(0, 0, 0, 0.5);
@@ -3569,7 +3645,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.3s ease;
+      transition: all var(--transition-slow);
       z-index: 50;
     }
 
@@ -3610,13 +3686,13 @@
       right: 24px;
       width: 420px;
       max-height: 70vh;
-      background: linear-gradient(to bottom right, rgba(18, 18, 18, 0.95), rgba(8, 8, 8, 0.98));
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 24px;
+      background: linear-gradient(to bottom right, rgba(19, 19, 21, 0.96), rgba(8, 8, 9, 0.98));
+      border: 1px solid var(--border-color-strong);
+      border-radius: var(--radius-5xl);
       box-shadow:
-        inset 0 1px 0 0 rgba(255, 255, 255, 0.04),
-        0 32px 64px -16px rgba(0, 0, 0, 0.7),
-        0 0 0 1px rgba(0, 0, 0, 0.3);
+        inset 0 1px 0 0 rgba(255, 255, 255, 0.05),
+        0 0 0 1px rgba(124, 140, 255, 0.06),
+        var(--shadow-xl);
       backdrop-filter: blur(32px);
       -webkit-backdrop-filter: blur(32px);
       display: none;
@@ -3627,7 +3703,7 @@
 
     .assistant-panel.open {
       display: flex;
-      animation: panel-enter 0.25s ease-out;
+      animation: panel-enter var(--transition-slow) var(--ease-spring);
     }
 
     @keyframes panel-enter {
@@ -3651,7 +3727,7 @@
       width: 80vw;
       max-width: 1200px;
       max-height: 85vh;
-      border-radius: 20px;
+      border-radius: var(--radius-4xl);
       z-index: 100;
       animation: panel-expand 0.25s ease-out;
     }
@@ -3699,7 +3775,7 @@
     .assistant-status {
       font-size: 9px;
       padding: 4px 10px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       text-transform: uppercase;
       font-weight: 700;
       letter-spacing: 0.05em;
@@ -3744,7 +3820,7 @@
     .assistant-header-actions .btn {
       padding: 6px 10px;
       font-size: 10px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
     }
 
     .assistant-model-controls {
@@ -3874,7 +3950,7 @@
       max-width: 100%;
       text-align: center;
       padding: 10px 16px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
     }
 
     /* Error Message */
@@ -3888,14 +3964,14 @@
       max-width: 100%;
       text-align: center;
       padding: 10px 16px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
     }
 
     /* Code Blocks in Messages */
     .assistant-message code {
       background: rgba(0, 0, 0, 0.4);
       padding: 2px 7px;
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       font-family: 'SF Mono', 'Monaco', 'Menlo', 'Consolas', monospace;
       font-size: 12px;
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -3904,7 +3980,7 @@
     .assistant-message pre {
       background: rgba(0, 0, 0, 0.4);
       padding: 14px 16px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       overflow-x: auto;
       margin: 10px 0;
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -3950,12 +4026,12 @@
       justify-content: center;
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       color: rgba(255, 255, 255, 0.4);
       font-size: 12px;
       cursor: pointer;
       opacity: 0;
-      transition: opacity 0.15s ease, background 0.15s ease;
+      transition: opacity var(--transition-fast), background 0.15s ease;
       z-index: 2;
       padding: 0;
       line-height: 1;
@@ -4033,14 +4109,14 @@
       padding: 12px 16px;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 14px;
+      border-radius: var(--radius-2xl);
       color: var(--text-primary);
       font-size: 13px;
       font-family: inherit;
       resize: none;
       min-height: 44px;
       max-height: 120px;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .assistant-input:focus {
@@ -4060,12 +4136,12 @@
       min-width: 70px;
       background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 14px;
+      border-radius: var(--radius-2xl);
       color: rgba(255, 255, 255, 0.8);
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
       box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
     }
 
@@ -4106,7 +4182,7 @@
     .assistant-empty-icon {
       width: 48px;
       height: 48px;
-      border-radius: 16px;
+      border-radius: var(--radius-3xl);
       background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
       border: 1px solid rgba(255, 255, 255, 0.05);
       display: flex;
@@ -4133,7 +4209,7 @@
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.05);
       padding: 3px 7px;
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       font-family: inherit;
       font-size: 10px;
       margin: 0 2px;
@@ -4167,99 +4243,6 @@
       font-size: 16px;
     }
 
-    /* Usage Meter Widget */
-    .usage-meter {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      font-size: 12px;
-      font-weight: 500;
-      cursor: default;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-    }
-
-    .usage-meter:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: rgba(255, 255, 255, 0.15);
-    }
-
-    .usage-icon {
-      font-size: 13px;
-      line-height: 1;
-    }
-
-    .usage-label {
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-
-    .usage-ok {
-      border-color: rgba(34, 197, 94, 0.3);
-      color: #4ade80;
-    }
-    .usage-ok .usage-icon { color: #4ade80; }
-
-    .usage-warning {
-      border-color: rgba(245, 158, 11, 0.3);
-      color: #fbbf24;
-    }
-    .usage-warning .usage-icon { color: #fbbf24; }
-
-    .usage-critical {
-      border-color: rgba(239, 68, 68, 0.3);
-      color: #f87171;
-      animation: usage-pulse 2s ease-in-out infinite;
-    }
-    .usage-critical .usage-icon { color: #f87171; }
-
-    .usage-unknown {
-      border-color: rgba(255, 255, 255, 0.08);
-      color: rgba(255, 255, 255, 0.4);
-    }
-    .usage-unknown .usage-icon { color: rgba(255, 255, 255, 0.4); }
-
-    @keyframes usage-pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(0.97); }
-    }
-
-    [data-theme="light"] .usage-meter {
-      border: 1px solid rgba(0, 0, 0, 0.1);
-      background: rgba(0, 0, 0, 0.03);
-    }
-    [data-theme="light"] .usage-meter:hover {
-      background: rgba(0, 0, 0, 0.06);
-      border-color: rgba(0, 0, 0, 0.15);
-    }
-    [data-theme="light"] .usage-ok {
-      border-color: rgba(22, 163, 74, 0.3);
-      color: #15803d;
-    }
-    [data-theme="light"] .usage-ok .usage-icon { color: #15803d; }
-    [data-theme="light"] .usage-warning {
-      border-color: rgba(217, 119, 6, 0.3);
-      color: #b45309;
-    }
-    [data-theme="light"] .usage-warning .usage-icon { color: #b45309; }
-    [data-theme="light"] .usage-critical {
-      border-color: rgba(220, 38, 38, 0.3);
-      color: #dc2626;
-    }
-    [data-theme="light"] .usage-critical .usage-icon { color: #dc2626; }
-    [data-theme="light"] .usage-unknown {
-      border-color: rgba(0, 0, 0, 0.08);
-      color: rgba(0, 0, 0, 0.4);
-    }
-    [data-theme="light"] .usage-unknown .usage-icon { color: rgba(0, 0, 0, 0.4); }
-
     /* Settings Panel Backdrop */
     .settings-backdrop {
       position: fixed;
@@ -4273,7 +4256,7 @@
       z-index: 98;
       opacity: 0;
       visibility: hidden;
-      transition: opacity 0.25s ease, visibility 0.25s ease;
+      transition: opacity var(--transition-base), visibility 0.25s ease;
     }
 
     .settings-backdrop.open {
@@ -4289,24 +4272,51 @@
       bottom: 0;
       width: 400px;
       max-width: 100vw;
-      background: linear-gradient(to bottom right, rgba(18, 18, 18, 0.98), rgba(8, 8, 8, 0.99));
-      border-left: 1px solid rgba(255, 255, 255, 0.06);
+      background: linear-gradient(to bottom right, rgba(19, 19, 21, 0.98), rgba(8, 8, 9, 0.99));
+      border-left: 1px solid var(--border-color-strong);
       backdrop-filter: blur(32px);
       -webkit-backdrop-filter: blur(32px);
       z-index: 99;
       display: flex;
       flex-direction: column;
       transform: translateX(100%);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: transform var(--transition-slow) var(--ease-out);
       overflow: hidden;
     }
 
     .settings-panel.open {
       transform: translateX(0);
       box-shadow:
-        inset 1px 0 0 0 rgba(255, 255, 255, 0.03),
-        -20px 0 60px -10px rgba(0, 0, 0, 0.5);
+        inset 1px 0 0 0 rgba(255, 255, 255, 0.04),
+        -20px 0 60px -10px rgba(0, 0, 0, 0.55);
     }
+
+    .task-usage-badge { display: inline-flex; align-items: center; margin-top: 10px; padding: 3px 7px; border: 1px solid rgba(167, 139, 250, 0.24); border-radius: var(--radius-full); background: rgba(124, 58, 237, 0.12); color: rgba(221, 214, 254, 0.95); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; transition: all var(--transition-base); }
+    .usage-panel { width: 560px; }
+    .usage-content { flex: 1; min-height: 0; overflow-y: auto; padding: 24px; }
+    .usage-controls { display: grid; gap: 16px; margin-bottom: 20px; }
+    .usage-control-label { display: block; margin-bottom: 7px; color: rgba(255, 255, 255, 0.5); font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+    .usage-toggle { display: flex; gap: 4px; }
+    .usage-toggle button { padding: 6px 10px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.04); color: rgba(255, 255, 255, 0.6); cursor: pointer; font-size: 12px; transition: all var(--transition-base); }
+    .usage-toggle button:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.85); }
+    .usage-toggle button.active { border-color: rgba(167, 139, 250, 0.55); background: rgba(124, 58, 237, 0.24); color: #ede9fe; box-shadow: 0 2px 10px -2px rgba(124, 58, 237, 0.35); }
+    .usage-summary-status { color: rgba(255, 255, 255, 0.55); font-size: 13px; }
+    .usage-summary-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    .usage-summary-table th, .usage-summary-table td { padding: 10px 7px; border-bottom: 1px solid rgba(255, 255, 255, 0.07); text-align: right; font-variant-numeric: tabular-nums; }
+    .usage-summary-table th { color: rgba(255, 255, 255, 0.48); font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .usage-summary-table th:first-child, .usage-summary-table td:first-child { max-width: 150px; overflow-wrap: anywhere; text-align: left; color: rgba(255, 255, 255, 0.86); }
+    .usage-summary-table tfoot td { border-bottom: 0; border-top: 1px solid rgba(255, 255, 255, 0.16); color: rgba(255, 255, 255, 0.92); font-weight: 700; }
+    .usage-cost-basis { display: block; margin-top: 2px; color: rgba(255, 255, 255, 0.42); font-size: 9px; font-weight: 700; letter-spacing: 0.05em; }
+    .usage-cost-disclaimer { margin-top: 12px; color: rgba(255, 255, 255, 0.4); font-size: 11px; }
+    [data-theme="light"] .task-usage-badge { border-color: rgba(109, 40, 217, 0.25); background: rgba(124, 58, 237, 0.08); color: #5b21b6; }
+    [data-theme="light"] .usage-control-label, [data-theme="light"] .usage-summary-status, [data-theme="light"] .usage-cost-disclaimer, [data-theme="light"] .usage-summary-table th { color: rgba(0, 0, 0, 0.5); }
+    [data-theme="light"] .usage-toggle button { border-color: rgba(0, 0, 0, 0.12); background: rgba(0, 0, 0, 0.03); color: rgba(0, 0, 0, 0.65); }
+    [data-theme="light"] .usage-toggle button:hover { background: rgba(0, 0, 0, 0.06); border-color: rgba(0, 0, 0, 0.18); color: rgba(0, 0, 0, 0.85); }
+    [data-theme="light"] .usage-toggle button.active { color: #4c1d95; background: rgba(124, 58, 237, 0.12); box-shadow: 0 2px 10px -2px rgba(124, 58, 237, 0.18); }
+    [data-theme="light"] .usage-summary-table th, [data-theme="light"] .usage-summary-table td { border-color: rgba(0, 0, 0, 0.08); }
+    [data-theme="light"] .usage-summary-table th:first-child, [data-theme="light"] .usage-summary-table td:first-child { color: rgba(0, 0, 0, 0.82); }
+    [data-theme="light"] .usage-summary-table tfoot td { border-color: rgba(0, 0, 0, 0.16); color: rgba(0, 0, 0, 0.86); }
+    [data-theme="light"] .usage-cost-basis { color: rgba(0, 0, 0, 0.46); }
 
     /* Settings Header */
     .settings-header {
@@ -4344,11 +4354,11 @@
       justify-content: center;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       color: rgba(255, 255, 255, 0.6);
       font-size: 18px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .settings-close-btn:hover {
@@ -4410,7 +4420,7 @@
       gap: 4px;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       padding: 4px;
     }
 
@@ -4421,11 +4431,11 @@
       padding: 6px 12px;
       border: none;
       background: transparent;
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       color: rgba(255, 255, 255, 0.5);
       font-size: 12px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .theme-option:hover {
@@ -4466,8 +4476,8 @@
       bottom: 0;
       background: rgba(255, 255, 255, 0.1);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      transition: all 0.25s ease;
+      border-radius: var(--radius-xl);
+      transition: all var(--transition-base);
     }
 
     .toggle-slider::before {
@@ -4479,7 +4489,7 @@
       bottom: 2px;
       background: rgba(255, 255, 255, 0.8);
       border-radius: 50%;
-      transition: all 0.25s ease;
+      transition: all var(--transition-base);
     }
 
     .settings-toggle input:checked + .toggle-slider {
@@ -4499,7 +4509,7 @@
       gap: 0;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       overflow: hidden;
     }
 
@@ -4514,7 +4524,7 @@
       color: rgba(255, 255, 255, 0.6);
       font-size: 16px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .number-btn:hover {
@@ -4538,7 +4548,7 @@
     .settings-text-input {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       padding: 7px 10px;
       color: rgba(255, 255, 255, 0.9);
       font-size: 13px;
@@ -4555,7 +4565,7 @@
     .settings-ms-input {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       padding: 7px 10px;
       color: rgba(255, 255, 255, 0.9);
       font-size: 13px;
@@ -4609,12 +4619,12 @@
       padding: 7px 14px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       color: rgba(255, 255, 255, 0.6);
       font-size: 12px;
       cursor: pointer;
       white-space: nowrap;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
       flex-shrink: 0;
     }
 
@@ -4639,8 +4649,8 @@
       padding: 12px 14px;
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 12px;
-      transition: all 0.2s ease;
+      border-radius: var(--radius-xl);
+      transition: all var(--transition-base);
     }
 
     .workspace-item:hover {
@@ -4659,7 +4669,7 @@
       border-radius: 50%;
       flex-shrink: 0;
       cursor: pointer;
-      transition: transform 0.2s ease;
+      transition: transform var(--transition-base);
     }
 
     .workspace-color:hover {
@@ -4682,7 +4692,7 @@
       width: 100%;
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(139, 92, 246, 0.4);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       padding: 4px 8px;
       font-size: 13px;
       font-weight: 500;
@@ -4701,8 +4711,8 @@
     .workspace-actions {
       display: flex;
       gap: 4px;
-      opacity: 0;
-      transition: opacity 0.2s ease;
+      opacity: 1;
+      transition: opacity var(--transition-base);
     }
 
     .workspace-item:hover .workspace-actions {
@@ -4717,11 +4727,11 @@
       justify-content: center;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       color: rgba(255, 255, 255, 0.5);
       font-size: 12px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .workspace-action-btn:hover {
@@ -4757,13 +4767,13 @@
       padding: 10px;
       background: rgba(18, 18, 18, 0.98);
       border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
       z-index: 100;
       opacity: 0;
       visibility: hidden;
       transform: translateY(-4px);
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .color-picker-dropdown.open {
@@ -4778,7 +4788,7 @@
       border-radius: 50%;
       cursor: pointer;
       border: 2px solid transparent;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .color-swatch:hover {
@@ -4801,10 +4811,10 @@
       padding: 10px 14px;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       color: rgba(255, 255, 255, 0.9);
       font-size: 13px;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .add-workspace-input:focus {
@@ -4822,6 +4832,72 @@
       font-size: 12px;
       white-space: nowrap;
     }
+
+    /* Unified slide-over panel system */
+    .settings-panel, .usage-panel { width: 560px; }
+    .panel-header { padding: 18px 24px; }
+    .panel-section { margin-bottom: 16px; padding: 18px; border: 1px solid rgba(255,255,255,.08); border-radius: var(--radius-2xl); background: rgba(255,255,255,.025); }
+    .panel-section-title { display:flex; align-items:center; gap:8px; margin:0 0 14px; color:rgba(255,255,255,.9); font-size:14px; font-weight:650; }
+    .settings-content { padding: 16px 24px 32px; scroll-behavior:smooth; }
+    .settings-nav { position:sticky; top:-16px; z-index:2; display:flex; gap:4px; overflow-x:auto; margin:-16px -24px 16px; padding:12px 24px; background:rgba(12,12,12,.94); border-bottom:1px solid rgba(255,255,255,.06); scrollbar-width:none; }
+    .settings-nav button { flex:0 0 auto; padding:6px 9px; border:0; border-radius: var(--radius-sm); background:transparent; color:rgba(255,255,255,.48); font-size:11px; cursor:pointer; }
+    .settings-nav button:hover, .settings-nav button.active { background:rgba(124,58,237,.18); color:#ddd6fe; }
+    .settings-section { margin-bottom:16px; padding:18px; border:1px solid rgba(255,255,255,.08); border-radius: var(--radius-2xl); background:rgba(255,255,255,.025); }
+    .settings-section-title { display:flex; align-items:center; gap:8px; margin:0 0 6px; padding:0 0 12px; color:rgba(255,255,255,.9); font-size:14px; font-weight:650; letter-spacing:0; text-transform:none; }
+    .settings-section-title .section-icon { font-size:15px; }
+    .form-row, .settings-row { display:grid; grid-template-columns:minmax(0,1fr) 184px; align-items:center; gap:16px; min-width:0; padding:12px 0; }
+    .form-row + .form-row, .settings-row + .settings-row { border-top:1px solid rgba(255,255,255,.055); }
+    .settings-row > :last-child { justify-self:end; max-width:184px; }
+    .settings-label-group { margin:0; }
+    .settings-hint { max-width:270px; }
+    .settings-save-chip { display:inline-flex; align-items:center; gap:4px; margin-left:8px; padding:3px 6px; border-radius: var(--radius-full); background:rgba(34,197,94,.15); color:#86efac; font-size:10px; font-weight:700; opacity:0; transform:translateY(2px); transition:opacity .2s,transform .2s; }
+    .settings-save-chip.visible { opacity:1; transform:translateY(0); }
+    .danger-zone { border-color:rgba(248,113,113,.35); background:rgba(127,29,29,.11); }
+    .danger-zone .panel-section-title { color:#fca5a5; }
+    .danger-zone .settings-secondary-btn { border-color:rgba(248,113,113,.4); color:#fca5a5; }
+    .stat-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:9px; }
+    .stat-card { padding:13px; border:1px solid rgba(255,255,255,.08); border-radius: var(--radius-xl); background:linear-gradient(145deg,rgba(255,255,255,.06),rgba(255,255,255,.02)); min-width:0; }
+    .stat-card-value { overflow:hidden; color:rgba(255,255,255,.94); font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; text-overflow:ellipsis; white-space:nowrap; }
+    .stat-card-label { margin-top:4px; color:rgba(255,255,255,.45); font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; }
+    .segmented { display:inline-flex; position:relative; gap:2px; padding:3px; border:1px solid rgba(255,255,255,.09); border-radius: var(--radius-lg); background:rgba(255,255,255,.035); }
+    .segmented button { position:relative; z-index:1; padding:6px 10px; border:0; border-radius: var(--radius-sm); background:transparent; color:rgba(255,255,255,.55); font-size:12px; cursor:pointer; transition: color var(--transition-base); }
+    .segmented button::before { position:absolute; z-index:-1; inset:0; border-radius:inherit; background:rgba(124,58,237,.3); box-shadow:0 1px 5px rgba(0,0,0,.2); content:""; opacity:0; transform:scale(.82); transition:opacity .2s ease,transform .2s cubic-bezier(.16,1,.3,1); }
+    .segmented button.active { color:#f5f3ff; }
+    .segmented button.active::before { opacity:1; transform:scale(1); }
+    .usage-window { margin-top:7px; color:rgba(255,255,255,.43); font-size:11px; }
+    .usage-content { padding:16px 24px 32px; }
+    .usage-controls { grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; }
+    .usage-group-list { display:grid; gap:9px; }
+    .usage-group-row { overflow:hidden; border:1px solid rgba(255,255,255,.075); border-radius: var(--radius-xl); background:rgba(255,255,255,.025); }
+    .usage-group-toggle { display:grid; grid-template-columns:minmax(0,1fr) auto; width:100%; gap:12px; padding:11px 12px 8px; border:0; color:inherit; background:transparent; text-align:left; cursor:pointer; }
+    .usage-group-name { overflow-wrap:anywhere; color:rgba(255,255,255,.9); font-size:12px; font-weight:600; }
+    .usage-group-meta { display:flex; align-items:center; gap:8px; color:rgba(255,255,255,.57); font-size:11px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .usage-chevron { color:rgba(255,255,255,.45); transition: transform var(--transition-base); }
+    .usage-group-row.expanded .usage-chevron { transform:rotate(90deg); }
+    .usage-bar { height:3px; margin:0 12px; border-radius: var(--radius-full); background:rgba(255,255,255,.08); overflow:hidden; }
+    .usage-bar > span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#8b5cf6,#c4b5fd); }
+    .usage-row-footer { display:flex; justify-content:space-between; padding:8px 12px 11px; color:rgba(255,255,255,.43); font-size:10px; }
+    .usage-price-unavailable { padding:2px 5px; border-radius: var(--radius-full); background:rgba(255,255,255,.08); color:rgba(255,255,255,.5); font-size:9px; font-weight:700; text-transform:uppercase; }
+    .usage-breakdown { display:none; grid-template-columns:repeat(2,1fr); gap:8px; padding:11px 12px; border-top:1px solid rgba(255,255,255,.07); background:rgba(0,0,0,.12); }
+    .usage-group-row.expanded .usage-breakdown { display:grid; }
+    .usage-mini-stat { color:rgba(255,255,255,.48); font-size:10px; }
+    .usage-mini-stat strong { display:block; margin-top:2px; color:rgba(255,255,255,.88); font-size:12px; font-variant-numeric:tabular-nums; }
+    .usage-empty, .usage-skeleton { padding:30px 18px; text-align:center; color:rgba(255,255,255,.5); font-size:13px; }
+    .usage-empty-icon { display:block; margin-bottom:8px; font-size:22px; }
+    .usage-skeleton-line { height:52px; margin:9px 0; border-radius: var(--radius-lg); background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.11),rgba(255,255,255,.04)); background-size:200% 100%; animation:usage-shimmer 1.2s infinite; }
+    .usage-empty-toggle { display:flex; align-items:center; gap:7px; margin:13px 0; color:rgba(255,255,255,.55); font-size:11px; cursor:pointer; }
+    @keyframes usage-shimmer { to { background-position:-200% 0; } }
+    [data-theme="light"] .settings-nav { background:rgba(255,255,255,.94); border-color:rgba(0,0,0,.07); }
+    [data-theme="light"] .panel-section, [data-theme="light"] .settings-section, [data-theme="light"] .stat-card, [data-theme="light"] .usage-group-row { border-color:rgba(0,0,0,.09); background:rgba(0,0,0,.025); }
+    [data-theme="light"] .panel-section-title, [data-theme="light"] .settings-section-title, [data-theme="light"] .stat-card-value, [data-theme="light"] .usage-group-name, [data-theme="light"] .usage-mini-stat strong { color:rgba(0,0,0,.84); }
+    [data-theme="light"] .settings-nav button, [data-theme="light"] .segmented button, [data-theme="light"] .usage-window, [data-theme="light"] .stat-card-label, [data-theme="light"] .usage-row-footer, [data-theme="light"] .usage-mini-stat { color:rgba(0,0,0,.48); }
+    [data-theme="light"] .settings-nav button.active, [data-theme="light"] .segmented button.active { color:#4c1d95; background:rgba(124,58,237,.14); }
+    [data-theme="light"] .segmented { border-color:rgba(0,0,0,.1); background:rgba(0,0,0,.035); }
+    [data-theme="light"] .usage-group-meta { color:rgba(0,0,0,.56); }
+    [data-theme="light"] .usage-breakdown { border-color:rgba(0,0,0,.07); background:rgba(0,0,0,.025); }
+    [data-theme="light"] .usage-empty, [data-theme="light"] .usage-cost-disclaimer { color:rgba(0,0,0,.5); }
+    [data-theme="light"] .usage-price-unavailable { background:rgba(0,0,0,.08); color:rgba(0,0,0,.5); }
+    @media (max-width:768px) { .settings-content,.usage-content { padding:16px 20px 28px; } .settings-nav { top:-16px; margin:-16px -20px 16px; padding:10px 20px; } .form-row,.settings-row { grid-template-columns:minmax(0,1fr) 150px; gap:10px; } .settings-row > :last-child { max-width:150px; } .stat-grid { grid-template-columns:repeat(2,1fr); } .usage-controls { grid-template-columns:1fr; } }
 
     /* ============================================
        Help Panel
@@ -4885,7 +4961,7 @@
       font-weight: 500;
       color: rgba(255, 255, 255, 0.45);
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
       letter-spacing: 0.01em;
     }
 
@@ -4962,7 +5038,7 @@
       font-size: 11px;
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 4px;
+      border-radius: var(--radius-xs);
       padding: 1px 5px;
       color: rgba(196, 181, 253, 0.9);
     }
@@ -4972,7 +5048,7 @@
       font-size: 11px;
       background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(255, 255, 255, 0.12);
-      border-radius: 4px;
+      border-radius: var(--radius-xs);
       padding: 2px 6px;
       color: rgba(255, 255, 255, 0.75);
       box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -4984,7 +5060,7 @@
       line-height: 1.55;
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.07);
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       padding: 12px 16px;
       color: rgba(255, 255, 255, 0.6);
       white-space: pre;
@@ -5034,7 +5110,7 @@
     .help-type-card {
       background: rgba(255, 255, 255, 0.03);
       border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       padding: 14px 16px;
     }
 
@@ -5121,7 +5197,7 @@
       .column {
         min-height: auto;
         padding: 16px;
-        border-radius: 16px;
+        border-radius: var(--radius-3xl);
       }
 
       /* Assistant panel - full width on mobile */
@@ -5210,7 +5286,7 @@
         border-left: none;
         border-bottom: 2px solid transparent;
         padding: 6px 10px;
-        border-radius: 6px;
+        border-radius: var(--radius-sm);
         font-size: 11px;
         flex-shrink: 0;
       }
@@ -5297,7 +5373,7 @@
         margin: 16px;
         max-height: calc(100vh - 32px);
         overflow-y: auto;
-        border-radius: 16px;
+        border-radius: var(--radius-3xl);
       }
 
       /* Ensure progress bar is visible on mobile */
@@ -5492,7 +5568,7 @@
     .tactical-agent-card {
       background: linear-gradient(135deg, rgba(0, 30, 0, 0.8) 0%, rgba(0, 10, 0, 0.9) 100%);
       border: 1px solid rgba(34, 197, 94, 0.4);
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       padding: 16px;
       margin-bottom: 12px;
       position: relative;
@@ -5527,7 +5603,7 @@
     .tactical-agent-status {
       font-size: 10px;
       padding: 4px 10px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       font-weight: 700;
@@ -5554,7 +5630,7 @@
       margin-bottom: 12px;
       padding: 10px;
       background: rgba(0, 0, 0, 0.4);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       border: 1px solid rgba(34, 197, 94, 0.15);
       font-family: 'Courier New', monospace;
       overflow: hidden;
@@ -5566,7 +5642,7 @@
     .tactical-agent-progress {
       height: 3px;
       background: rgba(34, 197, 94, 0.2);
-      border-radius: 2px;
+      border-radius: var(--radius-2xs);
       margin-bottom: 12px;
       overflow: hidden;
     }
@@ -5581,7 +5657,7 @@
     .tactical-stop-btn {
       width: 100%;
       padding: 12px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       border: 1px solid rgba(239, 68, 68, 0.5);
       background: rgba(239, 68, 68, 0.2);
       color: #f87171;
@@ -5590,7 +5666,7 @@
       text-transform: uppercase;
       letter-spacing: 0.1em;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .tactical-stop-btn:hover, .tactical-stop-btn:active {
@@ -5603,13 +5679,20 @@
     .tactical-action-card {
       background: linear-gradient(135deg, rgba(20, 20, 20, 0.9) 0%, rgba(10, 10, 10, 0.95) 100%);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       padding: 14px 16px;
       margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 12px;
+      box-shadow: var(--shadow-xs);
+      transition: all var(--transition-base);
+    }
+
+    .tactical-action-card:active {
+      transform: scale(0.98);
+      border-color: rgba(255, 255, 255, 0.14);
     }
 
     .tactical-action-info {
@@ -5630,7 +5713,7 @@
     .tactical-action-priority {
       font-size: 10px;
       padding: 2px 8px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       text-transform: uppercase;
       font-weight: 600;
       display: inline-block;
@@ -5653,7 +5736,7 @@
 
     .tactical-run-btn {
       padding: 10px 20px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       border: 1px solid rgba(34, 197, 94, 0.5);
       background: rgba(34, 197, 94, 0.2);
       color: #4ade80;
@@ -5662,7 +5745,7 @@
       text-transform: uppercase;
       letter-spacing: 0.1em;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
       flex-shrink: 0;
     }
 
@@ -5690,7 +5773,7 @@
       align-items: center;
       justify-content: center;
       box-shadow: 0 0 16px -4px rgba(34, 197, 94, 0.4);
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
       z-index: 50;
     }
 
@@ -5758,7 +5841,7 @@
       display: flex;
       gap: 4px;
       background: rgba(0, 0, 0, 0.4);
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       padding: 3px;
       border: 1px solid rgba(34, 197, 94, 0.2);
     }
@@ -5772,9 +5855,9 @@
       border: none;
       background: transparent;
       color: rgba(107, 114, 128, 0.8);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .tactical-view-toggle-btn.active {
@@ -5832,7 +5915,7 @@
     .mobile-column-count {
       font-size: 9px;
       padding: 2px 6px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       background: rgba(255, 255, 255, 0.08);
       color: rgba(255, 255, 255, 0.5);
     }
@@ -5851,7 +5934,6 @@
     .mobile-column[data-status="running"] .mobile-column-header { color: rgba(34, 197, 94, 0.8); }
     .mobile-column[data-status="review"] .mobile-column-header { color: rgba(251, 191, 36, 0.8); }
     .mobile-column[data-status="done"] .mobile-column-header { color: rgba(34, 197, 94, 0.7); }
-    .mobile-column[data-status="verifying"] .mobile-column-header { color: rgba(167, 139, 250, 0.8); }
       flex: 1;
       overflow-y: auto;
       display: flex;
@@ -5864,13 +5946,13 @@
        ============================================ */
     .mobile-task-card {
       padding: 12px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       background: rgba(255, 255, 255, 0.05);
       border-left: 3px solid #6b7280;
       font-size: 13px;
       line-height: 1.3;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
@@ -5941,7 +6023,7 @@
       z-index: 200;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.25s ease;
+      transition: opacity var(--transition-base);
     }
 
     .mobile-bottom-sheet-overlay.open {
@@ -5954,19 +6036,20 @@
       bottom: 0;
       left: 0;
       right: 0;
-      background: linear-gradient(180deg, rgba(20, 20, 20, 0.98) 0%, rgba(10, 10, 10, 0.99) 100%);
-      border-top-left-radius: 20px;
-      border-top-right-radius: 20px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: linear-gradient(180deg, rgba(21, 21, 23, 0.98) 0%, rgba(10, 10, 11, 0.99) 100%);
+      border-top-left-radius: var(--radius-4xl);
+      border-top-right-radius: var(--radius-4xl);
+      border: 1px solid var(--border-color-strong);
       border-bottom: none;
       z-index: 201;
       transform: translateY(100%);
-      transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+      transition: transform var(--transition-slow) cubic-bezier(0.32, 0.72, 0, 1);
       max-height: 85vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       padding-bottom: env(safe-area-inset-bottom, 20px);
+      box-shadow: 0 -20px 60px -10px rgba(0, 0, 0, 0.5);
     }
 
     .mobile-bottom-sheet-overlay.open .mobile-bottom-sheet {
@@ -5976,8 +6059,8 @@
     .mobile-bottom-sheet-handle {
       width: 36px;
       height: 4px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: var(--radius-2xs);
       margin: 12px auto;
       flex-shrink: 0;
     }
@@ -6006,7 +6089,7 @@
     .mobile-bottom-sheet-badge {
       font-size: 10px;
       padding: 4px 10px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       text-transform: uppercase;
       font-weight: 700;
       letter-spacing: 0.05em;
@@ -6023,7 +6106,7 @@
     .mobile-bottom-sheet-priority {
       font-size: 10px;
       padding: 4px 10px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       text-transform: uppercase;
       font-weight: 700;
     }
@@ -6039,7 +6122,7 @@
       margin-bottom: 20px;
       padding: 14px;
       background: rgba(0, 0, 0, 0.3);
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       border: 1px solid rgba(255, 255, 255, 0.05);
       max-height: 200px;
       overflow-y: auto;
@@ -6055,14 +6138,14 @@
 
     .mobile-bottom-sheet-btn {
       padding: 14px 16px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       border: 1px solid;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
     }
 
     .mobile-bottom-sheet-btn:active {
@@ -6115,7 +6198,7 @@
       z-index: 200;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.25s ease;
+      transition: opacity var(--transition-base);
     }
 
     .workspace-sheet-overlay.open {
@@ -6151,7 +6234,7 @@
       width: 36px;
       height: 4px;
       background: rgba(255, 255, 255, 0.2);
-      border-radius: 2px;
+      border-radius: var(--radius-2xs);
       margin: 12px auto;
       flex-shrink: 0;
     }
@@ -6185,7 +6268,7 @@
       border: none;
       padding: 6px 10px;
       margin: -6px -10px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       cursor: pointer;
       transition: background 0.15s ease;
     }
@@ -6213,7 +6296,7 @@
     .workspace-sheet-trigger .chevron {
       font-size: 10px;
       color: rgba(34, 197, 94, 0.6);
-      transition: transform 0.2s ease;
+      transition: transform var(--transition-base);
     }
 
     /* Workspace Sheet Item */
@@ -6225,11 +6308,11 @@
       min-height: 48px;
       padding: 12px;
       margin: 4px 0;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       border: 1px solid transparent;
       background: transparent;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
       text-align: left;
     }
 
@@ -6283,7 +6366,7 @@
     .workspace-sheet-task-count {
       font-size: 11px;
       padding: 4px 8px;
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       background: rgba(255, 255, 255, 0.08);
       color: rgba(255, 255, 255, 0.6);
       font-weight: 500;
@@ -6308,14 +6391,14 @@
       width: calc(100% - 8px);
       margin: 8px 4px 4px;
       padding: 14px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       border: 1px dashed rgba(139, 92, 246, 0.3);
       background: transparent;
       color: rgba(139, 92, 246, 0.8);
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
     }
 
     .workspace-sheet-add-btn:active {
@@ -6335,7 +6418,7 @@
       display: none;
       padding: 16px;
       background: rgba(0, 0, 0, 0.2);
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       margin: 0 16px 16px 16px;
     }
 
@@ -6375,7 +6458,7 @@
     .workspace-sheet-path-input {
       width: 100%;
       padding: 14px 16px;
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(255, 255, 255, 0.05);
       color: rgba(255, 255, 255, 0.95);
@@ -6416,14 +6499,14 @@
     .workspace-sheet-submit-btn {
       width: 100%;
       padding: 14px;
-      border-radius: 10px;
+      border-radius: var(--radius-lg);
       border: 1px solid rgba(139, 92, 246, 0.3);
       background: rgba(139, 92, 246, 0.15);
       color: #a78bfa;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
     }
 
     .workspace-sheet-submit-btn:disabled {
@@ -6454,7 +6537,7 @@
       align-items: center;
       justify-content: center;
       box-shadow: 0 0 16px -4px rgba(34, 197, 94, 0.4);
-      transition: all 0.2s ease;
+      transition: all var(--transition-base);
       z-index: 50;
     }
 
@@ -6523,7 +6606,7 @@
     .mobile-chat-status {
       font-size: 9px;
       padding: 4px 10px;
-      border-radius: 9999px;
+      border-radius: var(--radius-full);
       text-transform: uppercase;
       font-weight: 700;
       background: rgba(107, 114, 128, 0.2);
@@ -6593,7 +6676,7 @@
     /* Mobile chat messages - reuse styling from desktop with mobile tweaks */
     .mobile-chat-message {
       padding: 12px 14px;
-      border-radius: 14px;
+      border-radius: var(--radius-2xl);
       font-size: 14px;
       line-height: 1.5;
       max-width: 90%;
@@ -6640,7 +6723,7 @@
     .mobile-chat-message code {
       background: rgba(0, 0, 0, 0.4);
       padding: 2px 6px;
-      border-radius: 4px;
+      border-radius: var(--radius-xs);
       font-family: 'Courier New', monospace;
       font-size: 12px;
     }
@@ -6648,7 +6731,7 @@
     .mobile-chat-message pre {
       background: rgba(0, 0, 0, 0.4);
       padding: 12px;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       overflow-x: auto;
       margin: 8px 0;
       border: 1px solid rgba(255, 255, 255, 0.05);
@@ -6676,12 +6759,12 @@
       justify-content: center;
       background: rgba(255, 255, 255, 0.06);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 6px;
+      border-radius: var(--radius-sm);
       color: rgba(255, 255, 255, 0.4);
       font-size: 12px;
       cursor: pointer;
       opacity: 0;
-      transition: opacity 0.15s ease;
+      transition: opacity var(--transition-fast);
       z-index: 2;
       padding: 0;
       line-height: 1;
@@ -6759,7 +6842,7 @@
     .mobile-chat-input {
       flex: 1;
       padding: 12px 16px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       border: 1px solid rgba(34, 197, 94, 0.3);
       background: rgba(0, 0, 0, 0.4);
       color: rgba(255, 255, 255, 0.9);
@@ -6782,7 +6865,7 @@
     .mobile-chat-send {
       width: 48px;
       height: 48px;
-      border-radius: 12px;
+      border-radius: var(--radius-xl);
       border: 1px solid rgba(34, 197, 94, 0.4);
       background: rgba(34, 197, 94, 0.2);
       color: #4ade80;
@@ -7106,13 +7189,6 @@
         </div>
         <div class="mobile-column-tasks" id="mobile-running-tasks"></div>
       </div>
-      <div class="mobile-column" data-status="verifying">
-        <div class="mobile-column-header">
-          <span>Verifying</span>
-          <span class="mobile-column-count" id="mobile-verifying-count">0</span>
-        </div>
-        <div class="mobile-column-tasks" id="mobile-verifying-tasks"></div>
-      </div>
       <div class="mobile-column" data-status="review">
         <div class="mobile-column-header">
           <span>Review</span>
@@ -7282,10 +7358,7 @@
           </div>
         </div>
       </div>
-      <div class="usage-meter usage-unknown" id="usage-meter" title="Loading usage...">
-        <span class="usage-icon">⚡</span>
-        <span class="usage-label" id="usage-label">—</span>
-      </div>
+      <button class="btn settings-btn" id="usage-btn" onclick="openUsagePanel()" title="Token usage" aria-label="Open token usage dashboard"><span class="settings-icon">📊</span></button>
       <button class="btn theme-toggle" id="theme-toggle" onclick="cycleTheme()" title="Toggle theme">
         <span class="theme-icon" id="theme-icon"></span>
         <span class="theme-label" id="theme-label">Dark</span>
@@ -7348,13 +7421,6 @@
   </div>
 
   <main class="board">
-    <div id="emergency-stop-alert" style="display:none;" class="emergency-stop-banner">
-      <div class="emergency-stop-banner-content">
-        <strong>&#9888; QUEUE PAUSED — Self-Healing Retry Limit Reached</strong>
-        <span id="emergency-stop-message"></span>
-        <button onclick="document.getElementById('emergency-stop-alert').style.display='none'" class="emergency-stop-dismiss">Dismiss</button>
-      </div>
-    </div>
     <div class="column" data-status="todo">
       <div class="column-header" style="flex-wrap: wrap;">
         <span class="column-title">Todo</span>
@@ -7380,15 +7446,6 @@
         <div class="column-subtitle">AI agent is actively working</div>
       </div>
       <div class="tasks" id="running-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
-    </div>
-
-    <div class="column" data-status="verifying">
-      <div class="column-header" style="flex-wrap: wrap;">
-        <span class="column-title">Verifying</span>
-        <span class="column-count" id="verifying-count">0</span>
-        <div class="column-subtitle">AI is reviewing its own output</div>
-      </div>
-      <div class="tasks" id="verifying-tasks" ondrop="drop(event)" ondragover="allowDrop(event)" ondragenter="dragEnter(event)" ondragleave="dragLeave(event)"></div>
     </div>
 
     <div class="column" data-status="review">
@@ -7890,19 +7947,28 @@
   <div class="settings-backdrop" id="settings-backdrop" onclick="closeSettings()"></div>
 
   <!-- Settings Panel -->
-  <div class="settings-panel" id="settings-panel">
-    <div class="settings-header">
+  <aside class="settings-panel" id="settings-panel" aria-label="Settings" aria-hidden="true">
+    <div class="settings-header panel-header">
       <div class="settings-header-left">
         <span class="settings-icon-header">⚙️</span>
         <span class="settings-title">Settings</span>
       </div>
-      <button class="settings-close-btn" onclick="closeSettings()">×</button>
+      <button class="settings-close-btn" onclick="closeSettings()" aria-label="Close settings">×</button>
     </div>
 
     <div class="settings-content">
+      <nav class="settings-nav" aria-label="Settings sections" role="tablist">
+        <button type="button" role="tab" aria-selected="true" aria-controls="settings-section-general" data-settings-section="general" onclick="scrollToSettingsSection('general')" onkeydown="handleSettingsNavKeydown(event)">General</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="settings-section-execution" data-settings-section="execution" onclick="scrollToSettingsSection('execution')" onkeydown="handleSettingsNavKeydown(event)">Execution</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="settings-section-models" data-settings-section="models" onclick="scrollToSettingsSection('models')" onkeydown="handleSettingsNavKeydown(event)">Agent Models</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="settings-section-queue" data-settings-section="queue" onclick="scrollToSettingsSection('queue')" onkeydown="handleSettingsNavKeydown(event)">Queue</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="settings-section-leases" data-settings-section="leases" onclick="scrollToSettingsSection('leases')" onkeydown="handleSettingsNavKeydown(event)">Leases</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="settings-section-workspaces" data-settings-section="workspaces" onclick="scrollToSettingsSection('workspaces')" onkeydown="handleSettingsNavKeydown(event)">Workspaces</button>
+      </nav>
+      <div class="settings-save-chip" id="settings-save-chip" aria-live="polite">✓ Saved</div>
       <!-- General Section -->
-      <div class="settings-section">
-        <div class="settings-section-title">General</div>
+      <section class="settings-section panel-section" id="settings-section-general">
+        <h2 class="settings-section-title"><span class="section-icon">⚙</span>General</h2>
 
         <div class="settings-row">
           <label class="settings-label">Theme</label>
@@ -7929,11 +7995,11 @@
             <span class="toggle-slider"></span>
           </label>
         </div>
-      </div>
+      </section>
 
       <!-- Execution Section -->
-      <div class="settings-section">
-        <div class="settings-section-title">Execution</div>
+      <section class="settings-section panel-section" id="settings-section-execution">
+        <h2 class="settings-section-title"><span class="section-icon">▶</span>Execution</h2>
 
         <div class="settings-row">
           <label class="settings-label">Max Concurrent Tasks</label>
@@ -7969,31 +8035,11 @@
           </div>
         </div>
 
-        <div class="settings-row">
-          <div class="settings-label-group">
-            <label class="settings-label">Verify Command</label>
-            <span class="settings-hint">e.g. npm test (empty = disabled)</span>
-          </div>
-          <input type="text" class="settings-text-input" id="verify-command"
-            placeholder="npm test"
-            onchange="saveVerifyCommand()" onblur="saveVerifyCommand()">
-        </div>
-
-        <div class="settings-row">
-          <div class="settings-label-group">
-            <label class="settings-label">Run Verifier After Execution</label>
-            <span class="settings-hint">When ON, runs the verify command after each task. Requires a Verify Command to be set.</span>
-          </div>
-          <label class="settings-toggle">
-            <input type="checkbox" id="skip-verify" onchange="toggleSkipVerify(this.checked)">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-      </div>
+      </section>
 
       <!-- Agent Models Section -->
-      <div class="settings-section">
-        <div class="settings-section-title">Agent Models</div>
+      <section class="settings-section panel-section" id="settings-section-models">
+        <h2 class="settings-section-title"><span class="section-icon">✦</span>Agent Models</h2>
 
         <div class="settings-row">
           <label class="settings-label" for="settings-agent-type">AI Provider</label>
@@ -8072,11 +8118,11 @@
         </div>
 
         <div class="settings-hint" id="agent-models-caption"></div>
-      </div>
+      </section>
 
       <!-- Queue & Concurrency Section -->
-      <div class="settings-section">
-        <div class="settings-section-title">Queue &amp; Concurrency</div>
+      <section class="settings-section panel-section" id="settings-section-queue">
+        <h2 class="settings-section-title"><span class="section-icon">≋</span>Queue &amp; Concurrency</h2>
 
         <div class="settings-row">
           <div class="settings-label-group">
@@ -8102,11 +8148,11 @@
             <button class="number-btn" onclick="adjustMaxYieldCount(5)">+</button>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Lease Management Section -->
-      <div class="settings-section">
-        <div class="settings-section-title">Lease Management</div>
+      <section class="settings-section panel-section" id="settings-section-leases">
+        <h2 class="settings-section-title"><span class="section-icon">⌁</span>Lease Management</h2>
 
         <div class="settings-row">
           <div class="settings-label-group">
@@ -8133,22 +8179,23 @@
             <span class="settings-unit">sec</span>
           </div>
         </div>
-      </div>
+      </section>
 
       <!-- Reset Engine Defaults -->
-      <div class="settings-section">
+      <section class="settings-section panel-section danger-zone" id="settings-section-danger">
+        <h2 class="settings-section-title"><span class="section-icon">!</span>Danger zone</h2>
         <div class="settings-row">
           <div class="settings-label-group">
             <label class="settings-label">Engine Configuration</label>
             <span class="settings-hint">Restore Execution, Queue &amp; Concurrency, and Lease Management to defaults</span>
           </div>
-          <button class="settings-secondary-btn" onclick="resetEngineDefaults()">Reset to Defaults</button>
+          <button class="settings-secondary-btn" onclick="confirmResetEngineDefaults()">Reset to Defaults</button>
         </div>
-      </div>
+      </section>
 
       <!-- Workspaces Section -->
-      <div class="settings-section">
-        <div class="settings-section-title">Workspaces</div>
+      <section class="settings-section panel-section" id="settings-section-workspaces">
+        <h2 class="settings-section-title"><span class="section-icon">⌂</span>Workspaces</h2>
 
         <div class="workspaces-list" id="workspaces-list">
           <!-- Workspace items rendered dynamically -->
@@ -8158,9 +8205,23 @@
           <input type="text" class="add-workspace-input" id="add-workspace-path" placeholder="Enter workspace path...">
           <button class="btn btn-primary add-workspace-btn" onclick="addWorkspaceFromSettings()">+ Add</button>
         </div>
-      </div>
+      </section>
     </div>
-  </div>
+  </aside>
+
+  <!-- Token Usage Dashboard -->
+  <div class="settings-backdrop" id="usage-backdrop" onclick="closeUsagePanel()"></div>
+  <aside class="settings-panel usage-panel" id="usage-panel" aria-label="Token usage dashboard" aria-hidden="true">
+    <div class="settings-header panel-header"><div class="settings-header-left"><span class="settings-icon-header">📊</span><span class="settings-title">Token Usage</span></div><button class="settings-close-btn" onclick="closeUsagePanel()" aria-label="Close token usage dashboard">×</button></div>
+    <div class="usage-content">
+      <section class="panel-section" aria-label="Usage totals"><div class="stat-grid" id="usage-stat-grid"></div></section>
+      <div class="usage-controls">
+        <div><span class="usage-control-label">Period</span><div class="segmented" id="usage-period-toggle" role="tablist"><button type="button" role="tab" data-period="today" aria-selected="false" onclick="setUsagePeriod('today')" onkeydown="handleUsageTabKeydown(event, 'period')">Today</button><button type="button" role="tab" data-period="month" aria-selected="false" onclick="setUsagePeriod('month')" onkeydown="handleUsageTabKeydown(event, 'period')">Month</button><button type="button" role="tab" data-period="all" aria-selected="false" onclick="setUsagePeriod('all')" onkeydown="handleUsageTabKeydown(event, 'period')">All</button></div><div class="usage-window" id="usage-period-window">All time</div></div>
+        <div><span class="usage-control-label">Group by</span><div class="segmented" id="usage-group-toggle" role="tablist"><button type="button" role="tab" data-group="model" aria-selected="false" onclick="setUsageGroupBy('model')" onkeydown="handleUsageTabKeydown(event, 'group')">Model</button><button type="button" role="tab" data-group="task" aria-selected="false" onclick="setUsageGroupBy('task')" onkeydown="handleUsageTabKeydown(event, 'group')">Task</button><button type="button" role="tab" data-group="session" aria-selected="false" onclick="setUsageGroupBy('session')" onkeydown="handleUsageTabKeydown(event, 'group')">Session</button></div></div>
+      </div>
+      <div id="usage-summary-content" class="usage-summary-status" aria-live="polite">Open the dashboard to load usage.</div>
+    </div>
+  </aside>
 
   <!-- Confirm Modal (in-app confirmation dialog) -->
   <div class="modal-overlay" id="confirm-modal">
@@ -8182,8 +8243,12 @@
     let terminal = null;
     let currentWs = null;
     let draggedTaskId = null;
+    let taskUsageMap = {};
+    let usagePeriod = 'all';
+    let usageGroupBy = 'model';
+    let usageShowEmptyRows = false;
     const BOOTSTRAP_TASK_ID = 't-bootstrap';
-    const ACTIVE_STATUSES = ['briefing', 'planning', 'declaring', 'running', 'architecting', 'verifying'];
+    const ACTIVE_STATUSES = ['briefing', 'planning', 'declaring', 'running', 'architecting'];
 
     function isTaskActive(status) {
       return ACTIVE_STATUSES.includes(status);
@@ -8401,7 +8466,7 @@
           // If this is the active workspace, we already have the board loaded
           if (activeWorkspace && ws.id === activeWorkspace.id) {
             // Count from loaded board
-            const counts = { todo: 0, queued: 0, running: 0, verifying: 0, review: 0, done: 0 };
+            const counts = { todo: 0, queued: 0, running: 0, review: 0, done: 0 };
             if (window.board && window.board.tasks) {
               window.board.tasks.forEach(task => {
                 if (task.status in counts) counts[task.status]++;
@@ -8885,10 +8950,6 @@
           }
         }
 
-        // Refresh usage meter
-        if (typeof fetchUsageInfo === 'function') {
-          fetchUsageInfo().catch(() => {});
-        }
       } catch (err) {
         console.error('[AgentSwitcher] Switch failed:', err);
         showToast(err.message || 'Failed to switch provider', 'error');
@@ -9078,6 +9139,7 @@
 
       applyTheme(getStoredTheme());
       await loadBoard();
+      await refreshUsageBadges();
       terminal = new Terminal({
         theme: getTerminalTheme(),
         fontSize: 13,
@@ -9251,7 +9313,7 @@
 
     // Render
     function renderBoard() {
-      const columns = ['todo', 'queued', 'running', 'verifying', 'review', 'done'];
+      const columns = ['todo', 'queued', 'running', 'review', 'done'];
 
       // Map workflow statuses to columns
        // Active workflow states all go to the 'running' column.
@@ -9294,7 +9356,6 @@
             todo:      '<div class="empty-state">✏️ No tasks yet — create your first task above</div>',
             queued:    '<div class="empty-state">⏳ Queue is empty — drag tasks here or queue from the Todo column</div>',
             running:   '<div class="empty-state">🤖 No tasks in progress — queue a task to start the agent</div>',
-            verifying: '<div class="empty-state">🔍 Nothing to verify — completed tasks will appear here for QA</div>',
             review:    '<div class="empty-state">👀 Nothing to review — tasks move here when the agent finishes</div>',
             done:      '<div class="empty-state">✅ No completed tasks yet — finished work lands here</div>',
           };
@@ -9318,6 +9379,7 @@
           const contextText = isBootstrap
             ? 'Analyzes your codebase and generates AI development guidelines tailored to your project.'
             : escapeHtml(task.context);
+          const usageBadge = renderTaskUsageBadge(taskUsageMap[task.id]);
 
           // Build workflow step indicator for active workflow tasks
           const workflowSteps = ['brief', 'plan', 'execute'];
@@ -9378,8 +9440,6 @@
             statusBadge = '<span class="status-badge status-running">Executing</span>';
           } else if (task.status === 'architecting') {
             statusBadge = '<span class="status-badge status-architecting">Architecting</span>';
-          } else if (task.status === 'verifying') {
-            statusBadge = '<span class="status-badge status-verifying">Verifying</span>';
           }
 
           // Check if task is in any running state
@@ -9425,9 +9485,9 @@
               </div>
               ${depsHtml}
               ${workflowIndicator}
-              ${task.verificationWarning ? `<div class="verification-warning-banner" title="${escapeHtml(task.verificationWarning)}">⚠ ${escapeHtml(task.verificationWarning)}</div>` : ''}
               ${(task.status === 'todo' && task.yieldReason) ? `<div class="task-yield-reason" title="Task fell out of the queue. Reason: ${escapeHtml(task.yieldReason)}">⚠ Queue capped: ${escapeHtml(task.yieldReason)}</div>` : ''}
               <div class="task-context">${contextText}</div>
+              ${usageBadge}
               ${task.startedAt ? (isRunning
                 ? `<span class="task-duration task-duration-active" data-started="${task.startedAt}">⏱ ${formatDuration(task.startedAt, null)}</span>`
                 : (task.completedAt ? `<span class="task-duration">⏱ ${formatDuration(task.startedAt, task.completedAt)}</span>` : ''))
@@ -9947,18 +10007,84 @@
       const panel = document.getElementById('settings-panel');
       const backdrop = document.getElementById('settings-backdrop');
       panel.classList.add('open');
+      panel.setAttribute('aria-hidden', 'false');
       backdrop.classList.add('open');
       initializeSettingsPanel();
       loadModelControls('settings');
+      initializeSettingsNavigation();
     }
 
     function closeSettings() {
       const panel = document.getElementById('settings-panel');
       const backdrop = document.getElementById('settings-backdrop');
       panel.classList.remove('open');
+      panel.setAttribute('aria-hidden', 'true');
       backdrop.classList.remove('open');
       closeAllColorPickers();
       editingWorkspaceId = null;
+    }
+
+    function isUsagePanelOpen() {
+      return document.getElementById('usage-panel').classList.contains('open');
+    }
+
+    function openUsagePanel() {
+      closeSettings();
+      closeHelp();
+      const panel = document.getElementById('usage-panel');
+      panel.classList.add('open');
+      panel.setAttribute('aria-hidden', 'false');
+      document.getElementById('usage-backdrop').classList.add('open');
+      updateUsageToggleState();
+      fetchUsageSummary();
+    }
+
+    function closeUsagePanel() {
+      const panel = document.getElementById('usage-panel');
+      panel.classList.remove('open');
+      panel.setAttribute('aria-hidden', 'true');
+      document.getElementById('usage-backdrop').classList.remove('open');
+    }
+
+    function setUsagePeriod(period) {
+      usagePeriod = period;
+      updateUsageToggleState();
+      fetchUsageSummary();
+    }
+
+    function setUsageGroupBy(groupBy) {
+      usageGroupBy = groupBy;
+      updateUsageToggleState();
+      fetchUsageSummary();
+    }
+
+    function updateUsageToggleState() {
+      document.querySelectorAll('#usage-period-toggle [data-period]').forEach((button) => {
+        const isActive = button.dataset.period === usagePeriod;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-selected', String(isActive));
+        button.tabIndex = isActive ? 0 : -1;
+      });
+      document.querySelectorAll('#usage-group-toggle [data-group]').forEach((button) => {
+        const isActive = button.dataset.group === usageGroupBy;
+        button.classList.toggle('active', isActive);
+        button.setAttribute('aria-selected', String(isActive));
+        button.tabIndex = isActive ? 0 : -1;
+      });
+    }
+
+    function handleUsageTabKeydown(event, control) {
+      const selector = control === 'period' ? '#usage-period-toggle [role="tab"]' : '#usage-group-toggle [role="tab"]';
+      const tabs = Array.from(document.querySelectorAll(selector));
+      const currentIndex = tabs.indexOf(event.currentTarget);
+      if (currentIndex === -1 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      const nextTab = tabs[nextIndex];
+      nextTab.focus();
+      if (control === 'period') setUsagePeriod(nextTab.dataset.period);
+      else setUsageGroupBy(nextTab.dataset.group);
     }
 
     // ============================================
@@ -10031,12 +10157,6 @@
         window.configStore.getSetting('maxExecuteIterations') ?? 5;
       document.getElementById('step-timeout-ms').value =
         Math.round((window.configStore.getSetting('stepTimeoutMs') ?? 6000000) / 60000);
-      document.getElementById('verify-command').value =
-        window.configStore.getSetting('verifyCommand') ?? '';
-      const skipVerifyToggle = document.getElementById('skip-verify');
-      const verifyCommandValue = window.configStore.getSetting('verifyCommand') ?? '';
-      skipVerifyToggle.checked = !(window.configStore.getSetting('skipVerify') ?? false);
-      skipVerifyToggle.disabled = !verifyCommandValue;
 
       // Initialize queue settings
       document.getElementById('queue-poll-interval-ms').value =
@@ -10052,6 +10172,56 @@
 
       // Render workspace list
       renderWorkspaceList();
+    }
+
+    let settingsSaveTimeout = null;
+    let settingsSectionObserver = null;
+
+    function showSettingsSaved() {
+      const chip = document.getElementById('settings-save-chip');
+      chip.classList.add('visible');
+      if (settingsSaveTimeout) clearTimeout(settingsSaveTimeout);
+      settingsSaveTimeout = setTimeout(() => chip.classList.remove('visible'), 1800);
+    }
+
+    function setActiveSettingsSection(sectionId) {
+      document.querySelectorAll('[data-settings-section]').forEach(button => {
+        const active = button.dataset.settingsSection === sectionId;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+        button.tabIndex = active ? 0 : -1;
+      });
+    }
+
+    function handleSettingsNavKeydown(event) {
+      const tabs = Array.from(document.querySelectorAll('#settings-panel .settings-nav [role="tab"]'));
+      const currentIndex = tabs.indexOf(event.currentTarget);
+      if (currentIndex === -1 || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1
+        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      const nextTab = tabs[nextIndex];
+      nextTab.focus();
+      scrollToSettingsSection(nextTab.dataset.settingsSection);
+    }
+
+    function scrollToSettingsSection(sectionId) {
+      const section = document.getElementById(`settings-section-${sectionId}`);
+      if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActiveSettingsSection(sectionId);
+    }
+
+    function initializeSettingsNavigation() {
+      const content = document.querySelector('#settings-panel .settings-content');
+      const sections = document.querySelectorAll('#settings-panel [id^="settings-section-"]');
+      if (!content || !sections.length) return;
+      if (settingsSectionObserver) settingsSectionObserver.disconnect();
+      settingsSectionObserver = new IntersectionObserver(entries => {
+        const visible = entries.filter(entry => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+        if (visible) setActiveSettingsSection(visible.target.id.replace('settings-section-', ''));
+      }, { root: content, threshold: 0.35 });
+      sections.forEach(section => settingsSectionObserver.observe(section));
+      setActiveSettingsSection('general');
     }
 
     const MODEL_CONTROL_STEPS = ['brief', 'plan', 'declare', 'execute', 'architect'];
@@ -10210,6 +10380,8 @@
         select.dataset.savedValue = modelId;
         if (surface === 'assistant') {
           showAssistantModelHint();
+        } else {
+          showSettingsSaved();
         }
       } catch (error) {
         console.warn('[Settings] Failed to save agent model:', error);
@@ -10287,10 +10459,12 @@
       saveTheme(theme);
       applyTheme(theme);
       updateThemeSelector(theme);
+      showSettingsSaved();
     }
 
     function toggleNotifications(enabled) {
       window.configStore.setSetting('notificationsEnabled', enabled);
+      showSettingsSaved();
     }
 
     function adjustConcurrentSessions(delta) {
@@ -10299,6 +10473,7 @@
       value = Math.max(1, Math.min(5, value)); // Clamp between 1-5
       valueEl.textContent = value;
       window.configStore.setSetting('maxConcurrentSessions', value);
+      showSettingsSaved();
     }
 
     function adjustMaxExecuteIterations(delta) {
@@ -10307,6 +10482,7 @@
       value = Math.max(1, Math.min(20, value));
       valueEl.textContent = value;
       window.configStore.setSetting('maxExecuteIterations', value);
+      showSettingsSaved();
     }
 
     function saveStepTimeoutMs() {
@@ -10314,28 +10490,7 @@
       const minutes = Math.max(1, parseInt(input.value) || 100);
       input.value = minutes;
       window.configStore.setSetting('stepTimeoutMs', minutes * 60000);
-    }
-
-    function saveVerifyCommand() {
-      const value = document.getElementById('verify-command').value.trim();
-      window.configStore.setSetting('verifyCommand', value);
-      const toggle = document.getElementById('skip-verify');
-      if (!value) {
-        toggle.checked = false;
-        toggle.disabled = true;
-        window.configStore.setSetting('skipVerify', true);
-      } else {
-        toggle.disabled = false;
-      }
-    }
-
-    function toggleSkipVerify(checked) {
-      if (checked && !window.configStore.getSetting('verifyCommand')) {
-        showToast('Set a verify command before enabling the verifier', 'error');
-        document.getElementById('skip-verify').checked = false;
-        return;
-      }
-      window.configStore.setSetting('skipVerify', !checked);
+      showSettingsSaved();
     }
 
     function saveQueuePollInterval() {
@@ -10343,6 +10498,7 @@
       const seconds = Math.max(1, parseInt(input.value) || 5);
       input.value = seconds;
       window.configStore.setSetting('queuePollIntervalMs', seconds * 1000);
+      showSettingsSaved();
     }
 
     function adjustMaxYieldCount(delta) {
@@ -10351,6 +10507,7 @@
       value = Math.max(1, Math.min(500, value));
       valueEl.textContent = value;
       window.configStore.setSetting('maxYieldCount', value);
+      showSettingsSaved();
     }
 
     function saveLeaseDurationMs() {
@@ -10358,6 +10515,7 @@
       const minutes = Math.max(1, parseInt(input.value) || 5);
       input.value = minutes;
       window.configStore.setSetting('leaseDurationMs', minutes * 60000);
+      showSettingsSaved();
     }
 
     function saveWatchdogIntervalMs() {
@@ -10365,14 +10523,17 @@
       const seconds = Math.max(5, parseInt(input.value) || 30);
       input.value = seconds;
       window.configStore.setSetting('watchdogIntervalMs', seconds * 1000);
+      showSettingsSaved();
+    }
+
+    async function confirmResetEngineDefaults() {
+      if (await showConfirmModal('Reset execution, queue, and lease settings to their defaults?')) resetEngineDefaults();
     }
 
     function resetEngineDefaults() {
       const defaults = {
         maxExecuteIterations: 5,
         stepTimeoutMs: 6000000,
-        verifyCommand: '',
-        skipVerify: false,
         queuePollIntervalMs: 5000,
         maxYieldCount: 50,
         leaseDurationMs: 300000,
@@ -10383,12 +10544,11 @@
       });
       document.getElementById('max-execute-iterations-value').textContent = defaults.maxExecuteIterations;
       document.getElementById('step-timeout-ms').value = defaults.stepTimeoutMs / 60000;
-      document.getElementById('verify-command').value = defaults.verifyCommand;
-      document.getElementById('skip-verify').checked = !defaults.skipVerify;
       document.getElementById('queue-poll-interval-ms').value = defaults.queuePollIntervalMs / 1000;
       document.getElementById('max-yield-count-value').textContent = defaults.maxYieldCount;
       document.getElementById('lease-duration-ms').value = defaults.leaseDurationMs / 60000;
       document.getElementById('watchdog-interval-ms').value = defaults.watchdogIntervalMs / 1000;
+      showSettingsSaved();
     }
 
     function renderWorkspaceList() {
@@ -10398,7 +10558,7 @@
       const activeId = activeWorkspace ? activeWorkspace.id : null;
 
       if (workspaces.length === 0) {
-        container.innerHTML = '<div class="empty-state" style="padding: 20px; text-align: center; color: rgba(255,255,255,0.4); font-size: 13px;">No workspaces configured</div>';
+        container.innerHTML = '<div class="usage-empty"><span class="usage-empty-icon">⌂</span>No workspaces configured yet.<br>Add a local repository path below.</div>';
         return;
       }
 
@@ -10429,9 +10589,9 @@
               <div class="workspace-path" title="${ws.path}">${truncatePath(ws.path)}</div>
             </div>
             <div class="workspace-actions">
-              <button class="workspace-action-btn" onclick="startEditWorkspace('${ws.id}')" title="Rename">✎</button>
+              <button class="workspace-action-btn" onclick="startEditWorkspace('${ws.id}')" title="Rename ${escapeHtml(ws.name)}" aria-label="Rename ${escapeHtml(ws.name)}">✎</button>
               <button class="workspace-action-btn delete" onclick="deleteWorkspace('${ws.id}')"
-                      ${isActive ? 'disabled title="Cannot delete active workspace"' : 'title="Delete"'}>🗑</button>
+                      ${isActive ? 'disabled title="Cannot delete active workspace"' : `title="Remove ${escapeHtml(ws.name)}" aria-label="Remove ${escapeHtml(ws.name)}"`}>🗑</button>
             </div>
           </div>
         `;
@@ -10483,6 +10643,7 @@
         workspace.color = color;
         window.configStore.saveConfig(config);
         renderWorkspaceList();
+        showSettingsSaved();
       }
       closeAllColorPickers();
     }
@@ -10499,6 +10660,7 @@
         if (workspace) {
           workspace.name = newName.trim();
           window.configStore.saveConfig(config);
+          showSettingsSaved();
         }
       }
       editingWorkspaceId = null;
@@ -10526,6 +10688,7 @@
       if (confirm('Are you sure you want to remove this workspace?')) {
         window.configStore.removeWorkspace(workspaceId);
         renderWorkspaceList();
+        showSettingsSaved();
       }
     }
 
@@ -10541,14 +10704,18 @@
       window.configStore.addWorkspace({ path });
       input.value = '';
       renderWorkspaceList();
+      showSettingsSaved();
     }
 
-    // Close settings or help panel on Escape key
+    // Close the topmost slide-over panel on Escape key
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         const helpPanel = document.getElementById('help-panel');
         const settingsPanel = document.getElementById('settings-panel');
-        if (helpPanel.classList.contains('open')) {
+        const usagePanel = document.getElementById('usage-panel');
+        if (usagePanel.classList.contains('open')) {
+          closeUsagePanel();
+        } else if (helpPanel.classList.contains('open')) {
           closeHelp();
         } else if (settingsPanel.classList.contains('open')) {
           closeSettings();
@@ -10643,16 +10810,10 @@
           console.log('[Assistant] Board updated, refreshing...');
           loadBoard();
           refreshProjectBriefPanel();
+        } else if (data.type === 'usage-updated') {
+          refreshUsageBadges(data.taskIds);
         } else if (data.type === 'dependency-resolved') {
           console.log(`[Assistant] Dependency resolved for task ${data.taskId}, refreshing board...`);
-          loadBoard();
-        } else if (data.type === 'kill-switch') {
-          const alertEl = document.getElementById('emergency-stop-alert');
-          const msgEl = document.getElementById('emergency-stop-message');
-          if (alertEl && msgEl) {
-            msgEl.textContent = data.taskId ? ` Task: ${data.taskId}` : '';
-            alertEl.style.display = 'block';
-          }
           loadBoard();
         }
       };
@@ -11132,7 +11293,6 @@
         case 'planning': return 'PLANNING';
         case 'running': return 'EXECUTING';
         case 'queued': return 'QUEUED';
-        case 'verifying': return 'VERIFYING';
         default: return status.toUpperCase();
       }
     }
@@ -11240,7 +11400,7 @@
     function renderMobileBoard() {
       if (!isMobileView() || mobileViewMode !== 'board') return;
 
-      const statuses = ['todo', 'queued', 'running', 'verifying', 'review', 'done'];
+      const statuses = ['todo', 'queued', 'running', 'review', 'done'];
 
       statuses.forEach(status => {
         const container = document.getElementById(`mobile-${status}-tasks`);
@@ -11886,6 +12046,8 @@
           console.log('[MobileChat] Board updated, refreshing...');
           loadBoard();
           refreshProjectBriefPanel();
+        } else if (data.type === 'usage-updated') {
+          refreshUsageBadges(data.taskIds);
         } else if (data.type === 'dependency-resolved') {
           console.log(`[MobileChat] Dependency resolved for task ${data.taskId}, refreshing board...`);
           loadBoard();
@@ -12038,43 +12200,130 @@
 
     // ==================== Usage Meter ====================
 
-    async function fetchUsageInfo() {
+    function usageTotalTokens(usage) {
+      // Server summaries define the additive total. The fallback keeps older
+      // servers readable using the same non-overlapping categories.
+      if (typeof usage.totalTokens === 'number') return usage.totalTokens;
+      return (usage.inputTokens || 0) + (usage.outputTokens || 0) + (usage.reasoningTokens || 0) + (usage.cacheCreationTokens || 0) + (usage.cacheReadTokens || 0);
+    }
+
+    function formatUsageTokens(tokens) {
+      if (tokens >= 1_000_000) return (tokens / 1_000_000).toFixed(1) + 'M';
+      if (tokens >= 1_000) return (tokens / 1_000).toFixed(1) + 'k';
+      return String(Math.round(tokens));
+    }
+
+    function formatUsageCost(cost) {
+      return '$' + cost.toFixed(2);
+    }
+
+    function usageCacheHitPercent(usage) {
+      const denominator = (usage.inputTokens || 0) + (usage.cacheReadTokens || 0);
+      return denominator > 0 ? Math.round(((usage.cacheReadTokens || 0) / denominator) * 100) : 0;
+    }
+
+    function usageTooltip(usage) {
+      return `Input: ${formatUsageTokens(usage.inputTokens || 0)}\nOutput: ${formatUsageTokens(usage.outputTokens || 0)}\nReasoning: ${formatUsageTokens(usage.reasoningTokens || 0)}\nCache read: ${formatUsageTokens(usage.cacheReadTokens || 0)}\nCache write: ${formatUsageTokens(usage.cacheCreationTokens || 0)}\nCache hit: ${usageCacheHitPercent(usage)}%`;
+    }
+
+    function renderTaskUsageBadge(usage) {
+      if (!usage) return '';
+      const cost = usage.estCostUsd === null || usage.estCostUsd === undefined ? '' : ` · ${formatUsageCost(usage.estCostUsd)}`;
+      return `<span class="task-usage-badge" title="${escapeHtml(usageTooltip(usage))}">⚡ ${formatUsageTokens(usageTotalTokens(usage))}${cost}</span>`;
+    }
+
+    async function fetchUsageSummary() {
+      if (!isUsagePanelOpen()) return;
+      const content = document.getElementById('usage-summary-content');
+      content.innerHTML = '<div class="usage-skeleton" aria-label="Loading usage"><div class="usage-skeleton-line"></div><div class="usage-skeleton-line"></div><div class="usage-skeleton-line"></div></div>';
       try {
-        const res = await fetch('/api/usage');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-
-        const meter = document.getElementById('usage-meter');
-        const label = document.getElementById('usage-label');
-        if (!meter || !label) return;
-
-        // Remove old status classes
-        meter.classList.remove('usage-ok', 'usage-warning', 'usage-critical', 'usage-unknown');
-        meter.classList.add('usage-' + (data.status || 'unknown'));
-
-        if (data.status === 'unknown') {
-          label.textContent = '—';
-          meter.title = (data.agent || 'Agent') + ': Usage unavailable';
-        } else {
-          const remaining = 100 - (data.percentage || 0);
-          label.textContent = remaining + '%';
-          meter.title = (data.agent || 'Agent') + ': ' + (data.label || remaining + '% remaining');
-        }
+        const [response, sessionsResponse] = await Promise.all([
+          fetch(`/api/usage/summary?period=${encodeURIComponent(usagePeriod)}&groupBy=${encodeURIComponent(usageGroupBy)}`),
+          usageGroupBy === 'session' ? Promise.resolve(null) : fetch(`/api/usage/summary?period=${encodeURIComponent(usagePeriod)}&groupBy=session`),
+        ]);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        const data = await response.json();
+        const sessionsData = sessionsResponse && sessionsResponse.ok ? await sessionsResponse.json() : data;
+        renderUsageSummary(data.groups || {}, data.periodWindows || {}, Object.keys(sessionsData.groups || {}).length);
       } catch (err) {
-        const meter = document.getElementById('usage-meter');
-        const label = document.getElementById('usage-label');
-        if (meter) {
-          meter.classList.remove('usage-ok', 'usage-warning', 'usage-critical', 'usage-unknown');
-          meter.classList.add('usage-unknown');
-          meter.title = 'Usage unavailable';
-        }
-        if (label) label.textContent = '—';
+        console.warn('[Usage] Failed to load usage summary:', err);
+        content.textContent = 'Unable to load usage summary.';
       }
     }
 
-    // Initial fetch + 60s polling
-    fetchUsageInfo();
-    setInterval(fetchUsageInfo, 60000);
+    function formatUsageWindow(periodWindows) {
+      if (usagePeriod === 'all') return 'All time';
+      const key = periodWindows[usagePeriod] && periodWindows[usagePeriod].key;
+      if (!key) return usagePeriod === 'today' ? 'Today' : 'This month';
+      const parts = key.split('-').map(Number);
+      if (usagePeriod === 'today') return `Today — ${new Date(parts[0], parts[1] - 1, parts[2]).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+      return new Date(parts[0], parts[1] - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    }
+
+    function toggleUsageGroupRow(index) {
+      const row = document.getElementById(`usage-group-${index}`);
+      if (!row) return;
+      const expanded = !row.classList.contains('expanded');
+      row.classList.toggle('expanded', expanded);
+      row.querySelector('.usage-group-toggle').setAttribute('aria-expanded', String(expanded));
+    }
+
+    function setUsageShowEmptyRows(checked) {
+      usageShowEmptyRows = checked;
+      fetchUsageSummary();
+    }
+
+    function renderUsageSummary(groups, periodWindows = {}, sessionCount = 0) {
+      const content = document.getElementById('usage-summary-content');
+      const allRows = Object.entries(groups);
+      const rows = allRows.filter(([key, usage]) => usageShowEmptyRows || (key !== 'unknown' && usageTotalTokens(usage) > 0));
+      document.getElementById('usage-period-window').textContent = formatUsageWindow(periodWindows);
+      if (allRows.length === 0 || rows.length === 0) {
+        document.getElementById('usage-stat-grid').innerHTML = '';
+        content.innerHTML = '<div class="usage-empty"><span class="usage-empty-icon">◌</span>No usage recorded yet — run a task to see tokens here.</div>';
+        return;
+      }
+      const total = rows.reduce((summary, [, usage]) => ({
+        inputTokens: summary.inputTokens + (usage.inputTokens || 0),
+        outputTokens: summary.outputTokens + (usage.outputTokens || 0),
+        reasoningTokens: summary.reasoningTokens + (usage.reasoningTokens || 0),
+        cacheCreationTokens: summary.cacheCreationTokens + (usage.cacheCreationTokens || 0),
+        cacheReadTokens: summary.cacheReadTokens + (usage.cacheReadTokens || 0),
+        totalTokens: summary.totalTokens + usageTotalTokens(usage),
+        requests: summary.requests + (usage.requests || 0),
+        estCostUsd: summary.estCostUsd === null || usage.estCostUsd === null || usage.estCostUsd === undefined
+          ? null
+          : summary.estCostUsd + usage.estCostUsd,
+      }), { inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0, totalTokens: 0, requests: 0, estCostUsd: 0 });
+      const costMarkup = (usage) => {
+        if (usage.estCostUsd === null || usage.estCostUsd === undefined) return '<span class="usage-price-unavailable" title="Pricing is unavailable for this model">no pricing</span>';
+        return formatUsageCost(usage.estCostUsd);
+      };
+      document.getElementById('usage-stat-grid').innerHTML = [
+        ['Total Tokens', formatUsageTokens(total.totalTokens)], ['Est. Cost', costMarkup(total)], ['Cache Hit', `${usageCacheHitPercent(total)}%`], ['Sessions', String(sessionCount || (usageGroupBy === 'session' ? rows.length : total.requests))],
+      ].map(([label, value]) => `<div class="stat-card"><div class="stat-card-value">${value}</div><div class="stat-card-label">${label}</div></div>`).join('');
+      const sortedRows = rows.sort(([, a], [, b]) => usageTotalTokens(b) - usageTotalTokens(a));
+      const maxTokens = usageTotalTokens(sortedRows[0][1]) || 1;
+      content.innerHTML = `<label class="usage-empty-toggle"><input type="checkbox" ${usageShowEmptyRows ? 'checked' : ''} onchange="setUsageShowEmptyRows(this.checked)"> Show empty rows</label><div class="usage-group-list">${sortedRows.map(([key, usage], index) => {
+        const tokens = usageTotalTokens(usage);
+        return `<article class="usage-group-row" id="usage-group-${index}"><button type="button" class="usage-group-toggle" aria-expanded="false" aria-controls="usage-breakdown-${index}" onclick="toggleUsageGroupRow(${index})"><span class="usage-group-name">${escapeHtml(key)}</span><span class="usage-group-meta">${formatUsageTokens(tokens)} <span class="usage-chevron">›</span></span></button><div class="usage-bar" aria-hidden="true"><span style="width:${Math.max(0, Math.min(100, tokens / maxTokens * 100))}%"></span></div><div class="usage-row-footer"><span>${costMarkup(usage)}</span><span>Cache hit ${usageCacheHitPercent(usage)}%</span></div><div class="usage-breakdown" id="usage-breakdown-${index}"><span class="usage-mini-stat">Input<strong>${formatUsageTokens(usage.inputTokens || 0)}</strong></span><span class="usage-mini-stat">Output<strong>${formatUsageTokens(usage.outputTokens || 0)}</strong></span><span class="usage-mini-stat">Cache read<strong>${formatUsageTokens(usage.cacheReadTokens || 0)}</strong></span><span class="usage-mini-stat">Cache write<strong>${formatUsageTokens(usage.cacheCreationTokens || 0)}</strong></span><span class="usage-mini-stat">Cache-hit calculation<strong>${usage.cacheReadTokens || 0} ÷ ${(usage.inputTokens || 0) + (usage.cacheReadTokens || 0)} = ${usageCacheHitPercent(usage)}%</strong></span></div></article>`;
+      }).join('')}</div><p class="usage-cost-disclaimer">Costs are estimated where pricing is available.</p>`;
+    }
+
+    async function refreshUsageBadges(taskIds) {
+      try {
+        if (!taskIds || taskIds.length > 0) {
+          const res = await fetch('/api/usage/tasks');
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          taskUsageMap = data.tasks || {};
+          renderBoard();
+        }
+        if (isUsagePanelOpen()) fetchUsageSummary();
+      } catch (err) {
+        console.warn('[Usage] Failed to refresh task usage:', err);
+      }
+    }
 
     // Override loadBoard to also update tactical view
     const originalLoadBoard = loadBoard;

@@ -2,10 +2,10 @@ import { getQueuedTasks, getAllTasks, getTask, getRunningTasksCount, updateTask,
 import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, executeFromDeclare, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
 import { isFileLeased } from './leaseManager.js';
-import { internalEvents, TASK_COMPLETED, LEASE_RELEASED } from './internalEvents.js';
+import { internalEvents, TASK_COMPLETED, LEASE_RELEASED, USAGE_UPDATED, type UsageUpdatedEvent } from './internalEvents.js';
 import { prioritizeQueue } from './prioritizer.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
-import { broadcastBoardUpdate } from './boardNotifier.js';
+import { broadcastBoardUpdate, broadcastUsageUpdated } from './boardNotifier.js';
 import type { Task } from '../../types/index.js';
 
 const QUEUE_ENABLED = process.env.QUEUE_ENABLED !== 'false';
@@ -13,6 +13,7 @@ const QUEUE_ENABLED = process.env.QUEUE_ENABLED !== 'false';
 const YIELD_BACKOFF_INITIAL_MS = 2000;
 const YIELD_BACKOFF_MULTIPLIER = 2;
 const YIELD_BACKOFF_MAX_MS = 60_000;
+const USAGE_UPDATE_DEBOUNCE_MS = 1_000;
 
 /** Per-task exponential backoff delay (ms) for the next retry after a lease conflict */
 const yieldBackoffMs = new Map<string, number>();
@@ -25,6 +26,25 @@ const inFlightTasks = new Set<string>();
 
 let pollTimeoutId: ReturnType<typeof setTimeout> | null = null;
 let isProcessing = false;
+let usageUpdateTimeoutId: ReturnType<typeof setTimeout> | null = null;
+const pendingUsageTaskIds = new Set<string>();
+
+function handleUsageUpdated(event: UsageUpdatedEvent): void {
+  for (const taskId of event.taskIds) {
+    pendingUsageTaskIds.add(taskId);
+  }
+
+  if (usageUpdateTimeoutId !== null) return;
+
+  usageUpdateTimeoutId = setTimeout(() => {
+    usageUpdateTimeoutId = null;
+    const taskIds = [...pendingUsageTaskIds];
+    pendingUsageTaskIds.clear();
+    // An empty task list means assistant/messaging usage: clients still need
+    // to refresh global summaries, but no task badge is implicated.
+    broadcastUsageUpdated(taskIds);
+  }, USAGE_UPDATE_DEBOUNCE_MS);
+}
 
 /**
  * Check if we can process another task (concurrency limit check)
@@ -249,6 +269,7 @@ export function startQueueProcessor(): void {
   // Subscribe to internal wake events
   internalEvents.on(TASK_COMPLETED, wakeQueueProcessor);
   internalEvents.on(LEASE_RELEASED, wakeQueueProcessor);
+  internalEvents.on(USAGE_UPDATED, handleUsageUpdated);
 
   // Run immediately on start
   processQueue();
@@ -268,6 +289,12 @@ export function stopQueueProcessor(): void {
     // Unsubscribe internal wake event listeners
     internalEvents.off(TASK_COMPLETED, wakeQueueProcessor);
     internalEvents.off(LEASE_RELEASED, wakeQueueProcessor);
+    internalEvents.off(USAGE_UPDATED, handleUsageUpdated);
+    if (usageUpdateTimeoutId !== null) {
+      clearTimeout(usageUpdateTimeoutId);
+      usageUpdateTimeoutId = null;
+      pendingUsageTaskIds.clear();
+    }
 
     console.warn('[QueueProcessor] Queue processor stopped');
   }

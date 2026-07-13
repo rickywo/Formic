@@ -1,0 +1,10 @@
+{
+  "claude-opus-4-8": { "inputPerMTok": 5, "outputPerMTok": 25, "cacheWritePerMTok": 6.25, "cacheReadPerMTok": 0.5 },
+  "claude-sonnet-5": { "inputPerMTok": 3, "outputPerMTok": 15, "cacheWritePerMTok": 3.75, "cacheReadPerMTok": 0.3 },
+  "claude-fable-5": { "inputPerMTok": 1, "outputPerMTok": 5, "cacheWritePerMTok": 1.25, "cacheReadPerMTok": 0.1 },
+  "claude-haiku-4-5-20251001": { "inputPerMTok": 1, "outputPerMTok": 5, "cacheWritePerMTok": 1.25, "cacheReadPerMTok": 0.1 },
+  "gpt-5": { "inputPerMTok": 1.25, "outputPerMTok": 10, "cacheWritePerMTok": 0, "cacheReadPerMTok": 0.125 },
+  "anthropic/claude-sonnet-5": { "inputPerMTok": 3, "outputPerMTok": 15, "cacheWritePerMTok": 3.75, "cacheReadPerMTok": 0.3, "aliases": ["anthropic/claude-sonnet-5-latest"] },
+  "anthropic/claude-opus-4-8": { "inputPerMTok": 5, "outputPerMTok": 25, "cacheWritePerMTok": 6.25, "cacheReadPerMTok": 0.5 },
+  "openai/gpt-5": { "inputPerMTok": 1.25, "outputPerMTok": 10, "cacheWritePerMTok": 0, "cacheReadPerMTok": 0.125, "aliases": ["openai/gpt-5-latest"] }
+}

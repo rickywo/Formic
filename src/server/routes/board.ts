@@ -12,7 +12,7 @@ export async function boardRoutes(fastify: FastifyInstance): Promise<void> {
     // Compute per-status task counts for AGI phase health metrics
     const counts: TaskCounts = {
       todo: 0, queued: 0, briefing: 0, planning: 0, declaring: 0,
-      running: 0, architecting: 0, verifying: 0, review: 0, done: 0, blocked: 0,
+      running: 0, architecting: 0, review: 0, done: 0, blocked: 0,
     };
     for (const task of board.tasks) {
       if (task.status in counts) {

@@ -2,10 +2,9 @@
 """
 AGI Metrics Collector — evaluates and reports on the health of Formic's AGI mechanisms.
 
-Runs all four phase test suites plus the integration suite programmatically, captures
-pass/fail counts, and emits a structured JSON report with five key metrics:
+Runs the active phase test suites plus the integration suite programmatically, captures
+pass/fail counts, and emits a structured JSON report with four key metrics:
 
-  selfHealingRate    — fraction of critic-triggered tasks that recovered within 3 retries
   dagAccuracy        — fraction of goal tasks where architect output has valid depends_on
   deadlockRate       — deadlocks per 100 tasks observed (from stress test data)
   memoryUtilization  — fraction of tasks that benefited from memory injection (0.0 if Phase 4 absent)
@@ -75,22 +74,6 @@ def _get_board_tasks() -> list:
     except Exception:
         pass
     return []
-
-
-def _calculate_self_healing_rate(tasks: list) -> float:
-    """
-    Self-Healing Rate: fraction of tasks with retryCount > 0 that eventually
-    reached 'review' or 'done' status (recovered). Target: >= 0.80.
-    Returns 0.0 if no retry data is available.
-    """
-    retried = [t for t in tasks if t.get('retryCount') and t['retryCount'] > 0]
-    if not retried:
-        return 0.0
-    recovered = [
-        t for t in retried
-        if t.get('status') in ('review', 'done') and (t.get('retryCount') or 0) < 3
-    ]
-    return len(recovered) / len(retried) if retried else 0.0
 
 
 def _calculate_dag_accuracy(tasks: list) -> float:
@@ -200,7 +183,6 @@ def collect_metrics(output_path: str | None = None) -> dict:
         'generatedAt': datetime.now(timezone.utc).isoformat(),
         'serverUrl': BASE_URL,
         'suiteResults': [],
-        'selfHealingRate': 0.0,
         'dagAccuracy': 0.0,
         'deadlockRate': 0.0,
         'memoryUtilization': 0.0,
@@ -217,7 +199,6 @@ def collect_metrics(output_path: str | None = None) -> dict:
 
     # Run all test suites
     suite_modules = [
-        'test_qa_loop',
         'test_dag_scheduling',
         'test_concurrency_advanced',
         'test_memory',
@@ -240,7 +221,6 @@ def collect_metrics(output_path: str | None = None) -> dict:
     all_tasks = _get_board_tasks()
 
     # Calculate metrics
-    report['selfHealingRate'] = round(_calculate_self_healing_rate(all_tasks), 4)
     report['dagAccuracy'] = round(_calculate_dag_accuracy(all_tasks), 4)
     report['deadlockRate'] = round(_calculate_deadlock_rate(suite_results), 4)
     report['memoryUtilization'] = round(_calculate_memory_utilization(all_tasks), 4)
@@ -288,7 +268,7 @@ def main():
 
     # Validate required keys are present
     required_keys = [
-        'selfHealingRate', 'dagAccuracy', 'deadlockRate',
+        'dagAccuracy', 'deadlockRate',
         'memoryUtilization', 'avgTaskCompletionMs',
     ]
     missing = [k for k in required_keys if k not in report]
