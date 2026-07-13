@@ -202,6 +202,7 @@ The server will automatically detect this format and create the task via the For
   - [t-160] !Normalize OpenCode provider models tokens and pricing
   - [t-161] !Validate OpenCode usage dashboard end to end
   - [t-162] Refactor token usage dashboard and settings panel into a unified, polished panel UI
+  - [t-164] !Remove the verification gate and Verify Command QA step entirely (frontend, backend, tests)
 
 ### Review
   - [t-1] Fix thinking indicator not visible in AI Assistant chat panel
