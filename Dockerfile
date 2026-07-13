@@ -21,7 +21,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Bump these with a PR when new releases are validated.
 ARG CLAUDE_CODE_VERSION=2.1.207
 ARG OPENCODE_AI_VERSION=1.17.18
-ARG FORMIC_VERSION=0.9.0
+ARG FORMIC_VERSION=0.9.1
 
 # ---------------------------------------------------------------------------
 # OCI labels
