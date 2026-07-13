@@ -89,8 +89,8 @@ Two purpose-built images are published to **Docker Hub** (`docker.io/rickywo/for
 
 | Tag | Purpose | Base | User |
 |-----|---------|------|------|
-| `0.9.0` (default / `latest`) | Headless runtime | `node:22-slim` (digest-pinned) | `node` (non-root) |
-| `0.9.0-devcontainer` | Interactive development shell | `node:22-bookworm` (digest-pinned) | `developer` (non-root) |
+| `0.9.1` (default / `latest`) | Headless runtime | `node:22-slim` (digest-pinned) | `node` (non-root) |
+| `0.9.1-devcontainer` | Interactive development shell | `node:22-bookworm` (digest-pinned) | `developer` (non-root) |
 
 Both images:
 - Run as **non-root** — no sudoers entries of any kind
@@ -107,7 +107,7 @@ docker run -d \
   -e HOST=0.0.0.0 \
   -e FORMIC_AUTH_TOKEN=your-strong-secret \
   -v /path/to/your/project:/app/workspace \
-  docker.io/rickywo/formic:0.9.0
+  docker.io/rickywo/formic:0.9.1
 ```
 
 ⚠️ `HOST=0.0.0.0` **requires** `FORMIC_AUTH_TOKEN` — the server will refuse to start otherwise.
@@ -117,7 +117,7 @@ docker run -d \
 ```bash
 docker run -it --rm \
   -v /path/to/your/project:/workspace \
-  docker.io/rickywo/formic:0.9.0-devcontainer
+  docker.io/rickywo/formic:0.9.1-devcontainer
 ```
 
 This drops you into a `zsh` shell with the Formic CLI and all agent CLIs pre-installed. It is **not intended for headless deployment**.
