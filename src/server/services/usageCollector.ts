@@ -4,6 +4,7 @@ import type { UsageEvent } from '../../types/index.js';
 import { getAgentType } from './agentAdapter.js';
 import { internalEvents, USAGE_UPDATED } from './internalEvents.js';
 import { readOpenCodeUsage } from './opencodeUsage.js';
+import { openCodeRecordToUsageEvent, type OpenCodeUsageRecord } from './opencodeJsonUsage.js';
 import { claudeProjectDir, extractTaskMarker, extractUsageRecords } from './transcriptUsage.js';
 import { appendUsageEvent } from './usageStore.js';
 import { getWorkspacePath } from '../utils/paths.js';
@@ -26,6 +27,7 @@ const SESSION_MTIME_GRACE_MS = 5_000;
 const activeRuns = new Map<string, ActiveRun>();
 const sessions = new Map<string, TranscriptSession>();
 const openCodeSeen = new Map<string, Set<string>>();
+const openCodeSeenMessageIds = new Set<string>();
 let intervalHandle: ReturnType<typeof setInterval> | null = null;
 let scanChain: Promise<void> = Promise.resolve();
 let projectDirResolver: () => string = () => claudeProjectDir(getWorkspacePath());
@@ -133,8 +135,10 @@ async function scanOpenCodeUsage(affectedTaskIds: Set<string>): Promise<void> {
 
     for (const record of openCodeSession.records) {
       const recordKey = record.messageId ?? record.requestId;
-      if (recordKey === null || seen.has(recordKey)) continue;
+      const messageKey = recordKey === null ? null : `${openCodeSession.sessionId}:${recordKey}`;
+      if (recordKey === null || messageKey === null || seen.has(recordKey) || openCodeSeenMessageIds.has(messageKey)) continue;
       seen.add(recordKey);
+      openCodeSeenMessageIds.add(messageKey);
       const event: UsageEvent = {
         id: `${openCodeSession.sessionId}:${recordKey}`,
         timestamp: record.timestamp || new Date().toISOString(),
@@ -152,6 +156,27 @@ async function scanOpenCodeUsage(affectedTaskIds: Set<string>): Promise<void> {
       await appendUsageEvent(event);
       affectedTaskIds.add(taskId);
     }
+  }
+}
+
+/**
+ * Persist OpenCode events observed directly on a spawned process's stdout.
+ * The shared message index also suppresses a later SQLite fallback observation
+ * for the same OpenCode assistant message.
+ */
+export async function ingestOpenCodeUsageRecords(taskId: string, step: string, records: OpenCodeUsageRecord[]): Promise<void> {
+  const affectedTaskIds = new Set<string>();
+  for (const record of records) {
+    const seen = openCodeSeen.get(record.sessionId) ?? new Set<string>();
+    openCodeSeen.set(record.sessionId, seen);
+    if (seen.has(record.id)) continue;
+    seen.add(record.id);
+    openCodeSeenMessageIds.add(`${record.sessionId}:${record.messageId}`);
+    await appendUsageEvent(openCodeRecordToUsageEvent(record, taskId, step));
+    affectedTaskIds.add(taskId);
+  }
+  if (affectedTaskIds.size > 0) {
+    internalEvents.emit(USAGE_UPDATED, { taskIds: [...affectedTaskIds] });
   }
 }
 
@@ -234,6 +259,7 @@ export function stopUsageCollector(): void {
   activeRuns.clear();
   sessions.clear();
   openCodeSeen.clear();
+  openCodeSeenMessageIds.clear();
   scanChain = Promise.resolve();
 }
 

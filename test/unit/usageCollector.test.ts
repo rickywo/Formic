@@ -15,6 +15,9 @@ import { readUsageEvents } from '../../src/server/services/usageStore.js';
 import { getWorkspacePath, setWorkspacePath } from '../../src/server/utils/paths.js';
 import { engineConfig } from '../../src/server/services/engineConfig.js';
 import { isAvailable, setOpenCodeUsageDatabasePathForTests } from '../../src/server/services/opencodeUsage.js';
+import { OpenCodeUsageStreamCollector } from '../../src/server/services/opencodeJsonUsage.js';
+import { ingestOpenCodeUsageRecords } from '../../src/server/services/usageCollector.js';
+import { internalEvents, USAGE_UPDATED } from '../../src/server/services/internalEvents.js';
 
 let savedWorkspacePath: string;
 let workspacePath: string;
@@ -138,6 +141,34 @@ describe('usageCollector', () => {
 
     await assert.doesNotReject(scanUsageCollectorForTests());
     assert.deepStrictEqual(await readUsageEvents(), []);
+  });
+
+  it('persists direct OpenCode stdout with task and step attribution without SQLite', async () => {
+    const collector = new OpenCodeUsageStreamCollector();
+    const line = JSON.stringify({
+      type: 'step_finish', timestamp: 1783674220354, sessionID: 'direct-session',
+      part: { id: 'direct-part', messageID: 'direct-message', tokens: { total: 99, input: 10, output: 2, reasoning: 3, cache: { read: 80, write: 4 } } },
+    });
+    const notifications: string[][] = [];
+    const listener = (event: { taskIds: string[] }): void => { notifications.push(event.taskIds); };
+    internalEvents.on(USAGE_UPDATED, listener);
+    try {
+      const firstHalf = collector.push(line.slice(0, 30));
+      await ingestOpenCodeUsageRecords('t-direct', 'quick', firstHalf);
+      await ingestOpenCodeUsageRecords('t-direct', 'quick', collector.push(`${line.slice(30)}\n`));
+      await ingestOpenCodeUsageRecords('t-direct', 'quick', collector.push(`${line}\n`));
+    } finally {
+      internalEvents.off(USAGE_UPDATED, listener);
+    }
+
+    const events = await readUsageEvents({ taskId: 't-direct' });
+    assert.strictEqual(events.length, 1);
+    assert.deepStrictEqual(events[0], {
+      id: 'direct-session:direct-message:direct-part', timestamp: '2026-07-10T09:03:40.354Z', taskId: 't-direct', step: 'quick',
+      agentType: 'opencode', source: 'transcript', sessionId: 'direct-session', model: 'unknown',
+      inputTokens: 10, outputTokens: 5, cacheCreationTokens: 4, cacheReadTokens: 80,
+    });
+    assert.deepStrictEqual(notifications, [['t-direct']]);
   });
 
   it('attributes OpenCode SQLite rows once to the active task and current step', async () => {

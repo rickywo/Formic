@@ -5,7 +5,7 @@ import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask, withBoard } from './store.js';
 import { getWorkspaceSkillsPath, skillExists } from './skills.js';
 import { loadSkillPrompt, OVERRIDE_PREAMBLE } from './skillReader.js';
-import { getAgentCommand, buildAgentArgs, getAgentDisplayName, getModelForStep } from './agentAdapter.js';
+import { getAgentCommand, buildAgentArgs, getAgentDisplayName, getModelForStep, getAgentType } from './agentAdapter.js';
 import { acquireLeases, releaseLeases, renewLeases, recordFileHashes, detectCollisions, recordWait, clearWait, preemptLease, getExclusiveLeaseHolder } from './leaseManager.js';
 import {
   loadSubtasks,
@@ -26,7 +26,8 @@ import { broadcastToWorkspace } from './messagingNotifier.js';
 import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
 import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
-import { beginTaskRun, endTaskRun } from './usageCollector.js';
+import { beginTaskRun, endTaskRun, ingestOpenCodeUsageRecords } from './usageCollector.js';
+import { OpenCodeUsageStreamCollector } from './opencodeJsonUsage.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
@@ -632,6 +633,7 @@ function runWorkflowStep(
   })();
 
   const logBuffer: string[] = [];
+  const openCodeUsageCollector = getAgentType() === 'opencode' ? new OpenCodeUsageStreamCollector() : null;
   let hasCompleted = false;
 
   // Set up timeout to kill hanging processes
@@ -678,6 +680,12 @@ function runWorkflowStep(
 
   child.stdout?.on('data', (data: Buffer) => {
     const text = data.toString();
+    if (openCodeUsageCollector !== null) {
+      const records = openCodeUsageCollector.push(text);
+      void ingestOpenCodeUsageRecords(taskId, step, records).catch((error: unknown) => {
+        console.warn(`[Workflow] Failed to persist OpenCode usage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      });
+    }
     const lines = text.split('\n').filter(line => line.length > 0);
     logBuffer.push(...lines);
 
@@ -707,6 +715,9 @@ function runWorkflowStep(
     clearTimeout(timeout);
 
     console.warn(`[Workflow] ${step} step completed with code ${code}`);
+    if (openCodeUsageCollector !== null) {
+      await ingestOpenCodeUsageRecords(taskId, step, openCodeUsageCollector.flush());
+    }
     await appendWorkflowLogs(taskId, step, logBuffer);
     await endTaskRun(taskId);
 
@@ -1129,7 +1140,7 @@ function parseReflectionOutput(output: string): ReflectionEntry[] {
 }
 
 /** Spawn the agent with a one-shot prompt and collect all output as a string. */
-function runAgentForOutput(prompt: string, model?: string): Promise<string> {
+function runAgentForOutput(prompt: string, model?: string, usageContext?: { taskId: string; step: string }): Promise<string> {
   return new Promise((resolve) => {
     const agentCommand = getAgentCommand();
     console.warn(`[Workflow] One-shot agent using model: ${model || '(agent default)'}`);
@@ -1142,9 +1153,18 @@ function runAgentForOutput(prompt: string, model?: string): Promise<string> {
     });
 
     const chunks: string[] = [];
+    const openCodeUsageCollector = usageContext !== undefined && getAgentType() === 'opencode'
+      ? new OpenCodeUsageStreamCollector()
+      : null;
 
     child.stdout?.on('data', (data: Buffer) => {
-      chunks.push(data.toString());
+      const text = data.toString();
+      chunks.push(text);
+      if (openCodeUsageCollector !== null && usageContext !== undefined) {
+        void ingestOpenCodeUsageRecords(usageContext.taskId, usageContext.step, openCodeUsageCollector.push(text)).catch((error: unknown) => {
+          console.warn(`[Workflow] Failed to persist OpenCode usage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        });
+      }
     });
 
     child.stderr?.on('data', (data: Buffer) => {
@@ -1160,8 +1180,11 @@ function runAgentForOutput(prompt: string, model?: string): Promise<string> {
       resolve(chunks.join(''));
     });
 
-    child.on('close', () => {
+    child.on('close', async () => {
       clearTimeout(timeout);
+      if (openCodeUsageCollector !== null && usageContext !== undefined) {
+        await ingestOpenCodeUsageRecords(usageContext.taskId, usageContext.step, openCodeUsageCollector.flush());
+      }
       resolve(chunks.join(''));
     });
   });
@@ -1194,7 +1217,7 @@ Example:
     beginTaskRun(taskId, 'reflection');
     let output: string;
     try {
-      output = await runAgentForOutput(prompt, getModelForStep('execute'));
+      output = await runAgentForOutput(prompt, getModelForStep('execute'), { taskId, step: 'reflection' });
     } finally {
       await endTaskRun(taskId);
     }

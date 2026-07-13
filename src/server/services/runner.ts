@@ -14,7 +14,8 @@ import path from 'node:path';
 import { getRelevantMemories } from './memory.js';
 import { listTools } from './tools.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
-import { beginTaskRun, endTaskRun } from './usageCollector.js';
+import { beginTaskRun, endTaskRun, ingestOpenCodeUsageRecords } from './usageCollector.js';
+import { OpenCodeUsageStreamCollector } from './opencodeJsonUsage.js';
 
 const GUIDELINE_FILENAME = 'kanban-development-guideline.md';
 
@@ -246,6 +247,7 @@ All code changes MUST comply with the project development guidelines provided ab
 
   const logBuffer: string[] = [];
   const stdoutFormatter = new AgentStdoutFormatter(agentType);
+  const openCodeUsageCollector = agentType === 'opencode' ? new OpenCodeUsageStreamCollector() : null;
 
   const emitOpenCodeStdout = (entries: string[]): void => {
     emitAgentStdoutEntries(
@@ -340,6 +342,10 @@ All code changes MUST comply with the project development guidelines provided ab
   child.stdout?.on('data', (data: Buffer) => {
     const text = data.toString();
     if (agentType === 'opencode') {
+      const records = openCodeUsageCollector?.push(text) ?? [];
+      void ingestOpenCodeUsageRecords(taskId, task?.type === 'quick' ? 'quick' : 'execute', records).catch((error: unknown) => {
+        console.warn(`[Runner] Failed to persist OpenCode usage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      });
       emitOpenCodeStdout(stdoutFormatter.push(text));
       return;
     }
@@ -372,11 +378,13 @@ All code changes MUST comply with the project development guidelines provided ab
     activeProcesses.delete(taskId);
     releaseLeases(taskId);
     console.warn(`[Runner] Released leases for task ${taskId} (close handler)`);
-    await endTaskRun(taskId);
-
     // OpenCode may exit without a trailing newline. Parse that final complete
     // JSON event before persisting so live output and history stay identical.
+    if (openCodeUsageCollector !== null) {
+      await ingestOpenCodeUsageRecords(taskId, task?.type === 'quick' ? 'quick' : 'execute', openCodeUsageCollector.flush());
+    }
     emitOpenCodeStdout(stdoutFormatter.flush());
+    await endTaskRun(taskId);
 
     // Save logs to task
     await appendTaskLogs(taskId, logBuffer);
