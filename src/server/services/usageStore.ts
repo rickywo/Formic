@@ -1,6 +1,6 @@
 import { appendFile, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
-import type { AgentType, UsageEvent } from '../../types/index.js';
+import type { AgentType, UsageEvent, UsageScope } from '../../types/index.js';
 import { getBundledTemplatesPath, getFormicDir } from '../utils/paths.js';
 
 export type UsagePeriod = 'today' | 'month' | 'all';
@@ -62,6 +62,10 @@ function isAgentType(value: unknown): value is AgentType {
   return value === 'claude' || value === 'copilot' || value === 'opencode';
 }
 
+function isUsageScope(value: unknown): value is UsageScope {
+  return value === 'task' || value === 'assistant' || value === 'messaging';
+}
+
 function recordOf(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -75,7 +79,14 @@ function usageEventIssues(value: unknown): string[] {
   const issues: string[] = [];
   if (!isNonEmptyString(event.id)) issues.push('id');
   if (!isNonEmptyString(event.timestamp)) issues.push('timestamp');
-  if (!isNonEmptyString(event.taskId)) issues.push('taskId');
+  if (!isUsageScope(event.scope)) {
+    issues.push('scope');
+  } else if (event.scope === 'task') {
+    if (!isNonEmptyString(event.taskId)) issues.push('taskId');
+  } else {
+    if (!isNonEmptyString(event.scopeId)) issues.push('scopeId');
+    if (Object.hasOwn(event, 'taskId')) issues.push('taskId');
+  }
   if (!isNonEmptyString(event.step)) issues.push('step');
   if (!isAgentType(event.agentType)) issues.push('agentType');
   if (event.source !== 'transcript') issues.push('source');
@@ -143,6 +154,7 @@ function normalizeLegacyUsageEvent(value: Record<string, unknown>): LegacyNormal
     event: {
       id,
       timestamp,
+      scope: 'task',
       taskId,
       step: agentId,
       agentType,
@@ -161,6 +173,12 @@ function normalizeLegacyUsageEvent(value: Record<string, unknown>): LegacyNormal
 function parseUsageEventRecord(value: unknown): LegacyNormalizationResult {
   if (isUsageEvent(value)) return { event: value, issues: [] };
   const record = recordOf(value);
+  // Current pre-scope records were always task usage. Normalize them at read
+  // time so existing NDJSON files remain valid without a migration write.
+  if (record !== null && !Object.hasOwn(record, 'scope') && !isLegacyUsageRecord(record)) {
+    const normalized = { ...record, scope: 'task' };
+    if (isUsageEvent(normalized)) return { event: normalized, issues: [] };
+  }
   if (record !== null && isLegacyUsageRecord(record)) return normalizeLegacyUsageEvent(record);
   return { event: null, issues: usageEventIssues(value) };
 }
@@ -228,7 +246,7 @@ async function loadPricing(): Promise<Record<string, ModelPricing>> {
 }
 
 function matchesFilter(event: UsageEvent, filter: UsageEventFilter): boolean {
-  return (!filter.taskId || event.taskId === filter.taskId)
+  return (!filter.taskId || (event.scope === 'task' && event.taskId === filter.taskId))
     && (!filter.from || event.timestamp >= filter.from)
     && (!filter.to || event.timestamp <= filter.to);
 }
@@ -239,8 +257,8 @@ function emptySummary(): GroupSummary {
 
 function groupKey(event: UsageEvent, groupBy: UsageGroupBy): string {
   if (groupBy === 'model') return event.model;
-  if (groupBy === 'task') return event.taskId;
-  return event.sessionId;
+  if (groupBy === 'task') return event.scope === 'task' ? event.taskId : `${event.scope}:${event.scopeId}`;
+  return event.scope === 'task' ? event.sessionId : event.scopeId;
 }
 
 function summarizeEvents(events: UsageEvent[], groupBy: UsageGroupBy, pricing: Record<string, ModelPricing>): Record<string, GroupSummary> {
@@ -291,13 +309,33 @@ export function computePeriodWindows(now: Date = new Date()): PeriodWindows {
   };
 }
 
-export async function appendUsageEvent(event: UsageEvent): Promise<void> {
+export async function appendUsageEvent(event: UsageEvent): Promise<boolean> {
   if (!isUsageEvent(event)) throw new Error('Invalid usage event');
-  const append = appendLock.then(async () => {
+  const append = appendLock.then(async (): Promise<boolean> => {
     await mkdir(getUsageDir(), { recursive: true });
+    // Event IDs are derived from provider message/part IDs. Checking while the
+    // append lock is held makes retries and process restarts idempotent without
+    // relying only on an in-memory collector set.
+    try {
+      const contents = await readFile(getEventsPath(), 'utf8');
+      for (const line of contents.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const value: unknown = JSON.parse(line);
+          if (recordOf(value)?.id === event.id) return false;
+        } catch {
+          // Malformed historic rows are reported by readUsageEvents; they do
+          // not prevent a valid new usage event from being persisted.
+        }
+      }
+    } catch (err) {
+      const error = err as NodeJS.ErrnoException;
+      if (error.code !== 'ENOENT') throw err;
+    }
     await appendFile(getEventsPath(), `${JSON.stringify(event)}\n`, 'utf8');
+    return true;
   });
-  appendLock = append.catch(() => undefined);
+  appendLock = append.then(() => undefined, () => undefined);
   return append;
 }
 
@@ -332,16 +370,21 @@ export async function readUsageEvents(filter: UsageEventFilter = {}): Promise<Us
 export async function summarizeUsage(opts: { period: UsagePeriod; groupBy: UsageGroupBy }): Promise<{ periodWindows: PeriodWindows; groups: Record<string, GroupSummary> }> {
   const now = new Date();
   const [events, pricing] = await Promise.all([readUsageEvents(), loadPricing()]);
-  return { periodWindows: computePeriodWindows(now), groups: summarizeEvents(events.filter((event) => eventInPeriod(event, opts.period, now)), opts.groupBy, pricing) };
+  const periodEvents = events.filter(event => eventInPeriod(event, opts.period, now));
+  const groupedEvents = opts.groupBy === 'task'
+    ? periodEvents.filter(event => event.scope === 'task')
+    : periodEvents;
+  return { periodWindows: computePeriodWindows(now), groups: summarizeEvents(groupedEvents, opts.groupBy, pricing) };
 }
 
 export async function taskUsageTotals(): Promise<Record<string, GroupSummary>> {
   const [events, pricing] = await Promise.all([readUsageEvents(), loadPricing()]);
-  return summarizeEvents(events, 'task', pricing);
+  return summarizeEvents(events.filter(event => event.scope === 'task'), 'task', pricing);
 }
 
 export async function taskUsageBreakdown(taskId: string): Promise<{ total: GroupSummary; byModel: Record<string, GroupSummary>; bySession: Record<string, GroupSummary> }> {
   const [events, pricing] = await Promise.all([readUsageEvents({ taskId }), loadPricing()]);
-  const total = summarizeEvents(events, 'task', pricing)[taskId] ?? emptySummary();
-  return { total, byModel: summarizeEvents(events, 'model', pricing), bySession: summarizeEvents(events, 'session', pricing) };
+  const taskEvents = events.filter(event => event.scope === 'task');
+  const total = summarizeEvents(taskEvents, 'task', pricing)[taskId] ?? emptySummary();
+  return { total, byModel: summarizeEvents(taskEvents, 'model', pricing), bySession: summarizeEvents(taskEvents, 'session', pricing) };
 }

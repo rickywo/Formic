@@ -30,6 +30,7 @@ import {
   takeScreenshotWithMCP,
   isPlaywrightAvailable,
 } from './mcpScreenshot.js';
+import { beginOpenCodeUsageInvocation } from './usageCollector.js';
 
 /**
  * Messaging AI Service
@@ -603,6 +604,9 @@ function spawnAgentAndGetResponse(
       continue: useContinue,
       ...(model ? { model } : {}),
     });
+    const usageInvocation = agentType === 'opencode'
+      ? beginOpenCodeUsageInvocation({ scope: 'messaging', scopeId: sessionKey }, model || undefined)
+      : null;
 
     console.warn('[MessagingAI] Spawning agent:', agentCommand);
     console.warn('[MessagingAI] Working directory:', workspacePath);
@@ -626,6 +630,7 @@ function spawnAgentAndGetResponse(
     // Handle stdout
     child.stdout?.on('data', (data: Buffer) => {
       const chunk = data.toString();
+      usageInvocation?.ingestOpenCodeStdout(chunk);
       outputBuffer += chunk;
 
       // Process complete lines
@@ -664,6 +669,7 @@ function spawnAgentAndGetResponse(
     // Handle spawn error
     child.on('error', (err: NodeJS.ErrnoException) => {
       console.error('[MessagingAI] Spawn error:', err.message);
+      void usageInvocation?.finalize();
       reject(new Error(err.code === 'ENOENT' ? 'Agent CLI not found' : err.message));
     });
 
@@ -700,6 +706,7 @@ function spawnAgentAndGetResponse(
       } else {
         resolve('I processed your request but have no response to display.');
       }
+      void usageInvocation?.finalize();
     });
 
     // Timeout after 5 minutes

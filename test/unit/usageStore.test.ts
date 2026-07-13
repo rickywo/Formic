@@ -16,7 +16,7 @@ import { getWorkspacePath, setWorkspacePath } from '../../src/server/utils/paths
 
 function usageEvent(overrides: Partial<UsageEvent> = {}): UsageEvent {
   return {
-    id: 'event-1', timestamp: '2026-07-12T10:00:00.000Z', taskId: 't-1', step: 'execute',
+    id: 'event-1', timestamp: '2026-07-12T10:00:00.000Z', scope: 'task', taskId: 't-1', step: 'execute',
     agentType: 'claude', source: 'transcript', sessionId: 'session-1', model: 'claude-sonnet-5',
     inputTokens: 1_000_000, outputTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0,
     ...overrides,
@@ -123,7 +123,7 @@ describe('usageStore', () => {
     const events = await readUsageEvents();
     assert.deepEqual(events, [
       {
-        id: 'legacy-event-1', timestamp: '2026-07-12T10:00:00.000Z', taskId: 't-legacy', step: 'brief',
+        id: 'legacy-event-1', timestamp: '2026-07-12T10:00:00.000Z', scope: 'task', taskId: 't-legacy', step: 'brief',
         agentType: 'claude', source: 'transcript', sessionId: 'legacy-request-1', model: 'unknown',
         inputTokens: 10, outputTokens: 20, cacheCreationTokens: 30, cacheReadTokens: 40,
       },
@@ -164,6 +164,24 @@ describe('usageStore', () => {
     assert.equal(breakdown.total.inputTokens, 400);
     assert.equal(breakdown.bySession['current-session'].requests, 1);
     assert.equal(breakdown.bySession['legacy-session'].requests, 1);
+  });
+
+  it('includes assistant and messaging usage globally without contaminating task totals', async () => {
+    const assistant = {
+      id: 'assistant-event', timestamp: '2026-07-12T10:00:00.000Z', scope: 'assistant' as const, scopeId: 'assistant:session-1', step: 'assistant',
+      agentType: 'opencode' as const, source: 'transcript' as const, sessionId: 'opencode-assistant-session', model: 'claude-sonnet-5',
+      inputTokens: 50, outputTokens: 10, cacheCreationTokens: 0, cacheReadTokens: 0,
+    };
+    const messaging = { ...assistant, id: 'messaging-event', scope: 'messaging' as const, scopeId: 'telegram:123', sessionId: 'opencode-message-session' };
+    await writeEvents([usageEvent({ id: 'task-event', taskId: 't-scoped', inputTokens: 100 }), assistant, messaging]);
+
+    const global = await summarizeUsage({ period: 'all', groupBy: 'session' });
+    const totals = await taskUsageTotals();
+    const task = await taskUsageBreakdown('t-scoped');
+    assert.equal(global.groups['assistant:session-1'].requests, 1);
+    assert.equal(global.groups['telegram:123'].requests, 1);
+    assert.deepEqual(Object.keys(totals), ['t-scoped']);
+    assert.equal(task.total.inputTokens, 100);
   });
 
   it('reports non-sensitive line-specific diagnostics once across repeated reads', async () => {

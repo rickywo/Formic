@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { OpenCodeUsageStreamCollector, parseOpenCodeUsageLine } from '../../src/server/services/opencodeJsonUsage.js';
+import { OpenCodeUsageStreamCollector, openCodeRecordToUsageEvent, parseOpenCodeUsageLine } from '../../src/server/services/opencodeJsonUsage.js';
 
 const FIXTURE_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures', 'opencode-t156-execute.jsonl');
 
@@ -45,5 +45,21 @@ describe('OpenCodeUsageStreamCollector', () => {
     assert.strictEqual(parseOpenCodeUsageLine(JSON.stringify({
       type: 'step_finish', sessionID: 'session', part: { id: 'part', messageID: 'message', tokens: { total: 99 } },
     })), null);
+  });
+
+  it('converts records with explicit task or non-task attribution', () => {
+    const record = parseOpenCodeUsageLine(JSON.stringify({
+      type: 'step_finish', sessionID: 'provider-session',
+      part: { id: 'part', messageID: 'message', modelID: 'provider/model', tokens: { input: 1, output: 2 } },
+    }));
+    assert.ok(record);
+    const task = openCodeRecordToUsageEvent(record, { scope: 'task', taskId: 't-1', step: 'execute' });
+    const messaging = openCodeRecordToUsageEvent(record, { scope: 'messaging', scopeId: 'telegram:42' });
+    assert.deepEqual(task.scope === 'task' ? task.taskId : null, 't-1');
+    assert.deepEqual(messaging, {
+      id: 'provider-session:message:part', timestamp: messaging.timestamp, scope: 'messaging', scopeId: 'telegram:42', step: 'assistant',
+      agentType: 'opencode', source: 'transcript', sessionId: 'provider-session', model: 'provider/model',
+      inputTokens: 1, outputTokens: 2, cacheCreationTokens: 0, cacheReadTokens: 0,
+    });
   });
 });

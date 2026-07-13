@@ -1,4 +1,4 @@
-import type { UsageEvent } from '../../types/index.js';
+import type { NonTaskUsageEvent, UsageEvent } from '../../types/index.js';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -97,14 +97,17 @@ export class OpenCodeUsageStreamCollector {
   }
 }
 
-export function openCodeRecordToUsageEvent(record: OpenCodeUsageRecord, taskId: string, step: string): UsageEvent {
-  return {
+export type OpenCodeUsageAttribution =
+  | { scope: 'task'; taskId: string; step: string }
+  | { scope: 'assistant' | 'messaging'; scopeId: string; step?: string };
+
+export function openCodeRecordToUsageEvent(record: OpenCodeUsageRecord, attribution: OpenCodeUsageAttribution): UsageEvent {
+  const base = {
     id: record.id,
     timestamp: record.timestamp,
-    taskId,
-    step,
-    agentType: 'opencode',
-    source: 'transcript',
+    step: attribution.scope === 'task' ? attribution.step : attribution.step ?? 'assistant',
+    agentType: 'opencode' as const,
+    source: 'transcript' as const,
     sessionId: record.sessionId,
     model: record.model,
     inputTokens: record.inputTokens,
@@ -112,4 +115,8 @@ export function openCodeRecordToUsageEvent(record: OpenCodeUsageRecord, taskId: 
     cacheCreationTokens: record.cacheCreationTokens,
     cacheReadTokens: record.cacheReadTokens,
   };
+  if (attribution.scope === 'task') {
+    return { ...base, scope: 'task', taskId: attribution.taskId };
+  }
+  return { ...base, scope: attribution.scope, scopeId: attribution.scopeId } satisfies NonTaskUsageEvent;
 }

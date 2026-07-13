@@ -6,6 +6,7 @@ import path from 'node:path';
 
 import {
   beginTaskRun,
+  beginOpenCodeUsageInvocation,
   endTaskRun,
   scanUsageCollectorForTests,
   setUsageCollectorProjectDirResolverForTests,
@@ -154,9 +155,9 @@ describe('usageCollector', () => {
     internalEvents.on(USAGE_UPDATED, listener);
     try {
       const firstHalf = collector.push(line.slice(0, 30));
-      await ingestOpenCodeUsageRecords('t-direct', 'quick', firstHalf);
-      await ingestOpenCodeUsageRecords('t-direct', 'quick', collector.push(`${line.slice(30)}\n`));
-      await ingestOpenCodeUsageRecords('t-direct', 'quick', collector.push(`${line}\n`));
+      await ingestOpenCodeUsageRecords({ scope: 'task', taskId: 't-direct', step: 'quick' }, firstHalf);
+      await ingestOpenCodeUsageRecords({ scope: 'task', taskId: 't-direct', step: 'quick' }, collector.push(`${line.slice(30)}\n`));
+      await ingestOpenCodeUsageRecords({ scope: 'task', taskId: 't-direct', step: 'quick' }, collector.push(`${line}\n`));
     } finally {
       internalEvents.off(USAGE_UPDATED, listener);
     }
@@ -164,7 +165,7 @@ describe('usageCollector', () => {
     const events = await readUsageEvents({ taskId: 't-direct' });
     assert.strictEqual(events.length, 1);
     assert.deepStrictEqual(events[0], {
-      id: 'direct-session:direct-message:direct-part', timestamp: '2026-07-10T09:03:40.354Z', taskId: 't-direct', step: 'quick',
+      id: 'direct-session:direct-message:direct-part', timestamp: '2026-07-10T09:03:40.354Z', scope: 'task', taskId: 't-direct', step: 'quick',
       agentType: 'opencode', source: 'transcript', sessionId: 'direct-session', model: 'unknown',
       inputTokens: 10, outputTokens: 5, cacheCreationTokens: 4, cacheReadTokens: 80,
     });
@@ -210,6 +211,35 @@ describe('usageCollector', () => {
     assert.strictEqual(events.length, 1);
     assert.strictEqual(events[0].step, 'reflection');
     assert.strictEqual(events[0].inputTokens, 7);
+  });
+
+  it('persists non-task OpenCode usage with scope identity and no task ID', async () => {
+    const notifications: string[][] = [];
+    const listener = (event: { taskIds: string[] }): void => { notifications.push(event.taskIds); };
+    internalEvents.on(USAGE_UPDATED, listener);
+    try {
+      const invocation = beginOpenCodeUsageInvocation({ scope: 'messaging', scopeId: 'telegram:chat-42' }, 'configured/model');
+      const line = JSON.stringify({
+        type: 'step_finish', sessionID: 'provider-session',
+        part: { id: 'part', messageID: 'message', tokens: { input: 8, output: 3 } },
+      });
+      invocation.ingestOpenCodeStdout(line.slice(0, 30));
+      invocation.ingestOpenCodeStdout(line.slice(30));
+      await Promise.all([invocation.finalize(), invocation.finalize()]);
+      const repeated = beginOpenCodeUsageInvocation({ scope: 'messaging', scopeId: 'telegram:chat-42' });
+      repeated.ingestOpenCodeStdout(`${line}\n`);
+      await repeated.finalize();
+    } finally {
+      internalEvents.off(USAGE_UPDATED, listener);
+    }
+    const events = await readUsageEvents();
+    assert.equal(events.length, 1);
+    assert.deepEqual(events[0], {
+      id: 'provider-session:message:part', timestamp: events[0].timestamp, scope: 'messaging', scopeId: 'telegram:chat-42', step: 'assistant',
+      agentType: 'opencode', source: 'transcript', sessionId: 'provider-session', model: 'configured/model',
+      inputTokens: 8, outputTokens: 3, cacheCreationTokens: 0, cacheReadTokens: 0,
+    });
+    assert.deepEqual(notifications, [[]]);
   });
 
   it('finalizes usage for workflow termination outcomes without losing semantic attribution', async () => {

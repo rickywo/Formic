@@ -4,7 +4,7 @@ import type { UsageEvent } from '../../types/index.js';
 import { getAgentType } from './agentAdapter.js';
 import { internalEvents, USAGE_UPDATED } from './internalEvents.js';
 import { readOpenCodeUsage } from './opencodeUsage.js';
-import { openCodeRecordToUsageEvent, OpenCodeUsageStreamCollector, type OpenCodeUsageRecord } from './opencodeJsonUsage.js';
+import { openCodeRecordToUsageEvent, OpenCodeUsageStreamCollector, type OpenCodeUsageAttribution, type OpenCodeUsageRecord } from './opencodeJsonUsage.js';
 import { claudeProjectDir, extractTaskMarker, extractUsageRecords } from './transcriptUsage.js';
 import { appendUsageEvent } from './usageStore.js';
 import { getWorkspacePath } from '../utils/paths.js';
@@ -112,6 +112,7 @@ async function scanSession(sessionId: string, filePath: string, affectedTaskIds:
     const event: UsageEvent = {
       id: `${sessionId}:${record.messageId}`,
       timestamp: record.timestamp || new Date().toISOString(),
+      scope: 'task',
       taskId: session.taskId,
       step: run.step,
       agentType: getAgentType(),
@@ -154,6 +155,7 @@ async function scanOpenCodeUsage(affectedTaskIds: Set<string>): Promise<void> {
       const event: UsageEvent = {
         id: `${openCodeSession.sessionId}:${recordKey}`,
         timestamp: record.timestamp || new Date().toISOString(),
+        scope: 'task',
         taskId,
         step: run.step,
         agentType: 'opencode',
@@ -176,18 +178,20 @@ async function scanOpenCodeUsage(affectedTaskIds: Set<string>): Promise<void> {
  * The shared message index also suppresses a later SQLite fallback observation
  * for the same OpenCode assistant message.
  */
-export async function ingestOpenCodeUsageRecords(taskId: string, step: string, records: OpenCodeUsageRecord[]): Promise<void> {
+export async function ingestOpenCodeUsageRecords(attribution: OpenCodeUsageAttribution, records: OpenCodeUsageRecord[]): Promise<void> {
   const affectedTaskIds = new Set<string>();
+  let persistedCount = 0;
   for (const record of records) {
     const seen = openCodeSeen.get(record.sessionId) ?? new Set<string>();
     openCodeSeen.set(record.sessionId, seen);
     if (seen.has(record.id)) continue;
     seen.add(record.id);
     openCodeSeenMessageIds.add(`${record.sessionId}:${record.messageId}`);
-    await appendUsageEvent(openCodeRecordToUsageEvent(record, taskId, step));
-    affectedTaskIds.add(taskId);
+    const persisted = await appendUsageEvent(openCodeRecordToUsageEvent(record, attribution));
+    if (persisted) persistedCount += 1;
+    if (attribution.scope === 'task') affectedTaskIds.add(attribution.taskId);
   }
-  if (affectedTaskIds.size > 0) {
+  if (persistedCount > 0) {
     internalEvents.emit(USAGE_UPDATED, { taskIds: [...affectedTaskIds] });
   }
 }
@@ -222,7 +226,7 @@ export class TaskUsageInvocation {
       : records.map(record => record.model === 'unknown' ? { ...record, model: selectedModel } : record);
     this.pending = this.pending
       .catch(() => undefined)
-      .then(() => ingestOpenCodeUsageRecords(this.taskId, this.step, attributedRecords))
+      .then(() => ingestOpenCodeUsageRecords({ scope: 'task', taskId: this.taskId, step: this.step }, attributedRecords))
       .catch((error: unknown) => {
         console.warn(`[UsageCollector] Failed to persist OpenCode usage for ${this.taskId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
       });
@@ -245,6 +249,52 @@ export class TaskUsageInvocation {
       stopScanIntervalWhenIdle();
     }
   }
+}
+
+/**
+ * One non-task OpenCode subprocess invocation. It shares the task collector
+ * parser and process-wide record index, but persists the real assistant or
+ * messaging identity instead of fabricating a task ID.
+ */
+export class OpenCodeUsageInvocation {
+  private readonly collector = new OpenCodeUsageStreamCollector();
+  private pending: Promise<void> = Promise.resolve();
+  private finalized = false;
+
+  constructor(private readonly attribution: Extract<OpenCodeUsageAttribution, { scope: 'assistant' | 'messaging' }>, private readonly selectedModel?: string) {}
+
+  ingestOpenCodeStdout(chunk: string): void {
+    if (this.finalized) return;
+    this.enqueueRecords(this.collector.push(chunk));
+  }
+
+  private enqueueRecords(records: OpenCodeUsageRecord[]): void {
+    if (records.length === 0) return;
+    const selectedModel = this.selectedModel;
+    const attributedRecords = selectedModel === undefined
+      ? records
+      : records.map(record => record.model === 'unknown' ? { ...record, model: selectedModel } : record);
+    this.pending = this.pending
+      .catch(() => undefined)
+      .then(() => ingestOpenCodeUsageRecords(this.attribution, attributedRecords))
+      .catch((error: unknown) => {
+        console.warn(`[UsageCollector] Failed to persist OpenCode ${this.attribution.scope} usage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      });
+  }
+
+  async finalize(): Promise<void> {
+    if (this.finalized) return this.pending;
+    this.finalized = true;
+    this.enqueueRecords(this.collector.flush());
+    await this.pending;
+  }
+}
+
+export function beginOpenCodeUsageInvocation(
+  attribution: Extract<OpenCodeUsageAttribution, { scope: 'assistant' | 'messaging' }>,
+  selectedModel?: string,
+): OpenCodeUsageInvocation {
+  return new OpenCodeUsageInvocation(attribution, selectedModel);
 }
 
 async function scanClaudeUsage(earliestStart: number, affectedTaskIds: Set<string>): Promise<void> {

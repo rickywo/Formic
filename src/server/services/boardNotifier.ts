@@ -78,7 +78,8 @@ export function broadcastBoardUpdate(): void {
 }
 
 /**
- * Broadcast task usage changes to all connected clients.
+ * Broadcast usage changes to all connected clients. An empty task list means
+ * the change is non-task usage and therefore must not update any task badge.
  */
 export function broadcastUsageUpdated(taskIds: string[]): void {
   const message = JSON.stringify({ type: 'usage-updated', taskIds });

@@ -12210,11 +12210,13 @@
 
     async function refreshUsageBadges(taskIds) {
       try {
-        const res = await fetch('/api/usage/tasks');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const data = await res.json();
-        taskUsageMap = data.tasks || {};
-        renderBoard();
+        if (!taskIds || taskIds.length > 0) {
+          const res = await fetch('/api/usage/tasks');
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const data = await res.json();
+          taskUsageMap = data.tasks || {};
+          renderBoard();
+        }
         if (isUsagePanelOpen()) fetchUsageSummary();
       } catch (err) {
         console.warn('[Usage] Failed to refresh task usage:', err);

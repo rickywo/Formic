@@ -2,7 +2,7 @@ import { getQueuedTasks, getAllTasks, getTask, getRunningTasksCount, updateTask,
 import { executeFullWorkflow, executeQuickTask, executeGoalWorkflow, executeFromDeclare, isWorkflowRunning } from './workflow.js';
 import { isAgentRunning } from './runner.js';
 import { isFileLeased } from './leaseManager.js';
-import { internalEvents, TASK_COMPLETED, LEASE_RELEASED, USAGE_UPDATED } from './internalEvents.js';
+import { internalEvents, TASK_COMPLETED, LEASE_RELEASED, USAGE_UPDATED, type UsageUpdatedEvent } from './internalEvents.js';
 import { prioritizeQueue } from './prioritizer.js';
 import { engineConfig, refreshEngineConfig } from './engineConfig.js';
 import { broadcastBoardUpdate, broadcastUsageUpdated } from './boardNotifier.js';
@@ -29,7 +29,7 @@ let isProcessing = false;
 let usageUpdateTimeoutId: ReturnType<typeof setTimeout> | null = null;
 const pendingUsageTaskIds = new Set<string>();
 
-function handleUsageUpdated(event: { taskIds: string[] }): void {
+function handleUsageUpdated(event: UsageUpdatedEvent): void {
   for (const taskId of event.taskIds) {
     pendingUsageTaskIds.add(taskId);
   }
@@ -40,9 +40,9 @@ function handleUsageUpdated(event: { taskIds: string[] }): void {
     usageUpdateTimeoutId = null;
     const taskIds = [...pendingUsageTaskIds];
     pendingUsageTaskIds.clear();
-    if (taskIds.length > 0) {
-      broadcastUsageUpdated(taskIds);
-    }
+    // An empty task list means assistant/messaging usage: clients still need
+    // to refresh global summaries, but no task badge is implicated.
+    broadcastUsageUpdated(taskIds);
   }, USAGE_UPDATE_DEBOUNCE_MS);
 }
 
