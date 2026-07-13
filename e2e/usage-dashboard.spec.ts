@@ -98,7 +98,7 @@ test.describe('token usage dashboard', () => {
     await restoreFile(pricingPath, originalPricing);
   });
 
-  test('renders task badges, grouped summaries, estimated costs, and cache-hit percentages', async ({ page }) => {
+  test('renders task badges, metric cards, segmented controls, and expandable ranked summaries', async ({ page }) => {
     await page.route('**/api/board', async (route) => route.fulfill({ json: {
       meta: {}, bootstrapRequired: false,
       tasks: [{ id: 't-usage', title: 'Seeded usage task', context: 'Task with transcript usage', priority: 'medium', status: 'todo', type: 'standard' }],
@@ -110,10 +110,21 @@ test.describe('token usage dashboard', () => {
 
     await page.locator('#usage-btn').click();
     await expect(page.locator('#usage-panel')).toHaveClass(/open/);
+    await expect(page.locator('#usage-period-toggle')).toHaveAttribute('role', 'tablist');
+    await expect(page.locator('#usage-group-toggle')).toHaveAttribute('role', 'tablist');
+    await expect(page.locator('#usage-period-window')).toHaveText('All time');
+    await page.getByRole('tab', { name: 'All', exact: true }).press('ArrowLeft');
+    await expect(page.getByRole('tab', { name: 'Month', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await page.getByRole('tab', { name: 'All', exact: true }).click();
+    await expect(page.locator('.stat-card', { hasText: 'Total Tokens' })).toContainText('13.0k');
+    await expect(page.locator('.stat-card', { hasText: 'Sessions' })).toContainText('2');
     await expect(page.locator('#usage-summary-content')).toContainText('usage-test-model');
     await expect(page.locator('#usage-summary-content')).toContainText('$0.04');
     await expect(page.locator('#usage-summary-content')).toContainText('5%');
     await expect(page.locator('.usage-cost-disclaimer')).toContainText('estimated');
+    await page.locator('.usage-group-toggle').first().click();
+    await expect(page.locator('.usage-group-toggle').first()).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('.usage-breakdown').first()).toContainText('Cache write');
 
     await page.getByRole('button', { name: 'Task', exact: true }).click();
     await expect(page.locator('#usage-summary-content')).toContainText('t-usage');
@@ -165,7 +176,7 @@ test.describe('token usage dashboard', () => {
     await page.locator('#usage-btn').click();
     await expect(page.locator('#usage-summary-content')).toContainText('openai/gpt-5');
     await expect(page.locator('#usage-summary-content')).toContainText('$0.21');
-    await expect(page.locator('#usage-summary-content')).toContainText('—');
+    await expect(page.locator('#usage-summary-content')).toContainText('no pricing');
     await expect(page.locator('#usage-summary-content')).toContainText('35%');
     await expect(page.locator('.usage-cost-disclaimer')).toContainText('estimated');
     await page.getByRole('button', { name: 'Task', exact: true }).click();
