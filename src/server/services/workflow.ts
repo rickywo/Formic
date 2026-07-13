@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { readFile, mkdir, appendFile, access, stat } from 'node:fs/promises';
+import { readFile, mkdir, appendFile, access } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import type { WebSocket } from 'ws';
 import { updateTaskStatus, getTask, loadBoard, saveBoard, createTask, queueTask, updateTask, withBoard } from './store.js';
@@ -12,17 +12,13 @@ import {
   isAllComplete,
   getCompletionStats,
   formatIncompleteSubtasksForPrompt,
-  formatInvalidSkippedSubtasksWarning,
-  subtasksExist,
 } from './subtasks.js';
 import { getWorkspacePath, getFormicDir, getTaskLogsDir } from '../utils/paths.js';
-import { createSafePoint, getChangedFilesSince } from '../utils/gitUtils.js';
-import { checkoutFilesFromCommit } from '../utils/safeGit.js';
+import { createSafePoint } from '../utils/gitUtils.js';
 import type { LogMessage, ModelStep, Task, WorkflowStep } from '../../types/index.js';
 import path from 'node:path';
-import { broadcastBoardUpdate, broadcastKillSwitch, broadcastTaskCompleted } from './boardNotifier.js';
-import { stopQueueProcessor, removeInFlightTask } from './queueProcessor.js';
-import { broadcastToWorkspace } from './messagingNotifier.js';
+import { broadcastBoardUpdate, broadcastTaskCompleted } from './boardNotifier.js';
+import { removeInFlightTask } from './queueProcessor.js';
 import { addMemory } from './memory.js';
 import { addTool } from './tools.js';
 import { internalEvents, TASK_COMPLETED } from './internalEvents.js';
@@ -83,147 +79,6 @@ async function incrementRetryCount(taskId: string, caller: string): Promise<numb
     console.warn(`[Workflow] Failed to increment retryCount for ${taskId}:`, err instanceof Error ? err.message : 'Unknown error');
     return 0;
   }
-}
-
-/**
- * No-diff verification gate: after the execute step finishes, check whether
- * the task actually modified any of its declared exclusive files (or any files
- * at all for quick tasks).  Returns a human-readable warning string if the
- * agent made no detectable progress, or null if everything is fine.
- *
- * Also checks for a missing subtasks.json as a secondary no-progress signal
- * (the plan step may have failed silently without producing any subtask file).
- */
-export async function checkNoDiffVerification(taskId: string, task: Task): Promise<string | null> {
-  const safePoint = task.safePointCommit;
-  if (!safePoint) {
-    // No safe-point to diff against — we can't gate, so pass through.
-    return null;
-  }
-
-  const warnings: string[] = [];
-
-  // -- Primary gate: changed files vs safe point ---------------------------
-  let primaryWarning: string | null = null;
-
-  const changedFiles = await getChangedFilesSince(safePoint);
-  const workspacePath = getWorkspacePath();
-  const declaredExclusive = (task.declaredFiles?.exclusive ?? [])
-    .map((declaredPath) => normalizeWorkspaceRelativeFilePath(declaredPath, workspacePath))
-    .filter((declaredPath): declaredPath is string => declaredPath !== null);
-  if (declaredExclusive.length > 0) {
-    // Standard / declare-path task — check that at least one exclusive file
-    // appears in the diff.
-    const declaredChanged = changedFiles.filter(f =>
-      declaredExclusive.some(d => f === d || f.startsWith(d + '/') || d.startsWith(f + '/'))
-    );
-
-    if (declaredChanged.length === 0) {
-      primaryWarning =
-        `no changes to declared files since safe point ${safePoint.slice(0, 7)}` +
-        ` (${declaredExclusive.length} exclusive file(s) declared, 0 modified)`;
-    }
-  } else {
-    // Quick task — no declared files.  Require at least one file change.
-    if (changedFiles.length === 0) {
-      primaryWarning =
-        `no file changes detected since safe point ${safePoint.slice(0, 7)}`;
-    }
-  }
-
-  // Every explicitly declared test file is a required deliverable.  Do this
-  // independently from the broad "one exclusive file changed" check so an
-  // unrelated source edit cannot hide an omitted test.
-  const declaredFiles = [...(task.declaredFiles?.exclusive ?? []), ...(task.declaredFiles?.shared ?? [])];
-  for (const declaredFile of declaredFiles) {
-    const normalizedPath = normalizeWorkspaceRelativeFilePath(declaredFile, workspacePath);
-    if (!normalizedPath) {
-      if (isConventionalTestPath(declaredFile)) {
-        warnings.push(`declared test path is outside the workspace or invalid: ${declaredFile}`);
-      }
-      continue;
-    }
-    if (!isConventionalTestPath(normalizedPath)) continue;
-
-    const absolutePath = path.join(workspacePath, normalizedPath);
-    let isRegularFile = false;
-    try {
-      isRegularFile = (await stat(absolutePath)).isFile();
-    } catch {
-      // A missing declared test is an explicit verification failure below.
-    }
-    if (!isRegularFile) {
-      warnings.push(`declared test file is missing or not a regular file: ${normalizedPath}`);
-      continue;
-    }
-    if (!changedFiles.includes(normalizedPath)) {
-      warnings.push(`declared test file was not created or changed since safe point: ${normalizedPath}`);
-    }
-  }
-
-  // -- Secondary gate: missing subtasks.json --------------------------------
-  // This is always logged but only contributes to the verificationWarning
-  // message when the primary (diff) gate also fired — it amplifies the
-  // no-progress signal rather than being a standalone gate.
-  const missingSubtasks = !subtasksExist(task.docsPath);
-  if (missingSubtasks) {
-    console.warn(`[Workflow] subtasks.json is missing for ${taskId} (plan step may have failed silently)`);
-  }
-
-  if (primaryWarning) {
-    warnings.push(primaryWarning);
-  }
-  if (primaryWarning && missingSubtasks) {
-    warnings.push(`subtasks.json is missing (plan step may have failed silently)`);
-  }
-
-  if (warnings.length === 0) return null;
-
-  const message = `Verification failed for ${taskId}: ${warnings.join('; ')}`;
-  console.warn(`[Workflow] ${message}`);
-  return message;
-}
-
-/** Normalize a declared path without allowing it to escape the workspace. */
-function normalizeWorkspaceRelativeFilePath(declaredPath: string, workspacePath: string): string | null {
-  if (!declaredPath || path.isAbsolute(declaredPath)) return null;
-  const absolutePath = path.resolve(workspacePath, declaredPath);
-  const relativePath = path.relative(workspacePath, absolutePath);
-  if (!relativePath || relativePath === '..' || relativePath.startsWith(`..${path.sep}`) || path.isAbsolute(relativePath)) {
-    return null;
-  }
-  return relativePath.split(path.sep).join('/');
-}
-
-/** Identifies conventional, explicitly named test files rather than directories. */
-function isConventionalTestPath(filePath: string): boolean {
-  const normalizedPath = filePath.replaceAll('\\', '/').replace(/^\.\//, '');
-  const basename = path.posix.basename(normalizedPath);
-  return /\.(?:test|spec)\.[^/]+$/i.test(basename) ||
-    (/(?:^|\/)(?:test|tests|__tests__)\//i.test(normalizedPath) && path.posix.extname(basename) !== '');
-}
-
-/** Validates skipped subtasks immediately before task completion. */
-export async function checkSkippedSubtaskVerification(taskId: string, docsPath: string): Promise<string | null> {
-  const subtasks = await loadSubtasks(docsPath);
-  return subtasks ? formatInvalidSkippedSubtasksWarning(taskId, subtasks) : null;
-}
-
-/** Runs all deterministic completion gates and persists an actionable warning. */
-async function hasVerificationFailure(taskId: string, task: Task): Promise<boolean> {
-  const warnings = [
-    await checkSkippedSubtaskVerification(taskId, task.docsPath),
-    await checkNoDiffVerification(taskId, task),
-  ].filter((warning): warning is string => warning !== null);
-  if (warnings.length === 0) return false;
-
-  const warning = warnings.join('; ');
-  console.warn(`[Workflow] ${warning}`);
-  await updateTask(taskId, { verificationWarning: warning });
-  broadcastToTask(taskId, { type: 'error', data: `\n[VERIFICATION FAILED] ${warning}\n`, timestamp: new Date().toISOString() });
-  await incrementRetryCount(taskId, 'workflow.verification_gate');
-  await updateTaskStatus(taskId, 'todo', null, 'workflow.verification_gate');
-  return true;
 }
 
 // Store WebSocket connections per task (shared with runner)
@@ -292,7 +147,7 @@ async function updateWorkflowStep(taskId: string, step: WorkflowStep): Promise<v
  * Append logs to a per-task, per-step log file on disk.
  * Stores only the file path reference in board.json (not the log content).
  */
-async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute' | 'architect' | 'verify', logs: string[]): Promise<void> {
+async function appendWorkflowLogs(taskId: string, step: 'brief' | 'plan' | 'execute' | 'architect', logs: string[]): Promise<void> {
   if (logs.length === 0) return;
 
   // Ensure the .formic/logs/{taskId}/ directory exists and append log lines.
@@ -903,195 +758,6 @@ async function executeWithIterativeLoop(
   }
 }
 
-/**
- * Run the verification command against the workspace.
- * Always refreshes engineConfig first to pick up any changes made during execution.
- * Returns { success: true } immediately when skipVerify is true or verifyCommand is unset.
- */
-async function executeVerifyStep(taskId: string): Promise<{ success: boolean; stderrLines: string[] }> {
-  await refreshEngineConfig();
-
-  if (engineConfig.skipVerify) {
-    console.warn('[Verifier] Skipping verification — toggle is OFF');
-    return { success: true, stderrLines: [] };
-  }
-
-  if (!engineConfig.verifyCommand) {
-    console.warn('[Verifier] Skipping verification — toggle is ON but verifyCommand is not configured. Set a verify command in Settings.');
-    return { success: true, stderrLines: [] };
-  }
-
-  await updateTaskStatus(taskId, 'verifying', undefined, 'workflow.executeVerifyStep');
-  await updateWorkflowStep(taskId, 'verify');
-
-  broadcastToTask(taskId, {
-    type: 'stdout',
-    data: '\n========== Starting VERIFY step ==========\n',
-    timestamp: new Date().toISOString(),
-  });
-
-  const parts = engineConfig.verifyCommand.split(' ');
-  const cmd = parts[0];
-  const args = parts.slice(1);
-  const logBuffer: string[] = [];
-  const stderrLines: string[] = [];
-
-  // Verification runs engineConfig.verifyCommand (a shell command), not an AI agent.
-  let child: ReturnType<typeof spawn>;
-  try {
-    child = spawn(cmd, args, {
-      cwd: getWorkspacePath(),
-      env: { ...process.env },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    console.warn(`[Verifier] Failed to spawn verification command: ${message}`);
-    return { success: false, stderrLines: [message] };
-  }
-
-  // Persist verifier PID to board.json using updateTaskStatus for atomic status+PID writes.
-  if (child.pid) {
-    const currentTask = await getTask(taskId);
-    if (currentTask) {
-      await updateTaskStatus(taskId, currentTask.status, child.pid, 'workflow.executeVerifyStep.process_spawned').catch((err) => {
-        console.warn(`[Verifier] Failed to persist PID ${child.pid} for task ${taskId}:`, err);
-      });
-    }
-  }
-
-  return new Promise((resolve) => {
-    child.on('error', (err: NodeJS.ErrnoException) => {
-      const message = err.message;
-      console.warn(`[Verifier] Failed to spawn verification command: ${message}`);
-      resolve({ success: false, stderrLines: [message] });
-    });
-
-    child.stdout?.on('data', (data: Buffer) => {
-      const text = data.toString();
-      logBuffer.push(...text.split('\n').filter(l => l.length > 0));
-      broadcastToTask(taskId, { type: 'stdout', data: text, timestamp: new Date().toISOString() });
-    });
-
-    child.stderr?.on('data', (data: Buffer) => {
-      const text = data.toString();
-      const lines = text.split('\n').filter(l => l.length > 0);
-      logBuffer.push(...lines);
-      stderrLines.push(...lines);
-      broadcastToTask(taskId, { type: 'stderr', data: text, timestamp: new Date().toISOString() });
-    });
-
-    child.on('close', async (code) => {
-      await appendWorkflowLogs(taskId, 'verify', logBuffer);
-
-      broadcastToTask(taskId, {
-        type: 'exit',
-        data: `[VERIFY] Step completed with code ${code}`,
-        timestamp: new Date().toISOString(),
-      });
-
-      if (code === 0) {
-        console.warn('[Verifier] Verification PASSED');
-        resolve({ success: true, stderrLines: [] });
-      } else {
-        console.warn(`[Verifier] Verification FAILED (exit code ${code})`);
-        resolve({ success: false, stderrLines });
-      }
-    });
-  });
-}
-
-/**
- * On verify failure: increment retryCount; create a Fix task or engage kill switch after 3 failures.
- */
-async function executeCriticAndRetry(taskId: string, stderrLines: string[]): Promise<void> {
-  // Capture retryCount and fields needed for kill-switch logic inside the
-  // serialized withBoard closure so the task reference remains valid.
-  const captured = await withBoard((board): {
-    newRetryCount: number;
-    safePointCommit: string | null | undefined;
-    declaredExclusiveFiles: string[];
-    title: string;
-    context: string;
-  } | null => {
-    const task = board.tasks.find(t => t.id === taskId);
-    if (!task) return null;
-
-    const newRetryCount = (task.retryCount ?? 0) + 1;
-    task.retryCount = newRetryCount;
-
-    return {
-      newRetryCount,
-      safePointCommit: task.safePointCommit,
-      declaredExclusiveFiles: task.declaredFiles?.exclusive ?? [],
-      title: task.title,
-      context: task.context,
-    };
-  });
-
-  if (!captured) return;
-
-  const { newRetryCount, safePointCommit, declaredExclusiveFiles, title, context } = captured;
-  console.warn(`[Critic] Task ${taskId} retry count: ${newRetryCount}`);
-
-  if (newRetryCount >= 3) {
-    console.warn(`[Critic] Kill switch activated for task ${taskId} after ${newRetryCount} failed verifications`);
-
-    let revertMessage: string;
-    if (safePointCommit) {
-      if (declaredExclusiveFiles.length > 0) {
-        try {
-          await checkoutFilesFromCommit(safePointCommit, declaredExclusiveFiles, getWorkspacePath());
-          console.warn(`[Critic] Reverted ${declaredExclusiveFiles.length} declared file(s) for task ${taskId} to safe point ${safePointCommit}`);
-          revertMessage = `Declared files reverted to safe point \`${safePointCommit}\`. HEAD was not moved.`;
-        } catch (err) {
-          console.warn('[Critic] Failed to revert declared files to safe point:', err instanceof Error ? err.message : 'Unknown error');
-          revertMessage = `Attempted revert failed. Safe point: \`${safePointCommit}\`. Manual review recommended.`;
-        }
-      } else {
-        console.warn(`[Critic] Task ${taskId} has no declaredFiles, skipping auto-revert. Safe point: ${safePointCommit}`);
-        revertMessage = `Workspace NOT auto-reverted (no declared files). Safe point: \`${safePointCommit}\``;
-      }
-    } else {
-      console.warn(`[Critic] No safePointCommit on task ${taskId}, skipping revert`);
-      revertMessage = 'No safe point recorded; workspace was not reverted.';
-    }
-
-    stopQueueProcessor();
-    console.warn('[Critic] Queue processor stopped by kill switch');
-
-    broadcastKillSwitch(taskId);
-
-    try {
-      await broadcastToWorkspace(getWorkspacePath(), {
-        chatId: '',
-        text: `🚨 *Kill Switch Activated*\n\nTask \`${taskId}\` has failed verification 3 times.\nQueue paused. ${revertMessage}`,
-        parseMode: 'markdown',
-      });
-    } catch (err) {
-      console.warn('[Critic] Failed to send kill switch messaging notification:', err instanceof Error ? err.message : 'Unknown error');
-    }
-
-    await updateTaskStatus(taskId, 'todo', null, 'workflow.executeCriticAndRetry.kill_switch');
-    return;
-  }
-
-  const errorSnippet = stderrLines.slice(-100).join('\n');
-  const fixContext = `Auto-fix for task ${taskId}: ${title}\n\nVerification failed with the following error:\n\`\`\`\n${errorSnippet}\n\`\`\`\n\nPlease fix the code so that the verification command passes.\n\nOriginal task context:\n${context}`;
-
-  const fixTask = await createTask({
-    title: `Fix: ${title}`,
-    context: fixContext,
-    priority: 'high',
-    type: 'quick',
-    fixForTaskId: taskId,
-  });
-  await queueTask(fixTask.id);
-  await updateTaskStatus(taskId, 'todo', null, 'workflow.executeCriticAndRetry.retry');
-  broadcastBoardUpdate();
-  console.warn(`[Critic] Created fix task ${fixTask.id} for task ${taskId} (retry ${newRetryCount}/3)`);
-}
-
 // ==================== Reflection Step ====================
 
 interface ReflectionEntry {
@@ -1435,13 +1101,6 @@ export async function executeQuickTask(taskId: string): Promise<{ pid: number }>
       }
 
       if (success) {
-        if (await hasVerificationFailure(taskId, task)) return;
-
-        const verifyResult = await executeVerifyStep(taskId);
-        if (!verifyResult.success) {
-          await executeCriticAndRetry(taskId, verifyResult.stderrLines);
-          return;
-        }
         await updateWorkflowStep(taskId, 'complete');
         await updateTaskStatus(taskId, 'review', null, 'workflow.executeQuickTask.success');
         broadcastTaskCompleted(taskId);
@@ -1549,10 +1208,6 @@ export async function executeSingleStep(
           // All subtasks complete - move to review
           console.warn(`[Workflow] All subtasks complete, transitioning task ${taskId} to review`);
 
-          if (await hasVerificationFailure(taskId, task)) {
-            return { success: false, pid: process.pid };
-          }
-
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.all_complete');
           broadcastTaskCompleted(taskId);
@@ -1562,10 +1217,6 @@ export async function executeSingleStep(
         } else if (result.success && !result.allComplete) {
           // Max iterations reached but not all complete - still move to review with warning
           console.warn(`[Workflow] Max iterations reached, transitioning task ${taskId} to review with incomplete subtasks`);
-
-          if (await hasVerificationFailure(taskId, task)) {
-            return { success: false, pid: process.pid };
-          }
 
           await updateWorkflowStep(taskId, 'complete');
           await updateTaskStatus(taskId, 'review', null, 'workflow.executeSingleStep.max_iterations');
@@ -1866,19 +1517,12 @@ export async function executeFullWorkflow(taskId: string): Promise<{ pid: number
         // Guard against stale status updates: check if watchdog has already re-queued the task
         const latestTask = await getTask(taskId);
         if (latestTask && latestTask.status === 'running') {
-          if (await hasVerificationFailure(taskId, latestTask)) return;
-
-          const verifyResult = await executeVerifyStep(taskId);
-          if (!verifyResult.success) {
-            await executeCriticAndRetry(taskId, verifyResult.stderrLines);
-          } else {
-            await updateWorkflowStep(taskId, 'complete');
-            await updateTaskStatus(taskId, 'review', null, 'workflow.executeFullWorkflow.verified');
-            broadcastTaskCompleted(taskId);
-            internalEvents.emit(TASK_COMPLETED, taskId);
-            void runReflectionStep(taskId);
-            void triggerToolForge(taskId);
-          }
+          await updateWorkflowStep(taskId, 'complete');
+          await updateTaskStatus(taskId, 'review', null, 'workflow.executeFullWorkflow.verified');
+          broadcastTaskCompleted(taskId);
+          internalEvents.emit(TASK_COMPLETED, taskId);
+          void runReflectionStep(taskId);
+          void triggerToolForge(taskId);
         } else {
           console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
         }
@@ -2008,19 +1652,12 @@ export async function executeFromDeclare(taskId: string): Promise<void> {
         if (executeResult.success) {
           const latestTask = await getTask(taskId);
           if (latestTask && latestTask.status === 'running') {
-            if (await hasVerificationFailure(taskId, latestTask)) return;
-
-            const verifyResult = await executeVerifyStep(taskId);
-            if (!verifyResult.success) {
-              await executeCriticAndRetry(taskId, verifyResult.stderrLines);
-            } else {
-              await updateWorkflowStep(taskId, 'complete');
-              await updateTaskStatus(taskId, 'review', null, 'workflow.executeFromDeclare.verified');
-              broadcastTaskCompleted(taskId);
-              internalEvents.emit(TASK_COMPLETED, taskId);
-              void runReflectionStep(taskId);
-              void triggerToolForge(taskId);
-            }
+            await updateWorkflowStep(taskId, 'complete');
+            await updateTaskStatus(taskId, 'review', null, 'workflow.executeFromDeclare.verified');
+            broadcastTaskCompleted(taskId);
+            internalEvents.emit(TASK_COMPLETED, taskId);
+            void runReflectionStep(taskId);
+            void triggerToolForge(taskId);
           } else {
             console.warn(`[Workflow] Skipping status update for task ${taskId}: expected 'running' but found '${latestTask?.status ?? 'deleted'}'`);
           }

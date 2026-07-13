@@ -54,7 +54,6 @@ def main():
         ("Task ID Counter Tests", "test_task_id_counter.py"),
         ("Concurrency Tests", "test_concurrency.py"),
         ("Lease Enhancement Tests", "test_lease_enhancements.py"),
-        ("Self-Healing QA Tests", "test_selfhealing.py"),
         ("Tool Forging Tests", "test_tool_forging.py"),
         ("UI Tests (Playwright)", "test_formic.py"),
         ("Security Tests", "test_security.py"),
@@ -62,7 +61,6 @@ def main():
 
     # AGI evolution test suites (opt-in via --agi flag or AGI_TESTS=true)
     agi_suites = [
-        ("AGI Phase 1 — QA Loop Tests", "test_qa_loop.py"),
         ("AGI Phase 2 — DAG Scheduling Tests", "test_dag_scheduling.py"),
         ("AGI Phase 3 — Concurrency Advanced Tests", "test_concurrency_advanced.py"),
         ("AGI Phase 4 — Memory System Tests", "test_memory.py"),

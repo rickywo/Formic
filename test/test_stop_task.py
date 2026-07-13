@@ -169,7 +169,7 @@ def test_stop_task():
 
         # Assert task is not in any in-progress status
         board = requests.get(f"{BASE_URL}/api/board", timeout=5).json()
-        in_progress_statuses = {'briefing', 'planning', 'declaring', 'running', 'verifying'}
+        in_progress_statuses = {'briefing', 'planning', 'declaring', 'running'}
         task_status = next((t['status'] for t in board['tasks'] if t['id'] == std_task_id), 'unknown')
         if task_status not in in_progress_statuses:
             print(f"  ✓ Task is not in any in-progress status (status: '{task_status}')")

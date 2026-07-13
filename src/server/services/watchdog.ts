@@ -47,7 +47,7 @@ async function scanExpiredLeases(): Promise<void> {
       // renew its leases instead of killing it. This prevents the watchdog from
       // disrupting long-running execute iterations.
       const task = await getTask(taskId);
-      const activeStates = new Set(['running', 'briefing', 'planning', 'declaring', 'architecting', 'verifying']);
+      const activeStates = new Set(['running', 'briefing', 'planning', 'declaring', 'architecting']);
       if (task && activeStates.has(task.status) && isWorkflowRunning(taskId)) {
         console.warn(`[Watchdog] Task ${taskId} is actively ${task.status} with live process — renewing leases instead of killing`);
         renewLeases(taskId);

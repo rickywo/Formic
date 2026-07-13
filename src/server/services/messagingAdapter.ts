@@ -114,7 +114,6 @@ function getStatusEmoji(status: Task['status']): string {
     declaring: '📂',
     running: '🚀',
     architecting: '🏗️',
-    verifying: '🔍',
     review: '👀',
     done: '✅',
     blocked: '🚫',

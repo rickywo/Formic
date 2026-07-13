@@ -113,23 +113,6 @@ export function broadcastDependencyResolved(taskId: string, parentGoalId: string
 }
 
 /**
- * Broadcast a kill-switch event when the self-healing loop exhausts retries
- */
-export function broadcastKillSwitch(taskId: string): void {
-  const message = JSON.stringify({ type: 'kill-switch', taskId });
-
-  let sentCount = 0;
-  for (const ws of boardConnections) {
-    if (ws.readyState === 1) { // WebSocket.OPEN
-      ws.send(message);
-      sentCount++;
-    }
-  }
-
-  console.warn(`[BoardNotifier] Broadcast kill-switch for task ${taskId} to ${sentCount} clients`);
-}
-
-/**
  * Broadcast that a task has completed (moved to review or done)
  */
 export function broadcastTaskCompleted(taskId: string): void {

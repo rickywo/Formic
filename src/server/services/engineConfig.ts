@@ -10,8 +10,6 @@ import type { AgentType, StepModelConfig } from '../../types/index.js';
 export interface EngineConfig {
   agentType: AgentType;
   maxConcurrentTasks: number;
-  verifyCommand: string;
-  skipVerify: boolean;
   leaseDurationMs: number;
   watchdogIntervalMs: number;
   maxYieldCount: number;
@@ -25,8 +23,6 @@ export interface EngineConfig {
 export const engineConfig: EngineConfig = {
   agentType: normalizeAgentType(process.env.AGENT_TYPE) ?? 'claude',
   maxConcurrentTasks: 1,
-  verifyCommand: '',
-  skipVerify: false,
   leaseDurationMs: 300000,
   watchdogIntervalMs: 30000,
   maxYieldCount: 50,
@@ -53,8 +49,6 @@ export async function refreshEngineConfig(): Promise<void> {
     ?? normalizeAgentType(process.env.AGENT_TYPE)
     ?? 'claude';
   engineConfig.maxConcurrentTasks = s.maxConcurrentSessions ?? 1;
-  engineConfig.verifyCommand = s.verifyCommand ?? '';
-  engineConfig.skipVerify = s.skipVerify ?? false;
   engineConfig.leaseDurationMs = s.leaseDurationMs ?? 300000;
   engineConfig.watchdogIntervalMs = s.watchdogIntervalMs ?? 30000;
   engineConfig.maxYieldCount = s.maxYieldCount ?? 50;
