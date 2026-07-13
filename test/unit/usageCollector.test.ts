@@ -167,9 +167,34 @@ describe('usageCollector', () => {
     assert.deepStrictEqual(events[0], {
       id: 'direct-session:direct-message:direct-part', timestamp: '2026-07-10T09:03:40.354Z', scope: 'task', taskId: 't-direct', step: 'quick',
       agentType: 'opencode', source: 'transcript', sessionId: 'direct-session', model: 'unknown',
-      inputTokens: 10, outputTokens: 5, cacheCreationTokens: 4, cacheReadTokens: 80,
+      inputTokens: 10, outputTokens: 2, reasoningTokens: 3, cacheCreationTokens: 4, cacheReadTokens: 80,
     });
     assert.deepStrictEqual(notifications, [['t-direct']]);
+  });
+
+  it('deduplicates chunked OpenCode retries by part identity without consulting SQLite', async () => {
+    // This uses only the stdout collector and usage file. It intentionally does
+    // not create or configure an OpenCode database, so it remains a regression
+    // test for Node versions where `node:sqlite` cannot be imported.
+    const collector = new OpenCodeUsageStreamCollector();
+    const line = JSON.stringify({
+      type: 'step_finish', sessionID: 'stdout-only-session',
+      part: { id: 'stdout-part', messageID: 'stdout-message', providerID: 'openai', modelID: 'gpt-5', tokens: { input: 12, output: 3, reasoning: 2, cache: { read: 4, write: 5 } } },
+    });
+    const firstAttempt = collector.push(line.slice(0, 42));
+    const completedAttempt = collector.push(`${line.slice(42)}\n`);
+    const retry = collector.push(`${line}\n`);
+    await ingestOpenCodeUsageRecords({ scope: 'task', taskId: 't-stdout-only', step: 'execute' }, firstAttempt);
+    await ingestOpenCodeUsageRecords({ scope: 'task', taskId: 't-stdout-only', step: 'execute' }, completedAttempt);
+    await ingestOpenCodeUsageRecords({ scope: 'task', taskId: 't-stdout-only', step: 'execute' }, retry);
+
+    const events = await readUsageEvents({ taskId: 't-stdout-only' });
+    assert.equal(events.length, 1);
+    assert.deepEqual(events, [{
+      id: 'stdout-only-session:stdout-message:stdout-part', timestamp: events[0].timestamp,
+      scope: 'task', taskId: 't-stdout-only', step: 'execute', agentType: 'opencode', source: 'transcript', sessionId: 'stdout-only-session', model: 'openai/gpt-5',
+      inputTokens: 12, outputTokens: 3, reasoningTokens: 2, cacheCreationTokens: 5, cacheReadTokens: 4,
+    }]);
   });
 
   it('keeps overlapping same-task OpenCode invocations isolated by semantic step', async () => {
@@ -237,7 +262,7 @@ describe('usageCollector', () => {
     assert.deepEqual(events[0], {
       id: 'provider-session:message:part', timestamp: events[0].timestamp, scope: 'messaging', scopeId: 'telegram:chat-42', step: 'assistant',
       agentType: 'opencode', source: 'transcript', sessionId: 'provider-session', model: 'configured/model',
-      inputTokens: 8, outputTokens: 3, cacheCreationTokens: 0, cacheReadTokens: 0,
+      inputTokens: 8, outputTokens: 3, reasoningTokens: 0, cacheCreationTokens: 0, cacheReadTokens: 0,
     });
     assert.deepEqual(notifications, [[]]);
   });
